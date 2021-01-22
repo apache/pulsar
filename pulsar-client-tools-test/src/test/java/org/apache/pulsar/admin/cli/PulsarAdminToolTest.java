@@ -489,6 +489,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-max-consumers-per-topic myprop/clust/ns1 -c 2"));
         verify(mockNamespaces).setMaxConsumersPerTopic("myprop/clust/ns1", 2);
 
+        namespaces.run(split("remove-max-consumers-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxConsumersPerTopic("myprop/clust/ns1");
+
         namespaces.run(split("get-max-consumers-per-subscription myprop/clust/ns1"));
         verify(mockNamespaces).getMaxConsumersPerSubscription("myprop/clust/ns1");
 
@@ -855,7 +858,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setDeduplicationSnapshotInterval("persistent://myprop/clust/ns1/ds1", 99);
 
         cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -e -t 1s -m delete_when_no_subscriptions"));
@@ -888,11 +891,27 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("last-message-id persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getLastMessageId(eq("persistent://myprop/clust/ns1/ds1"));
 
+        cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("set-message-ttl persistent://myprop/clust/ns1/ds1 -t 10"));
+        verify(mockTopics).setMessageTTL("persistent://myprop/clust/ns1/ds1", 10);
+
+        cmdTopics.run(split("remove-message-ttl persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMessageTTL("persistent://myprop/clust/ns1/ds1");
+
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(admin);
         cmdTopics.run(split("reset-cursor persistent://myprop/clust/ns1/ds2 -s sub1 -m 1:1 -e"));
         verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds2"), eq("sub1")
                 , eq(new MessageIdImpl(1, 1, -1)), eq(true));
+
+        cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1", true);
+
+
+        cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1", true);
     }
 
     @Test

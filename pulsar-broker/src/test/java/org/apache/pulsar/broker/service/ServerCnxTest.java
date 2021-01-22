@@ -954,10 +954,10 @@ public class ServerCnxTest {
                 producerName, Collections.emptyMap());
         channel.writeInbound(createProducer3);
 
-        // 3rd producer fails because 2nd is already connected
+        // 3rd producer succeeds because 2nd is already connected
         response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 4);
+        assertEquals(response.getClass(), CommandProducerSuccess.class);
+        assertEquals(((CommandProducerSuccess) response).getRequestId(), 4);
 
         Thread.sleep(500);
 
@@ -1256,7 +1256,7 @@ public class ServerCnxTest {
         PositionImpl pos = new PositionImpl(0, 0);
 
         clientCommand = Commands.newAck(1 /* consumer id */, pos.getLedgerId(), pos.getEntryId(), null, AckType.Individual,
-                                        null, Collections.emptyMap());
+                                        null, Collections.emptyMap(), -1);
         channel.writeInbound(clientCommand);
 
         // verify nothing is sent out on the wire after ack

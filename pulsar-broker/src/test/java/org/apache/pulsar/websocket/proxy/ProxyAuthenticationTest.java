@@ -69,7 +69,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         config.setClusterName("test");
         config.setAuthenticationEnabled(true);
         // If this is not set, 500 error occurs.
-        config.setConfigurationStoreServers("dummy");
+        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
 
         if (methodName.equals("authenticatedSocketTest") || methodName.equals("statsTest")) {

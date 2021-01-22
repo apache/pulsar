@@ -36,11 +36,28 @@ public class MetadataStoreException extends IOException {
     }
 
     /**
+     * Implementation is invalid
+     */
+    public static class InvalidImplementationException extends MetadataStoreException {
+        public InvalidImplementationException() {
+            super((Throwable) null);
+        }
+
+        public InvalidImplementationException(Throwable t) {
+            super(t);
+        }
+
+        public InvalidImplementationException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Key not found in store.
      */
     public static class NotFoundException extends MetadataStoreException {
         public NotFoundException() {
-            super((Throwable)null);
+            super((Throwable) null);
         }
 
         public NotFoundException(Throwable t) {
@@ -91,6 +108,36 @@ public class MetadataStoreException extends IOException {
         }
     }
 
+    /**
+     * A resource lock is already taken by a different instance.
+     */
+    public static class LockBusyException extends MetadataStoreException {
+        public LockBusyException() {
+            super((Throwable) null);
+        }
+
+        public LockBusyException(Throwable t) {
+            super(t);
+        }
+
+        public LockBusyException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
+     * The store was already closed.
+     */
+    public static class AlreadyClosedException extends MetadataStoreException {
+        public AlreadyClosedException(Throwable t) {
+            super(t);
+        }
+
+        public AlreadyClosedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static MetadataStoreException unwrap(Throwable t) {
         if (t instanceof MetadataStoreException) {
             return (MetadataStoreException) t;
@@ -115,6 +162,10 @@ public class MetadataStoreException extends IOException {
             return new BadVersionException(msg);
         } else if (cause instanceof ContentDeserializationException) {
             return new ContentDeserializationException(msg);
+        } else if (cause instanceof InvalidImplementationException) {
+            return new InvalidImplementationException(msg);
+        } else if (cause instanceof LockBusyException) {
+            return new LockBusyException(msg);
         } else {
             return new MetadataStoreException(t);
         }

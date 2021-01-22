@@ -255,6 +255,7 @@ enum ProtocolVersion {
               // Added Key_Shared subscription
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
     v16 = 16; // Add support for raw message metadata
+    v17 = 17; // Added support ack receipt
 }
 
 message CommandConnect {
@@ -809,7 +810,6 @@ message CommandEndTxn {
     optional uint64 txnid_least_bits = 2 [default = 0];
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional TxnAction txn_action = 4;
-    repeated MessageIdData message_id = 5;
 }
 
 message CommandEndTxnResponse {
@@ -826,7 +826,7 @@ message CommandEndTxnOnPartition {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional string topic = 4;
     optional TxnAction txn_action = 5;
-    repeated MessageIdData message_id = 6;
+    optional uint64 txnid_least_bits_of_low_watermark = 6;
 }
 
 message CommandEndTxnOnPartitionResponse {

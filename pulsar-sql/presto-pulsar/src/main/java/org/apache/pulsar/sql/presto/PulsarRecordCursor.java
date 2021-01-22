@@ -325,7 +325,7 @@ public class PulsarRecordCursor implements RecordCursor {
                             entriesProcessed += entriesToSkip;
                         } else {
                             outstandingReadsRequests.decrementAndGet();
-                            cursor.asyncReadEntries(batchSize, this, System.nanoTime());
+                            cursor.asyncReadEntries(batchSize, this, System.nanoTime(), PositionImpl.latest);
                         }
 
                         // stats for successful read request

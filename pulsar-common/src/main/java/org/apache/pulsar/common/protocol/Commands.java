@@ -858,18 +858,22 @@ public class Commands {
     }
 
     public static ByteBuf newMultiMessageAck(long consumerId,
-            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+                                             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries,
+                                             long requestId) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
         cmd.getAck()
                 .setConsumerId(consumerId)
                 .setAckType(AckType.Individual);
+            if (requestId >= 0) {
+                cmd.getAck().setRequestId(requestId);
+            }
         return serializeWithSize(cmd);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
-                                 ValidationError validationError, Map<String, Long> properties) {
+                                 ValidationError validationError, Map<String, Long> properties, long requestId) {
         return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
-                properties, -1L, -1L, -1L, -1);
+                properties, -1L, -1L, requestId, -1);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
@@ -1274,7 +1278,7 @@ public class Commands {
     }
 
     public static ByteBuf newEndTxnOnPartition(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
-                                               TxnAction txnAction, List<MessageIdData> messageIdDataList) {
+                                               TxnAction txnAction, long lowWaterMark) {
         BaseCommand cmd = localCmd(Type.END_TXN_ON_PARTITION);
         cmd.setEndTxnOnPartition()
                 .setRequestId(requestId)
@@ -1282,7 +1286,7 @@ public class Commands {
                 .setTxnidMostBits(txnIdMostBits)
                 .setTopic(topic)
                 .setTxnAction(txnAction)
-                .addAllMessageIds(messageIdDataList);
+                .setTxnidLeastBitsOfLowWatermark(lowWaterMark);
         return serializeWithSize(cmd);
     }
 
@@ -1691,6 +1695,10 @@ public class Commands {
 
     public static boolean peerSupportsGetOrCreateSchema(int peerVersion) {
         return peerVersion >= ProtocolVersion.v15.getValue();
+    }
+
+    public static boolean peerSupportsAckReceipt(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v17.getValue();
     }
 
     private static org.apache.pulsar.common.api.proto.ProducerAccessMode convertProducerAccessMode(ProducerAccessMode accessMode) {

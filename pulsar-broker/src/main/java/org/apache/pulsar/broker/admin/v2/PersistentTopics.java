@@ -483,14 +483,20 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
                                          @PathParam("tenant") String tenant,
                                          @PathParam("namespace") String namespace,
-                                         @PathParam("topic") @Encoded String encodedTopic) {
+                                         @PathParam("topic") @Encoded String encodedTopic,
+                                         @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
-        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-        if (topicPolicies.isInactiveTopicPoliciesSet()) {
-            asyncResponse.resume(topicPolicies.getInactiveTopicPolicies());
-        } else {
-            asyncResponse.resume(Response.noContent().build());
-        }
+        internalGetInactiveTopicPolicies(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get InactiveTopicPolicies", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get InactiveTopicPolicies", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(res);
+            }
+        });
     }
 
     @POST
@@ -1528,13 +1534,21 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, enable the topic level policy and retry")})
-    public int getMessageTTL(@PathParam("tenant") String tenant,
+    public Integer getMessageTTL(@PathParam("tenant") String tenant,
                              @PathParam("namespace") String namespace,
-                             @PathParam("topic") @Encoded String encodedTopic) {
+                             @PathParam("topic") @Encoded String encodedTopic,
+                             @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         return getTopicPolicies(topicName)
                 .map(TopicPolicies::getMessageTTLInSeconds)
-                .orElse(0);  //same as default ttl at namespace level
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer otherLevelTTL = getNamespacePolicies(namespaceName).message_ttl_in_seconds;
+                        return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds()
+                                : otherLevelTTL;
+                    }
+                    return null;
+                });
     }
 
     @POST
