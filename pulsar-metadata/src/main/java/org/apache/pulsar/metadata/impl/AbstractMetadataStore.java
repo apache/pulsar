@@ -45,6 +45,7 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 
 @Slf4j
@@ -53,6 +54,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
     protected final ExecutorService executor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
@@ -203,6 +205,21 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     metadataCaches.forEach(c -> c.invalidate(path));
                     return stat;
                 });
+    }
+
+    @Override
+    public void registerSessionListener(Consumer<SessionEvent> listener) {
+        sessionListeners.add(listener);
+    }
+
+    protected void receivedSessionEvent(SessionEvent event) {
+        sessionListeners.forEach(l -> {
+            try {
+                l.accept(event);
+            } catch (Throwable t) {
+                log.warn("Error in processing session event", t);
+            }
+        });
     }
 
     @Override
