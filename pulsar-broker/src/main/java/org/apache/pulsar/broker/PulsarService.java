@@ -107,6 +107,8 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.broker.stats.statsd.StatsdSender;
+import org.apache.pulsar.broker.stats.statsd.StatsdSenderConfiguration;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
@@ -229,6 +231,7 @@ public class PulsarService implements AutoCloseable {
     private final EventLoopGroup ioEventLoopGroup;
 
     private MetricsGenerator metricsGenerator;
+    private StatsdSender statsdSender;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -481,6 +484,11 @@ public class PulsarService implements AutoCloseable {
 
             if (transactionReplayExecutor != null) {
                 transactionReplayExecutor.shutdown();
+            }
+
+
+            if (statsdSender != null) {
+                statsdSender.close();
             }
 
             ioEventLoopGroup.shutdownGracefully();
@@ -776,6 +784,12 @@ public class PulsarService implements AutoCloseable {
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
+
+            if (config.isStatsdSenderEnabled()) {
+                LOG.info("Starting Statsd Sender");
+                this.statsdSender = new StatsdSender(this, new StatsdSenderConfiguration(config));
+                this.statsdSender.start();
+            }
 
             // By starting the Load manager service, the broker will also become visible
             // to the rest of the broker by creating the registration z-node. This needs
