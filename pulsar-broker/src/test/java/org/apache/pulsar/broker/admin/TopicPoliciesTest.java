@@ -908,7 +908,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testSetMaxConsumers() throws Exception {
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 1);
         Awaitility.await().atMost(3, TimeUnit.SECONDS)
-                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getMaxConsumersPerTopic(myNamespace), 1));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getMaxConsumersPerTopic(myNamespace).intValue(), 1));
         log.info("MaxConsumers: {} will set to the namespace: {}", 1, myNamespace);
         Integer maxConsumers = 2;
         log.info("MaxConsumers: {} will set to the topic: {}", maxConsumers, persistenceTopic);
@@ -1387,4 +1387,25 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             c.close();
         }
     }
+
+    @Test(timeOut = 30000)
+    public void testReplicatorRateApi() throws Exception {
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        // init cache
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+
+        assertNull(admin.topics().getReplicatorDispatchRate(topic));
+
+        DispatchRate dispatchRate = new DispatchRate(100,200L,10);
+        admin.topics().setReplicatorDispatchRate(topic, dispatchRate);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertEquals(admin.topics().getReplicatorDispatchRate(topic), dispatchRate));
+
+        admin.topics().removeReplicatorDispatchRate(topic);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNull(admin.topics().getReplicatorDispatchRate(topic)));
+    }
+
 }

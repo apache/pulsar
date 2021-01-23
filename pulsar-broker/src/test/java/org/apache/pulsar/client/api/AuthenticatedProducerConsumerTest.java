@@ -40,6 +40,7 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.zookeeper.KeeperException.Code;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -315,7 +316,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         String topic = "persistent://" + namespace + "1/topic1";
         // this will cause NPE and it should throw 500
-        mockZooKeeper.shutdown();
+        mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
         pulsar.getConfiguration().setSuperUserRoles(Sets.newHashSet());
         try {
             admin.topics().getPartitionedTopicMetadata(topic);
@@ -328,6 +329,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }
 
+        mockZooKeeperGlobal.unsetAlwaysFail();
     }
 
 }

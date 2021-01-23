@@ -38,7 +38,6 @@ import java.util.Date;
 import java.util.Optional;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
@@ -225,7 +224,7 @@ public class PulsarBrokerStarter {
                 checkNotNull(bookieConfig, "No ServerConfiguration for Bookie");
                 checkNotNull(bookieStatsProvider, "No Stats Provider for Bookie");
                 bookieServer = new BookieServer(
-                        bookieConfig, bookieStatsProvider.getStatsLogger(""), BookieServiceInfo.NO_INFO);
+                        bookieConfig, bookieStatsProvider.getStatsLogger(""), null);
             } else {
                 bookieServer = null;
             }

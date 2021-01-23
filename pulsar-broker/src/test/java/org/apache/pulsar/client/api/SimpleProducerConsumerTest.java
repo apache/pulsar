@@ -77,6 +77,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -126,6 +127,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 {false, true, 100 },
                 {false, false, 100 },
         };
+    }
+
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
     @AfterMethod(alwaysRun = true)
@@ -268,6 +274,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
+    @DataProvider(name = "batchAndAckReceipt")
+    public Object[][] codecProviderWithAckReceipt() {
+        return new Object[][] { { 0, true}, { 1000, false }, { 0, true }, { 1000, false }};
+    }
+
     @DataProvider(name = "batch")
     public Object[][] codecProvider() {
         return new Object[][] { { 0 }, { 1000 } };
@@ -310,10 +321,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
-    public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs) throws Exception {
+    @Test(dataProvider = "batchAndAckReceipt")
+    public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic2")
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .subscriptionName("my-subscriber-name").subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
@@ -1032,8 +1044,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
-    public void testDeactivatingBacklogConsumer() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testDeactivatingBacklogConsumer(boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         final long batchMessageDelayMs = 100;
@@ -1046,10 +1058,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // 1. Subscriber Faster subscriber: let it consume all messages immediately
         Consumer<byte[]> subscriber1 = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/" + topicName).subscriptionName(sub1)
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize).subscribe();
         // 1.b. Subscriber Slow subscriber:
         Consumer<byte[]> subscriber2 = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/" + topicName).subscriptionName(sub2)
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic);
@@ -1076,7 +1090,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // 3. Consume messages: at Faster subscriber
         for (int i = 0; i < totalMsgs; i++) {
             msg = subscriber1.receive(100, TimeUnit.MILLISECONDS);
-            subscriber1.acknowledge(msg);
+            subscriber1.acknowledgeAsync(msg);
         }
 
         // wait : so message can be eligible to to be evict from cache
@@ -1095,7 +1109,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // 6. consume messages : at slower subscriber
         for (int i = 0; i < totalMsgs; i++) {
             msg = subscriber2.receive(100, TimeUnit.MILLISECONDS);
-            subscriber2.acknowledge(msg);
+            subscriber2.acknowledgeAsync(msg);
         }
 
         topicRef.checkBackloggedCursors();
@@ -1257,13 +1271,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
-    public void testSharedConsumerAckDifferentConsumer() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled", timeOut = 30000)
+    public void testSharedConsumerAckDifferentConsumer(boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic1").subscriptionName("my-subscriber-name")
                 .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
@@ -1354,8 +1369,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
-    public void testConsumerBlockingWithUnAckedMessages() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testConsumerBlockingWithUnAckedMessages(boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1367,6 +1382,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessagesBufferSize);
             Consumer<byte[]> consumer = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
+                    .isAckReceiptEnabled(ackReceiptEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1394,13 +1410,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertEquals(messages.size(), unAckedMessagesBufferSize);
 
             // start acknowledging messages
-            messages.forEach(m -> {
-                try {
-                    consumer.acknowledge(m);
-                } catch (PulsarClientException e) {
-                    fail("ack failed", e);
-                }
-            });
+            messages.forEach(consumer::acknowledgeAsync);
 
             // try to consume remaining messages
             int remainingMessages = totalProducedMsgs - messages.size();
@@ -1433,8 +1443,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
-    public void testConsumerBlockingWithUnAckedMessagesMultipleIteration() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testConsumerBlockingWithUnAckedMessagesMultipleIteration(boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1449,6 +1459,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Consumer<byte[]> consumer = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared)
+                    .isAckReceiptEnabled(ackReceiptEnabled)
                     .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1507,8 +1518,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
-    public void testMutlipleSharedConsumerBlockingWithUnAckedMessages() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testMutlipleSharedConsumerBlockingWithUnAckedMessages(boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1521,11 +1532,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnackedMessages);
             Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
+                    .isAckReceiptEnabled(ackReceiptEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
+                    .isAckReceiptEnabled(ackReceiptEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1662,8 +1675,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testUnackBlockRedeliverMessages() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testUnackBlockRedeliverMessages(boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1676,6 +1689,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessagesBufferSize);
             ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
+                    .isAckReceiptEnabled(ackReceiptEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1729,8 +1743,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "batch")
-    public void testUnackedBlockAtBatch(int batchMessageDelayMs) throws Exception {
+    @Test(dataProvider = "batchAndAckReceipt")
+    public void testUnackedBlockAtBatch(int batchMessageDelayMs, boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1743,6 +1757,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnackedMessages);
             Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
+                    .isAckReceiptEnabled(ackReceiptEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             ProducerBuilder<byte[]> producerBuidler = pulsarClient.newProducer()
@@ -1799,7 +1814,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMessages++;
-                    consumer1.acknowledge(msg);
+                    consumer1.acknowledgeAsync(msg);
                     log.info("Received message: " + new String(msg.getData()));
                 } else {
                     break;
@@ -2325,8 +2340,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
-    public void testRedeliveryFailOverConsumer() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testRedeliveryFailOverConsumer(boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         final int receiverQueueSize = 10;
@@ -2335,6 +2350,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                 .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Failover)
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/unacked-topic")
@@ -3691,5 +3707,55 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(), receiveQueueSize));
         consumer.close();
         producer.close();
+    }
+
+    @DataProvider(name = "partitioned")
+    public static Object[] isPartitioned() {
+        return new Object[] {false, true};
+    }
+
+    @Test(dataProvider = "partitioned")
+    public void testIncomingMessageSize(boolean isPartitioned) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSize-" +
+                UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        if (isPartitioned) {
+            admin.topics().createPartitionedTopic(topicName, 3);
+        }
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        final int messages = 100;
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            messageIds.add(producer.newMessage().key(i + "").value(("Message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(messageIds).get();
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should greater that 0, current size is {}", size);
+            Assert.assertTrue(size > 0);
+        });
+
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledge(consumer.receive());
+        }
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should be 0, current size is {}", size);
+            Assert.assertEquals(size, 0);
+        });
     }
 }

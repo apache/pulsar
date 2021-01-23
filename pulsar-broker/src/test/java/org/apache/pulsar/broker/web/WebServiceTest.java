@@ -65,8 +65,10 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.MockedZooKeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
@@ -362,6 +364,7 @@ public class WebServiceTest {
 
         pulsar = spy(new PulsarService(config));
         doReturn(zkFactory).when(pulsar).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(MockZooKeeper.newInstance())).when(pulsar).createLocalMetadataStore();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
         pulsar.start();
 

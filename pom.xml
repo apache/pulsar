@@ -95,7 +95,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.12.0</bookkeeper.version>
+    <bookkeeper.version>4.12.1</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.33.Final</netty-tc-native.version>
@@ -109,7 +109,7 @@ flexible messaging model and an intuitive client API.</description>
     <slf4j.version>1.7.25</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.14.0</log4j2.version>
-    <bouncycastle.version>1.66</bouncycastle.version>
+    <bouncycastle.version>1.68</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.11.1</jackson.version>
     <jackson.databind.version>2.11.1</jackson.databind.version>
@@ -1347,6 +1347,40 @@ flexible messaging model and an intuitive client API.</description>
               </configuration>
             </execution>
         </executions>
+      </plugin>
+      <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>${maven-assembly-plugin.version}</version>
+          <dependencies>
+              <dependency>
+                  <groupId>org.apache.apache.resources</groupId>
+                  <artifactId>apache-source-release-assembly-descriptor</artifactId>
+                  <version>1.0.6</version>
+              </dependency>
+          </dependencies>
+          <executions>
+              <execution>
+                  <id>source-release-assembly-tar-gz</id>
+                  <phase>generate-sources</phase>
+                  <goals>
+                      <goal>single</goal>
+                  </goals>
+                  <configuration>
+                      <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
+                      <descriptorRefs>
+                          <!-- defined in Apache Parent Pom -->
+                          <descriptorRef>${sourceReleaseAssemblyDescriptor}</descriptorRef>
+                      </descriptorRefs>
+                      <finalName>apache-pulsar-${project.version}-src</finalName>
+                      <appendAssemblyId>false</appendAssemblyId>
+                      <formats>
+                          <format>tar.gz</format>
+                      </formats>
+                      <tarLongFileMode>posix</tarLongFileMode>
+                  </configuration>
+              </execution>
+          </executions>
       </plugin>
     </plugins>
 

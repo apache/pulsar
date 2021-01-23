@@ -266,14 +266,21 @@ public class PulsarWorkerService implements WorkerService {
         }
 
         // initialize the dlog namespace
-        // TODO: move this as part of pulsar cluster initialization later
+        URI dlogURI;
         try {
-            return WorkerUtils.initializeDlogNamespace(internalConf);
+            if (workerConfig.isInitializedDlogMetadata()) {
+                dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getZookeeperServers());
+            } else {
+                dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
+            }
         } catch (IOException ioe) {
-            log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing function packages",
-                internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
+            log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing " +
+                            "function packages", internalConf.getZookeeperServers(),
+                    internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
+
+        return dlogURI;
     }
 
     @Override
@@ -363,9 +370,14 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             // initializing dlog namespace for function worker
-            dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
+            if (workerConfig.isInitializedDlogMetadata()){
+                dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getZookeeperServers());
+            } else {
+                dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
+            }
         } catch (IOException ioe) {
-            LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for storing function packages",
+            LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for " +
+                            "storing function packages",
                 internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }

@@ -23,7 +23,6 @@ import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -32,7 +31,6 @@ import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
-import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -44,7 +42,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -59,7 +56,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private static final Logger LOG = LoggerFactory.getLogger(TransactionMetaStoreHandler.class);
 
     private final long transactionCoordinatorId;
-    private ConnectionHandler connectionHandler;
+    private final ConnectionHandler connectionHandler;
     private final ConcurrentLongHashMap<OpBase<?>> pendingRequests =
         new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLinkedQueue<RequestTime> timeoutQueue;
@@ -79,7 +76,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     private Timeout requestTimeout;
 
-    private CompletableFuture<Void> connectFuture;
+    private final CompletableFuture<Void> connectFuture;
 
     public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
                                        CompletableFuture<Void> connectFuture) {
@@ -242,9 +239,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         onResponse(op);
     }
 
-    public CompletableFuture<Void> commitAsync(TxnID txnID, List<MessageId> sendMessageIdList) {
+    public CompletableFuture<Void> endTxnAsync(TxnID txnID, TxnAction action) {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Commit txn {}", txnID);
+            LOG.debug("End txn {}, action {}", txnID, action);
         }
         CompletableFuture<Void> callback = new CompletableFuture<>();
 
@@ -252,42 +249,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return callback;
         }
         long requestId = client.newRequestId();
-        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
-                TxnAction.COMMIT);
-        for (MessageId messageId : sendMessageIdList) {
-            cmd.getEndTxn().addMessageId()
-                    .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
-                    .setEntryId(((MessageIdImpl) messageId).getEntryId())
-                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex());
-        }
-        ByteBuf buf = Commands.serializeWithSize(cmd);
-        OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback);
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        buf.retain();
-        cnx().ctx().writeAndFlush(buf, cnx().ctx().voidPromise());
-        return callback;
-    }
-
-    public CompletableFuture<Void> abortAsync(TxnID txnID, List<MessageId> sendMessageIdList) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Abort txn {}", txnID);
-        }
-        CompletableFuture<Void> callback = new CompletableFuture<>();
-
-        if (!canSendRequest(callback)) {
-            return callback;
-        }
-        long requestId = client.newRequestId();
-
-        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
-                TxnAction.ABORT);
-        for (MessageId messageId : sendMessageIdList) {
-            cmd.getEndTxn().addMessageId()
-                    .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
-                    .setEntryId(((MessageIdImpl) messageId).getEntryId())
-                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex());
-        }
+        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback);
         pendingRequests.put(requestId, op);
@@ -506,6 +468,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     @Override
     public void close() throws IOException {
+        this.requestTimeout.cancel();
     }
 
     @Override

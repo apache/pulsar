@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 
@@ -37,7 +36,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 
@@ -49,9 +47,9 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
 
         for (PulsarService pulsarService : pulsarServices) {
             TransactionBufferClient tbClient = Mockito.mock(TransactionBufferClientImpl.class);
-            Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong(), anyList()))
+            Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong(), anyList()))
+            Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
             Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
@@ -90,9 +88,9 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     public void testCommitAndAbort() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
         transactionCoordinatorClient.addPublishPartitionToTxn(txnID, Lists.newArrayList("persistent://public/default/testCommitAndAbort"));
-        transactionCoordinatorClient.commit(txnID, Collections.emptyList());
+        transactionCoordinatorClient.commit(txnID);
         try {
-            transactionCoordinatorClient.abort(txnID, Collections.emptyList());
+            transactionCoordinatorClient.abort(txnID);
             Assert.fail("Should be fail, because the txn is in committing state, can't abort now.");
         } catch (TransactionCoordinatorClientException ignore) {
            // Ok here

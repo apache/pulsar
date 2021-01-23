@@ -61,9 +61,10 @@ pulsarWebServiceUrl: http://localhost:8080
 ############################################
 # security settings for pulsar broker client
 ############################################
-brokerClientAuthenticationEnabled: false
 # The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
 # brokerClientTrustCertsFilePath:
+# Whether to enable the broker client authentication used by function workers to talk to brokers
+# brokerClientAuthenticationEnabled: false
 # the authentication plugin to be used by the pulsar client used in worker service
 # brokerClientAuthenticationPlugin:
 # the authentication parameter to be used by the pulsar client used in worker service
@@ -242,3 +243,7 @@ functionsDirectory: ./functions
 
 # Should connector config be validated during during submission
 validateConnectorConfig: false
+
+# Whether to initialize distributed log metadata by runtime.
+# If it is set to true, you must ensure that it has been initialized by "bin/pulsarinitialize-cluster-metadata" command.
+initializedDlogMetadata: false
