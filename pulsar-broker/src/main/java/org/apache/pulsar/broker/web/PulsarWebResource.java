@@ -795,12 +795,7 @@ public abstract class PulsarWebResource {
     }
 
     protected static boolean isLeaderBroker(PulsarService pulsar) {
-
-        String leaderAddress = pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl();
-
-        String myAddress = pulsar.getSafeWebServiceAddress();
-
-        return myAddress.equals(leaderAddress); // If i am the leader, my decisions are
+        return  pulsar.getLeaderElectionService().isLeader();
     }
 
     // Non-Usual HTTP error codes
