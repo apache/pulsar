@@ -460,7 +460,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                          @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalGetInactiveTopicPolicies(applied).whenComplete((res, ex)
-                -> internalHandleResult(asyncResponse, res, ex,"Failed get InactiveTopicPolicies"));
+                -> internalHandleResult(asyncResponse, res, ex, "Failed get InactiveTopicPolicies"));
     }
 
     @POST
@@ -482,7 +482,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         internalSetInactiveTopicPolicies(inactiveTopicPolicies).whenComplete((res, ex)
-                -> internalHandleResult(asyncResponse, res, ex,"Failed set InactiveTopicPolicies"));
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set InactiveTopicPolicies"));
     }
 
     @DELETE
