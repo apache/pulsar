@@ -1982,6 +1982,64 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     " Locking is used for fetching the status so default to false."
     )
     private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable metrics push to statsd"
+    )
+    private boolean statsdSenderEnabled = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define statsd server hostname"
+    )
+    private String statsdServerHostname = "";
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define statsd server port"
+    )
+    private int statsdServerPort = 8125;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define statsd metrics prefix"
+    )
+    private String statsdMetricsPrefix = "";
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define statsd output enable aggregation"
+    )
+    private Boolean statsdEnableAggregation = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define statsd output max packet size bytes"
+    )
+    private int statsdMaxPacketSizeBytes = 16384;  // 16kB maximum custom value;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define statsd output aggregation flush interval"
+    )
+    private int statsdAggregationFlushInterval = 3000; // 3000ms
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define statsd output aggregation shards"
+    )
+    private int statsdAggregationShards = 4;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define statsd metrics generation interval"
+    )
+    private int statsMetricsGenerationInterval = 10; // 60s
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define if statsd metrics collects topic metrics"
+    )
+    private Boolean statsdIncludeTopicsMetrics = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define if statsd metrics collects consumers metrics"
+    )
+    private Boolean statsdIncludeConsumersMetrics = false;
+
+>>>>>>> fa8266048cd (add configurations)
 
     /**** --- Functions --- ****/
     @FieldContext(
