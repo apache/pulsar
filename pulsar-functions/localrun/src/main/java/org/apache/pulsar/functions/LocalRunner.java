@@ -136,7 +136,7 @@ public class LocalRunner {
     @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
     protected String brokerServiceUrl;
     @Parameter(names = "--webServiceUrl", description = "The URL for the Pulsar web service", hidden = true)
-    protected String webServiceUrl;
+    protected String webServiceUrl = null;
     @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker", hidden = true)
     protected String clientAuthPlugin;
     @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
@@ -398,6 +398,7 @@ public class LocalRunner {
                 instanceConfig.setClusterName("local");
                 if (functionConfig != null) {
                     instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
+                    instanceConfig.setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
                 RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                         instanceConfig,
@@ -472,6 +473,7 @@ public class LocalRunner {
             instanceConfig.setClusterName("local");
             if (functionConfig != null) {
                 instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
+                instanceConfig.setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
             }
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,

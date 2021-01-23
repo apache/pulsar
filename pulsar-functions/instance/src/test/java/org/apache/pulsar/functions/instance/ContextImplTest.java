@@ -92,7 +92,8 @@ public class ContextImplTest {
             logger,
             client,
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(), pulsarAdmin);
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                true, pulsarAdmin);
         context.setCurrentMessageContext((Record<String>) () -> null);
     }
 

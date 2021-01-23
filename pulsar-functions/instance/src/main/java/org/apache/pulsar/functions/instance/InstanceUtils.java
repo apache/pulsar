@@ -28,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -174,7 +173,7 @@ public class InstanceUtils {
             clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
             return clientBuilder.build();
         }
-        return null;
+        throw new PulsarClientException("pulsarServiceUrl cannot be null");
     }
 
     public static PulsarAdmin createPulsarAdminClient(String pulsarWebServiceUrl, AuthenticationConfig authConfig) throws PulsarClientException {
@@ -195,6 +194,6 @@ public class InstanceUtils {
             }
             return pulsarAdminBuilder.build();
         }
-        return null;
+        throw new PulsarClientException("pulsarWebServiceUrl cannot be null");
     }
 }

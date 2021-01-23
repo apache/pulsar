@@ -19,10 +19,6 @@
 package org.apache.pulsar.client.admin;
 
 import java.util.List;
-import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
-import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
-import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
-import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 
 /**
@@ -44,7 +40,7 @@ public interface Properties {
      * </pre>
      *
      * @return the list of Pulsar tenants properties
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             Don't have admin permission
      * @throws PulsarAdminException
      *             Unexpected error
@@ -60,9 +56,9 @@ public interface Properties {
      *            Property name
      * @return the property configuration
      *
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             Don't have admin permission
-     * @throws NotFoundException
+     * @throws PulsarAdminException.NotFoundException
      *             Property does not exist
      * @throws PulsarAdminException
      *             Unexpected error
@@ -79,11 +75,11 @@ public interface Properties {
      * @param config
      *            Config data
      *
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             Don't have admin permission
-     * @throws ConflictException
+     * @throws PulsarAdminException.ConflictException
      *             Property already exists
-     * @throws PreconditionFailedException
+     * @throws PulsarAdminException.PreconditionFailedException
      *             Property name is not valid
      * @throws PulsarAdminException
      *             Unexpected error
@@ -100,9 +96,9 @@ public interface Properties {
      * @param config
      *            Config data
      *
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             Don't have admin permission
-     * @throws NotFoundException
+     * @throws PulsarAdminException.NotFoundException
      *             Property does not exist
      * @throws PulsarAdminException
      *             Unexpected error
@@ -117,11 +113,11 @@ public interface Properties {
      * @param property
      *            Property name
      *
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             Don't have admin permission
-     * @throws NotFoundException
+     * @throws PulsarAdminException.NotFoundException
      *             The property does not exist
-     * @throws ConflictException
+     * @throws PulsarAdminException.ConflictException
      *             The property still has active namespaces
      * @throws PulsarAdminException
      *             Unexpected error

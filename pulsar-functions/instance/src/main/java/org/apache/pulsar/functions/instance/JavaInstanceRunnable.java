@@ -238,7 +238,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager, pulsarAdmin);
+                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
+                instanceConfig.isExposePulsarAdminClientEnabled(), pulsarAdmin);
     }
 
     /**

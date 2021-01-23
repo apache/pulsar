@@ -20,9 +20,6 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
-import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
-import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -43,7 +40,7 @@ public interface Sinks {
      * <code>["f1", "f2", "f3"]</code>
      * </pre>
      *
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             Don't have admin permission
      * @throws PulsarAdminException
      *             Unexpected error
@@ -81,9 +78,9 @@ public interface Sinks {
      *
      * @return the sink configuration
      *
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             You don't have admin permission to get the configuration of the cluster
-     * @throws NotFoundException
+     * @throws PulsarAdminException.NotFoundException
      *             Cluster doesn't exist
      * @throws PulsarAdminException
      *             Unexpected error
@@ -167,9 +164,9 @@ public interface Sinks {
      * @param sinkConfig
      *            the sink configuration object
      *
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             You don't have admin permission to create the cluster
-     * @throws NotFoundException
+     * @throws PulsarAdminException.NotFoundException
      *             Cluster doesn't exist
      * @throws PulsarAdminException
      *             Unexpected error
@@ -193,9 +190,9 @@ public interface Sinks {
      *            the sink configuration object
      * @param updateOptions
      *            options for the update operations
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             You don't have admin permission to create the cluster
-     * @throws NotFoundException
+     * @throws PulsarAdminException.NotFoundException
      *             Cluster doesn't exist
      * @throws PulsarAdminException
      *             Unexpected error
@@ -225,9 +222,9 @@ public interface Sinks {
      *            the sink configuration object
      * @param pkgUrl
      *            url from which pkg can be downloaded
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             You don't have admin permission to create the cluster
-     * @throws NotFoundException
+     * @throws PulsarAdminException.NotFoundException
      *             Cluster doesn't exist
      * @throws PulsarAdminException
      *             Unexpected error
@@ -263,9 +260,9 @@ public interface Sinks {
      *            url from which pkg can be downloaded
      * @param updateOptions
      *            options for the update operations
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             You don't have admin permission to create the cluster
-     * @throws NotFoundException
+     * @throws PulsarAdminException.NotFoundException
      *             Cluster doesn't exist
      * @throws PulsarAdminException
      *             Unexpected error
@@ -302,11 +299,11 @@ public interface Sinks {
      * @param sink
      *            Sink name
      *
-     * @throws NotAuthorizedException
+     * @throws PulsarAdminException.NotAuthorizedException
      *             You don't have admin permission
-     * @throws NotFoundException
+     * @throws PulsarAdminException.NotFoundException
      *             Cluster does not exist
-     * @throws PreconditionFailedException
+     * @throws PulsarAdminException.PreconditionFailedException
      *             Cluster is not empty
      * @throws PulsarAdminException
      *             Unexpected error

@@ -133,7 +133,10 @@ public class JavaInstanceStarter implements AutoCloseable {
     public int maxPendingAsyncRequests = 1000;
 
     @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
-    public String webServiceUrl;
+    public String webServiceUrl = null;
+
+    @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client exposed to function context, default is disabled.", required = false)
+    public Boolean exposePulsarAdminClientEnabled = false;
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
@@ -158,6 +161,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
+        instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);

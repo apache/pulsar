@@ -104,6 +104,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     private final static String[] userMetricsLabelNames;
 
+    private boolean exposePulsarAdminClientEnabled;
+
     static {
         // add label to indicate user metric
         userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.metricsLabelNames, ComponentStatsManager.metricsLabelNames.length + 1);
@@ -115,7 +117,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       StateManager stateManager, PulsarAdmin pulsarAdmin) {
+                       StateManager stateManager, boolean exposePulsarAdminClientEnabled, PulsarAdmin pulsarAdmin) {
         this.config = config;
         this.logger = logger;
         this.statsManager = statsManager;
@@ -129,7 +131,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 try {
                     this.externalPulsarClusters.put(entry.getKey(),
                             new PulsarCluster(InstanceUtils.createPulsarClient(entry.getValue().getServiceURL(), entry.getValue().getAuthConfig()),
-                                    InstanceUtils.createPulsarAdminClient(entry.getValue().getWebServiceURL(), entry.getValue().getAuthConfig()),
+                                    exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(entry.getValue().getWebServiceURL(), entry.getValue().getAuthConfig()) : null,
                                     ProducerConfigUtils.convert(entry.getValue().getProducerConfig())));
                 } catch (PulsarClientException ex) {
                     throw new RuntimeException("failed to create pulsar client for external cluster: " + entry.getKey(), ex);
@@ -137,7 +139,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             }
         }
         this.defaultPulsarCluster = "default-" + UUID.randomUUID();
-        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client, pulsarAdmin, config.getFunctionDetails().getSink().getProducerSpec()));
+        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client, exposePulsarAdminClientEnabled ? pulsarAdmin : null, config.getFunctionDetails().getSink().getProducerSpec()));
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
@@ -186,6 +188,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             config.getFunctionDetails().getNamespace(),
             config.getFunctionDetails().getName()
         );
+        this.exposePulsarAdminClientEnabled = exposePulsarAdminClientEnabled;
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -311,11 +314,16 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public PulsarAdmin getPulsarAdmin(String clusterName) {
-        PulsarCluster pulsarCluster = externalPulsarClusters.get(clusterName);
-        if (pulsarCluster != null) {
-            return pulsarCluster.getAdminClient();
+        if (exposePulsarAdminClientEnabled) {
+            PulsarCluster pulsarCluster = externalPulsarClusters.get(clusterName);
+            if (pulsarCluster != null) {
+                return pulsarCluster.getAdminClient();
+            } else {
+                throw new IllegalArgumentException("PulsarAdmin for cluster " + clusterName + " is not available, only "
+                        + externalPulsarClusters.keySet());
+            }
         } else {
-            return null;
+            throw new IllegalArgumentException("PulsarAdmin is not enabled in function worker");
         }
     }
 
