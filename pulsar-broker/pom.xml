@@ -275,6 +275,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.datadoghq</groupId>
+      <artifactId>java-dogstatsd-client</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
     </dependency>

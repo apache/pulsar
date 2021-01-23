@@ -116,6 +116,8 @@ flexible messaging model and an intuitive client API.</description>
     <athenz.version>1.10.9</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
+    <java-dogstatsd-client.version>2.11.0</java-dogstatsd-client.version>
+    <aspectj.version>1.9.2</aspectj.version>
     <rocksdb.version>6.10.2</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
@@ -826,6 +828,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.prometheus</groupId>
         <artifactId>simpleclient_caffeine</artifactId>
         <version>${prometheus.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.datadoghq</groupId>
+        <artifactId>java-dogstatsd-client</artifactId>
+        <version>${java-dogstatsd-client.version}</version>
       </dependency>
 
       <dependency>
