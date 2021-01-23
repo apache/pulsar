@@ -87,7 +87,7 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public int max_unacked_messages_per_consumer = -1;
     @SuppressWarnings("checkstyle:MemberName")
-    public int max_unacked_messages_per_subscription = -1;
+    public Integer max_unacked_messages_per_subscription = null;
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_subscriptions_per_topic = null;
 
@@ -172,7 +172,7 @@ public class Policies {
                     && Objects.equals(max_consumers_per_topic, other.max_consumers_per_topic)
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
                     && max_unacked_messages_per_consumer == other.max_unacked_messages_per_consumer
-                    && max_unacked_messages_per_subscription == other.max_unacked_messages_per_subscription
+                    && Objects.equals(max_unacked_messages_per_subscription, max_unacked_messages_per_subscription)
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
                     && Objects.equals(offload_deletion_lag_ms, other.offload_deletion_lag_ms)

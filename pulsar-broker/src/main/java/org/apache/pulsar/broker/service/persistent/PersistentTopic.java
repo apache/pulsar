@@ -190,7 +190,7 @@ public class PersistentTopic extends AbstractTopic
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    private volatile int maxUnackedMessagesOnSubscription = -1;
+    private volatile int maxUnackedMessagesOnSubscriptionApplied = 0;
     private volatile boolean isClosingOrDeleting = false;
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
@@ -278,7 +278,7 @@ public class PersistentTopic extends AbstractTopic
             }
 
             maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(policies);
-            maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(policies);
+            updateUnackedMessagesAppliedOnSubscription(policies);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                     topic, e.getMessage());
@@ -735,12 +735,16 @@ public class PersistentTopic extends AbstractTopic
         return future;
     }
 
-    private int unackedMessagesExceededOnSubscription(Policies data) {
-        final int maxUnackedMessages = data.max_unacked_messages_per_subscription > -1
-                ? data.max_unacked_messages_per_subscription
-                : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription();
-
-        return maxUnackedMessages;
+    public void updateUnackedMessagesAppliedOnSubscription(Policies policies) {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
+            maxUnackedMessagesOnSubscriptionApplied = topicPolicies.getMaxUnackedMessagesOnSubscription();
+        } else {
+            maxUnackedMessagesOnSubscriptionApplied =
+                    policies != null && policies.max_unacked_messages_per_subscription != null
+                            ? policies.max_unacked_messages_per_subscription
+                            : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription();
+        }
     }
 
     private int unackedMessagesExceededOnConsumer(Policies data) {
@@ -2040,7 +2044,7 @@ public class PersistentTopic extends AbstractTopic
         schemaValidationEnforced = data.schema_validation_enforced;
 
         maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(data);
-        maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
+        updateUnackedMessagesAppliedOnSubscription(data);
         maxSubscriptionsPerTopic = data.max_subscriptions_per_topic;
 
         if (data.delayed_delivery_policies != null) {
@@ -2594,13 +2598,8 @@ public class PersistentTopic extends AbstractTopic
         return delayedDeliveryEnabled;
     }
 
-    public int getMaxUnackedMessagesOnSubscription() {
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        //Topic level setting has higher priority than namespace level
-        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
-            return topicPolicies.getMaxUnackedMessagesOnSubscription();
-        }
-        return maxUnackedMessagesOnSubscription;
+    public int getMaxUnackedMessagesOnSubscriptionApplied() {
+        return maxUnackedMessagesOnSubscriptionApplied;
     }
 
     @Override
@@ -2646,7 +2645,7 @@ public class PersistentTopic extends AbstractTopic
                     , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
                     cfg.isBrokerDeleteInactiveTopicsEnabled());
         }
-
+        updateUnackedMessagesAppliedOnSubscription(null);
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.ifPresent(subscribeRateLimiter ->

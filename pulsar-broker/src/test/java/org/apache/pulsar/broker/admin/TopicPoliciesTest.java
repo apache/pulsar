@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -29,11 +30,15 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -1301,6 +1306,96 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             fail("should fail");
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 412);
+        }
+    }
+
+    @Test
+    public void testMaxUnackedMessagesOnSubscriptionPriority() throws Exception {
+        cleanup();
+        conf.setMaxUnackedMessagesPerSubscription(30);
+        setup();
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        // init cache
+        @Cleanup
+        Producer producer = pulsarClient.newProducer().topic(topic).create();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        //default value is null
+        assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace));
+        int msgNum = 100;
+        int maxUnackedMsgOnTopic = 10;
+        int maxUnackedMsgNumOnNamespace = 5;
+        int defaultMaxUnackedMsgOnBroker = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
+        produceMsg(producer, msgNum);
+        //set namespace-level policy, the restriction should take effect
+        admin.namespaces().setMaxUnackedMessagesPerSubscription(myNamespace, maxUnackedMsgNumOnNamespace);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace).intValue(), maxUnackedMsgNumOnNamespace));
+        List<Message<?>> messages;
+        String subName = "sub-" + UUID.randomUUID();
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName).receiverQueueSize(1)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Shared);
+        @Cleanup
+        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+        messages = getMsgReceived(consumer1, msgNum);
+        assertEquals(messages.size(), maxUnackedMsgNumOnNamespace);
+        ackMessages(consumer1, messages);
+        //disable namespace-level policy, should unlimited
+        admin.namespaces().setMaxUnackedMessagesPerSubscription(myNamespace, 0);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace).intValue(), 0));
+        messages = getMsgReceived(consumer1, 40);
+        assertEquals(messages.size(), 40);
+        ackMessages(consumer1, messages);
+
+        //set topic-level and namespace-level policy, topic-level should has higher priority
+        admin.namespaces().setMaxUnackedMessagesPerSubscription(myNamespace, maxUnackedMsgNumOnNamespace);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace).intValue()
+                , maxUnackedMsgNumOnNamespace));
+        admin.topics().setMaxUnackedMessagesOnSubscription(topic, maxUnackedMsgOnTopic);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNotNull(admin.topics().getMaxUnackedMessagesOnSubscription(topic)));
+        //check the value applied
+        PersistentTopic persistentTopic = (PersistentTopic)pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        assertEquals(persistentTopic.getMaxUnackedMessagesOnSubscriptionApplied(), maxUnackedMsgOnTopic);
+        messages = getMsgReceived(consumer1, Integer.MAX_VALUE);
+        assertEquals(messages.size(), maxUnackedMsgOnTopic);
+        ackMessages(consumer1, messages);
+
+        //remove both namespace-level and topic-level policy, broker-level should take effect
+        admin.namespaces().removeMaxUnackedMessagesPerSubscription(myNamespace);
+        admin.topics().removeMaxUnackedMessagesOnSubscription(topic);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(()
+                -> admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace) == null
+                        && admin.topics().getMaxUnackedMessagesOnSubscription(topic) == null);
+        messages = getMsgReceived(consumer1, Integer.MAX_VALUE);
+        assertEquals(messages.size(), defaultMaxUnackedMsgOnBroker);
+    }
+
+    private void produceMsg(Producer producer, int msgNum) throws Exception{
+        for (int i = 0; i < msgNum; i++) {
+            producer.send("msg".getBytes());
+        }
+    }
+
+    private List<Message<?>> getMsgReceived(Consumer<byte[]> consumer1, int msgNum) throws PulsarClientException {
+        List<Message<?>> messages = new ArrayList<>();
+        for (int i = 0; i < msgNum; i++) {
+            Message<?> message = consumer1.receive(1000, TimeUnit.MILLISECONDS);
+            if (message == null) {
+                break;
+            }
+            messages.add(message);
+        }
+        return messages;
+    }
+
+    private void ackMessages(Consumer<?> consumer, List<Message<?>> messages) throws Exception{
+        for (Message<?> message : messages) {
+            consumer.acknowledge(message);
         }
     }
 

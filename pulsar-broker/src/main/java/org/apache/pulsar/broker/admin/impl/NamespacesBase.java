@@ -2731,7 +2731,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected int internalGetMaxUnackedMessagesPerSubscription() {
+    protected Integer internalGetMaxUnackedMessagesPerSubscription() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_subscription;
     }
@@ -2751,19 +2751,19 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("max_subscriptions_per_topic", maxSubscriptionsPerTopic);
     }
 
-    protected void internalSetMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
+    protected void internalSetMaxUnackedMessagesPerSubscription(Integer maxUnackedMessagesPerSubscription) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-
+        if (maxUnackedMessagesPerSubscription != null && maxUnackedMessagesPerSubscription < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedMessagesPerSubscription must be 0 or more");
+        }
         try {
             Stat nodeStat = new Stat();
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (maxUnackedMessagesPerSubscription < 0) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "maxUnackedMessagesPerSubscription must be 0 or more");
-            }
+
             policies.max_unacked_messages_per_subscription = maxUnackedMessagesPerSubscription;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
