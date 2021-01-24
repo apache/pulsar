@@ -51,7 +51,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock.IndexInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -101,7 +101,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private final long maxSegmentLength;
     private final int streamingBlockSize;
     private volatile ManagedLedger ml;
-    private StreamingOffloadIndexBlockBuilder streamingIndexBuilder;
+    private OffloadIndexBlockV2Builder streamingIndexBuilder;
 
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
                                                          Map<String, String> userMetadata,
@@ -291,7 +291,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         log.debug("begin offload with {}:{}", beginLedger, beginEntry);
         this.offloadResult = new CompletableFuture<>();
         blobStore = blobStores.get(config.getBlobStoreLocation());
-        streamingIndexBuilder = StreamingOffloadIndexBlockBuilder.create();
+        streamingIndexBuilder = OffloadIndexBlockV2Builder.create();
         streamingDataBlockKey = segmentInfo.uuid.toString();
         streamingDataIndexKey = String.format("%s-index", segmentInfo.uuid);
         BlobBuilder blobBuilder = blobStore.blobBuilder(streamingDataBlockKey);

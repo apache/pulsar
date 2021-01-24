@@ -29,7 +29,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.DataBlockHeader;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
- * The data block header in code storage for each data block.
+ * The data block header in tiered storage for each data block.
  */
 public class StreamingDataBlockHeaderImpl implements DataBlockHeader {
     // Magic Word for streaming data block.

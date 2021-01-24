@@ -40,7 +40,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.jclouds.blobstore.BlobStore;
@@ -285,7 +285,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
             Blob blob = blobStore.getBlob(bucket, indexKey);
             log.debug("indexKey blob: {} {}", indexKey, blob);
             versionCheck.check(indexKey, blob);
-            StreamingOffloadIndexBlockBuilder indexBuilder = StreamingOffloadIndexBlockBuilder.create();
+            OffloadIndexBlockV2Builder indexBuilder = OffloadIndexBlockV2Builder.create();
             final InputStream payloadStream = blob.getPayload().openStream();
             OffloadIndexBlockV2 index = indexBuilder.fromStream(payloadStream);
             payloadStream.close();

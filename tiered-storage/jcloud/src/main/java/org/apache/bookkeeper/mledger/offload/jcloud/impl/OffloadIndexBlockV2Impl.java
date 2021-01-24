@@ -43,7 +43,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamingOffloadIndexBlockImpl implements OffloadIndexBlockV2 {
+public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
     private static final Logger log = LoggerFactory.getLogger(OffloadIndexBlockImpl.class);
 
     private static final int INDEX_MAGIC_WORD = 0x3D1FB0BC;
@@ -56,23 +56,23 @@ public class StreamingOffloadIndexBlockImpl implements OffloadIndexBlockV2 {
     private Map<Long, TreeMap<Long, OffloadIndexEntryImpl>> indexEntries;
 
 
-    private final Handle<StreamingOffloadIndexBlockImpl> recyclerHandle;
+    private final Handle<OffloadIndexBlockV2Impl> recyclerHandle;
 
-    private static final Recycler<StreamingOffloadIndexBlockImpl> RECYCLER = new Recycler<StreamingOffloadIndexBlockImpl>() {
+    private static final Recycler<OffloadIndexBlockV2Impl> RECYCLER = new Recycler<OffloadIndexBlockV2Impl>() {
         @Override
-        protected StreamingOffloadIndexBlockImpl newObject(Handle<StreamingOffloadIndexBlockImpl> handle) {
-            return new StreamingOffloadIndexBlockImpl(handle);
+        protected OffloadIndexBlockV2Impl newObject(Handle<OffloadIndexBlockV2Impl> handle) {
+            return new OffloadIndexBlockV2Impl(handle);
         }
     };
 
-    private StreamingOffloadIndexBlockImpl(Handle<StreamingOffloadIndexBlockImpl> recyclerHandle) {
+    private OffloadIndexBlockV2Impl(Handle<OffloadIndexBlockV2Impl> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
-    public static StreamingOffloadIndexBlockImpl get(Map<Long, LedgerInfo> metadata, long dataObjectLength,
-                                                     long dataHeaderLength,
-                                                     Map<Long, List<OffloadIndexEntryImpl>> entries) {
-        StreamingOffloadIndexBlockImpl block = RECYCLER.get();
+    public static OffloadIndexBlockV2Impl get(Map<Long, LedgerInfo> metadata, long dataObjectLength,
+                                              long dataHeaderLength,
+                                              Map<Long, List<OffloadIndexEntryImpl>> entries) {
+        OffloadIndexBlockV2Impl block = RECYCLER.get();
         block.indexEntries = new HashMap<>();
         entries.forEach((ledgerId, list) -> {
             final TreeMap<Long, OffloadIndexEntryImpl> inLedger = block.indexEntries
@@ -89,8 +89,8 @@ public class StreamingOffloadIndexBlockImpl implements OffloadIndexBlockV2 {
         return block;
     }
 
-    public static StreamingOffloadIndexBlockImpl get(int magic, DataInputStream stream) throws IOException {
-        StreamingOffloadIndexBlockImpl block = RECYCLER.get();
+    public static OffloadIndexBlockV2Impl get(int magic, DataInputStream stream) throws IOException {
+        OffloadIndexBlockV2Impl block = RECYCLER.get();
         block.indexEntries = Maps.newTreeMap();
         block.segmentMetadata = Maps.newTreeMap();
         if (magic != INDEX_MAGIC_WORD) {

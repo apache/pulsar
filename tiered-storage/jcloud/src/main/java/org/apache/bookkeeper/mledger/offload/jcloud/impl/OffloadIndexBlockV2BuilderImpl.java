@@ -33,13 +33,13 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
 /**
  * Interface for builder of index block used for offload a ledger to long term storage.
  */
-public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder, StreamingOffloadIndexBlockBuilder {
+public class OffloadIndexBlockV2BuilderImpl implements OffloadIndexBlockBuilder, OffloadIndexBlockV2Builder {
 
     private final Map<Long, LedgerInfo> ledgerMetadataMap;
     private LedgerMetadata ledgerMetadata;
@@ -52,31 +52,31 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder, S
     private final SortedMap<Long, List<OffloadIndexEntryImpl>> entryMap = new TreeMap<>();
 
 
-    public OffloadIndexBlockBuilderImpl() {
+    public OffloadIndexBlockV2BuilderImpl() {
         this.entries = Lists.newArrayList();
         this.ledgerMetadataMap = new HashMap<>();
     }
 
     @Override
-    public OffloadIndexBlockBuilderImpl withDataObjectLength(long dataObjectLength) {
+    public OffloadIndexBlockV2BuilderImpl withDataObjectLength(long dataObjectLength) {
         this.dataObjectLength = dataObjectLength;
         return this;
     }
 
     @Override
-    public OffloadIndexBlockBuilderImpl withDataBlockHeaderLength(long dataHeaderLength) {
+    public OffloadIndexBlockV2BuilderImpl withDataBlockHeaderLength(long dataHeaderLength) {
         this.dataHeaderLength = dataHeaderLength;
         return this;
     }
 
     @Override
-    public OffloadIndexBlockBuilderImpl withLedgerMetadata(LedgerMetadata metadata) {
+    public OffloadIndexBlockV2BuilderImpl withLedgerMetadata(LedgerMetadata metadata) {
         this.ledgerMetadata = metadata;
         return this;
     }
 
     @Override
-    public OffloadIndexBlockBuilderImpl addLedgerMeta(Long ledgerId, LedgerInfo metadata) {
+    public OffloadIndexBlockV2BuilderImpl addLedgerMeta(Long ledgerId, LedgerInfo metadata) {
         this.ledgerMetadataMap.put(ledgerId, metadata);
         return this;
     }
@@ -101,7 +101,7 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder, S
     }
 
     @Override
-    public StreamingOffloadIndexBlockBuilder addBlock(long ledgerId, long firstEntryId, int partId, int blockSize) {
+    public OffloadIndexBlockV2Builder addBlock(long ledgerId, long firstEntryId, int partId, int blockSize) {
         checkState(dataHeaderLength > 0);
 
         streamingOffset = streamingOffset + lastStreamingBlockSize;
@@ -119,12 +119,12 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder, S
         final int magic = dataInputStream.readInt();
         if (magic == OffloadIndexBlockImpl.getIndexMagicWord()) {
             return OffloadIndexBlockImpl.get(magic, dataInputStream);
-        } else if (magic == StreamingOffloadIndexBlockImpl.getIndexMagicWord()) {
-            return StreamingOffloadIndexBlockImpl.get(magic, dataInputStream);
+        } else if (magic == OffloadIndexBlockV2Impl.getIndexMagicWord()) {
+            return OffloadIndexBlockV2Impl.get(magic, dataInputStream);
         } else {
             throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x or 0x%x",
                     magic, OffloadIndexBlockImpl.getIndexMagicWord(),
-                    StreamingOffloadIndexBlockImpl.getIndexMagicWord()));
+                    OffloadIndexBlockV2Impl.getIndexMagicWord()));
         }
     }
 
@@ -144,7 +144,7 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder, S
         checkState(!entryMap.isEmpty());
         checkState(dataObjectLength > 0);
         checkState(dataHeaderLength > 0);
-        return StreamingOffloadIndexBlockImpl.get(ledgerMetadataMap, dataObjectLength, dataHeaderLength, entryMap);
+        return OffloadIndexBlockV2Impl.get(ledgerMetadataMap, dataObjectLength, dataHeaderLength, entryMap);
     }
 
 }

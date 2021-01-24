@@ -29,9 +29,9 @@ import java.io.InputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
-import org.apache.bookkeeper.mledger.offload.jcloud.impl.StreamingOffloadIndexBlockImpl.CompatibleMetadata;
+import org.apache.bookkeeper.mledger.offload.jcloud.impl.OffloadIndexBlockV2Impl.CompatibleMetadata;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.testng.annotations.Test;
 
@@ -42,7 +42,7 @@ public class StreamingOffloadIndexTest {
     // verify get methods, readout and fromStream methods.
     @Test
     public void streamingOffloadIndexBlockImplTest() throws Exception {
-        StreamingOffloadIndexBlockBuilder blockBuilder = StreamingOffloadIndexBlockBuilder.create();
+        OffloadIndexBlockV2Builder blockBuilder = OffloadIndexBlockV2Builder.create();
         final long ledgerId = 1; // use dummy ledgerId, from BK 4.12 the ledger is is required
         LedgerInfo metadata = OffloadIndexTest.createLedgerInfo(ledgerId);
         log.debug("created metadata: {}", metadata.toString());
@@ -107,7 +107,7 @@ public class StreamingOffloadIndexTest {
         int segmentMetadataLength = wrapper.readInt();
 
         // verify counter
-        assertEquals(magic, StreamingOffloadIndexBlockImpl.getIndexMagicWord());
+        assertEquals(magic, OffloadIndexBlockV2Impl.getIndexMagicWord());
         assertEquals(indexBlockLength, readoutLen);
         assertEquals(indexEntryCount, 3);
         assertEquals(dataObjectLength, 1);
@@ -183,7 +183,7 @@ public class StreamingOffloadIndexTest {
 
     @Test
     public void streamingMultiLedgerOffloadIndexBlockImplTest() throws Exception {
-        StreamingOffloadIndexBlockBuilder blockBuilder = StreamingOffloadIndexBlockBuilder.create();
+        OffloadIndexBlockV2Builder blockBuilder = OffloadIndexBlockV2Builder.create();
         final long ledgerId1 = 1; // use dummy ledgerId, from BK 4.12 the ledger is is required
         final long ledgerId2 = 2;
         LedgerInfo metadata1 = OffloadIndexTest.createLedgerInfo(ledgerId1);
@@ -256,7 +256,7 @@ public class StreamingOffloadIndexTest {
         int segmentMetadataLength = wrapper.readInt();
 
         // verify counter
-        assertEquals(magic, StreamingOffloadIndexBlockImpl.getIndexMagicWord());
+        assertEquals(magic, OffloadIndexBlockV2Impl.getIndexMagicWord());
         assertEquals(indexBlockLength, readoutLen);
         assertEquals(indexEntryCount, 1);
         assertEquals(dataObjectLength, 1);

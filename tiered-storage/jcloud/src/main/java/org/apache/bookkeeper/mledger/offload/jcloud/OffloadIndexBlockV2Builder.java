@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
-import org.apache.bookkeeper.mledger.offload.jcloud.impl.OffloadIndexBlockBuilderImpl;
+import org.apache.bookkeeper.mledger.offload.jcloud.impl.OffloadIndexBlockV2BuilderImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
 /**
@@ -30,7 +30,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
  */
 @Unstable
 @LimitedPrivate
-public interface StreamingOffloadIndexBlockBuilder {
+public interface OffloadIndexBlockV2Builder {
 
     /**
      * Build index block with the passed in ledger metadata.
@@ -38,7 +38,7 @@ public interface StreamingOffloadIndexBlockBuilder {
      * @param ledgerId
      * @param metadata the ledger metadata
      */
-    StreamingOffloadIndexBlockBuilder addLedgerMeta(Long ledgerId, LedgerInfo metadata);
+    OffloadIndexBlockV2Builder addLedgerMeta(Long ledgerId, LedgerInfo metadata);
 
     /**
      * Add one payload block related information into index block.
@@ -50,19 +50,19 @@ public interface StreamingOffloadIndexBlockBuilder {
      * @param partId the payload block Id
      * @param blockSize the payload block size
      */
-    StreamingOffloadIndexBlockBuilder addBlock(long ledgerId, long firstEntryId, int partId, int blockSize);
+    OffloadIndexBlockV2Builder addBlock(long ledgerId, long firstEntryId, int partId, int blockSize);
 
     /**
      * Specify the length of data object this index is associated with.
      * @param dataObjectLength the length of the data object
      */
-    StreamingOffloadIndexBlockBuilder withDataObjectLength(long dataObjectLength);
+    OffloadIndexBlockV2Builder withDataObjectLength(long dataObjectLength);
 
     /**
      * Specify the length of the block headers in the data object.
      * @param dataHeaderLength the length of the headers
      */
-    StreamingOffloadIndexBlockBuilder withDataBlockHeaderLength(long dataHeaderLength);
+    OffloadIndexBlockV2Builder withDataBlockHeaderLength(long dataHeaderLength);
 
     /**
      * Finalize the immutable OffloadIndexBlock.
@@ -77,7 +77,7 @@ public interface StreamingOffloadIndexBlockBuilder {
     /**
      * create an OffloadIndexBlockBuilder.
      */
-    static StreamingOffloadIndexBlockBuilder create() {
-        return new OffloadIndexBlockBuilderImpl();
+    static OffloadIndexBlockV2Builder create() {
+        return new OffloadIndexBlockV2BuilderImpl();
     }
 }
