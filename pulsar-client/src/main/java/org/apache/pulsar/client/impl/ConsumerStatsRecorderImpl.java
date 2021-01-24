@@ -150,7 +150,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                     log.info(
                             "[{}] [{}] [{}] Prefetched messages: {} --- "
                                     + "Consume throughput received: {} msgs/s --- {} Mbit/s --- "
-                                    + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- batch messages: {} ---"
+                                    + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- Failed batch messages: {} ---"
                                     + "Failed acks: {}",
                             consumerImpl.getTopic(), consumerImpl.getSubscription(), consumerImpl.consumerName,
                             consumerImpl.incomingMessages.size(), THROUGHPUT_FORMAT.format(receivedMsgsRate),
