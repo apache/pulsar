@@ -25,6 +25,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -239,7 +240,32 @@ public class OwnershipCache {
         }
 
         // If we're not the owner, we need to check if anybody else is
-        return resolveOwnership(path).thenApply(optional -> optional.map(Map.Entry::getKey));
+        CompletableFuture<Optional<NamespaceEphemeralData>> ownerFuture = new CompletableFuture<>();
+        ownershipReadOnlyCache.getAsync(path).whenComplete((owner, ex) -> {
+            if (ex != null) {
+                ownerFuture.completeExceptionally(ex);
+            } else if (!owner.isPresent()) {
+                ownerFuture.complete(Optional.empty());
+            } else {
+                try {
+                    URI ownerURI = new URI(owner.get().getHttpUrl());
+                    String ownerServiceAddr = ownerURI.getHost() + ":" + ownerURI.getPort();
+                    if (pulsar.getLoadManager().get().getAvailableBrokers().contains(ownerServiceAddr)) {
+                        ownerFuture.complete(owner);
+                    } else {
+                        LOG.warn("Namespace {} owned by broker {} which is not active, remove the ownership",
+                                suName.toString(), owner);
+                        removeOwnership(suName);
+                        // after ownership removed, redirect client to leader, then find other broker to own this bundle
+                        ownerFuture.complete(Optional.empty());
+                    }
+                } catch (Exception e) {
+                    LOG.warn("Failed to get active broker from loadManager {}: {}", e.getMessage(), e);
+                    ownerFuture.completeExceptionally(e);
+                }
+            }
+        });
+        return ownerFuture;
     }
 
     /**
