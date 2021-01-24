@@ -37,6 +37,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import io.netty.util.Timeout;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -82,6 +84,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             .newUpdater(ConsumerBase.class, "incomingMessagesSize");
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
+    protected final Lock reentrantLock = new ReentrantLock();
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorProvider executorProvider,
@@ -731,7 +734,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return;
         }
 
-        notifyPendingBatchReceivedCallBack(opBatchReceive);
+        try {
+            reentrantLock.lock();
+            notifyPendingBatchReceivedCallBack(opBatchReceive);
+        } finally {
+            reentrantLock.unlock();
+        }
     }
 
     private OpBatchReceive<T> peekNextBatchReceive() {
@@ -773,16 +781,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected final void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
         MessagesImpl<T> messages = getNewMessagesImpl();
-
-        Message<T> msg = null;
-        do {
-            msg = incomingMessages.poll();
+        Message<T> msgPeeked = incomingMessages.peek();
+        while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+            Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);
                 Message<T> interceptMsg = beforeConsume(msg);
                 messages.add(interceptMsg);
             }
-        } while (msg != null && messages.canAdd());
+            msgPeeked = incomingMessages.peek();
+        }
 
         completePendingBatchReceive(opBatchReceive.future, messages);
     }

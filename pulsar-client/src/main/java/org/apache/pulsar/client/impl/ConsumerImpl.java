@@ -126,6 +126,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final int receiverQueueRefillThreshold;
 
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
     private final NegativeAcksTracker negativeAcksTracker;
@@ -465,26 +467,31 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected CompletableFuture<Messages<T>> internalBatchReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
-        if (pendingBatchReceives == null) {
-            pendingBatchReceives = Queues.newConcurrentLinkedQueue();
-        }
-        if (hasEnoughMessagesForBatchReceive()) {
-            MessagesImpl<T> messages = getNewMessagesImpl();
-            Message<T> msg = null;
-            do {
-                msg = incomingMessages.poll();
-                if (msg != null) {
-                    messageProcessed(msg);
-                    Message<T> interceptMsg = beforeConsume(msg);
-                    messages.add(interceptMsg);
+        try {
+            lock.writeLock().lock();
+            if (pendingBatchReceives == null) {
+                pendingBatchReceives = Queues.newConcurrentLinkedQueue();
+            }
+            if (hasEnoughMessagesForBatchReceive()) {
+                MessagesImpl<T> messages = getNewMessagesImpl();
+                Message<T> msgPeeked = incomingMessages.peek();
+                while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+                    Message<T> msg = incomingMessages.poll();
+                    if (msg != null) {
+                        messageProcessed(msg);
+                        Message<T> interceptMsg = beforeConsume(msg);
+                        messages.add(interceptMsg);
+                    }
+                    msgPeeked = incomingMessages.peek();
                 }
-            } while (msg != null && messages.canAdd());
-
-            result.complete(messages);
-        } else {
-            OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
-            pendingBatchReceives.add(opBatchReceive);
-            cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
+                result.complete(messages);
+            } else {
+                OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
+                pendingBatchReceives.add(opBatchReceive);
+                cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
+            }
+        } finally {
+            lock.writeLock().unlock();
         }
 
         return result;
