@@ -80,8 +80,10 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
                 .withNetworkAliases(S3Container.NAME);
         s3Container.start();
 
-        log.info("[setupPresto] prestoWorker: " + pulsarCluster.getPrestoWorkerContainer());
-        pulsarCluster.startPrestoWorker(OFFLOAD_DRIVER, getOffloadProperties(BUCKET, null, ENDPOINT));
+        String offloadProperties = getOffloadProperties(BUCKET, null, ENDPOINT);
+        log.info("[setupPresto] offloadProperties: {}" + offloadProperties);
+        pulsarCluster.startPrestoWorker(OFFLOAD_DRIVER, offloadProperties);
+        pulsarCluster.startPrestoFollowWorkers(2, OFFLOAD_DRIVER, offloadProperties);
     }
 
     public String getOffloadProperties(String bucket, String region, String endpoint) {
@@ -110,14 +112,12 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
         pulsarCluster.stopPrestoWorker();
     }
 
-    // Flaky Test: https://github.com/apache/pulsar/issues/7750
-    // @Test
+    @Test
     public void testQueryTieredStorage1() throws Exception {
         testSimpleSQLQuery(false);
     }
 
-    // Flaky Test: https://github.com/apache/pulsar/issues/7750
-    // @Test
+    @Test
     public void testQueryTieredStorage2() throws Exception {
         testSimpleSQLQuery(true);
     }
