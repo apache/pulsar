@@ -504,6 +504,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-max-unacked-messages-per-subscription myprop/clust/ns1 -c 3"));
         verify(mockNamespaces).setMaxUnackedMessagesPerSubscription("myprop/clust/ns1", 3);
 
+        namespaces.run(split("remove-max-unacked-messages-per-subscription myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxUnackedMessagesPerSubscription("myprop/clust/ns1");
+
         namespaces.run(split("get-max-unacked-messages-per-consumer myprop/clust/ns1"));
         verify(mockNamespaces).getMaxUnackedMessagesPerConsumer("myprop/clust/ns1");
 
