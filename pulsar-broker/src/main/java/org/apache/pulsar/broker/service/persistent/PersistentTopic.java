@@ -1630,7 +1630,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public TopicStats getStats(boolean getPreciseBacklog) {
+    public TopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
 
         TopicStats stats = new TopicStats();
 
@@ -1655,7 +1655,7 @@ public class PersistentTopic extends AbstractTopic
         stats.waitingPublishers = getWaitingProducersCount();
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
+            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;

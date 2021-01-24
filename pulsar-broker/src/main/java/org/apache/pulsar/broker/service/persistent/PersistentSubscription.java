@@ -903,7 +903,7 @@ public class PersistentSubscription implements Subscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStats getStats(Boolean getPreciseBacklog) {
+    public SubscriptionStats getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -947,6 +947,9 @@ public class PersistentSubscription implements Subscription {
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
+        if (subscriptionBacklogSize) {
+            subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger()).getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+        }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();

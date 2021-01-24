@@ -1109,14 +1109,14 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog) {
+    protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
         validateAdminAndClientPermission();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         validateTopicOwnership(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return topic.getStats(getPreciseBacklog);
+        return topic.getStats(getPreciseBacklog, subscriptionBacklogSize);
     }
 
     protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative, boolean metadata) {
@@ -1237,7 +1237,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative,
-            boolean perPartition, boolean getPreciseBacklog) {
+            boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
         if (topicName.isGlobal()) {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
@@ -1259,7 +1259,7 @@ public class PersistentTopicsBase extends AdminResource {
                 try {
                     topicStatsFutureList
                             .add(pulsar().getAdminClient().topics().getStatsAsync(
-                                    (topicName.getPartition(i).toString()), getPreciseBacklog));
+                                    (topicName.getPartition(i).toString()), getPreciseBacklog, subscriptionBacklogSize));
                 } catch (PulsarServerException e) {
                     asyncResponse.resume(new RestException(e));
                     return;

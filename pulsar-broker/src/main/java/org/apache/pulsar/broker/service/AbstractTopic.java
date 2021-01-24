@@ -742,11 +742,11 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public long getMsgOutCounter() {
-        return getStats(false).msgOutCounter;
+        return getStats(false, false).msgOutCounter;
     }
 
     public long getBytesOutCounter() {
-        return getStats(false).bytesOutCounter;
+        return getStats(false, false).bytesOutCounter;
     }
 
     public boolean isDeleteWhileInactive() {

@@ -755,6 +755,8 @@ public interface Topics {
      *            topic name
      * @param getPreciseBacklog
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -764,10 +766,11 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException;
+    TopicStats getStats(String topic, boolean getPreciseBacklog,
+                        boolean subscriptionBacklogSize) throws PulsarAdminException;
 
     default TopicStats getStats(String topic) throws PulsarAdminException {
-        return getStats(topic, false);
+        return getStats(topic, false, false);
     }
 
     /**
@@ -778,14 +781,16 @@ public interface Topics {
      *            topic name
      * @param getPreciseBacklog
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
-     *
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return a future that can be used to track when the topic statistics are returned
      *
      */
-    CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog);
+    CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
+                                                boolean subscriptionBacklogSize);
 
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
-        return getStatsAsync(topic, false);
+        return getStatsAsync(topic, false, false);
     }
 
     /**

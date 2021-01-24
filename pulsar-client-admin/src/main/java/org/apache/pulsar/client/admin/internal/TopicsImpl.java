@@ -626,9 +626,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException {
+    public TopicStats getStats(String topic, boolean getPreciseBacklog,
+                               boolean subscriptionBacklogSize) throws PulsarAdminException {
         try {
-            return getStatsAsync(topic, getPreciseBacklog).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getStatsAsync(topic, getPreciseBacklog, subscriptionBacklogSize)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -640,9 +642,12 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog) {
+    public CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
+                                                       boolean subscriptionBacklogSize) {
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "stats").queryParam("getPreciseBacklog", getPreciseBacklog);
+        WebTarget path = topicPath(tn, "stats")
+                .queryParam("getPreciseBacklog", getPreciseBacklog)
+                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
         final CompletableFuture<TopicStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TopicStats>() {

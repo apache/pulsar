@@ -191,7 +191,7 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStats getStats(boolean getPreciseBacklog);
+    TopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
