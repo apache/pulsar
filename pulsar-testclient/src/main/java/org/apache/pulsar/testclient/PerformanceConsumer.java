@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -168,6 +169,18 @@ public class PerformanceConsumer {
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
+
+        @Parameter(names = {"-bm",
+                "--batch-max-messages"}, description = "The max number of messages for one receive batch")
+        public int maxNumMessages = -1;
+
+        @Parameter(names = {"-bb",
+                "--batch-max-bytes"}, description = "The max number of bytes for one receive batch")
+        public int maxNumBytes = -1;
+
+        @Parameter(names = {"-bt",
+                "--batch-timeout"}, description = "The max receive batch timeout, TimeUnit is milliseconds")
+        public int timeout = -1;
     }
 
     public static void main(String[] args) throws Exception {
@@ -336,6 +349,13 @@ public class PerformanceConsumer {
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
             EncKeyReader keyReader = new EncKeyReader(pKey);
             consumerBuilder.cryptoKeyReader(keyReader);
+        }
+
+        if (arguments.maxNumMessages > 0 || arguments.maxNumBytes > 0 || arguments.timeout > 0) {
+            consumerBuilder.batchReceivePolicy(BatchReceivePolicy.builder()
+                    .maxNumMessages(arguments.maxNumMessages)
+                    .maxNumBytes(arguments.maxNumBytes)
+                    .timeout(arguments.timeout, TimeUnit.MILLISECONDS).build());
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
