@@ -182,7 +182,7 @@ public class LoadBalancerTest {
         while (loopCount < MAX_RETRIES) {
             Thread.sleep(1000);
             // Check if the new leader is elected. If yes, break without incrementing the loopCount
-            newLeader = les.getCurrentLeader();
+            newLeader = les.getCurrentLeader().get();
             if (newLeader.equals(oldLeader) == false) {
                 break;
             }
@@ -720,7 +720,7 @@ public class LoadBalancerTest {
                     activePulsar.add(allServices[j]);
                     LeaderElectionService les = allServices[j].getLeaderElectionService();
                     if (les.isLeader()) {
-                        oldLeader = les.getCurrentLeader();
+                        oldLeader = les.getCurrentLeader().get();
                         leaderPulsar = allServices[j];
                         // set the refence to null in the main array,
                         // in order to prevent closing this PulsarService twice
@@ -733,7 +733,8 @@ public class LoadBalancerTest {
             // Make sure both brokers see the same leader
             log.info("Old leader is : {}", oldLeader.getServiceUrl());
             for (PulsarService pulsar : activePulsar) {
-                assertEquals(pulsar.getLeaderElectionService().getCurrentLeader(), oldLeader);
+                log.info("Current leader for {} is : {}", pulsar.getWebServiceAddress(), pulsar.getLeaderElectionService().getCurrentLeader());
+                assertEquals(pulsar.getLeaderElectionService().readCurrentLeader().join(), Optional.of(oldLeader));
             }
 
             // Do leader election by killing the leader broker

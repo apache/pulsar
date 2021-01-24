@@ -194,6 +194,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled) {
+        conf.setAckReceiptEnabled(isAckReceiptEnabled);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> ackTimeoutTickTime(long tickTime, TimeUnit timeUnit) {
         checkArgument(timeUnit.toMillis(tickTime) >= MIN_TICK_TIME_MILLIS,
                 "Ack timeout tick time should be greater than " + MIN_TICK_TIME_MILLIS + " ms");
