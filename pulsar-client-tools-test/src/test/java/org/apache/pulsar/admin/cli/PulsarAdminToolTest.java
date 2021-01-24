@@ -881,6 +881,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1", true);
     }
 
     @Test

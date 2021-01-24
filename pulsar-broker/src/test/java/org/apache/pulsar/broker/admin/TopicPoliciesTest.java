@@ -903,6 +903,30 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
+    @Test
+    public void testGetMaxConsumersApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getMaxConsumers(topic));
+        assertNull(admin.namespaces().getMaxConsumersPerTopic(myNamespace));
+        assertEquals(admin.topics().getMaxConsumers(topic, true).intValue(), conf.getMaxConsumersPerTopic());
+
+        admin.namespaces().setMaxConsumersPerTopic(myNamespace, 7);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getMaxConsumersPerTopic(myNamespace)));
+        assertEquals(admin.topics().getMaxConsumers(topic, true).intValue(), 7);
+
+        admin.topics().setMaxConsumers(topic, 1000);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getMaxConsumers(topic)));
+        assertEquals(admin.topics().getMaxConsumers(topic, true).intValue(), 1000);
+
+        admin.namespaces().removeMaxConsumersPerTopic(myNamespace);
+        admin.topics().removeMaxConsumers(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getMaxConsumersPerTopic(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getMaxConsumers(topic)));
+        assertEquals(admin.topics().getMaxConsumers(topic, true).intValue(), conf.getMaxConsumersPerTopic());
+    }
 
     @Test
     public void testSetMaxConsumers() throws Exception {
