@@ -62,6 +62,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -95,6 +97,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final ConsumerStatsRecorder stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
@@ -356,27 +359,33 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected CompletableFuture<Messages<T>> internalBatchReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
-        if (pendingBatchReceives == null) {
-            pendingBatchReceives = Queues.newConcurrentLinkedQueue();
-        }
-        if (hasEnoughMessagesForBatchReceive()) {
-            MessagesImpl<T> messages = getNewMessagesImpl();
-            Message<T> msg = null;
-            do {
-                msg = incomingMessages.poll();
-                if (msg != null) {
-                    decreaseIncomingMessageSize(msg);
-                    Message<T> interceptMsg = beforeConsume(msg);
-                    messages.add(interceptMsg);
+        try {
+            lock.writeLock().lock();
+            if (pendingBatchReceives == null) {
+                pendingBatchReceives = Queues.newConcurrentLinkedQueue();
+            }
+            if (hasEnoughMessagesForBatchReceive()) {
+                MessagesImpl<T> messages = getNewMessagesImpl();
+                Message<T> msgPeeked = incomingMessages.peek();
+                while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+                    Message<T> msg = incomingMessages.poll();
+                    if (msg != null) {
+                        decreaseIncomingMessageSize(msg);
+                        Message<T> interceptMsg = beforeConsume(msg);
+                        messages.add(interceptMsg);
+                    }
+                    msgPeeked = incomingMessages.peek();
                 }
-            } while (msg != null && messages.canAdd());
-            result.complete(messages);
-        } else {
-            OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
-            pendingBatchReceives.add(opBatchReceive);
-            cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
+                result.complete(messages);
+            } else {
+                OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
+                pendingBatchReceives.add(opBatchReceive);
+                cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
+            }
+            resumeReceivingFromPausedConsumersIfNeeded();
+        } finally {
+            lock.writeLock().unlock();
         }
-        resumeReceivingFromPausedConsumersIfNeeded();
 
         return result;
     }
