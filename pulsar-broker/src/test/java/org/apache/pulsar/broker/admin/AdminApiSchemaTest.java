@@ -229,7 +229,8 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(schemaInfo, keyValueSchema.getSchemaInfo());
     }
 
-    @Test void getTopicIntervalStateIncludeSchemaStoreLedger() throws PulsarAdminException {
+    @Test
+    void getTopicIntervalStateIncludeSchemaStoreLedger() throws PulsarAdminException {
         String topicName = "persistent://schematest/test/get-schema-ledger-info";
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, "test", MessageId.earliest);

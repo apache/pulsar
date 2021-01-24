@@ -1788,7 +1788,7 @@ public class PersistentTopic extends AbstractTopic
 
 
         CompletableFuture<Void> schemaStoreLedgersFuture = new CompletableFuture<>();
-        stats.schemaLedgers = new ArrayList<>();
+        stats.schemaLedgers = Collections.synchronizedList(new ArrayList<>());
         if (brokerService.getPulsar().getSchemaStorage() != null
                 && brokerService.getPulsar().getSchemaStorage() instanceof BookkeeperSchemaStorage) {
             ((BookkeeperSchemaStorage) brokerService.getPulsar().getSchemaStorage())
