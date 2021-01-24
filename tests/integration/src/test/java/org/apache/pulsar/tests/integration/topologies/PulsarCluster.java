@@ -373,8 +373,10 @@ public class PulsarCluster {
                 .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080")
-                // presto config
-                .withEnv("PRESTO_PREFIX_coordinator", "true");
+                .withClasspathResourceMapping(
+                        "presto-coordinator-config.properties",
+                        "/pulsar/conf/presto/config.properties",
+                        BindMode.READ_WRITE);
             if (spec.queryLastMessage) {
                 prestoWorkerContainer.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
                     .withEnv("pulsar.bookkeeper-explicit-interval", "10");
