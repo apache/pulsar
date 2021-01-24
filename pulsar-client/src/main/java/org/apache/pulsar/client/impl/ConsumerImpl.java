@@ -329,11 +329,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder()
                     .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount());
 
-
             if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
                 dlpBuilder.deadLetterTopic(conf.getDeadLetterPolicy().getDeadLetterTopic());
             } else if (conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
-                // Not setting a default DLQ is it's Key_Shared subType.
+                // Not setting a default DLQ if it's Key_Shared subType.
                 dlpBuilder.deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
                         topic, subscription));
             }
@@ -704,7 +703,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_DELAY_TIME, String.valueOf(unit.toMillis(delayTime)));
 
                 // DLQ only supports non-ordered subscriptions, don't enable DLQ on Key_Shared subType since it require message ordering for given key.
-                if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount() && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+                if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount() && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
                    processPossibleToDLQ((MessageIdImpl)messageId);
                     if (deadLetterProducer == null) {
                         try {
@@ -1388,7 +1387,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 getPartitionIndex());
         List<MessageImpl<T>> possibleToDeadLetter = null;
         // DLQ only supports non-ordered subscriptions, don't enable DLQ on Key_Shared subType since it require message ordering for given key.
-        if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount() && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+        if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount() && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
             possibleToDeadLetter = new ArrayList<>();
         }
 
@@ -1762,7 +1761,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         checkArgument(messageIds.stream().findFirst().get() instanceof MessageIdImpl);
 
         if (conf.getSubscriptionType() != SubscriptionType.Shared
-                && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+                && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
             return;
