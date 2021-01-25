@@ -21,6 +21,8 @@ package org.apache.bookkeeper.mledger;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
@@ -64,7 +66,7 @@ public interface AsyncCallbacks {
     }
 
     interface AddEntryCallback {
-        void addComplete(Position position, Object ctx);
+        void addComplete(Position position, ByteBuf entryData, Object ctx);
 
         void addFailed(ManagedLedgerException exception, Object ctx);
     }

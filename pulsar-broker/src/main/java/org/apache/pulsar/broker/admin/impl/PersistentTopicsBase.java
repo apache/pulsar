@@ -2706,9 +2706,18 @@ public class PersistentTopicsBase extends AdminResource {
         return getTopicPolicies(topicName).map(TopicPolicies::getMaxMessageSize);
     }
 
-    protected Optional<Integer> internalGetMaxProducers() {
+    protected CompletableFuture<Integer> internalGetMaxProducers(boolean applied) {
         preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxProducerPerTopic);
+        Integer maxNum = getTopicPolicies(topicName)
+                .map(TopicPolicies::getMaxProducerPerTopic)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer maxProducer = getNamespacePolicies(namespaceName).max_producers_per_topic;
+                        return maxProducer == null ? config().getMaxProducersPerTopic() : maxProducer;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(maxNum);
     }
 
     protected CompletableFuture<Void> internalSetMaxProducers(Integer maxProducers) {
