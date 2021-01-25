@@ -941,7 +941,11 @@ public interface Topics {
      * @param topic
      *            topic name
      * @param perPartition
-     *
+     *            flag to get stats per partition
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return the partitioned topic statistics
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -951,11 +955,12 @@ public interface Topics {
      *             Unexpected error
      *
      */
-    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog)
+    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog,
+                                              boolean subscriptionBacklogSize)
             throws PulsarAdminException;
 
     default PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException {
-        return getPartitionedStats(topic, perPartition, false);
+        return getPartitionedStats(topic, perPartition, false, false);
     }
 
     /**
@@ -965,13 +970,17 @@ public interface Topics {
      *            topic Name
      * @param perPartition
      *            flag to get stats per partition
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
     CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(
-            String topic, boolean perPartition, boolean getPreciseBacklog);
+            String topic, boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize);
 
     default CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition) {
-        return getPartitionedStatsAsync(topic, perPartition, false);
+        return getPartitionedStatsAsync(topic, perPartition, false, false);
     }
 
     /**
