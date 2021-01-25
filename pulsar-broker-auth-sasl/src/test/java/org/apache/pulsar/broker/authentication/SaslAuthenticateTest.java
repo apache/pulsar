@@ -181,10 +181,10 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         lookupUrl = new URI(pulsar.getWebServiceAddress());
 
-        pulsarClient = PulsarClient.builder()
+        replacePulsarClient(PulsarClient.builder()
             .serviceUrl(lookupUrl.toString())
             .statsInterval(0, TimeUnit.SECONDS)
-            .authentication(authSasl).build();
+            .authentication(authSasl));
 
         // set admin auth, to verify admin web resources
         Map<String, String> clientSaslConfig = Maps.newHashMap();
