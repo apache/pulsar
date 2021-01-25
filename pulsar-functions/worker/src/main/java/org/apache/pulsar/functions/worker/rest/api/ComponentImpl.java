@@ -400,7 +400,10 @@ public abstract class ComponentImpl {
                         ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
 
         // clean up component files stored in BK
-        if (!functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP) && !functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
+        String functionPackagePath = functionMetaData.getPackageLocation().getPackagePath();
+        if (!functionPackagePath.startsWith(Utils.HTTP)
+                && !functionPackagePath.startsWith(Utils.FILE)
+                && !functionPackagePath.startsWith(Utils.BUILTIN)) {
             try {
                 WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(), functionMetaData.getPackageLocation().getPackagePath());
             } catch (IOException e) {
