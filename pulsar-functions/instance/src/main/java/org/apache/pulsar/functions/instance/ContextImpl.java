@@ -668,7 +668,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 }
             }
 
-            if (pulsar.getAdminClient() != null) {
+            if (exposePulsarAdminClientEnabled && pulsar.getAdminClient() != null) {
                 pulsar.getAdminClient().close();
             }
         }
