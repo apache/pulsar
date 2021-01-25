@@ -235,7 +235,7 @@ public class ManagedLedgerWriter {
 
                     final AddEntryCallback addEntryCallback = new AddEntryCallback() {
                         @Override
-                        public void addComplete(Position position, Object ctx) {
+                        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                             long sendTime = (Long) (ctx);
                             messagesSent.increment();
                             bytesSent.add(payloadData.length);

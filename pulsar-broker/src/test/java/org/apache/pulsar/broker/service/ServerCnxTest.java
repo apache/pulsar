@@ -954,10 +954,10 @@ public class ServerCnxTest {
                 producerName, Collections.emptyMap());
         channel.writeInbound(createProducer3);
 
-        // 3rd producer fails because 2nd is already connected
+        // 3rd producer succeeds because 2nd is already connected
         response = getResponse();
-        assertEquals(response.getClass(), CommandError.class);
-        assertEquals(((CommandError) response).getRequestId(), 4);
+        assertEquals(response.getClass(), CommandProducerSuccess.class);
+        assertEquals(((CommandProducerSuccess) response).getRequestId(), 4);
 
         Thread.sleep(500);
 
@@ -1531,7 +1531,9 @@ public class ServerCnxTest {
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(new PositionImpl(-1, -1),
+                ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
+                        new PositionImpl(-1, -1),
+                        null,
                         invocationOnMock.getArguments()[2]);
                 return null;
             }
