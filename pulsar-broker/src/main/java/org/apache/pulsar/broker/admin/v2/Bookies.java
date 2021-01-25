@@ -143,7 +143,7 @@ public class Bookies extends AdminResource {
             // Creates the z-node with racks info
             BookiesRackConfiguration racks = new BookiesRackConfiguration();
             racks.updateBookie(group, bookieAddress, bookieInfo);
-            zkCreate(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper().writeValueAsBytes(racks));
+            localZKCreate(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper().writeValueAsBytes(racks));
             log.info("Created rack mapping info and added {}", bookieAddress);
         }
     }

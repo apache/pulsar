@@ -22,12 +22,17 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -54,6 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -67,6 +73,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -1515,15 +1522,30 @@ public class PulsarFunctionE2ETest {
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader()
+            .getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
-        try {
-            admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-            assertTrue(validRoleName);
-        } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
-            assertFalse(validRoleName);
+        if (!validRoleName) {
+            // create a non-superuser admin to test the api
+            admin = spy(
+                PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())
+                    .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                    .allowTlsInsecureConnection(true).build());
+            try {
+                admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+            } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
+                assertFalse(validRoleName);
+            }
+        } else {
+            try {
+                admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+                assertTrue(validRoleName);
+            } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
+                fail();
+            }
         }
+
     }
 
     @Test(timeOut = 20000)

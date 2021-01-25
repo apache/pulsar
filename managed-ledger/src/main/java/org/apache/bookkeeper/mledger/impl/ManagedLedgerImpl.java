@@ -197,7 +197,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastLedgerCreationInitiationTimestamp = 0;
 
     private static final Random random = new Random(System.currentTimeMillis());
-    private long maximumRolloverTimeMs;
+    private final long maximumRolloverTimeMs;
     protected final Supplier<Boolean> mlOwnershipChecker;
 
     volatile PositionImpl lastConfirmedEntry;
@@ -264,8 +264,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     @VisibleForTesting
     Map<String, byte[]> createdLedgerCustomMetadata;
-
-    // //////////////////////////////////////////////////////////////////////
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
@@ -595,7 +593,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         asyncAddEntry(data, offset, length, new AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 result.position = position;
                 counter.countDown();
             }
@@ -630,7 +628,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         asyncAddEntry(data, numberOfMessages, offset, length, new AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 result.position = position;
                 counter.countDown();
             }

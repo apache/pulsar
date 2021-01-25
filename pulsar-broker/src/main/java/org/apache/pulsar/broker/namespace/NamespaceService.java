@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
@@ -447,7 +448,7 @@ public class NamespaceService {
     private void searchForCandidateBroker(NamespaceBundle bundle,
                                           CompletableFuture<Optional<LookupResult>> lookupFuture,
                                           LookupOptions options) {
-        if (null == pulsar.getLeaderElectionService() || !pulsar.getLeaderElectionService().isElected()) {
+        if (null == pulsar.getLeaderElectionService()) {
             LOG.warn("The leader election has not yet been completed! NamespaceBundle[{}]", bundle);
             lookupFuture.completeExceptionally(
                     new IllegalStateException("The leader election has not yet been completed!"));
@@ -478,14 +479,17 @@ public class NamespaceService {
             }
 
             if (candidateBroker == null) {
+                Optional<LeaderBroker> currentLeader = pulsar.getLeaderElectionService().getCurrentLeader();
+
                 if (options.isAuthoritative()) {
                     // leader broker already assigned the current broker as owner
                     candidateBroker = pulsar.getSafeWebServiceAddress();
                 } else if (!this.loadManager.get().isCentralized()
                         || pulsar.getLeaderElectionService().isLeader()
+                        || !currentLeader.isPresent()
 
                         // If leader is not active, fallback to pick the least loaded from current broker loadmanager
-                        || !isBrokerActive(pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl())
+                        || !isBrokerActive(currentLeader.get().getServiceUrl())
                 ) {
                     Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
                     if (!availableBroker.isPresent()) {
@@ -496,7 +500,7 @@ public class NamespaceService {
                     authoritativeRedirect = true;
                 } else {
                     // forward to leader broker to make assignment
-                    candidateBroker = pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl();
+                    candidateBroker = currentLeader.get().getServiceUrl();
                 }
             }
         } catch (Exception e) {
@@ -1147,7 +1151,7 @@ public class NamespaceService {
             LOG.debug("Getting children from partitioned-topics now: {}", path);
         }
 
-        return pulsar.getLocalZkCache().getChildrenAsync(path, null).thenCompose(topics -> {
+        return pulsar.getGlobalZkCache().getChildrenAsync(path, null).thenCompose(topics -> {
             CompletableFuture<List<String>> result = new CompletableFuture<>();
             List<String> resultPartitions = Collections.synchronizedList(Lists.newArrayList());
             if (CollectionUtils.isNotEmpty(topics)) {

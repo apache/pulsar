@@ -40,7 +40,6 @@ import org.testng.annotations.Test;
 
 public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
 
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
     private final int NUM_CONCURRENT_LOOKUP = 3;
     private final int NUM_CONCURRENT_INBOUND_CONNECTION = 5;
     private ProxyService proxyService;
@@ -53,7 +52,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
 
