@@ -2621,4 +2621,154 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
+    @Test(groups = {"java_function", "function"})
+    public void testJavaLoggingFunction() throws Exception {
+        testLoggingFunction(Runtime.JAVA);
+    }
+
+    private void testLoggingFunction(Runtime runtime) throws Exception {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
+            // python can only run on process mode
+            return;
+        }
+
+        if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.GO) {
+            // go can only run on process mode
+            return;
+        }
+
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
+
+        Schema<?> schema;
+        if (Runtime.JAVA == runtime) {
+            schema = Schema.STRING;
+        } else {
+            schema = Schema.BYTES;
+        }
+
+        String inputTopicName = "persistent://public/default/test-log-" + runtime + "-input-" + randomName(8);
+        String logTopicName = "test-log-" + runtime + "-log-topic-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(logTopicName);
+        }
+
+        String functionName = "test-logging-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        // submit the exclamation function
+        submitJavaLoggingFunction(
+                inputTopicName, logTopicName, functionName, schema);
+
+        // get function info
+        getFunctionInfoSuccess(functionName);
+
+        // get function stats
+        getFunctionStatsEmpty(functionName);
+
+        // publish and consume result
+        publishAndConsumeMessages(inputTopicName, logTopicName, numMessages, "-log");
+
+        // get function status
+        getFunctionStatus(functionName, numMessages, true);
+
+        // get function stats
+        getFunctionStats(functionName, numMessages);
+
+        // delete function
+        deleteFunction(functionName);
+
+        // get function info
+        getFunctionInfoNotFound(functionName);
+
+        // make sure subscriptions are cleanup
+        checkSubscriptionsCleanup(inputTopicName);
+        checkSubscriptionsCleanup(logTopicName);
+
+    }
+
+    private static void submitJavaLoggingFunction(String inputTopicName,
+                                                  String logTopicName,
+                                                  String functionName,
+                                                  Schema<?> schema) throws Exception {
+        CommandGenerator generator;
+        log.info("------- INPUT TOPIC: '{}'", inputTopicName);
+        if (inputTopicName.endsWith(".*")) {
+            log.info("----- CREATING TOPIC PATTERN FUNCTION --- ");
+            generator = CommandGenerator.createTopicPatternGenerator(inputTopicName, LOGGING_JAVA_CLASS);
+        } else {
+            log.info("----- CREATING REGULAR FUNCTION --- ");
+            generator = CommandGenerator.createDefaultGenerator(inputTopicName, LOGGING_JAVA_CLASS);
+        }
+        generator.setLogTopic(logTopicName);
+        generator.setFunctionName(functionName);
+        String command = generator.generateCreateFunctionCommand();
+
+        log.info("---------- Function command: {}", command);
+        String[] commands = {
+                "sh", "-c", command
+        };
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                commands);
+        assertTrue(result.getStdout().contains("\"Created successfully\""));
+
+        ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), schema);
+    }
+
+    private static void publishAndConsumeMessages(String inputTopic,
+                                                  String outputTopic,
+                                                  int numMessages,
+                                                  String messagePostfix) throws Exception {
+        @Cleanup PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(outputTopic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("test-sub")
+                .subscribe();
+
+        if (inputTopic.endsWith(".*")) {
+            @Cleanup Producer<String> producer1 = client.newProducer(Schema.STRING)
+                    .topic(inputTopic.substring(0, inputTopic.length() - 2) + "1")
+                    .create();
+
+            @Cleanup Producer<String> producer2 = client.newProducer(Schema.STRING)
+                    .topic(inputTopic.substring(0, inputTopic.length() - 2) + "2")
+                    .create();
+
+            for (int i = 0; i < numMessages / 2; i++) {
+                producer1.send("message-" + i);
+            }
+
+            for (int i = numMessages / 2; i < numMessages; i++) {
+                producer2.send("message-" + i);
+            }
+        } else {
+            @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(inputTopic)
+                    .create();
+
+            for (int i = 0; i < numMessages; i++) {
+                producer.send("message-" + i);
+            }
+        }
+
+        Set<String> expectedMessages = new HashSet<>();
+        for (int i = 0; i < numMessages; i++) {
+            expectedMessages.add("message-" + i + messagePostfix);
+        }
+
+        for (int i = 0; i < numMessages; i++) {
+            Message<String> msg = consumer.receive(30, TimeUnit.SECONDS);
+            log.info("Received: {}", msg.getValue());
+            assertTrue(expectedMessages.contains(msg.getValue()));
+            expectedMessages.remove(msg.getValue());
+        }
+    }
+
 }
