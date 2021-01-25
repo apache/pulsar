@@ -122,6 +122,18 @@ class PulsarTest(TestCase):
         self.assertEqual(len(sent_messages), 3)
         client.close()
 
+    def test_producer_send(self):
+        client = Client(self.serviceUrl)
+        topic = 'test_producer_send'
+        producer = client.create_producer(topic)
+        consumer = client.subscribe(topic, 'sub-name')
+        msg_id = producer.send(b'hello')
+        print('send to {}'.format(msg_id))
+        msg = consumer.receive(TM)
+        consumer.acknowledge(msg)
+        print('receive from {}'.format(msg.message_id()))
+        self.assertEqual(msg_id, msg.message_id())
+
     def test_producer_consumer(self):
         client = Client(self.serviceUrl)
         consumer = client.subscribe('my-python-topic-producer-consumer',
