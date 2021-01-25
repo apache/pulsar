@@ -411,7 +411,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         try {
             blobStore.completeMultipartUpload(streamingMpu, streamingParts);
             streamingIndexBuilder.withDataObjectLength(dataObjectLength);
-            final OffloadIndexBlockV2 index = streamingIndexBuilder.buildStreaming();
+            final OffloadIndexBlockV2 index = streamingIndexBuilder.buildV2();
             final IndexInputStream indexStream = index.toStream();
             final BlobBuilder indexBlobBuilder = blobStore.blobBuilder(streamingDataIndexKey);
             streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
@@ -536,7 +536,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
         scheduler.chooseThread(ledgerId).submit(() -> {
             try {
-                promise.complete(StreamingBlobStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId),
+                promise.complete(BlobStoreBackedReadHandleImplV2.open(scheduler.chooseThread(ledgerId),
                         readBlobstore,
                         readBucket, keys, indexKeys,
                         DataBlockUtils.VERSION_CHECK,

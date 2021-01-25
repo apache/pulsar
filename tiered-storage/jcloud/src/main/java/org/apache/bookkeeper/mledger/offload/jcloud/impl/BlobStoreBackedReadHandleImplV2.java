@@ -48,8 +48,8 @@ import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
-    private static final Logger log = LoggerFactory.getLogger(StreamingBlobStoreBackedReadHandleImpl.class);
+public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImplV2.class);
 
     private final long ledgerId;
     private final List<OffloadIndexBlockV2> indices;
@@ -86,9 +86,9 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
         }
     }
 
-    private StreamingBlobStoreBackedReadHandleImpl(long ledgerId, List<OffloadIndexBlockV2> indices,
-                                                   List<BackedInputStream> inputStreams,
-                                                   ExecutorService executor) {
+    private BlobStoreBackedReadHandleImplV2(long ledgerId, List<OffloadIndexBlockV2> indices,
+                                            List<BackedInputStream> inputStreams,
+                                            ExecutorService executor) {
         this.ledgerId = ledgerId;
         this.indices = indices;
         this.inputStreams = inputStreams;
@@ -297,6 +297,6 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
             inputStreams.add(inputStream);
             indice.add(index);
         }
-        return new StreamingBlobStoreBackedReadHandleImpl(ledgerId, indice, inputStreams, executor);
+        return new BlobStoreBackedReadHandleImplV2(ledgerId, indice, inputStreams, executor);
     }
 }

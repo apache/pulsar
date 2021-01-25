@@ -138,7 +138,7 @@ public class OffloadIndexBlockV2BuilderImpl implements OffloadIndexBlockBuilder,
     }
 
     @Override
-    public OffloadIndexBlockV2 buildStreaming() {
+    public OffloadIndexBlockV2 buildV2() {
         checkState(!ledgerMetadataMap.isEmpty());
         checkState(true);
         checkState(!entryMap.isEmpty());

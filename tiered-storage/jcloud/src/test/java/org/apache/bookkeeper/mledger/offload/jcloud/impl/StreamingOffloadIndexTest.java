@@ -52,7 +52,7 @@ public class StreamingOffloadIndexTest {
         blockBuilder.addBlock(ledgerId, 0, 2, 64 * 1024 * 1024);
         blockBuilder.addBlock(ledgerId, 1000, 3, 64 * 1024 * 1024);
         blockBuilder.addBlock(ledgerId, 2000, 4, 64 * 1024 * 1024);
-        OffloadIndexBlockV2 indexBlock = blockBuilder.buildStreaming();
+        OffloadIndexBlockV2 indexBlock = blockBuilder.buildV2();
 
         // verify getEntryCount and getLedgerMetadata
         assertEquals(indexBlock.getEntryCount(), 3);
@@ -199,7 +199,7 @@ public class StreamingOffloadIndexTest {
         blockBuilder.addBlock(ledgerId1, 1000, 2, 64 * 1024 * 1024);
         blockBuilder.addBlock(ledgerId2, 0, 3, 64 * 1024 * 1024);
         blockBuilder.addBlock(ledgerId2, 1000, 4, 64 * 1024 * 1024);
-        OffloadIndexBlockV2 indexBlock = blockBuilder.buildStreaming();
+        OffloadIndexBlockV2 indexBlock = blockBuilder.buildV2();
 
         // verify getEntryCount and getLedgerMetadata
         assertEquals(indexBlock.getEntryCount(), 3);

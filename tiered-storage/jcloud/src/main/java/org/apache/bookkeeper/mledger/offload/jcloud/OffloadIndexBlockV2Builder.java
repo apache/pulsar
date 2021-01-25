@@ -67,7 +67,7 @@ public interface OffloadIndexBlockV2Builder {
     /**
      * Finalize the immutable OffloadIndexBlock.
      */
-    OffloadIndexBlockV2 buildStreaming();
+    OffloadIndexBlockV2 buildV2();
 
     /**
      * Construct OffloadIndex from an InputStream.
