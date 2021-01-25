@@ -1604,7 +1604,15 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMessageTTL(String topic) throws PulsarAdminException;
+    Integer getMessageTTL(String topic) throws PulsarAdminException;
+
+    /**
+     * Get message TTL applied for a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMessageTTL(String topic, boolean applied) throws PulsarAdminException;
 
     /**
      * Remove message TTL for a topic.
@@ -1802,6 +1810,21 @@ public interface Topics {
      */
     CompletableFuture<Void> removeMaxUnackedMessagesOnConsumerAsync(String topic);
 
+    /**
+     * Get inactive topic policies applied for a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    InactiveTopicPolicies getInactiveTopicPolicies(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get inactive topic policies applied for a topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String topic, boolean applied);
     /**
      * get inactive topic policies of a topic.
      * @param topic
@@ -2485,6 +2508,23 @@ public interface Topics {
      * @throws PulsarAdminException Unexpected error
      */
     CompletableFuture<Integer> getMaxProducersAsync(String topic);
+
+    /**
+     * Get the max number of producer applied for specified topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxProducers(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the max number of producer applied for specified topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<Integer> getMaxProducersAsync(String topic, boolean applied);
 
 
     /**

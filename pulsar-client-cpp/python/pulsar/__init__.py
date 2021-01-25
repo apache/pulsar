@@ -853,6 +853,8 @@ class Producer:
         """
         Publish a message on the topic. Blocks until the message is acknowledged
 
+        Returns a `MessageId` object that represents where the message is persisted.
+
         **Args**
 
         * `content`:
@@ -887,7 +889,7 @@ class Producer:
         msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication, event_timestamp,
                               deliver_at, deliver_after)
-        return self._producer.send(msg)
+        return MessageId.deserialize(self._producer.send(msg))
 
     def send_async(self, content, callback,
                    properties=None,
@@ -1000,7 +1002,7 @@ class Producer:
             mb.deliver_at(deliver_at)
         if deliver_after:
             mb.deliver_after(deliver_after)
-        
+
         return mb.build()
 
 
