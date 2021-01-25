@@ -89,9 +89,9 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             if (commonName == null) {
                 throw new AuthenticationException("Client unable to authenticate with TLS certificate");
             }
-            AuthenticationMetrics.authenticateSuccess(getAuthMethodName());
+            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
             throw exception;
         }
         return commonName;

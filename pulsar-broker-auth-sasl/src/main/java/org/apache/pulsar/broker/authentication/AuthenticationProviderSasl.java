@@ -102,13 +102,13 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         try {
             if (authData instanceof SaslAuthenticationDataSource) {
-                AuthenticationMetrics.authenticateSuccess(getAuthMethodName());
+                AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
                 return ((SaslAuthenticationDataSource) authData).getAuthorizationID();
             } else {
                 throw new AuthenticationException("Not support authDataSource type, expect sasl.");
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
             throw exception;
         }
 

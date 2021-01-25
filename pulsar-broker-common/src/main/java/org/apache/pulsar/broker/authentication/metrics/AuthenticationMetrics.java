@@ -24,28 +24,30 @@ public class AuthenticationMetrics {
     private static final Counter authSuccessMetrics = Counter.build()
             .name("pulsar_authentication_success_count")
             .help("Pulsar authentication success")
-            .labelNames("auth_method")
+            .labelNames("provider_name", "auth_method")
             .register();
     private static final Counter authFailuresMetrics = Counter.build()
             .name("pulsar_authentication_failures_count")
             .help("Pulsar authentication failures")
-            .labelNames("auth_method", "reason")
+            .labelNames("provider_name", "auth_method", "reason")
             .register();
 
     /**
      * Log authenticate success event to the authentication metrics
+     * @param providerName The short class name of the provider
      * @param authMethod Authentication method name
      */
-    public static void authenticateSuccess(String authMethod) {
-        authSuccessMetrics.labels(authMethod).inc();
+    public static void authenticateSuccess(String providerName, String authMethod) {
+        authSuccessMetrics.labels(providerName, authMethod).inc();
     }
 
     /**
      * Log authenticate failure event to the authentication metrics.
+     * @param providerName The short class name of the provider
      * @param authMethod Authentication method name.
      * @param reason Failure reason.
      */
-    public static void authenticateFailure(String authMethod, String reason) {
-        authFailuresMetrics.labels(authMethod, reason).inc();
+    public static void authenticateFailure(String providerName, String authMethod, String reason) {
+        authFailuresMetrics.labels(providerName, authMethod, reason).inc();
     }
 }

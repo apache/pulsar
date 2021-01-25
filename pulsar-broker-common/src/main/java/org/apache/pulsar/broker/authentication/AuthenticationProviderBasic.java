@@ -95,10 +95,10 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 throw new AuthenticationException(msg);
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getAuthMethodName(), exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
             throw exception;
         }
-        AuthenticationMetrics.authenticateSuccess(getAuthMethodName());
+        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
         return userId;
     }
 
