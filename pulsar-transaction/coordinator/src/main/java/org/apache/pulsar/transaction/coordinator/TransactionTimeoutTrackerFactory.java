@@ -16,19 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance;
+package org.apache.pulsar.transaction.coordinator;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.google.common.annotations.Beta;
 
 /**
- * A class to hold the contents of the leader election node. Facilitates serialization and deserialization of the
- * information that might be added for leader broker in the future.
+ * Factory of TransactionTimeoutTracker objects.
  */
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class LeaderBroker {
-    private String serviceUrl;
+@Beta
+public interface TransactionTimeoutTrackerFactory {
+
+    /**
+     * Create a new tracker instance.
+     *
+     * @param tcID {@link TransactionCoordinatorID tcID} the id for transaction coordinator
+     */
+    TransactionTimeoutTracker newTracker(TransactionCoordinatorID tcID);
 }
