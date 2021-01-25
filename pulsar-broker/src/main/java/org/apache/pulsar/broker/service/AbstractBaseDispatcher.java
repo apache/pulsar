@@ -165,19 +165,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         // noop
     }
 
-    public static final String NONE_KEY = "NONE_KEY";
-
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
-        metadataAndPayload.markReaderIndex();
-        MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-        metadataAndPayload.resetReaderIndex();
-        byte[] key = NONE_KEY.getBytes();
-        if (metadata.hasOrderingKey()) {
-            return metadata.getOrderingKey();
-        } else if (metadata.hasPartitionKey()) {
-            return metadata.getPartitionKey().getBytes();
-        }
-        return key;
+        return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
     }
 
     protected void addMessageToReplay(long ledgerId, long entryId) {

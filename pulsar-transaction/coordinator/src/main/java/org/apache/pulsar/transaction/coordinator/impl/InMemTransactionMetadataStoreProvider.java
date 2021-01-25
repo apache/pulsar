@@ -24,6 +24,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactory;
 
 /**
  * The provider that offers in-memory implementation of {@link TransactionMetadataStore}.
@@ -33,7 +35,8 @@ public class InMemTransactionMetadataStoreProvider implements TransactionMetadat
     @Override
     public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
                                                                  ManagedLedgerFactory managedLedgerFactory,
-                                                                 ManagedLedgerConfig managedLedgerConfig) {
+                                                                 ManagedLedgerConfig managedLedgerConfig,
+                                                                 TransactionTimeoutTracker timeoutTracker) {
         return CompletableFuture.completedFuture(
             new InMemTransactionMetadataStore(transactionCoordinatorId));
     }

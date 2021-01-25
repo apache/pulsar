@@ -2509,6 +2509,23 @@ public interface Topics {
      */
     CompletableFuture<Integer> getMaxProducersAsync(String topic);
 
+    /**
+     * Get the max number of producer applied for specified topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxProducers(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the max number of producer applied for specified topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<Integer> getMaxProducersAsync(String topic, boolean applied);
+
 
     /**
      * Set the max number of producer for specified topic.
