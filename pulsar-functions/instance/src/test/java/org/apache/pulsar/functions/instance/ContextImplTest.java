@@ -71,6 +71,7 @@ public class ContextImplTest {
     @BeforeMethod
     public void setup() {
         config = new InstanceConfig();
+        config.setExposePulsarAdminClientEnabled(true);
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
             .setUserConfig("")
             .build();
@@ -93,7 +94,7 @@ public class ContextImplTest {
             client,
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                true, pulsarAdmin);
+                pulsarAdmin);
         context.setCurrentMessageContext((Record<String>) () -> null);
     }
 
@@ -170,7 +171,20 @@ public class ContextImplTest {
     }
 
     @Test
-    public void testGetPulsarAdminWithNonExistClusterName() throws Exception {
+    public void testGetPulsarAdminWithNonExistClusterName() {
         assertNull(context.getPulsarAdmin("foo"));
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testGetPulsarAdminWithExposePulsarAdminDisabled() {
+        config.setExposePulsarAdminClientEnabled(false);
+        context = new ContextImpl(
+                config,
+                logger,
+                client,
+                new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin);
+        context.getPulsarAdmin();
     }
  }

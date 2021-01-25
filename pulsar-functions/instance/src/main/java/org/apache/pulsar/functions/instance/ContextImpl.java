@@ -117,7 +117,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       StateManager stateManager, boolean exposePulsarAdminClientEnabled, PulsarAdmin pulsarAdmin) {
+                       StateManager stateManager, PulsarAdmin pulsarAdmin) {
         this.config = config;
         this.logger = logger;
         this.statsManager = statsManager;
@@ -131,7 +131,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 try {
                     this.externalPulsarClusters.put(entry.getKey(),
                             new PulsarCluster(InstanceUtils.createPulsarClient(entry.getValue().getServiceURL(), entry.getValue().getAuthConfig()),
-                                    exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(entry.getValue().getWebServiceURL(), entry.getValue().getAuthConfig()) : null,
+                                    config.isExposePulsarAdminClientEnabled() ? InstanceUtils.createPulsarAdminClient(entry.getValue().getWebServiceURL(), entry.getValue().getAuthConfig()) : null,
                                     ProducerConfigUtils.convert(entry.getValue().getProducerConfig())));
                 } catch (PulsarClientException ex) {
                     throw new RuntimeException("failed to create pulsar client for external cluster: " + entry.getKey(), ex);
@@ -139,7 +139,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             }
         }
         this.defaultPulsarCluster = "default-" + UUID.randomUUID();
-        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client, exposePulsarAdminClientEnabled ? pulsarAdmin : null, config.getFunctionDetails().getSink().getProducerSpec()));
+        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client, config.isExposePulsarAdminClientEnabled() ? pulsarAdmin : null, config.getFunctionDetails().getSink().getProducerSpec()));
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
@@ -188,7 +188,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             config.getFunctionDetails().getNamespace(),
             config.getFunctionDetails().getName()
         );
-        this.exposePulsarAdminClientEnabled = exposePulsarAdminClientEnabled;
+        this.exposePulsarAdminClientEnabled = config.isExposePulsarAdminClientEnabled();
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -323,7 +323,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                         + externalPulsarClusters.keySet());
             }
         } else {
-            throw new IllegalArgumentException("PulsarAdmin is not enabled in function worker");
+            throw new IllegalStateException("PulsarAdmin is not enabled in function worker");
         }
     }
 
