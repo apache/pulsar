@@ -136,6 +136,11 @@ static Result getResult(ServerError serverError) {
     return ResultUnknownError;
 }
 
+inline std::ostream& operator<<(std::ostream& os, ServerError error) {
+    os << getResult(error);
+    return os;
+}
+
 static bool file_exists(const std::string& path) {
     if (path.empty()) {
         return false;

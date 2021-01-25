@@ -855,6 +855,9 @@ public class PulsarAdminToolTest {
         verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds2"), eq("sub1")
                 , eq(new MessageIdImpl(1, 1, -1)), eq(true));
 
+        cmdTopics.run(split("get-maxProducers persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getMaxProducers("persistent://myprop/clust/ns1/ds1", true);
+
         cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1", true);
 
