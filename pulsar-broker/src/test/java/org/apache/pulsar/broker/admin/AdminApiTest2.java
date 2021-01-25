@@ -1260,8 +1260,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 20);
 
-        topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 1);
+        assertEquals(topicStats.subscriptions.get(subName).backlogSize, 43);
     }
 
     @Test(timeOut = 30000)
@@ -1298,8 +1299,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             }
         }
 
-        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+        assertEquals(topicStats.subscriptions.get(subName).backlogSize, 470);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 5);
 
         for (int i = 0; i < 5; i++) {
@@ -1307,8 +1309,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
         // Wait the ack send.
         Thread.sleep(500);
-        topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 5);
+        assertEquals(topicStats.subscriptions.get(subName).backlogSize, 238);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 0);
     }
 
