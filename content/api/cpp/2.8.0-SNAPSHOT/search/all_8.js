@@ -6,5 +6,6 @@ var searchData=
   ['int64',['INT64',['../namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305a11fafed4115309cf1f33eac044e704a2',1,'pulsar']]],
   ['int8',['INT8',['../namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305a2c52dde965d6ba972179fa14116160e9',1,'pulsar']]],
   ['isblockedconsumeronunackedmsgs',['isBlockedConsumerOnUnackedMsgs',['../classpulsar_1_1_broker_consumer_stats.html#a3fd64309f7ebc4ebf1322f3f52693aa5',1,'pulsar::BrokerConsumerStats']]],
+  ['isencryptionenabled',['isEncryptionEnabled',['../classpulsar_1_1_producer_configuration.html#a552eb084a8c8a4e12b90c7cb247f7763',1,'pulsar::ProducerConfiguration']]],
   ['isvalid',['isValid',['../classpulsar_1_1_broker_consumer_stats.html#ab832325475970e501d0e10530696a8d1',1,'pulsar::BrokerConsumerStats']]]
 ];

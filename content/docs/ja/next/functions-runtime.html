@@ -119,6 +119,9 @@ Pulsar supports adding labels to the Kubernetes StatefulSets and services while 
   <span class="hljs-attr">k8Uri:</span>
   <span class="hljs-comment"># the kubernetes namespace to run the function instances. it is `default`, if this setting is left to be empty</span>
   <span class="hljs-attr">jobNamespace:</span>
+  <span class="hljs-comment"># The Kubernetes pod name to run the function instances. It is set to</span>
+  <span class="hljs-comment"># `pf-&lt;tenant&gt;-&lt;namespace&gt;-&lt;function_name&gt;-&lt;random_uuid(8)&gt;` if this setting is left to be empty</span>
+  <span class="hljs-attr">jobName:</span> 
   <span class="hljs-comment"># the docker image to run function instance. by default it is `apachepulsar/pulsar`</span>
   <span class="hljs-attr">pulsarDockerImageName:</span>
   <span class="hljs-comment"># the docker image to run function instance according to different configurations provided by users.</span>
@@ -129,9 +132,15 @@ Pulsar supports adding labels to the Kubernetes StatefulSets and services while 
   <span class="hljs-comment">#   PYTHON: PYTHON_IMAGE_NAME</span>
   <span class="hljs-comment">#   GO: GO_IMAGE_NAME</span>
   <span class="hljs-attr">functionDockerImages:</span>
+  <span class="hljs-comment"># "The image pull policy for image used to run function instance. By default it is `IfNotPresent`</span>
+  <span class="hljs-attr">imagePullPolicy:</span> <span class="hljs-string">IfNotPresent</span>
   <span class="hljs-comment"># the root directory of pulsar home directory in `pulsarDockerImageName`. by default it is `/pulsar`.</span>
   <span class="hljs-comment"># if you are using your own built image in `pulsarDockerImageName`, you need to set this setting accordingly</span>
   <span class="hljs-attr">pulsarRootDir:</span>
+  <span class="hljs-comment"># The config admin CLI allows users to customize the configuration of the admin cli tool, such as:</span>
+  <span class="hljs-comment"># `/bin/pulsar-admin and /bin/pulsarctl`. By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl`</span>
+  <span class="hljs-comment"># you need to set this setting accordingly</span>
+  <span class="hljs-attr">configAdminCLI:</span> 
   <span class="hljs-comment"># this setting only takes effects if `k8Uri` is set to null. if your function worker is running as a k8 pod,</span>
   <span class="hljs-comment"># setting this to true is let function worker to submit functions to the same k8s cluster as function worker</span>
   <span class="hljs-comment"># is running. setting this to false if your function worker is not running as a k8 pod.</span>
@@ -142,8 +151,36 @@ Pulsar supports adding labels to the Kubernetes StatefulSets and services while 
   <span class="hljs-comment"># setting the pulsar admin url that pulsar function should use to connect to pulsar</span>
   <span class="hljs-comment"># if it is not set, it will use the pulsar admin url configured in worker service</span>
   <span class="hljs-attr">pulsarAdminUrl:</span>
+  <span class="hljs-comment"># The flag indicates to install user code dependencies. (applied to python package)</span>
+  <span class="hljs-attr">installUserCodeDependencies:</span>
+  <span class="hljs-comment"># The repository that pulsar functions use to download python dependencies</span>
+  <span class="hljs-attr">pythonDependencyRepository:</span>
+  <span class="hljs-comment"># The repository that pulsar functions use to download extra python dependencies</span>
+  <span class="hljs-attr">pythonExtraDependencyRepository:</span>
   <span class="hljs-comment"># the custom labels that function worker uses to select the nodes for pods</span>
   <span class="hljs-attr">customLabels:</span>
+  <span class="hljs-comment"># The expected metrics collection interval, in seconds</span>
+  <span class="hljs-attr">expectedMetricsCollectionInterval:</span> <span class="hljs-number">30</span>
+  <span class="hljs-comment"># Kubernetes Runtime will periodically checkback on</span>
+  <span class="hljs-comment"># this configMap if defined and if there are any changes</span>
+  <span class="hljs-comment"># to the kubernetes specific stuff, we apply those changes</span>
+  <span class="hljs-attr">changeConfigMap:</span>
+  <span class="hljs-comment"># The namespace for storing change config map</span>
+  <span class="hljs-attr">changeConfigMapNamespace:</span>
+  <span class="hljs-comment"># The ratio cpu request and cpu limit to be set for a function/source/sink.</span>
+  <span class="hljs-comment"># The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio</span>
+  <span class="hljs-attr">cpuOverCommitRatio:</span> <span class="hljs-number">1.0</span>
+  <span class="hljs-comment"># The ratio memory request and memory limit to be set for a function/source/sink.</span>
+  <span class="hljs-comment"># The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio</span>
+  <span class="hljs-attr">memoryOverCommitRatio:</span> <span class="hljs-number">1.0</span>
+  <span class="hljs-comment"># The port inside the function pod which is used by the worker to communicate with the pod</span>
+  <span class="hljs-attr">grpcPort:</span> <span class="hljs-number">9093</span>
+  <span class="hljs-comment"># The port inside the function pod on which prometheus metrics are exposed</span>
+  <span class="hljs-attr">metricsPort:</span> <span class="hljs-number">9094</span>
+  <span class="hljs-comment"># The directory inside the function pod where nar packages will be extracted</span>
+  <span class="hljs-attr">narExtractionDirectory:</span>
+  <span class="hljs-comment"># The classpath where function instance files stored</span>
+  <span class="hljs-attr">functionInstanceClassPath:</span>
   <span class="hljs-comment"># the directory for dropping extra function dependencies</span>
   <span class="hljs-comment"># if it is not an absolute path, it is relative to `pulsarRootDir`</span>
   <span class="hljs-attr">extraFunctionDependenciesDir:</span>

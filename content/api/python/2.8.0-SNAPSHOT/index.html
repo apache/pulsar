@@ -2073,6 +2073,8 @@ class Producer:
         """
         Publish a message on the topic. Blocks until the message is acknowledged
 
+        Returns a `MessageId` object that represents where the message is persisted.
+
         **Args**
 
         * `content`:
@@ -2107,7 +2109,7 @@ class Producer:
         msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication, event_timestamp,
                               deliver_at, deliver_after)
-        return self._producer.send(msg)
+        return MessageId.deserialize(self._producer.send(msg))
 
     def send_async(self, content, callback,
                    properties=None,
@@ -2220,7 +2222,7 @@ class Producer:
             mb.deliver_at(deliver_at)
         if deliver_after:
             mb.deliver_after(deliver_after)
-        
+
         return mb.build()
 
 
@@ -3579,7 +3581,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_producer">
-    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fd5560aa710&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None, batching_type=_pulsar.BatchingType.Default)</p>
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f1d064a9710&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None, batching_type=_pulsar.BatchingType.Default)</p>
     </div>
     
 
@@ -3789,7 +3791,7 @@ batched into single batch message:
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_reader">
-    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fd5560b5dd0&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
+    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f1d064b4dd0&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
     </div>
     
 
@@ -3968,7 +3970,7 @@ instances directly on a particular partition.
             
   <div class="item">
     <div class="name def" id="pulsar.Client.subscribe">
-    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fd5560b5d50&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
+    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f1d064b4d50&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
     </div>
     
 
@@ -5501,6 +5503,8 @@ This bytes sequence can be stored and later deserialized.</p></div>
         """
         Publish a message on the topic. Blocks until the message is acknowledged
 
+        Returns a `MessageId` object that represents where the message is persisted.
+
         **Args**
 
         * `content`:
@@ -5535,7 +5539,7 @@ This bytes sequence can be stored and later deserialized.</p></div>
         msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication, event_timestamp,
                               deliver_at, deliver_after)
-        return self._producer.send(msg)
+        return MessageId.deserialize(self._producer.send(msg))
 
     def send_async(self, content, callback,
                    properties=None,
@@ -5648,7 +5652,7 @@ This bytes sequence can be stored and later deserialized.</p></div>
             mb.deliver_at(deliver_at)
         if deliver_after:
             mb.deliver_after(deliver_after)
-        
+
         return mb.build()
 </code></pre>
   </div>
@@ -5781,6 +5785,7 @@ system or specified by the client</p></div>
     
   
     <div class="desc"><p>Publish a message on the topic. Blocks until the message is acknowledged</p>
+<p>Returns a <code>MessageId</code> object that represents where the message is persisted.</p>
 <p><strong>Args</strong></p>
 <ul>
 <li><code>content</code>:
@@ -5826,6 +5831,7 @@ system or specified by the client</p></div>
          ):
     """
     Publish a message on the topic. Blocks until the message is acknowledged
+    Returns a `MessageId` object that represents where the message is persisted.
     **Args**
     * `content`:
       A `bytes` object with the message payload.
@@ -5856,7 +5862,7 @@ system or specified by the client</p></div>
     msg = self._build_msg(content, properties, partition_key, sequence_id,
                           replication_clusters, disable_replication, event_timestamp,
                           deliver_at, deliver_after)
-    return self._producer.send(msg)
+    return MessageId.deserialize(self._producer.send(msg))
 </code></pre>
   </div>
 </div>
