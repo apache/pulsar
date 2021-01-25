@@ -59,7 +59,7 @@ public class TestCmdPackages {
         packages = mock(Packages.class);
         when(pulsarAdmin.packages()).thenReturn(packages);
 
-        cmdPackages = spy(new CmdPackages(pulsarAdmin));
+        cmdPackages = spy(new CmdPackages(() -> pulsarAdmin));
     }
 
     @DataProvider(name = "commandsWithoutArgs")
