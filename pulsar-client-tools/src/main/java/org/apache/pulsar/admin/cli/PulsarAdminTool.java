@@ -166,7 +166,6 @@ public class PulsarAdminTool {
         @Override
         public PulsarAdmin get() {
             if (admin == null) {
-                new Exception("build").printStackTrace(System.out);
                 admin = adminFactory.apply(pulsarAdminBuilder);
             }
             return admin;
