@@ -90,7 +90,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             throwUnavailableException();
         }
 
-        requestParamsPreCheck(tenant, namespace, functionName, functionConfig);
+        preCheckRequestParams(tenant, namespace, functionName, functionConfig);
         validateFunctionNamespaceOperation(tenant, namespace, functionName, clientRole, clientAuthenticationDataHttps);
         validateRequestParams(tenant, namespace, functionName, functionConfig);
 
@@ -105,11 +105,17 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         // we need to validate the package.
         Function.FunctionDetails functionDetails;
         File componentPackageFile = null;
-        if (FunctionConfigUtils.isPackageNameStyle(functionPkgUrl)) {
+        if (FunctionConfigUtils.isPulsarPackageUrl(functionPkgUrl)) {
             ImmutablePair<String, String> typeClassNames = getTypeClassName(functionPkgUrl);
             functionDetails = FunctionConfigUtils.convert(functionConfig, typeClassNames.getLeft(), typeClassNames.getRight());
         } else {
-            componentPackageFile = getPackageFile(functionPkgUrl, uploadedInputStream);
+            try {
+                componentPackageFile = getPackageFile(functionPkgUrl, uploadedInputStream, null);
+            } catch (Exception e) {
+                log.error("Invalid register {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType),
+                    tenant, namespace, functionName, e);
+                throw e;
+            }
             ClassLoader classLoader = validateFunctionPackage(functionConfig, componentPackageFile);
             functionDetails = FunctionConfigUtils.convert(functionConfig, classLoader);
         }
@@ -192,7 +198,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             throwUnavailableException();
         }
 
-        requestParamsPreCheck(tenant, namespace, functionName, functionConfig);
+        preCheckRequestParams(tenant, namespace, functionName, functionConfig);
         validateFunctionNamespaceOperation(tenant, namespace, functionName, clientRole, clientAuthenticationDataHttps);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
@@ -227,11 +233,16 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
         Function.FunctionDetails functionDetails = null;
         File componentPackageFile = null;
-        if (FunctionConfigUtils.isPackageNameStyle(functionPkgUrl)) {
+        if (FunctionConfigUtils.isPulsarPackageUrl(functionPkgUrl)) {
             ImmutablePair<String, String> typeClassNames = getTypeClassName(functionPkgUrl);
             functionDetails = FunctionConfigUtils.convert(functionConfig, typeClassNames.getLeft(), typeClassNames.getRight());
         } else {
-            componentPackageFile = getPackageFile(functionPkgUrl, uploadedInputStream);
+            try {
+                componentPackageFile = getPackageFile(functionPkgUrl, uploadedInputStream, existingComponent);
+            } catch (Exception e) {
+                log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType),
+                    tenant, namespace, functionName, e);
+            }
             ClassLoader classLoader = validateFunctionPackage(functionConfig, componentPackageFile);
             functionDetails = FunctionConfigUtils.convert(functionConfig, classLoader);
         }
@@ -551,7 +562,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
         }
-        requestParamsPreCheck(tenant, namespace, functionName);
+        preCheckRequestParams(tenant, namespace, functionName);
         Function.FunctionMetaData functionMetaData;
         try {
             functionMetaData = Function.FunctionMetaData.parseFrom(uploadedInputStream);
@@ -581,14 +592,14 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
     }
 
-    private void requestParamsPreCheck(String tenant, String namespace, String functionName, FunctionConfig functionConfig) {
-        requestParamsPreCheck(tenant, namespace, functionName);
+    private void preCheckRequestParams(String tenant, String namespace, String functionName, FunctionConfig functionConfig) {
+        preCheckRequestParams(tenant, namespace, functionName);
         if (functionConfig == null) {
             throw new RestException(Response.Status.BAD_REQUEST, "Function config is not provided");
         }
     }
 
-    private void requestParamsPreCheck(String tenant, String namespace, String functionName) {
+    private void preCheckRequestParams(String tenant, String namespace, String functionName) {
         if (tenant == null) {
             throw new RestException(Response.Status.BAD_REQUEST, "Tenant is not provided");
         }
@@ -603,6 +614,18 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
     // validate the operating tenant exists and has proper permissions to operate
     private void validateFunctionNamespaceOperation(String tenant, String namespace, String functionName,
                                                     String clientRole, AuthenticationDataHttps clientAuthenticationDataHttps) {
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
+                    functionName, clientRole, ComponentTypeUtils.toString(componentType));
+                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+
         try {
             // Check tenant exists
             worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
@@ -628,18 +651,6 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             log.error("{}/{}/{} Issues getting tenant data", tenant, namespace, functionName, e);
             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-
-        try {
-            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
-                    functionName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
-
-            }
-        } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
     }
 
     private void validateRequestParams(final String tenant,
@@ -654,7 +665,8 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             functionConfig, worker().getWorkerConfig().isForwardSourceMessageProperty());
     }
 
-    private File getPackageFile(final String functionPkgUrl, final InputStream uploadedInputStream) {
+    private File getPackageFile(final String functionPkgUrl, final InputStream uploadedInputStream,
+                                final Function.FunctionMetaData existingFunctionMetaData) {
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         File componentPackageFile = null;
         if (isPkgUrlProvided) {
@@ -666,9 +678,24 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             } catch (Exception e) {
                 throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
             }
-        } else {
-            if (uploadedInputStream != null) {
-                componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
+        } else if ( existingFunctionMetaData != null
+            && existingFunctionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
+            || existingFunctionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
+            try {
+                componentPackageFile = FunctionCommon.extractFileFromPkgURL(existingFunctionMetaData.getPackageLocation().getPackagePath());
+            } catch (Exception e) {
+                throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+            }
+        } else if (uploadedInputStream != null) {
+            componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
+        } else if (existingFunctionMetaData != null) {
+            try {
+                componentPackageFile = FunctionCommon.createPkgTempFile();
+                componentPackageFile.deleteOnExit();
+                WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile,
+                    existingFunctionMetaData.getPackageLocation().getPackagePath());
+            } catch (Exception e) {
+                throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
             }
         }
         return componentPackageFile;

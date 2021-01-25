@@ -301,7 +301,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType), packageLocationMetaDataBuilder.getPackagePath());
                 WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource, worker().getDlogNamespace());
             } else if (isPkgUrlProvided) {
-                if (FunctionConfigUtils.isPackageNameStyle(functionPkgUrl)) {
+                if (FunctionConfigUtils.isPulsarPackageUrl(functionPkgUrl)) {
                     packageLocationMetaDataBuilder.setPackagePath(functionPkgUrl);
                 } else {
                     packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,

@@ -949,8 +949,8 @@ public class FunctionConfigUtils {
         return mergedConfig;
     }
 
-    public static boolean isPackageNameStyle(String functionPkgUrl) {
-        if (!org.apache.commons.lang3.StringUtils.isNotBlank(functionPkgUrl)) {
+    public static boolean isPulsarPackageUrl(String functionPkgUrl) {
+        if (!isNotBlank(functionPkgUrl)) {
             return false;
         }
         try {
