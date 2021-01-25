@@ -18,52 +18,17 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import com.google.common.base.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * A class to hold the contents of the leader election node. Facilitates serialization and deserialization of the
  * information that might be added for leader broker in the future.
- *
- *
  */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class LeaderBroker {
-    public final String serviceUrl;
-
-    private AtomicBoolean isLeaderReady = new AtomicBoolean(false);
-
-    // Need this default constructor for json conversion. Please do not remove this.
-    public LeaderBroker() {
-        this(null);
-    }
-
-    public LeaderBroker(String serviceUrl) {
-        this.serviceUrl = serviceUrl;
-    }
-
-    public String getServiceUrl() {
-        return this.serviceUrl;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(serviceUrl);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof LeaderBroker) {
-            LeaderBroker other = (LeaderBroker) obj;
-            return Objects.equal(serviceUrl, other.serviceUrl);
-        }
-        return false;
-    }
-
-    public boolean isLeaderReady() {
-        return isLeaderReady.get();
-    }
-
-    public void setLeaderReady(boolean isLeaderReady) {
-        this.isLeaderReady.compareAndSet(!isLeaderReady, isLeaderReady);
-    }
+    private String serviceUrl;
 }

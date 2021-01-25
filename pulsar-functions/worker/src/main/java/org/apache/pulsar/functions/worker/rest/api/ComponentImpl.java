@@ -98,6 +98,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -408,7 +409,10 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                         ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
 
         // clean up component files stored in BK
-        if (!functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP) && !functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
+        String functionPackagePath = functionMetaData.getPackageLocation().getPackagePath();
+        if (!functionPackagePath.startsWith(Utils.HTTP)
+                && !functionPackagePath.startsWith(Utils.FILE)
+                && !functionPackagePath.startsWith(Utils.BUILTIN)) {
             try {
                 WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(), functionMetaData.getPackageLocation().getPackagePath());
             } catch (IOException e) {
@@ -1534,9 +1538,25 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     public boolean isSuperUser(String clientRole) {
-        return clientRole != null
-                && worker().getWorkerConfig().getSuperUserRoles() != null
-                && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
+        if (clientRole != null) {
+            try {
+                if ((worker().getWorkerConfig().getSuperUserRoles() != null
+                    && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole))) {
+                    return true;
+                }
+                return worker().getAuthorizationService().isSuperUser(clientRole, null)
+                    .get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            } catch (InterruptedException e) {
+                log.warn("Time-out {} sec while checking the role {} is a super user role ",
+                    worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), clientRole);
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            } catch (Exception e) {
+                log.warn("Admin-client with Role - failed to check the role {} is a super user role {} ", clientRole,
+                    e.getMessage(), e);
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            }
+        }
+        return false;
     }
 
     public boolean allowFunctionOps(NamespaceName namespaceName, String role,

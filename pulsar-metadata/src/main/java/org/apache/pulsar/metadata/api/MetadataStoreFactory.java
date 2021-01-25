@@ -41,7 +41,7 @@ public class MetadataStoreFactory {
      * @throws IOException
      *             if the metadata store initialization fails
      */
-    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws IOException {
+    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
         if (metadataURL.startsWith("memory://")) {
             return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
         } else {

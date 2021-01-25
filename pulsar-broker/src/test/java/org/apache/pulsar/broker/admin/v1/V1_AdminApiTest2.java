@@ -83,6 +83,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        resetConfig();
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
 

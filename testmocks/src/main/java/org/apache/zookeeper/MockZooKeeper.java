@@ -94,6 +94,26 @@ public class MockZooKeeper extends ZooKeeper {
         return newInstance(executor, -1);
     }
 
+    public static MockZooKeeper newInstanceForGlobalZK(ExecutorService executor) {
+        return newInstanceForGlobalZK(executor, -1);
+    }
+
+    public static MockZooKeeper newInstanceForGlobalZK(ExecutorService executor, int readOpDelayMs) {
+        try {
+            ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
+                    new ObjenesisStd().getInstantiatorOf(MockZooKeeper.class);
+            MockZooKeeper zk = (MockZooKeeper) mockZooKeeperInstantiator.newInstance();
+            zk.init(executor);
+            zk.readOpDelayMs = readOpDelayMs;
+            zk.mutex = new ReentrantLock();
+            return zk;
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("Cannot create object", e);
+        }
+    }
+
     public static MockZooKeeper newInstance(ExecutorService executor, int readOpDelayMs) {
         try {
             ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator = objenesis.getInstantiatorOf(MockZooKeeper.class);

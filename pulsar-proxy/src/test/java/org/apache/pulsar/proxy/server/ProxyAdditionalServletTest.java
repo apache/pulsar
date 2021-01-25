@@ -26,9 +26,9 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletWithClassLoader;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlets;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlet;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.mockito.Mockito;
@@ -60,7 +60,6 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     private final String BASE_PATH = "/metrics/broker";
     private final String QUERY_PARAM = "param";
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
 
     private ProxyService proxyService;
     private WebServer proxyWebServer;
@@ -74,7 +73,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
 
@@ -157,13 +156,13 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
             }
         };
 
-        ProxyAdditionalServlet proxyAdditionalServlet = Mockito.mock(ProxyAdditionalServlet.class);
+        AdditionalServlet proxyAdditionalServlet = Mockito.mock(AdditionalServlet.class);
         Mockito.when(proxyAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
         Mockito.when(proxyAdditionalServlet.getServletHolder()).thenReturn(new ServletHolder(servlet));
 
-        ProxyAdditionalServlets proxyAdditionalServlets = Mockito.mock(ProxyAdditionalServlets.class);
-        Map<String, ProxyAdditionalServletWithClassLoader> map = new HashMap<>();
-        map.put("prometheus-proxy-servlet", new ProxyAdditionalServletWithClassLoader(proxyAdditionalServlet, null));
+        AdditionalServlets proxyAdditionalServlets = Mockito.mock(AdditionalServlets.class);
+        Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
+        map.put("prometheus-proxy-servlet", new AdditionalServletWithClassLoader(proxyAdditionalServlet, null));
         Mockito.when(proxyAdditionalServlets.getServlets()).thenReturn(map);
 
         Mockito.when(proxyService.getProxyAdditionalServlets()).thenReturn(proxyAdditionalServlets);
