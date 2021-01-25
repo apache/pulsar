@@ -16,19 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 /**
- * A class to hold the contents of the leader election node. Facilitates serialization and deserialization of the
- * information that might be added for leader broker in the future.
+ * Implementation of a transaction buffer.
  */
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class LeaderBroker {
-    private String serviceUrl;
-}
+package org.apache.pulsar.broker.transaction.timeout;

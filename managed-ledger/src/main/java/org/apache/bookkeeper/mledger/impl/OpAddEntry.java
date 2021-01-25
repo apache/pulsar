@@ -192,23 +192,24 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             entry.release();
         }
 
-        // We are done using the byte buffer
-        ReferenceCountUtil.release(data);
-
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
         if (closeWhenDone) {
+            ReferenceCountUtil.release(data);
             log.info("[{}] Closing ledger {} for being full", ml.getName(), ledger.getId());
             ledger.asyncClose(this, ctx);
         } else {
             updateLatency();
             AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
             if (cb != null) {
-                cb.addComplete(lastEntry, ctx);
+                cb.addComplete(lastEntry, data.asReadOnly(), ctx);
+                ReferenceCountUtil.release(data);
                 ml.notifyCursors();
                 this.recycle();
+            } else {
+                ReferenceCountUtil.release(data);
             }
         }
     }
@@ -229,7 +230,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            cb.addComplete(PositionImpl.get(lh.getId(), entryId), ctx);
+            cb.addComplete(PositionImpl.get(lh.getId(), entryId), null, ctx);
             ml.notifyCursors();
             this.recycle();
         }
