@@ -38,7 +38,7 @@ def process(input):
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/native_exclamation_function.py).
 
 > Note
-> You can write Pulsar Functions in python2 or python3. However, Pulsar only looks for `python` as the interpreter.
+> You can write Pulsar Functions in python3. However, Pulsar only looks for `python` as the interpreter.
 > 
 > If you're running Pulsar Functions on an Ubuntu system that only supports python3, you might fail to
 > start the functions. In this case, you can create a symlink. Your system will fail if

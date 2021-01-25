@@ -51,11 +51,7 @@ class Libpulsar < Formula
   def install
     Dir.chdir('pulsar-client-cpp')
 
-    if build.with? "python3"
-        python_include_dir = '/usr/local/Frameworks/Python.framework/Versions/3.7/include/python3.7m'
-    else
-        python_include_dir = '/usr/local/Frameworks/Python.framework/Versions/2.7/include/python2.7/'
-    end
+    python_include_dir = '/usr/local/Frameworks/Python.framework/Versions/3.7/include/python3.7m'
 
     if build.with? "log4cxx"
       system "cmake", ".", "-DBUILD_TESTS=OFF", "-DLINK_STATIC=ON", "-DUSE_LOG4CXX", "-DPYTHON_INCLUDE_DIR=" + python_include_dir
