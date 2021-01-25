@@ -1,3 +1,4 @@
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -182,43 +183,32 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     public void testOffloadPoliciesApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
-        //wait for server init
-        Thread.sleep(1000);
+        pulsarClient.newProducer().topic(topicName).create().close();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
         OffloadPolicies offloadPolicies = admin.topics().getOffloadPolicies(topicName);
         assertNull(offloadPolicies);
         OffloadPolicies offload = new OffloadPolicies();
         String path = "fileSystemPath";
         offload.setFileSystemProfilePath(path);
         admin.topics().setOffloadPolicies(topicName, offload);
-        for (int i = 0; i < 50; i++) {
-            if (admin.topics().getOffloadPolicies(topicName) != null) {
-                break;
-            }
-            Thread.sleep(100);
-        }
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNotNull(admin.topics().getOffloadPolicies(topicName)));
         assertEquals(admin.topics().getOffloadPolicies(topicName), offload);
         assertEquals(admin.topics().getOffloadPolicies(topicName).getFileSystemProfilePath(), path);
         admin.topics().removeOffloadPolicies(topicName);
-        for (int i = 0; i < 50; i++) {
-            if (admin.topics().getOffloadPolicies(topicName) == null) {
-                break;
-            }
-            Thread.sleep(100);
-        }
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNull(admin.topics().getOffloadPolicies(topicName)));
         assertNull(admin.topics().getOffloadPolicies(topicName));
     }
 
     @Test
     public void testTopicLevelOffloadPartitioned() throws Exception {
-        //wait for cache init
-        Thread.sleep(2000);
         testOffload(true);
     }
 
     @Test
     public void testTopicLevelOffloadNonPartitioned() throws Exception {
-        //wait for cache init
-        Thread.sleep(2000);
         testOffload(false);
     }
 
@@ -232,6 +222,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
             admin.topics().createNonPartitionedTopic(topicName);
         }
         pulsarClient.newProducer().topic(topicName).enableBatching(false).create().close();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .until(()-> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
         //2 namespace level policy should use NullLedgerOffloader by default
         if (isPartitioned) {
             for (int i = 0; i < partitionNum; i++) {
@@ -264,12 +256,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         //4 set topic level offload policies
         admin.topics().setOffloadPolicies(topicName, offloadPolicies);
-        for (int i = 0; i < 50; i++) {
-            if (admin.topics().getOffloadPolicies(topicName) != null) {
-                break;
-            }
-            Thread.sleep(500);
-        }
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNotNull(admin.topics().getOffloadPolicies(topicName)));
         //5 name of offload should become "mock"
         if (isPartitioned) {
             for (int i = 0; i < partitionNum; i++) {
@@ -294,12 +282,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         doReturn(map).when(pulsar).getLedgerOffloaderMap();
 
         admin.topics().removeOffloadPolicies(topicName);
-        for (int i = 0; i < 50; i++) {
-            if (admin.topics().getOffloadPolicies(topicName) == null) {
-                break;
-            }
-            Thread.sleep(500);
-        }
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNull(admin.topics().getOffloadPolicies(topicName)));
         // topic level offloader should be closed
         if (isPartitioned) {
             verify(topicOffloader, times(partitionNum)).close();
