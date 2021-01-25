@@ -619,7 +619,7 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--broker-service-url", description = "The URL for Pulsar broker")
         protected String brokerServiceUrl;
         @Parameter(names = "--web-service-url", description = "The URL for Pulsar web service")
-        protected String webServiceUrl;
+        protected String webServiceUrl = null;
         // for backwards compatibility purposes
         @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker", hidden = true)
         protected String DEPRECATED_clientAuthPlugin;

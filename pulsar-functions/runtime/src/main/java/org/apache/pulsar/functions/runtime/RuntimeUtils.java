@@ -367,7 +367,7 @@ public class RuntimeUtils {
             // until pulsar admin client enabled in python/go function context.
             // For backward compatibility, pass `--web_serviceurl` parameter only if
             // exposed pulsar admin client enabled.
-            if (instanceConfig.isExposePulsarAdminClientEnabled() && pulsarWebServiceUrl != null) {
+            if (instanceConfig.isExposePulsarAdminClientEnabled() && StringUtils.isNotBlank(pulsarWebServiceUrl)) {
                 args.add("--web_serviceurl");
                 args.add(pulsarWebServiceUrl);
             }
