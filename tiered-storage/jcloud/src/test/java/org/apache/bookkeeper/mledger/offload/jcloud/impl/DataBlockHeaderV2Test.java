@@ -30,7 +30,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.DataBlockHeader;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class StreamingDataBlockHeaderTest {
+public class DataBlockHeaderV2Test {
 
     @Test
     public void dataBlockHeaderImplTest() throws Exception {

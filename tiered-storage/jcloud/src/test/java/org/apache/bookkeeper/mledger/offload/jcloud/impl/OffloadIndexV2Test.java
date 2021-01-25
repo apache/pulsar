@@ -36,7 +36,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.testng.annotations.Test;
 
 @Slf4j
-public class StreamingOffloadIndexTest {
+public class OffloadIndexV2Test {
 
     // prepare metadata, then use builder to build a StreamingOffloadIndexBlockImpl
     // verify get methods, readout and fromStream methods.
