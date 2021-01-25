@@ -188,18 +188,24 @@ module.exports = {
       apacheId: 'yjshen',
       org: 'KUAISHOU',
       roles: 'Committer'
-  },
+    },
     {
-        name: 'Yu Liu',
-        apacheId: 'liuyu',
-        org: 'StreamNative',
-        roles: 'Committer'
+      name: 'Yu Liu',
+      apacheId: 'liuyu',
+      org: 'StreamNative',
+      roles: 'Committer'
     },
     {
       name: 'Yuki Shiga',
       apacheId: 'yushiga',
       org: 'Yahoo Japan Corporation',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Yong Zhang',
+      apacheId: 'yong',
+      org: 'StreamNative',
+      roles: 'Committer'
     }
   ]
 }

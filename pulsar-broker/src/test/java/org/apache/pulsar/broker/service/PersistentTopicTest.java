@@ -289,6 +289,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testPublishMessage() throws Exception {
 
+        doAnswer(invocationOnMock -> {
+            final ByteBuf payload = (ByteBuf) invocationOnMock.getArguments()[0];
+            final AddEntryCallback callback = (AddEntryCallback) invocationOnMock.getArguments()[1];
+            final Topic.PublishContext ctx = (Topic.PublishContext) invocationOnMock.getArguments()[2];
+            callback.addComplete(PositionImpl.latest, payload, ctx);
+            return null;
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
+
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         /*
          * MessageMetadata.Builder messageMetadata = MessageMetadata.newBuilder();
@@ -299,9 +307,23 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch latch = new CountDownLatch(1);
 
-        topic.publishMessage(payload, (exception, ledgerId, entryId) -> {
-            latch.countDown();
-        });
+        final Topic.PublishContext publishContext = new Topic.PublishContext() {
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                assertEquals(ledgerId, PositionImpl.latest.getLedgerId());
+                assertEquals(entryId, PositionImpl.latest.getEntryId());
+                latch.countDown();
+            }
+
+            @Override
+            public void setMetadataFromEntryData(ByteBuf entryData) {
+                // This method must be invoked before `completed`
+                assertEquals(latch.getCount(), 1);
+                assertEquals(entryData.array(), payload.array());
+            }
+        };
+
+        topic.publishMessage(payload, publishContext);
 
         assertTrue(latch.await(1, TimeUnit.SECONDS));
     }
@@ -1235,6 +1257,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                 ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(new PositionImpl(1, 1),
+                        null,
                         invocationOnMock.getArguments()[2]);
                 return null;
             }
@@ -1717,7 +1740,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             ByteBuf entry = getMessageWithMetadata(content.getBytes());
             ledger.asyncAddEntry(entry, new AddEntryCallback() {
                 @Override
-                public void addComplete(Position position, Object ctx) {
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     latch.countDown();
                     entry.release();
                 }
