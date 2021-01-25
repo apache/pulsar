@@ -63,6 +63,7 @@ import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandGetLastMessageIdResponse;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -1050,16 +1051,25 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newGetLastMessageIdResponse(long requestId, long ledgerId, long entryId,
-            int partitionIdx, int batchIndex) {
+    public static ByteBuf newGetLastMessageIdResponse(long requestId,
+            long lastMessageLedgerId, long lastMessageEntryId,
+            int lastMessagePartitionIdx, int lastMessageBatchIndex,
+            long markDeletePositionLedgerId, long markDeletePositionEntryId) {
         BaseCommand cmd = localCmd(Type.GET_LAST_MESSAGE_ID_RESPONSE);
-        cmd.setGetLastMessageIdResponse()
-            .setRequestId(requestId)
-            .setLastMessageId()
-            .setLedgerId(ledgerId)
-            .setEntryId(entryId)
-            .setPartition(partitionIdx)
-            .setBatchIndex(batchIndex);
+        CommandGetLastMessageIdResponse response = cmd.setGetLastMessageIdResponse()
+            .setRequestId(requestId);
+
+        response.setLastMessageId()
+            .setLedgerId(lastMessageLedgerId)
+            .setEntryId(lastMessageEntryId)
+            .setPartition(lastMessagePartitionIdx)
+            .setBatchIndex(lastMessageBatchIndex);
+
+        if (markDeletePositionLedgerId >= 0) {
+            response.setConsumerMarkDeletePosition()
+                    .setLedgerId(markDeletePositionLedgerId)
+                    .setEntryId(markDeletePositionEntryId);
+        }
         return serializeWithSize(cmd);
     }
 

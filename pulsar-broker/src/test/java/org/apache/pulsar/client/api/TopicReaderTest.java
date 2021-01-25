@@ -40,6 +40,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+
+import lombok.Cleanup;
+
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -1560,5 +1563,60 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         producer.close();
+    }
+
+    @Test
+    public void testHasMessageAvaialableOnEmptyTopic() throws Exception {
+        String topic = newTopicName();
+
+        @Cleanup
+        Reader<String> r1 = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        @Cleanup
+        Reader<String> r2 = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .create();
+
+        @Cleanup
+        Reader<String> r2Inclusive = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .startMessageIdInclusive()
+                .create();
+
+        // no data write, should return false
+        assertFalse(r1.hasMessageAvailable());
+        assertFalse(r2.hasMessageAvailable());
+        assertFalse(r2Inclusive.hasMessageAvailable());
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.send("hello-1");
+        assertTrue(r1.hasMessageAvailable());
+        assertTrue(r2.hasMessageAvailable());
+        assertTrue(r2Inclusive.hasMessageAvailable());
+
+        @Cleanup
+        Reader<String> r3 = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.latest)
+                .create();
+
+
+        assertFalse(r3.hasMessageAvailable());
+
+        producer.send("hello-2");
+
+        assertTrue(r1.hasMessageAvailable());
+        assertTrue(r2.hasMessageAvailable());
+        assertTrue(r2Inclusive.hasMessageAvailable());
+        assertTrue(r3.hasMessageAvailable());
     }
 }
