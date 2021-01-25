@@ -25,6 +25,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,13 +40,14 @@ public class MLTransactionMetadataStoreProvider implements TransactionMetadataSt
     @Override
     public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
                                                                  ManagedLedgerFactory managedLedgerFactory,
-                                                                 ManagedLedgerConfig managedLedgerConfig) {
+                                                                 ManagedLedgerConfig managedLedgerConfig,
+                                                                 TransactionTimeoutTracker timeoutTracker) {
         TransactionMetadataStore transactionMetadataStore;
         try {
             transactionMetadataStore =
                     new MLTransactionMetadataStore(transactionCoordinatorId,
                             new MLTransactionLogImpl(transactionCoordinatorId,
-                                    managedLedgerFactory, managedLedgerConfig));
+                                    managedLedgerFactory, managedLedgerConfig), timeoutTracker);
         } catch (Exception e) {
             log.error("MLTransactionMetadataStore init fail", e);
             return FutureUtil.failedFuture(e);
