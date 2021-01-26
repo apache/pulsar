@@ -2641,6 +2641,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             super.setupCluster();
             super.setupFunctionWorkers();
         }
+        
+        Schema<?> schema;
+        if (Runtime.JAVA == runtime) {
+            schema = Schema.STRING;
+        } else {
+            schema = Schema.BYTES;
+        }
 
         String inputTopicName = "persistent://public/default/test-log-" + runtime + "-input-" + randomName(8);
         String logTopicName = "test-log-" + runtime + "-log-topic-" + randomName(8);
