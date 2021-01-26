@@ -19,9 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
 import java.io.Closeable;
-import java.io.FilterInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
@@ -29,7 +27,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
  * The Index block abstraction used for offload a ledger to long term storage.
  */
 @Unstable
-public interface OffloadIndexBlock extends Closeable, OffloadIndexBlockV2 {
+public interface OffloadIndexBlockV2 extends Closeable {
 
     /**
      * Get the content of the index block as InputStream.
@@ -37,7 +35,7 @@ public interface OffloadIndexBlock extends Closeable, OffloadIndexBlockV2 {
      *   | index_magic_header | index_block_len | index_entry_count |
      *   | data_object_size | segment_metadata_length | segment metadata | index entries ... |
      */
-    IndexInputStream toStream() throws IOException;
+    OffloadIndexBlock.IndexInputStream toStream() throws IOException;
 
     /**
      * Get the related OffloadIndexEntry that contains the given messageEntryId.
@@ -46,7 +44,9 @@ public interface OffloadIndexBlock extends Closeable, OffloadIndexBlockV2 {
      *                      the entry id of message
      * @return the offload index entry
      */
-    OffloadIndexEntry getIndexEntryForEntry(long messageEntryId) throws IOException;
+    OffloadIndexEntry getIndexEntryForEntry(long ledgerId, long messageEntryId) throws IOException;
+
+    public long getStartEntryId(long ledgerId);
 
     /**
      * Get the entry count that contained in this index Block.
@@ -55,8 +55,9 @@ public interface OffloadIndexBlock extends Closeable, OffloadIndexBlockV2 {
 
     /**
      * Get LedgerMetadata.
+     * @return
      */
-    LedgerMetadata getLedgerMetadata();
+    LedgerMetadata getLedgerMetadata(long ledgerId);
 
     /**
      * Get the total size of the data object.
@@ -67,37 +68,5 @@ public interface OffloadIndexBlock extends Closeable, OffloadIndexBlockV2 {
      * Get the length of the header in the blocks in the data object.
      */
     long getDataBlockHeaderLength();
-
-    /**
-     * An input stream which knows the size of the stream upfront.
-     */
-    class IndexInputStream extends FilterInputStream {
-        final long streamSize;
-
-        public IndexInputStream(InputStream in, long streamSize) {
-            super(in);
-            this.streamSize = streamSize;
-        }
-
-        /**
-         * @return the number of bytes in the stream.
-         */
-        public long getStreamSize() {
-            return streamSize;
-        }
-    }
-
-    default OffloadIndexEntry getIndexEntryForEntry(long ledgerId, long messageEntryId) throws IOException {
-        return getIndexEntryForEntry(messageEntryId);
-    }
-
-    default long getStartEntryId(long ledgerId) {
-        return 0; //Offload index block v1 always start with 0;
-    }
-
-    default LedgerMetadata getLedgerMetadata(long ledgerId) {
-        return getLedgerMetadata();
-    }
-
 }
 

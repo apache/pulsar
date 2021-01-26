@@ -20,24 +20,25 @@ package org.apache.bookkeeper.mledger.offload.jcloud;
 
 import java.io.IOException;
 import java.io.InputStream;
-import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.OffloadIndexBlockV2BuilderImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
 /**
  * Interface for builder of index block used for offload a ledger to long term storage.
  */
 @Unstable
 @LimitedPrivate
-public interface OffloadIndexBlockBuilder {
+public interface OffloadIndexBlockV2Builder {
 
     /**
      * Build index block with the passed in ledger metadata.
      *
+     * @param ledgerId
      * @param metadata the ledger metadata
      */
-    OffloadIndexBlockBuilder withLedgerMetadata(LedgerMetadata metadata);
+    OffloadIndexBlockV2Builder addLedgerMeta(Long ledgerId, LedgerInfo metadata);
 
     /**
      * Add one payload block related information into index block.
@@ -49,24 +50,24 @@ public interface OffloadIndexBlockBuilder {
      * @param partId the payload block Id
      * @param blockSize the payload block size
      */
-    OffloadIndexBlockBuilder addBlock(long firstEntryId, int partId, int blockSize);
+    OffloadIndexBlockV2Builder addBlock(long ledgerId, long firstEntryId, int partId, int blockSize);
 
     /**
      * Specify the length of data object this index is associated with.
      * @param dataObjectLength the length of the data object
      */
-    OffloadIndexBlockBuilder withDataObjectLength(long dataObjectLength);
+    OffloadIndexBlockV2Builder withDataObjectLength(long dataObjectLength);
 
     /**
      * Specify the length of the block headers in the data object.
      * @param dataHeaderLength the length of the headers
      */
-    OffloadIndexBlockBuilder withDataBlockHeaderLength(long dataHeaderLength);
+    OffloadIndexBlockV2Builder withDataBlockHeaderLength(long dataHeaderLength);
 
     /**
      * Finalize the immutable OffloadIndexBlock.
      */
-    OffloadIndexBlock build();
+    OffloadIndexBlockV2 buildV2();
 
     /**
      * Construct OffloadIndex from an InputStream.
@@ -76,7 +77,7 @@ public interface OffloadIndexBlockBuilder {
     /**
      * create an OffloadIndexBlockBuilder.
      */
-    static OffloadIndexBlockBuilder create() {
+    static OffloadIndexBlockV2Builder create() {
         return new OffloadIndexBlockV2BuilderImpl();
     }
 }
