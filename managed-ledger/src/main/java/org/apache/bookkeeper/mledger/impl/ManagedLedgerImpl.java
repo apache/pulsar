@@ -3119,9 +3119,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             mlInfo.setTerminatedPosition(NestedPositionInfo.newBuilder().setLedgerId(lastConfirmedEntry.getLedgerId())
                     .setEntryId(lastConfirmedEntry.getEntryId()));
         }
-        if (managedLedgerInterceptor != null) {
-            managedLedgerInterceptor.onUpdateManagedLedgerInfo(propertiesMap);
-        }
         for (Map.Entry<String, String> property : propertiesMap.entrySet()) {
             mlInfo.addProperties(MLDataFormats.KeyValue.newBuilder()
                     .setKey(property.getKey()).setValue(property.getValue()));

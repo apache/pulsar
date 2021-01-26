@@ -51,7 +51,7 @@ public class SaslAuthenticationDataProvider implements AuthenticationDataProvide
     @Override
     public AuthData authenticate(AuthData commandData) throws AuthenticationException {
         // init
-        if (Arrays.equals(commandData.getBytes(), AuthData.INIT_AUTH_DATA)) {
+        if (Arrays.equals(commandData.getBytes(), AuthData.INIT_AUTH_DATA_BYTES)) {
             if (pulsarSaslClient.hasInitialResponse()) {
                 return pulsarSaslClient.evaluateChallenge(AuthData.of(new byte[0]));
             }
