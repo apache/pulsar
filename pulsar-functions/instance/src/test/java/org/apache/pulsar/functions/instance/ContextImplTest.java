@@ -170,7 +170,7 @@ public class ContextImplTest {
         assertEquals(context.getPulsarAdmin(), pulsarAdmin);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testGetPulsarAdminWithNonExistClusterName() {
         assertNull(context.getPulsarAdmin("foo"));
     }
