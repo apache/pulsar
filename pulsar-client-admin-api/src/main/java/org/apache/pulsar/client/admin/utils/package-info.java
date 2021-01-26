@@ -19,4 +19,4 @@
 /**
  * Helpers which provide useful functionality for the implementation of Pulsar Client API.
  */
-package org.apache.pulsar.client.admin.internal;
+package org.apache.pulsar.client.admin.utils;

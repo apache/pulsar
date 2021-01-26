@@ -16,10 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin.internal;
+package org.apache.pulsar.client.admin.utils;
 
-import static org.apache.pulsar.client.admin.internal.ReflectionUtils.catchExceptions;
-import static org.apache.pulsar.client.admin.internal.ReflectionUtils.newClassInstance;
 import lombok.experimental.UtilityClass;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 
@@ -29,10 +27,10 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 @SuppressWarnings("unchecked")
 @UtilityClass
 public class DefaultImplementation {
-    private static final Class<PulsarAdminBuilder> ADMIN_CLIENT_BUILDER_IMPL = newClassInstance(
+    private static final Class<PulsarAdminBuilder> ADMIN_CLIENT_BUILDER_IMPL = ReflectionUtils.newClassInstance(
             "org.apache.pulsar.client.admin.impl.PulsarAdminBuilderImpl");
 
     public static PulsarAdminBuilder newAdminClientBuilder() {
-        return catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.newInstance());
+        return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.newInstance());
     }
 }

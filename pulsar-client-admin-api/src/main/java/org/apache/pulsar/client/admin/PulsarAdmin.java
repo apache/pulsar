@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.admin;
 
 import java.io.Closeable;
-import org.apache.pulsar.client.admin.internal.DefaultImplementation;
+import org.apache.pulsar.client.admin.utils.DefaultImplementation;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
