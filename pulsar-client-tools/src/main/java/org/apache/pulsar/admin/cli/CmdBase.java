@@ -39,8 +39,9 @@ public abstract class CmdBase {
     public CmdBase(String cmdName, PulsarAdmin admin) {
         this.admin = admin;
         jcommander = new JCommander();
-        usageFormatter = new DefaultUsageFormatter(jcommander);
+        usageFormatter = new CmdUsageFormatter(jcommander);
         jcommander.setProgramName("pulsar-admin " + cmdName);
+        jcommander.setUsageFormatter(usageFormatter);
     }
 
     private void tryShowCommandUsage() {
