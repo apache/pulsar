@@ -33,6 +33,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -484,7 +486,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             ledger1.asyncAddEntry(("entry-" + i).getBytes(), new AddEntryCallback() {
 
                 @Override
-                public void addComplete(Position position, Object ctx) {
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     latch.countDown();
                 }
 

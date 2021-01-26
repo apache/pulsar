@@ -425,6 +425,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-delayed-delivery myprop/clust/ns1"));
         verify(mockNamespaces).getDelayedDelivery("myprop/clust/ns1");
 
+        namespaces.run(split("remove-delayed-delivery myprop/clust/ns1"));
+        verify(mockNamespaces).removeDelayedDeliveryMessages("myprop/clust/ns1");
+
         namespaces.run(split("set-inactive-topic-policies myprop/clust/ns1 -e -t 1s -m delete_when_no_subscriptions"));
         verify(mockNamespaces).setInactiveTopicPolicies("myprop/clust/ns1"
                 , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1,true));
@@ -792,6 +795,14 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-offload-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
 
+        cmdTopics.run(split("get-delayed-delivery persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("set-delayed-delivery persistent://myprop/clust/ns1/ds1 -t 10s --enable"));
+        verify(mockTopics).setDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1",
+                new DelayedDeliveryPolicies(10000, true));
+        cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
+
         cmdTopics.run(split(
                 "set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
         OffloadPolicies offloadPolicies = OffloadPolicies.create("s3", "region", "bucket"
@@ -875,12 +886,18 @@ public class PulsarAdminToolTest {
         verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds2"), eq("sub1")
                 , eq(new MessageIdImpl(1, 1, -1)), eq(true));
 
+        cmdTopics.run(split("get-maxProducers persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getMaxProducers("persistent://myprop/clust/ns1/ds1", true);
+
         cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1", true);
 
 
         cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("get-delayed-delivery persistent://myprop/clust/ns1/ds1 --applied"));
+        verify(mockTopics).getDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1", true);
 
         cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1", true);

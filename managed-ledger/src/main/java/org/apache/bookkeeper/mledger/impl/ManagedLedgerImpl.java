@@ -34,6 +34,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.ReferenceCountUtil;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
@@ -64,7 +65,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import io.netty.util.ReferenceCountUtil;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -593,7 +593,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         asyncAddEntry(data, offset, length, new AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 result.position = position;
                 counter.countDown();
             }
@@ -628,7 +628,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         asyncAddEntry(data, numberOfMessages, offset, length, new AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 result.position = position;
                 counter.countDown();
             }
@@ -1681,6 +1681,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public CompletableFuture<String> getLedgerMetadata(long ledgerId) {
         return getLedgerHandle(ledgerId).thenApply(rh -> rh.getLedgerMetadata().toSafeString());
+    }
+
+    @Override
+    public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
+        CompletableFuture<LedgerInfo> result = new CompletableFuture<>();
+        final LedgerInfo ledgerInfo = ledgers.get(ledgerId);
+        result.complete(ledgerInfo);
+        return result;
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
