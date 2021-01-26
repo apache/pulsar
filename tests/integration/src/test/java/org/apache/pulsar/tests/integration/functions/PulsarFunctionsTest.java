@@ -24,6 +24,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.gson.Gson;
+
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -2726,7 +2728,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
 
-        @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+        @Cleanup Consumer<byte[]> consumer = client.newConsumer()
                 .topic(outputTopic)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("test-sub")
@@ -2746,10 +2748,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         for (int i = 0; i < numMessages; i++) {
-            Message<String> msg = consumer.receive(30, TimeUnit.SECONDS);
-            log.info("Received: {}", msg.getValue());
-            assertTrue(expectedMessages.contains(msg.getValue()));
-            expectedMessages.remove(msg.getValue());
+            Message<byte[]> msg = consumer.receive(30, TimeUnit.SECONDS);
+            String logMsg = new String(msg.getValue(), UTF_8);
+            log.info("Received: {}", logMsg);
+            assertTrue(expectedMessages.contains(logMsg));
+            expectedMessages.remove(logMsg);
         }
     }
 
