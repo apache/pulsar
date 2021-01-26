@@ -53,6 +53,7 @@ import com.google.common.collect.Maps;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.JAASCredentialsContainer;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -100,11 +101,18 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        if (authData instanceof SaslAuthenticationDataSource) {
-            return ((SaslAuthenticationDataSource)authData).getAuthorizationID();
-        } else {
-            throw new AuthenticationException("Not support authDataSource type, expect sasl.");
+        try {
+            if (authData instanceof SaslAuthenticationDataSource) {
+                AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+                return ((SaslAuthenticationDataSource) authData).getAuthorizationID();
+            } else {
+                throw new AuthenticationException("Not support authDataSource type, expect sasl.");
+            }
+        } catch (AuthenticationException exception) {
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
+            throw exception;
         }
+
     }
 
     @Override
