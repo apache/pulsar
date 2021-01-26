@@ -32,6 +32,7 @@ import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
+import java.util.Date;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collection;
@@ -769,6 +770,50 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(metric.tags.get("auth_method"), "token");
         assertEquals(metric.tags.get("reason"), authExceptionMessage);
         assertEquals(metric.tags.get("provider_name"), provider.getClass().getSimpleName());
+    }
+
+    @Test
+    public void testExpiredTokenMetrics() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        Date expiredDate = new Date(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1));
+        String expiredToken = AuthTokenUtils.createToken(secretKey, "subject", Optional.of(expiredDate));
+
+        try {
+            provider.authenticate(new AuthenticationDataSource() {
+                @Override
+                public boolean hasDataFromCommand() {
+                    return true;
+                }
+
+                @Override
+                public String getCommandData() {
+                    return expiredToken;
+                }
+            });
+            fail("Should have failed");
+        } catch (AuthenticationException e) {
+            // expected, token was expired
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_expired_token_count");
+        Metric metric = cm.get(cm.size() - 1);
+        assertEquals(metric.tags.get("expired_time"), expiredDate.toString());
+
+        provider.close();
     }
 
     /**
