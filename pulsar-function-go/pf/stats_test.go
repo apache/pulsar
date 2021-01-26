@@ -195,10 +195,10 @@ func TestMetricsServer(t *testing.T) {
 	gi.stats.incrTotalReceived()
 
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
-	defer resp.Body.Close()
 	assert.Equal(t, nil, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.Equal(t, nil, err)
 	assert.NotEmpty(t, body)
+	resp.Body.Close()
 }
