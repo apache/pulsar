@@ -53,7 +53,7 @@ public class GenericAvroRecord extends VersionedGenericRecord {
             org.apache.avro.Schema recordSchema = avroRecord.getSchema();
             List<Field> fields = recordSchema.getFields()
                 .stream()
-                .map(f -> new Field(f.name(), f.pos()))
+                .map(f -> new Field(f.name(), f.pos(), GenericAvroSchema.convertType(f)))
                 .collect(Collectors.toList());
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
         } else {

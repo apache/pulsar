@@ -34,25 +34,22 @@ import org.apache.pulsar.common.schema.SchemaType;
 @ToString
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public class Field {
+public class FieldSchema {
 
-    /**
-     * The field name.
-     */
-    private final String name;
-    /**
-     * The index of the field within the record.
-     */
-    private final int index;
+    public static final FieldSchema UNKNOWN = new FieldSchema(null, null);
+    public static final FieldSchema BOOLEAN = new FieldSchema(SchemaType.BOOLEAN, null);
+    public static final FieldSchema STRING = new FieldSchema(SchemaType.STRING, null);
+    public static final FieldSchema INT32 = new FieldSchema(SchemaType.INT32, null);
+    public static final FieldSchema INT64 = new FieldSchema(SchemaType.INT64, null);
 
     /**
      * the type
      */
-    private final FieldSchema schema;
+    private final SchemaType type;
 
-    public Field(String name, int index, FieldSchema schema) {
-        this.name = name;
-        this.index = index;
-        this.schema = schema;
-    }
+    /**
+     * the schema in case of structures
+     */
+    private final GenericSchema schema;
+
 }

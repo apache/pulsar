@@ -50,7 +50,7 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
             this.descriptor = descriptor;
             this.fields = descriptor.getFields()
                     .stream()
-                    .map(f -> new Field(f.getName(), f.getIndex()))
+                    .map(f -> new Field(f.getName(), f.getIndex(), GenericProtobufNativeSchema.convertType(f)))
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("GenericProtobufNativeReader init error", e);

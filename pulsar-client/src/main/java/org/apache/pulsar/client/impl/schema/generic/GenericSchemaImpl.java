@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.FieldSchema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -41,8 +44,13 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
 
         this.fields = schema.getFields()
                 .stream()
-                .map(f -> new Field(f.name(), f.pos()))
+                .map(f -> new Field(f.name(), f.pos(), convertType(f)))
                 .collect(Collectors.toList());
+    }
+
+    public static FieldSchema convertType(Schema.Field f) {
+        // TODO
+        return FieldSchema.UNKNOWN;
     }
 
     @Override

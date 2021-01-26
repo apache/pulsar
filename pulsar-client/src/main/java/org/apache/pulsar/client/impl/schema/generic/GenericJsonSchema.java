@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.schema.FieldSchema;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A generic json schema.
@@ -43,4 +46,17 @@ public class GenericJsonSchema extends GenericSchemaImpl {
     public GenericRecordBuilder newRecordBuilder() {
         throw new UnsupportedOperationException("Json Schema doesn't support record builder yet");
     }
+
+    public static FieldSchema convertType(JsonNode fn) {
+        if (fn.isNull()) {
+            return FieldSchema.UNKNOWN;
+        } else if (fn.isBoolean()) {
+            return FieldSchema.BOOLEAN;
+        } else if (fn.isIntegralNumber()) {
+            return FieldSchema.INT32;
+        } else {
+            return FieldSchema.UNKNOWN;
+        }
+    }
+
 }

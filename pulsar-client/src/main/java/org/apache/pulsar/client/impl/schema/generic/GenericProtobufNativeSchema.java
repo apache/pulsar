@@ -24,9 +24,11 @@ import com.google.protobuf.Descriptors;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.FieldSchema;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Generic ProtobufNative schema.
@@ -46,10 +48,26 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
         this.descriptor = parseProtobufSchema(schemaInfo);
         this.fields = descriptor.getFields()
                 .stream()
-                .map(f -> new Field(f.getName(), f.getIndex()))
+                .map(f -> new Field(f.getName(), f.getIndex(), convertType(f)))
                 .collect(Collectors.toList());
         setReader(new MultiVersionGenericProtobufNativeReader(useProvidedSchemaAsReaderSchema, schemaInfo));
         setWriter(new GenericProtobufNativeWriter());
+    }
+
+    public static FieldSchema convertType(Descriptors.FieldDescriptor f) {
+        switch (f.getType()) {
+            case BOOL:
+                    return FieldSchema.BOOLEAN;
+            case STRING:
+                    return FieldSchema.STRING;
+            case INT32:
+                    return FieldSchema.INT32;
+            case INT64:
+                return FieldSchema.INT64;
+            default:
+                // TODO implement all types
+                return FieldSchema.UNKNOWN;
+        }
     }
 
     @Override
