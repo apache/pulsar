@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -947,6 +948,40 @@ public class ReplicatorTest extends ReplicatorTestBase {
         client1.close();
         client2.close();
     }
+
+    @Test
+    public void testTopicReplicatedAndProducerCreate() throws Exception {
+        log.info("--- Starting ReplicatorTest::testTopicReplicatedAndProducerCreate ---");
+
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String namespace = "pulsar/ns-" + System.nanoTime();
+        final String persistentTopicName = "persistent://" + namespace + "/topic1";
+        final String nonPersistentTopicName = "non-persistent://" + namespace + "/topic1";
+        final int startPartitions = 4;
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.topics().createPartitionedTopic(persistentTopicName, startPartitions);
+        admin1.topics().createPartitionedTopic(nonPersistentTopicName, startPartitions);
+
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        //persistent topic
+        Producer<byte[]> persistentProducer1 = client1.newProducer().topic(persistentTopicName).create();
+        Producer<byte[]> persistentProducer2 = client2.newProducer().topic(persistentTopicName).create();
+        assertNotNull(persistentProducer1.send("test".getBytes()));
+        assertNotNull(persistentProducer2.send("test".getBytes()));
+        //non-persistent topic
+        Producer<byte[]> nonPersistentProducer1 = client1.newProducer().topic(nonPersistentTopicName).create();
+        Producer<byte[]> nonPersistentProducer2 = client2.newProducer().topic(nonPersistentTopicName).create();
+
+        assertNotNull(nonPersistentProducer1.send("test".getBytes()));
+        assertNotNull(nonPersistentProducer2.send("test".getBytes()));
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
 }
