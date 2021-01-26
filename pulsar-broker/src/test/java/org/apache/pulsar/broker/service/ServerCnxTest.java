@@ -1531,7 +1531,9 @@ public class ServerCnxTest {
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(new PositionImpl(-1, -1),
+                ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
+                        new PositionImpl(-1, -1),
+                        null,
                         invocationOnMock.getArguments()[2]);
                 return null;
             }

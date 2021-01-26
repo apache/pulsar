@@ -111,9 +111,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         } else {
             lookupUrl = pulsar.getBrokerServiceUrlTls();
         }
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true).authentication(auth)
-                .enableTls(true).build();
+                .enableTls(true));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -241,9 +241,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                 EnumSet.allOf(AuthAction.class));
 
         // setup the client
-        pulsarClient.close();
-        pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
-                .operationTimeout(1, TimeUnit.SECONDS).build();
+        replacePulsarClient(PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
+                .operationTimeout(1, TimeUnit.SECONDS));
 
         // unauthorized topic test
         Exception pulsarClientException = null;
