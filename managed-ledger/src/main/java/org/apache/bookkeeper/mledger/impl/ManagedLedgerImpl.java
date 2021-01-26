@@ -3416,7 +3416,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && !(t.getCause() instanceof CompletionException) /* check to avoid stackoverlflow */) {
             return createManagedLedgerException(t.getCause());
         } else {
-            return new ManagedLedgerException("Unknown exception");
+            return new ManagedLedgerException("Other exception", t);
         }
     }
 
