@@ -47,11 +47,13 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.zookeeper.MockZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -979,8 +981,13 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     }
 
     static class MockLedgerOffloader implements LedgerOffloader {
+        interface InjectAfterOffload {
+            void call();
+        }
+
         ConcurrentHashMap<Long, UUID> offloads = new ConcurrentHashMap<Long, UUID>();
         ConcurrentHashMap<Long, UUID> deletes = new ConcurrentHashMap<Long, UUID>();
+        InjectAfterOffload inject = null;
 
         Set<Long> offloadedLedgers() {
             return offloads.keySet();
@@ -1011,6 +1018,10 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 promise.complete(null);
             } else {
                 promise.completeExceptionally(new Exception("Already exists exception"));
+            }
+
+            if (inject != null) {
+                inject.call();
             }
             return promise;
         }
@@ -1045,6 +1056,44 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         public void close() {
 
         }
+    }
+
+    @Test
+    public void testFailByZk() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", config);
+
+        int i = 0;
+        for (; i < 25; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+        assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+
+        offloader.inject = () -> {
+            try {
+                stopZooKeeper();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        };
+
+        try {
+            ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        } catch (Exception e) {
+
+        }
+        final LedgerInfo ledgerInfo = ledger.getLedgersInfoAsList().get(0);
+        final MLDataFormats.OffloadContext offloadContext = ledgerInfo.getOffloadContext();
+        //should not set complete when
+        assertEquals(offloadContext.getComplete(), false);
+        zkc = MockZooKeeper.newInstance();
     }
 
     static class ErroringMockLedgerOffloader extends MockLedgerOffloader {
