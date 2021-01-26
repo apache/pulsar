@@ -104,7 +104,7 @@ public class ServerConnection extends PulsarHandler {
         }
         ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
         state = State.Connected;
-        remoteEndpointProtocolVersion = connect.getProtocolVersion();
+        setRemoteEndpointProtocolVersion(connect.getProtocolVersion());
     }
 
     @Override
