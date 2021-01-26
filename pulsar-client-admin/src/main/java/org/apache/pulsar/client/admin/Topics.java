@@ -769,6 +769,10 @@ public interface Topics {
     TopicStats getStats(String topic, boolean getPreciseBacklog,
                         boolean subscriptionBacklogSize) throws PulsarAdminException;
 
+    default TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException {
+        return getStats(topic, getPreciseBacklog, false);
+    }
+
     default TopicStats getStats(String topic) throws PulsarAdminException {
         return getStats(topic, false, false);
     }
