@@ -2642,13 +2642,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             super.setupFunctionWorkers();
         }
 
-        Schema<?> schema;
-        if (Runtime.JAVA == runtime) {
-            schema = Schema.STRING;
-        } else {
-            schema = Schema.BYTES;
-        }
-
         String inputTopicName = "persistent://public/default/test-log-" + runtime + "-input-" + randomName(8);
         String logTopicName = "test-log-" + runtime + "-log-topic-" + randomName(8);
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
@@ -2732,30 +2725,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .subscriptionName("test-sub")
                 .subscribe();
 
-        if (inputTopic.endsWith(".*")) {
-            @Cleanup Producer<String> producer1 = client.newProducer(Schema.STRING)
-                    .topic(inputTopic.substring(0, inputTopic.length() - 2) + "1")
-                    .create();
+        @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(inputTopic)
+                .create();
 
-            @Cleanup Producer<String> producer2 = client.newProducer(Schema.STRING)
-                    .topic(inputTopic.substring(0, inputTopic.length() - 2) + "2")
-                    .create();
-
-            for (int i = 0; i < numMessages / 2; i++) {
-                producer1.send("message-" + i);
-            }
-
-            for (int i = numMessages / 2; i < numMessages; i++) {
-                producer2.send("message-" + i);
-            }
-        } else {
-            @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
-                    .topic(inputTopic)
-                    .create();
-
-            for (int i = 0; i < numMessages; i++) {
-                producer.send("message-" + i);
-            }
+        for (int i = 0; i < numMessages; i++) {
+            producer.send("message-" + i);
         }
 
         Set<String> expectedMessages = new HashSet<>();
