@@ -980,6 +980,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         assertNotNull(nonPersistentProducer1.send("test".getBytes()));
         assertNotNull(nonPersistentProducer2.send("test".getBytes()));
+
+        persistentProducer1.close();
+        persistentProducer2.close();
+
+        nonPersistentProducer1.close();
+        nonPersistentProducer2.close();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
