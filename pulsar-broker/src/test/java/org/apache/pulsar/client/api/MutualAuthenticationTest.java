@@ -194,18 +194,20 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         Set<String> providersClassNames = Sets.newHashSet(MutualAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providersClassNames);
 
-        super.init();
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .authentication(mutualAuth)
-                .build();
-        super.producerBaseSetup();
+        isTcpLookup = true;
+        internalSetup();
+        producerBaseSetup();
+    }
+
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.authentication(mutualAuth);
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.internalCleanup();
+        internalCleanup();
     }
 
     @Test
