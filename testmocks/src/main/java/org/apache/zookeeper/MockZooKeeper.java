@@ -252,7 +252,7 @@ public class MockZooKeeper extends ZooKeeper {
             }
 
             final String name;
-            if (createMode.isSequential()) {
+            if (createMode != null && createMode.isSequential()) {
                 name = path + Long.toString(sequentialIdGenerator.getAndIncrement());
             } else {
                 name = path;
