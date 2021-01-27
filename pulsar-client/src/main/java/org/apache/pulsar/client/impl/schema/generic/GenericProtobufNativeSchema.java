@@ -27,7 +27,6 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Generic ProtobufNative schema.
@@ -47,26 +46,16 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
         this.descriptor = parseProtobufSchema(schemaInfo);
         this.fields = descriptor.getFields()
                 .stream()
-                .map(f -> new Field(f.getName(), f.getIndex(), convertType(f)))
+                .map(f -> new Field(f.getName(), f.getIndex(), convertSchemaType(f)))
                 .collect(Collectors.toList());
         setReader(new MultiVersionGenericProtobufNativeReader(useProvidedSchemaAsReaderSchema, schemaInfo));
         setWriter(new GenericProtobufNativeWriter());
     }
 
-    public static org.apache.pulsar.client.api.Schema<?> convertType(Descriptors.FieldDescriptor f) {
-        switch (f.getType()) {
-            case BOOL:
-                    return GenericSchema.BOOL;
-            case STRING:
-                    return GenericSchema.STRING;
-            case INT32:
-                    return GenericSchema.INT32;
-            case INT64:
-                return GenericSchema.INT64;
-            default:
-                // TODO implement all types
-                return null;
-        }
+    public static org.apache.pulsar.client.api.Schema<?> convertSchemaType(Descriptors.FieldDescriptor f) {
+        // Schema information is optional, no need to report for Protobuf
+        // also Protobuf is still not supported for AUTO_CONSUME schema, typically used for Sinks
+        return null;
     }
 
     @Override
