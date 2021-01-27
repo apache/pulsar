@@ -169,6 +169,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(subStats.msgBacklog, 0);
         assertEquals(subStats.consumers.size(), 1);
 
+        // storage stats
+        assertEquals(stats.offloadedStorageSize, 0);
+
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
@@ -206,6 +209,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(stats.msgRateOut, subStats.consumers.get(0).msgRateOut);
         assertEquals(stats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
         assertNotNull(subStats.consumers.get(0).getClientVersion());
+        assertEquals(stats.offloadedStorageSize, 0);
 
         Message<byte[]> msg;
         for (int i = 0; i < 10; i++) {
@@ -218,6 +222,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         rolloverPerIntervalStats();
         stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
+        assertEquals(stats.offloadedStorageSize, 0);
 
         assertEquals(subStats.msgBacklog, 0);
     }
