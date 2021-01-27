@@ -460,6 +460,16 @@ public class PersistentTopicsBase extends AdminResource {
         if (partitionMetadata.partitions > 0) {
             log.warn("[{}] Partitioned topic with the same name already exists {}", clientAppId(), topicName);
             throw new RestException(Status.CONFLICT, "This topic already exists");
+        } else {
+            if (topicName.isPartitioned()) {
+                final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), partitionedTopicName);
+                if (partitionMetadata.partitions > 0) {
+                    log.warn("[{}] Topic {} is a partition of an already existed topic (with {} partitions)",
+                            clientAppId(), topicName, partitionMetadata.partitions);
+                    throw new RestException(Status.CONFLICT, "This topic already exists as a partition");
+                }
+            }
         }
 
         try {
