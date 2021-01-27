@@ -74,8 +74,13 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
                 // this is very common while representing NULLABLE types
                 // the first entry is "null", the second is the effective type
                 List<Schema> types = schema.getTypes();
-                if (types.size() == 2 && types.get(0).getType() == Schema.Type.NULL) {
-                    return convertFieldSchema(types.get(1), mainType);
+                if (types.size() == 2) {
+                    if (types.stream().anyMatch(s -> s.getType() == Schema.Type.NULL)) {
+                        Schema nonNull = types.stream().filter(s -> s.getType() != Schema.Type.NULL).findFirst().orElse(null);
+                        if (nonNull != null) {
+                            return convertFieldSchema(nonNull, mainType);
+                        }
+                    }
                 }
                 return null;
             case NULL:
@@ -110,8 +115,13 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
                 // this is very common while representing NULLABLE types
                 // the first entry is "null", the second is the effective type
                 List<Schema> types = schema.getTypes();
-                if (types.size() == 2 && types.get(0).getType() == Schema.Type.NULL) {
-                    return convertFieldSchemaType(types.get(1));
+                if (types.size() == 2) {
+                    if (types.stream().anyMatch(s -> s.getType() == Schema.Type.NULL)) {
+                        Schema nonNull = types.stream().filter(s -> s.getType() != Schema.Type.NULL).findFirst().orElse(null);
+                        if (nonNull != null) {
+                            return convertFieldSchemaType(nonNull);
+                        }
+                    }
                 }
                 return null;
             case NULL:
