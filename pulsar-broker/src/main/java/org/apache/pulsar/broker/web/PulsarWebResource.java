@@ -30,6 +30,9 @@ import com.google.common.collect.Range;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -48,6 +51,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.impl.BaseResources;
 import org.apache.pulsar.broker.admin.impl.ClusterResources;
 import org.apache.pulsar.broker.admin.impl.DynamicConfigurationResources;
 import org.apache.pulsar.broker.admin.impl.NamespaceResources;
@@ -77,6 +81,7 @@ import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.zookeeper.common.PathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1020,5 +1025,76 @@ public abstract class PulsarWebResource {
             log.debug("[{}] Redirecting the rest call to {}: broker={}", clientAppId(), redirect, broker);
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
+    }
+
+    /*
+     * Get the list of namespaces (on every cluster) for a given property.
+     *
+     * @param property the property name
+     * @return the list of namespaces
+     */
+    protected List<String> getListOfNamespaces(String property) throws Exception {
+        List<String> namespaces = Lists.newArrayList();
+
+        if (!tenantResources().exists(path(POLICIES, property))) {
+            throw new RestException(Status.NOT_FOUND, property + " doesn't exist");
+        }
+        // this will return a cluster in v1 and a namespace in v2
+        for (String clusterOrNamespace : tenantResources().getChildren(path(POLICIES, property))) {
+            // Then get the list of namespaces
+            final List<String> children = tenantResources().getChildren(path(POLICIES, property, clusterOrNamespace));
+            if (children == null || children.isEmpty()) {
+                String namespace = NamespaceName.get(property, clusterOrNamespace).toString();
+                // if the length is 0 then this is probably a leftover cluster from namespace created
+                // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
+                try {
+                    if (namespaceResources().get(path(POLICIES, namespace)).isPresent()) {
+                        namespaces.add(namespace);
+                    }
+                } catch (MetadataStoreException.ContentDeserializationException e) {
+                    // not a namespace node
+                }
+
+            } else {
+                children.forEach(ns -> {
+                    namespaces.add(NamespaceName.get(property, clusterOrNamespace, ns).toString());
+                });
+            }
+        }
+
+        namespaces.sort(null);
+        return namespaces;
+    }
+
+    public static void deleteRecursive(BaseResources resources, final String pathRoot) throws MetadataStoreException {
+        PathUtils.validatePath(pathRoot);
+        List<String> tree = listSubTreeBFS(resources, pathRoot);
+        log.debug("Deleting {} with size {}", tree, tree.size());
+        log.debug("Deleting " + tree.size() + " subnodes ");
+        for (int i = tree.size() - 1; i >= 0; --i) {
+            // Delete the leaves first and eventually get rid of the root
+            resources.delete(tree.get(i));
+        }
+    }
+
+    public static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)
+            throws MetadataStoreException {
+        Deque<String> queue = new LinkedList<String>();
+        List<String> tree = new ArrayList<String>();
+        queue.add(pathRoot);
+        tree.add(pathRoot);
+        while (true) {
+            String node = queue.pollFirst();
+            if (node == null) {
+                break;
+            }
+            List<String> children = resources.getChildren(node);
+            for (final String child : children) {
+                final String childPath = node + "/" + child;
+                queue.add(childPath);
+                tree.add(childPath);
+            }
+        }
+        return tree;
     }
 }

@@ -229,42 +229,6 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    /**
-     * Get the list of namespaces (on every cluster) for a given property.
-     *
-     * @param property the property name
-     * @return the list of namespaces
-     */
-    protected List<String> getListOfNamespaces(String property) throws Exception {
-        List<String> namespaces = Lists.newArrayList();
-
-        // this will return a cluster in v1 and a namespace in v2
-        for (String clusterOrNamespace : globalZk().getChildren(path(POLICIES, property), false)) {
-            // Then get the list of namespaces
-            try {
-                final List<String> children = globalZk().getChildren(
-                        path(POLICIES, property, clusterOrNamespace), false);
-                if (children == null || children.isEmpty()) {
-                    String namespace = NamespaceName.get(property, clusterOrNamespace).toString();
-                    // if the length is 0 then this is probably a leftover cluster from namespace created
-                    // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
-                    if (globalZk().getData(path(POLICIES, namespace), false, null).length != 0) {
-                        namespaces.add(namespace);
-                    }
-                } else {
-                    children.forEach(ns -> {
-                        namespaces.add(NamespaceName.get(property, clusterOrNamespace, ns).toString());
-                    });
-                }
-            } catch (KeeperException.NoNodeException e) {
-                // A cluster was deleted between the 2 getChildren() calls, ignoring
-            }
-        }
-
-        namespaces.sort(null);
-        return namespaces;
-    }
-
     protected CompletableFuture<Void> tryCreatePartitionsAsync(int numPartitions) {
         if (!topicName.isPersistent()) {
             return CompletableFuture.completedFuture(null);
@@ -418,7 +382,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             final String namespace = namespaceName.toString();
             final String policyPath = AdminResource.path(POLICIES, namespace);
-            Policies policies = policiesCache().get(policyPath)
+            Policies policies = namespaceResources().get(policyPath)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
