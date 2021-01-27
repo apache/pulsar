@@ -393,13 +393,16 @@ public class RuntimeUtils {
         }
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-
+        
         args.add("--port");
         args.add(String.valueOf(grpcPort));
 
         args.add("--metrics_port");
         args.add(String.valueOf(metricsPort));
 
+        args.add("--pending_async_requests");
+        args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
+        
         // state storage configs
         if (null != stateStorageServiceUrl) {
             args.add("--state_storage_serviceurl");

@@ -63,6 +63,7 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals(3, wc.getNumFunctionPackageReplicas());
         assertEquals("test-worker", wc.getWorkerId());
         assertEquals(new Integer(7654), wc.getWorkerPort());
+        assertEquals(200, wc.getMaxPendingAsyncRequests());
     }
 
     @Test

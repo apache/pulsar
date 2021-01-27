@@ -270,6 +270,7 @@ public class KubernetesRuntimeTest {
         config.setFunctionVersion("1.0");
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
+        config.setMaxPendingAsyncRequests(200);
         config.setClusterName("standalone");
 
         return config;
@@ -371,14 +372,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 37;
+            totalArgs = 39;
             portArg = 26;
             metricsPortArg = 28;
         } else {
             extraDepsEnv = "";
             portArg = 25;
             metricsPortArg = 27;
-            totalArgs = 36;
+            totalArgs = 38;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -409,6 +410,7 @@ public class KubernetesRuntimeTest {
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + pulsarAdminArg
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
+                + " --pending_async_requests 200"
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval -1";
         if (secretsAttached) {
@@ -460,13 +462,13 @@ public class KubernetesRuntimeTest {
         int configArg;
         int metricsPortArg;
         if (null == extraDepsDir) {
-            totalArgs = 37;
+            totalArgs = 39;
             portArg = 30;
             configArg = 10;
             pythonPath = "";
             metricsPortArg = 32;
         } else {
-            totalArgs = 40;
+            totalArgs = 42;
             portArg = 31;
             configArg = 11;
             metricsPortArg = 33;
@@ -492,6 +494,7 @@ public class KubernetesRuntimeTest {
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
+                + " --pending_async_requests 200"
                 + " --state_storage_serviceurl bk://localhost:4181"
                 + " --expected_healthcheck_interval -1";
         if (secretsAttached) {
