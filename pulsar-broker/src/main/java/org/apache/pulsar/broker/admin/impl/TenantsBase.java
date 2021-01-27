@@ -65,7 +65,7 @@ public class TenantsBase extends PulsarWebResource {
             asyncResponse.resume(e);
             return;
         }
-        tenantResources().getChildren(path(POLICIES)).whenComplete((tenants, e) -> {
+        tenantResources().getChildrenAsync(path(POLICIES)).whenComplete((tenants, e) -> {
             if (e != null) {
                 log.error("[{}] Failed to get tenants list", clientAppId, e);
                 asyncResponse.resume(new RestException(e));
@@ -129,7 +129,7 @@ public class TenantsBase extends PulsarWebResource {
             return;
         }
 
-        tenantResources().getChildren(path(POLICIES)).whenComplete((tenants, e) -> {
+        tenantResources().getChildrenAsync(path(POLICIES)).whenComplete((tenants, e) -> {
             if (e != null) {
                 log.error("[{}] Failed to create tenant ", clientAppId, e.getCause());
                 asyncResponse.resume(new RestException(e));
@@ -244,7 +244,7 @@ public class TenantsBase extends PulsarWebResource {
                 try {
                     // already fetched children and they should be in the cache
                     List<CompletableFuture<Void>> clusterList = Lists.newArrayList();
-                    for (String cluster : tenantResources().getChildren(path(POLICIES, tenant)).get()) {
+                    for (String cluster : tenantResources().getChildrenAsync(path(POLICIES, tenant)).get()) {
                         clusterList.add(tenantResources().deleteAsync(path(POLICIES, tenant, cluster)));
                     }
                     FutureUtil.waitForAll(clusterList).thenAccept(c -> {

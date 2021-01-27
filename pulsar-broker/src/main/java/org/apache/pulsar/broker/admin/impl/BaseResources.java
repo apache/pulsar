@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import lombok.Getter;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
@@ -46,16 +47,34 @@ public class BaseResources<T> {
         this.cache = store.getMetadataCache(clazz);
     }
 
-    public CompletableFuture<List<String>> getChildren(String path) {
+    public BaseResources(MetadataStoreExtended store, TypeReference<T> typeRef) {
+        this.store = store;
+        this.cache = store.getMetadataCache(typeRef);
+    }
+
+    public List<String> getChildren(String path) throws MetadataStoreException {
+        try {
+            return getChildrenAsync(path).get();
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
+        } catch (Exception e) {
+            throw new MetadataStoreException("Failed to get childeren of " + path, e);
+        }
+    }
+
+    public CompletableFuture<List<String>> getChildrenAsync(String path) {
         return cache.getChildren(path);
     }
 
-    public Optional<T> get(String path) throws PulsarServerException {
+    public Optional<T> get(String path) throws MetadataStoreException {
         try {
             return getAsync(path).get();
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
-            throw new PulsarServerException("Failed to get data from " + path,
-                    (e instanceof ExecutionException) ? e.getCause() : e);
+            throw new MetadataStoreException("Failed to get data from " + path, e);
         }
     }
 
@@ -63,12 +82,14 @@ public class BaseResources<T> {
         return cache.get(path);
     }
 
-    public void set(String path, Function<T, T> modifyFunction) throws PulsarServerException {
+    public void set(String path, Function<T, T> modifyFunction) throws MetadataStoreException {
         try {
             setAsync(path, modifyFunction).get();
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
-            throw new PulsarServerException("Failed to set data for " + path,
-                    (e instanceof ExecutionException) ? e.getCause() : e);
+            throw new MetadataStoreException("Failed to set data for " + path, e);
         }
     }
 
@@ -76,25 +97,37 @@ public class BaseResources<T> {
         return cache.readModifyUpdate(path, modifyFunction);
     }
 
-    public void create(String path, T data) throws PulsarServerException {
+    public void create(String path, T data) throws MetadataStoreException {
+        create(path, t -> data);
+    }
+
+    public void create(String path, Function<Optional<T>, T> createFunction) throws MetadataStoreException {
         try {
-            createAsync(path, data).get();
+            createAsync(path, createFunction).get();
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
-            throw new PulsarServerException("Failed to create " + path,
-                    (e instanceof ExecutionException) ? e.getCause() : e);
+            throw new MetadataStoreException("Failed to create " + path, e);
         }
     }
 
     public CompletableFuture<Void> createAsync(String path, T data) {
-        return cache.readModifyUpdateOrCreate(path, t -> data);
+        return createAsync(path, t -> data);
     }
 
-    public void delete(String path) throws PulsarServerException {
+    public CompletableFuture<Void> createAsync(String path, Function<Optional<T>, T> createFunction) {
+        return cache.readModifyUpdateOrCreate(path, createFunction);
+    }
+
+    public void delete(String path) throws MetadataStoreException {
         try {
             deleteAsync(path).get();
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
-            throw new PulsarServerException("Failed to delete " + path,
-                    (e instanceof ExecutionException) ? e.getCause() : e);
+            throw new MetadataStoreException("Failed to delete " + path, e);
         }
     }
 
@@ -102,12 +135,14 @@ public class BaseResources<T> {
         return cache.delete(path);
     }
 
-    public boolean exists(String path) throws PulsarServerException {
+    public boolean exists(String path) throws MetadataStoreException {
         try {
             return existsAsync(path).get();
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
         } catch (Exception e) {
-            throw new PulsarServerException("Failed to check exist " + path,
-                    (e instanceof ExecutionException) ? e.getCause() : e);
+            throw new MetadataStoreException("Failed to check exist " + path, e);
         }
     }
 

@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.ClusterResources;
 import org.apache.pulsar.broker.admin.impl.NamespaceResources;
+import org.apache.pulsar.broker.admin.impl.NamespaceResources.IsolationPolicyResources;
 import org.apache.pulsar.broker.admin.impl.TenantResources;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -874,6 +875,10 @@ public abstract class PulsarWebResource {
         return pulsar().getPulsarResources().getNamespaceResources();
     }
 
+    protected IsolationPolicyResources namespaceIsolationPolicies(){
+        return namespaceResources().getIsolationPolicies();
+    }
+
     public static ObjectMapper jsonMapper() {
         return ObjectMapperFactory.getThreadLocal();
     }
@@ -892,7 +897,7 @@ public abstract class PulsarWebResource {
 
     protected CompletableFuture<Void> hasActiveNamespace(String tenant) {
         CompletableFuture<Void> activeNamespaceFuture = new CompletableFuture<>();
-        tenantResources().getChildren(path(POLICIES, tenant)).thenAccept(clusterOrNamespaceList -> {
+        tenantResources().getChildrenAsync(path(POLICIES, tenant)).thenAccept(clusterOrNamespaceList -> {
             if (clusterOrNamespaceList == null || clusterOrNamespaceList.isEmpty()) {
                 activeNamespaceFuture.complete(null);
                 return;
@@ -902,7 +907,7 @@ public abstract class PulsarWebResource {
                 // get list of active V1 namespace
                 CompletableFuture<Void> checkNs = new CompletableFuture<>();
                 activeNamespaceListFuture.add(checkNs);
-                tenantResources().getChildren(path(POLICIES, tenant, clusterOrNamespace))
+                tenantResources().getChildrenAsync(path(POLICIES, tenant, clusterOrNamespace))
                         .whenComplete((children, ex) -> {
                             if (ex != null) {
                                 checkNs.completeExceptionally(ex);
@@ -951,6 +956,16 @@ public abstract class PulsarWebResource {
         return activeNamespaceFuture;
     }
 
+    protected void validateClusterExists(String cluster) {
+        try {
+            if (!clusterResources().get(path("clusters", cluster)).isPresent()) {
+                throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
+            }
+        } catch (Exception e) {
+            throw new RestException(e);
+        }
+    }
+
     protected CompletableFuture<Void> canUpdateCluster(String tenant, Set<String> oldClusters,
             Set<String> newClusters) {
         List<CompletableFuture<Void>> activeNamespaceFuture = Lists.newArrayList();
@@ -960,7 +975,7 @@ public abstract class PulsarWebResource {
             }
             CompletableFuture<Void> checkNs = new CompletableFuture<>();
             activeNamespaceFuture.add(checkNs);
-            tenantResources().getChildren(path(POLICIES, tenant, cluster)).whenComplete((activeNamespaces, ex) -> {
+            tenantResources().getChildrenAsync(path(POLICIES, tenant, cluster)).whenComplete((activeNamespaces, ex) -> {
                 if (ex != null) {
                     log.warn("Failed to get namespaces under {}-{}, {}", tenant, cluster, ex.getCause().getMessage());
                     checkNs.completeExceptionally(ex.getCause());

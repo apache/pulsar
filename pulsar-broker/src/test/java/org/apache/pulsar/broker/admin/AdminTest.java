@@ -134,10 +134,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         clusters = spy(new Clusters());
         clusters.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(clusters).globalZk();
+        /*doReturn(mockZooKeeperGlobal).when(clusters).globalZk();
         doReturn(configurationCache.clustersCache()).when(clusters).clustersCache();
         doReturn(configurationCache.clustersListCache()).when(clusters).clustersListCache();
-        doReturn(configurationCache.namespaceIsolationPoliciesCache()).when(clusters).namespaceIsolationPoliciesCache();
+        doReturn(configurationCache.namespaceIsolationPoliciesCache()).when(clusters).namespaceIsolationPoliciesCache();*/
         doReturn("test").when(clusters).clientAppId();
         doNothing().when(clusters).validateSuperUserAccess();
 
@@ -241,7 +241,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         clusters.createCluster("use", new ClusterData("http://broker.messaging.use.example.com"));
         verify(clusters, times(1)).validateSuperUserAccess();
         // ensure to read from ZooKeeper directly
-        clusters.clustersListCache().clear();
+        //clusters.clustersListCache().clear();
         assertEquals(clusters.getClusters(), Lists.newArrayList("use"));
 
         // Check creating existing cluster
@@ -331,6 +331,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                     && path.equals("/admin/clusters");
             });
         configurationCache.clustersListCache().clear();
+        // clear caches to load data from metadata-store again
+        MetadataCacheImpl<ClusterData> clusterCache = (MetadataCacheImpl<ClusterData>) pulsar.getPulsarResources()
+                .getClusterResources().getCache();
+        MetadataCacheImpl isolationPolicyCache = (MetadataCacheImpl) pulsar.getPulsarResources()
+                .getNamespaceResources().getIsolationPolicies().getCache();
+        AbstractMetadataStore store = (AbstractMetadataStore) clusterCache.getStore();
+        clusterCache.invalidateAll();
+        store.invalidateAll();
         try {
             clusters.getClusters();
             fail("should have failed");
@@ -353,6 +361,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 return op == MockZooKeeper.Op.GET
                     && path.equals("/admin/clusters/test");
             });
+        clusterCache.invalidateAll();
+        store.invalidateAll();
         try {
             clusters.updateCluster("test", new ClusterData("http://broker.messaging.test.example.com"));
             fail("should have failed");
@@ -388,6 +398,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 return op == MockZooKeeper.Op.GET
                     && path.equals("/admin/clusters/use/namespaceIsolationPolicies");
             });
+        clusterCache.invalidateAll();
+        isolationPolicyCache.invalidateAll();
+        store.invalidateAll();
         try {
             clusters.deleteCluster("use");
             fail("should have failed");

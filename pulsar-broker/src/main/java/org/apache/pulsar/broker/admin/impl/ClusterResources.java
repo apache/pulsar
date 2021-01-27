@@ -20,26 +20,32 @@ package org.apache.pulsar.broker.admin.impl;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import org.apache.pulsar.broker.PulsarServerException;
+import lombok.Getter;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public class ClusterResources extends BaseResources<ClusterData> {
 
-    private static final String CLUSTERS_ROOT = "/admin/clusters";
+    public static final String CLUSTERS_ROOT = "/admin/clusters";
+    @Getter
+    private FailureDomainResources failureDomainResources;
 
     public ClusterResources(MetadataStoreExtended store) {
         super(store, ClusterData.class);
+        this.failureDomainResources = new FailureDomainResources(store, FailureDomain.class);
     }
 
-    public Set<String> list() throws PulsarServerException {
-        try {
-            return new HashSet<>(super.getChildren(CLUSTERS_ROOT).get());
-        } catch (InterruptedException e) {
-            throw new PulsarServerException(e);
-        } catch (ExecutionException e) {
-            throw new PulsarServerException(e.getCause());
+    public Set<String> list() throws MetadataStoreException {
+        return new HashSet<>(super.getChildren(CLUSTERS_ROOT));
+    }
+
+    public static class FailureDomainResources extends BaseResources<FailureDomain> {
+        public static final String FAILURE_DOMAIN = "failureDomain";
+
+        public FailureDomainResources(MetadataStoreExtended store, Class<FailureDomain> clazz) {
+            super(store, clazz);
         }
     }
 }
