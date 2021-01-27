@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.ClusterResources;
+import org.apache.pulsar.broker.admin.impl.DynamicConfigurationResources;
 import org.apache.pulsar.broker.admin.impl.NamespaceResources;
 import org.apache.pulsar.broker.admin.impl.NamespaceResources.IsolationPolicyResources;
 import org.apache.pulsar.broker.admin.impl.TenantResources;
@@ -879,6 +880,10 @@ public abstract class PulsarWebResource {
         return namespaceResources().getIsolationPolicies();
     }
 
+    protected DynamicConfigurationResources dynamicConfigurationResources() {
+        return pulsar().getPulsarResources().getDynamicConfigResources();
+    }
+
     public static ObjectMapper jsonMapper() {
         return ObjectMapperFactory.getThreadLocal();
     }
@@ -991,5 +996,29 @@ public abstract class PulsarWebResource {
         }
         return activeNamespaceFuture.isEmpty() ? CompletableFuture.completedFuture(null)
                 : FutureUtil.waitForAll(activeNamespaceFuture);
+    }
+
+    /**
+     * Redirect the call to the specified broker.
+     *
+     * @param broker
+     *            Broker name
+     * @throws MalformedURLException
+     *             In case the redirect happens
+     */
+    protected void validateBrokerName(String broker) throws MalformedURLException {
+        String brokerUrl = String.format("http://%s", broker);
+        String brokerUrlTls = String.format("https://%s", broker);
+        if (!brokerUrl.equals(pulsar().getSafeWebServiceAddress())
+                && !brokerUrlTls.equals(pulsar().getWebServiceAddressTls())) {
+            String[] parts = broker.split(":");
+            checkArgument(parts.length == 2, String.format("Invalid broker url %s", broker));
+            String host = parts[0];
+            int port = Integer.parseInt(parts[1]);
+
+            URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(host).port(port).build();
+            log.debug("[{}] Redirecting the rest call to {}: broker={}", clientAppId(), redirect, broker);
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+        }
     }
 }

@@ -484,7 +484,7 @@ public class PulsarService implements AutoCloseable {
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
             configurationMetadataStore = createConfigurationMetadataStore();
-            pulsarResources = new PulsarResources(configurationMetadataStore);
+            pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore);
 
             orderedExecutor = OrderedExecutor.newBuilder()
                     .numThreads(config.getNumOrderedExecutorThreads())
