@@ -82,7 +82,6 @@ public class GenericJsonSchema extends GenericSchemaImpl {
     }
 
     private static SchemaType convertFieldSchemaType(JsonNode fn) {
-        log.info("convertFieldSchemaType {} {} {}", fn, fn.getNodeType(), fn.isContainerNode());
         if (fn.isContainerNode()) {
             return SchemaType.JSON;
         }

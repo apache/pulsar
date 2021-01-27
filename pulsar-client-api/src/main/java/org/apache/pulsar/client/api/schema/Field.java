@@ -23,7 +23,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.client.api.Schema;
 
 /**
  * A field in a record, consisting of a field name, index, and
@@ -46,14 +46,15 @@ public final class Field {
     private final int index;
 
     /**
-     * the type
+     * The type.
+     *
      * This field may be null in case that the data type is not supported.
      * In case of nested struct, the struct will report only fields for which
      * there is a supported mapping to a Pulsar type.
      */
-    private final org.apache.pulsar.client.api.Schema<?> schema;
+    private final Schema<?> schema;
 
-    public Field(String name, int index, org.apache.pulsar.client.api.Schema<?> schema) {
+    public Field(String name, int index, Schema<?> schema) {
         this.name = name;
         this.index = index;
         this.schema = schema;
