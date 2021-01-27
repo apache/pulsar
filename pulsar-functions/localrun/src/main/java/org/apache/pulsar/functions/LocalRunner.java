@@ -473,7 +473,9 @@ public class LocalRunner {
             instanceConfig.setClusterName("local");
             if (functionConfig != null) {
                 instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
-                instanceConfig.setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
+                if (functionConfig.getExposePulsarAdminClientEnabled() != null) {
+                    instanceConfig.setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
+                }
             }
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,
