@@ -47,13 +47,13 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
     private String doc;
     private String[] aliases;
 
-    private GenericSchema genericSchema;
+    private org.apache.pulsar.client.api.Schema<?> genericSchema;
 
     FieldSchemaBuilderImpl(String fieldName) {
         this(fieldName, null);
     }
 
-    FieldSchemaBuilderImpl(String fieldName, GenericSchema genericSchema) {
+    FieldSchemaBuilderImpl(String fieldName, org.apache.pulsar.client.api.Schema<?> genericSchema) {
         this.fieldName = fieldName;
         this.genericSchema = genericSchema;
     }

@@ -29,7 +29,6 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
-import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +57,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
         this.schema = readerSchema;
         this.fields = schema.getFields()
                 .stream()
-                .map(f -> new Field(f.name(), f.pos(), GenericAvroSchema.convertType(f)))
+                .map(f -> new Field(f.name(), f.pos(), GenericAvroSchema.convertFieldSchema(f)))
                 .collect(Collectors.toList());
         this.schemaVersion = schemaVersion;
         if (writerSchema == null) {

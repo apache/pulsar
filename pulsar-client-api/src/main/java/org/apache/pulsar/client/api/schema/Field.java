@@ -48,9 +48,9 @@ public class Field {
     /**
      * the type
      */
-    private final FieldSchema schema;
+    private final org.apache.pulsar.client.api.Schema<?> schema;
 
-    public Field(String name, int index, FieldSchema schema) {
+    public Field(String name, int index, org.apache.pulsar.client.api.Schema<?> schema) {
         this.name = name;
         this.index = index;
         this.schema = schema;

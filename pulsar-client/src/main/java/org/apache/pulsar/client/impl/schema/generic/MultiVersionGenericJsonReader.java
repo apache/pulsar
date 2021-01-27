@@ -59,7 +59,7 @@ public class MultiVersionGenericJsonReader extends AbstractMultiVersionGenericRe
             return new GenericJsonReader(schemaVersion.get(),
                     readerSchema.getFields()
                             .stream()
-                            .map(f -> new Field(f.name(), f.pos(), GenericSchemaImpl.convertType(f)))
+                            .map(f -> new Field(f.name(), f.pos(), GenericSchemaImpl.convertFieldSchema(f)))
                             .collect(Collectors.toList()), schemaInfo);
         } else {
             LOG.warn("No schema found for version({}), use latest schema : {}",

@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.pulsar.client.api.schema.FieldSchema;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
 
@@ -39,7 +39,7 @@ public class GenericJsonRecordTest {
     public void decodeNullValue() throws Exception{
         byte[] json = "{\"somefield\":null}".getBytes(UTF_8);
         GenericJsonRecord record
-                = new GenericJsonReader(Collections.singletonList(new Field("somefield", 0, FieldSchema.STRING)))
+                = new GenericJsonReader(Collections.singletonList(new Field("somefield", 0, GenericSchema.STRING)))
                         .read(json, 0, json.length);
         assertTrue(record.getJsonNode().get("somefield").isNull());
         assertNull(record.getField("somefield"));

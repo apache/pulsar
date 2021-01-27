@@ -19,9 +19,12 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.schema.FieldSchema;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -47,16 +50,47 @@ public class GenericJsonSchema extends GenericSchemaImpl {
         throw new UnsupportedOperationException("Json Schema doesn't support record builder yet");
     }
 
-    public static FieldSchema convertType(JsonNode fn) {
-        if (fn.isNull()) {
-            return FieldSchema.UNKNOWN;
-        } else if (fn.isBoolean()) {
-            return FieldSchema.BOOLEAN;
-        } else if (fn.isIntegralNumber()) {
-            return FieldSchema.INT32;
-        } else {
-            return FieldSchema.UNKNOWN;
+    public static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(JsonNode fn) {
+        switch (fn.getNodeType()) {
+            case STRING:
+                return GenericSchema.STRING;
+            case BOOLEAN:
+                return GenericSchema.BOOL;
+            case BINARY:
+                return GenericSchema.BYTES;
+            case NUMBER:
+                if (fn.isInt()) {
+                    return GenericSchema.INT32;
+                } else if (fn.isLong()) {
+                    return GenericSchema.INT64;
+                } else if (fn.isFloat()) {
+                    return GenericSchema.FLOAT;
+                } else if (fn.isDouble()) {
+                    return GenericSchema.DOUBLE;
+                } else {
+                    return null;
+                }
+            case OBJECT:
+                return buildStructSchema(fn);
+            default:
+                return null;
         }
+    }
+
+    private static org.apache.pulsar.client.api.Schema<?> buildStructSchema(JsonNode fn) {
+        RecordSchemaBuilder record = SchemaBuilder.record("?");
+        fn.fields().forEachRemaining(entry -> {
+            String name = entry.getKey();
+            JsonNode value = entry.getValue();
+            if (value.getNodeType() == JsonNodeType.OBJECT) {
+                record.field(name, buildStructSchema(value));
+            } else {
+                record.field(name);
+            }
+        });
+        SchemaInfo build = record.build(SchemaType.JSON);
+        GenericSchema schema = GenericSchema.of(build);
+        return schema;
     }
 
 }

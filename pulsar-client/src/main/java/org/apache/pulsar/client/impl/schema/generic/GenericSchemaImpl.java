@@ -19,10 +19,7 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import org.apache.avro.Schema;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.FieldSchema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.*;
 import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -44,13 +41,47 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
 
         this.fields = schema.getFields()
                 .stream()
-                .map(f -> new Field(f.name(), f.pos(), convertType(f)))
+                .map(f -> new Field(f.name(), f.pos(), convertFieldSchema(f)))
                 .collect(Collectors.toList());
     }
 
-    public static FieldSchema convertType(Schema.Field f) {
-        // TODO
-        return FieldSchema.UNKNOWN;
+
+    public static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(Schema.Field f) {
+        switch (f.schema().getType()) {
+            case RECORD:
+                return buildStructSchema(f.schema());
+            case BYTES:
+                return GenericSchema.BYTES;
+            case LONG:
+                return GenericSchema.INT64;
+            case FLOAT:
+                return GenericSchema.FLOAT;
+            case DOUBLE:
+                return GenericSchema.DOUBLE;
+            case BOOLEAN:
+                return GenericSchema.BOOL;
+            case STRING:
+                return GenericSchema.STRING;
+            case INT:
+                return GenericSchema.INT32;
+            case NULL:
+            case ENUM:
+            case ARRAY:
+            case MAP:
+            case UNION:
+            case FIXED:
+            default:
+                return null;
+        }
+    }
+
+    public static GenericSchema<?> buildStructSchema(Schema schema) {
+        RecordSchemaBuilder record = SchemaBuilder.record(schema.getName());
+        schema.getFields().forEach(f -> {
+            record.field(f.name(), convertFieldSchema(f));
+        });
+        SchemaInfo build = record.build(SchemaType.AVRO);
+        return GenericSchema.of(build);
     }
 
     @Override

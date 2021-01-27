@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Generic json record.
@@ -64,7 +63,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             AtomicInteger idx = new AtomicInteger(0);
             List<Field> fields = Lists.newArrayList(fn.fieldNames())
                 .stream()
-                .map(f -> new Field(f, idx.getAndIncrement(), GenericJsonSchema.convertType(fn)))
+                .map(f -> new Field(f, idx.getAndIncrement(), GenericJsonSchema.convertFieldSchema(fn)))
                 .collect(Collectors.toList());
             return new GenericJsonRecord(schemaVersion, fields, fn, schemaInfo);
         } else if (fn.isBoolean()) {

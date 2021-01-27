@@ -54,7 +54,7 @@ public interface RecordSchemaBuilder {
      * @param genericSchema schema of the field
      * @return field schema builder to build the field.
      */
-    FieldSchemaBuilder field(String fieldName, GenericSchema genericSchema);
+    FieldSchemaBuilder field(String fieldName, org.apache.pulsar.client.api.Schema<?> genericSchema);
 
     /**
      * Add doc to the record schema.
