@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.*;
 import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
  * warning :
  * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
  */
+@Slf4j
 public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
 
     protected final List<Field> fields;
@@ -47,9 +49,13 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
 
 
     public static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(Schema.Field f) {
-        switch (f.schema().getType()) {
+        return convertFieldSchema(f.schema());
+    }
+
+    private static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(Schema schema) {
+        switch (schema.getType()) {
             case RECORD:
-                return buildStructSchema(f.schema());
+                return buildStructSchema(schema);
             case BYTES:
                 return GenericSchema.BYTES;
             case LONG:
@@ -64,11 +70,54 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
                 return GenericSchema.STRING;
             case INT:
                 return GenericSchema.INT32;
+            case UNION:
+                // this is very common while representing NULLABLE types
+                // the first entry is "null", the second is the effective type
+                List<Schema> types = schema.getTypes();
+                if (types.size() == 2 && types.get(0).getType() == Schema.Type.NULL) {
+                    return convertFieldSchema(types.get(1));
+                }
+                return null;
             case NULL:
             case ENUM:
             case ARRAY:
             case MAP:
+            case FIXED:
+            default:
+                return null;
+        }
+    }
+
+    private static SchemaType convertFieldSchemaType(Schema schema) {
+        switch (schema.getType()) {
+            case RECORD:
+                return SchemaType.AVRO;
+            case BYTES:
+                return SchemaType.BYTES;
+            case LONG:
+                return SchemaType.INT64;
+            case FLOAT:
+                return SchemaType.FLOAT;
+            case DOUBLE:
+                return SchemaType.DOUBLE;
+            case BOOLEAN:
+                return SchemaType.BOOLEAN;
+            case STRING:
+                return SchemaType.STRING;
+            case INT:
+                return SchemaType.INT32;
             case UNION:
+                // this is very common while representing NULLABLE types
+                // the first entry is "null", the second is the effective type
+                List<Schema> types = schema.getTypes();
+                if (types.size() == 2 && types.get(0).getType() == Schema.Type.NULL) {
+                    return convertFieldSchemaType(types.get(1));
+                }
+                return null;
+            case NULL:
+            case ENUM:
+            case ARRAY:
+            case MAP:
             case FIXED:
             default:
                 return null;
@@ -78,10 +127,24 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
     public static GenericSchema<?> buildStructSchema(Schema schema) {
         RecordSchemaBuilder record = SchemaBuilder.record(schema.getName());
         schema.getFields().forEach(f -> {
-            record.field(f.name(), convertFieldSchema(f));
+            SchemaType schemaType = convertFieldSchemaType(f.schema());
+            if (schemaType == null) {
+               // we cannot report a type for the field,
+               // so we are ignoring the field
+                if (log.isDebugEnabled()) {
+                    log.debug("Unhandled type {} for field {}", f.schema(), f.name());
+                }
+            } else {
+                org.apache.pulsar.client.api.Schema<?> schemaForField = convertFieldSchema(f);
+                if (schemaForField != null) {
+                    record.field(f.name(), schemaForField).type(schemaType);
+                } else {
+                    record.field(f.name()).type(schemaType);
+                }
+            }
         });
         SchemaInfo build = record.build(SchemaType.AVRO);
-        return GenericSchema.of(build);
+        return GenericAvroSchema.of(build);
     }
 
     @Override

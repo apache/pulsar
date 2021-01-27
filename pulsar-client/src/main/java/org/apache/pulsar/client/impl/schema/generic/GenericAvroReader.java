@@ -57,7 +57,7 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
         this.schema = readerSchema;
         this.fields = schema.getFields()
                 .stream()
-                .map(f -> new Field(f.name(), f.pos(), GenericAvroSchema.convertFieldSchema(f)))
+                .map(f -> new Field(f.name(), f.pos(), GenericSchemaImpl.convertFieldSchema(f)))
                 .collect(Collectors.toList());
         this.schemaVersion = schemaVersion;
         if (writerSchema == null) {

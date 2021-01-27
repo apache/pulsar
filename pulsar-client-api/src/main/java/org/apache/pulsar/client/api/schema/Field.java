@@ -34,7 +34,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 @ToString
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public class Field {
+public final class Field {
 
     /**
      * The field name.
@@ -47,6 +47,9 @@ public class Field {
 
     /**
      * the type
+     * This field may be null in case that the data type is not supported.
+     * In case of nested struct, the struct will report only fields for which
+     * there is a supported mapping to a Pulsar type.
      */
     private final org.apache.pulsar.client.api.Schema<?> schema;
 

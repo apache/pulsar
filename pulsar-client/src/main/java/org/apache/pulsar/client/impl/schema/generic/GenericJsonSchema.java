@@ -28,6 +28,8 @@ import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * A generic json schema.
  */
@@ -51,6 +53,10 @@ public class GenericJsonSchema extends GenericSchemaImpl {
     }
 
     public static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(JsonNode fn) {
+        log.info("convertJsonFieldSchema {} {} {}", fn, fn.getNodeType(), fn.isContainerNode());
+        if (fn.isContainerNode()) {
+            return buildStructSchema(fn, new AtomicInteger());
+        }
         switch (fn.getNodeType()) {
             case STRING:
                 return GenericSchema.STRING;
@@ -70,26 +76,64 @@ public class GenericJsonSchema extends GenericSchemaImpl {
                 } else {
                     return null;
                 }
-            case OBJECT:
-                return buildStructSchema(fn);
             default:
+                // unhandled data type
                 return null;
         }
     }
 
-    private static org.apache.pulsar.client.api.Schema<?> buildStructSchema(JsonNode fn) {
-        RecordSchemaBuilder record = SchemaBuilder.record("?");
+    private static SchemaType convertFieldSchemaType(JsonNode fn) {
+        log.info("convertFieldSchemaType {} {} {}", fn, fn.getNodeType(), fn.isContainerNode());
+        if (fn.isContainerNode()) {
+            return SchemaType.JSON;
+        }
+        switch (fn.getNodeType()) {
+            case STRING:
+                return SchemaType.STRING;
+            case BOOLEAN:
+                return SchemaType.BOOLEAN;
+            case BINARY:
+                return SchemaType.BYTES;
+            case NUMBER:
+                if (fn.isInt()) {
+                    return SchemaType.INT32;
+                } else if (fn.isLong()) {
+                    return SchemaType.INT64;
+                } else if (fn.isFloat()) {
+                    return SchemaType.FLOAT;
+                } else if (fn.isDouble()) {
+                    return SchemaType.DOUBLE;
+                } else {
+                    return null;
+                }
+            default:
+                // unhandled data type
+                return null;
+        }
+    }
+
+    private static org.apache.pulsar.client.api.Schema<?> buildStructSchema(JsonNode fn, AtomicInteger nestLevel) {
+        RecordSchemaBuilder record = SchemaBuilder.record("json" + nestLevel.incrementAndGet());
         fn.fields().forEachRemaining(entry -> {
             String name = entry.getKey();
             JsonNode value = entry.getValue();
-            if (value.getNodeType() == JsonNodeType.OBJECT) {
-                record.field(name, buildStructSchema(value));
+            SchemaType schemaType = convertFieldSchemaType(value);
+            if (schemaType == null) {
+                // we cannot report a type for the field,
+                // so we are ignoring the field
+                if (log.isDebugEnabled()) {
+                    log.debug("Unhandled type {} for field {}", value, name);
+                }
             } else {
-                record.field(name);
+                if (value.isContainerNode()) {
+                    record.field(name, buildStructSchema(value, nestLevel)).type(schemaType);
+                } else {
+                    record.field(name).type(schemaType);
+                }
             }
         });
         SchemaInfo build = record.build(SchemaType.JSON);
-        GenericSchema schema = GenericSchema.of(build);
+        GenericSchema schema = GenericJsonSchema.of(build);
         return schema;
     }
 
