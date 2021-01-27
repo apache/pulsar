@@ -441,7 +441,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             log.error("Failed to create {}: {}", partitionName, e.getMessage());
             Assert.assertEquals(e.getResponse().getStatus(), 409);
-            Assert.assertEquals(e.getMessage(), "This topic already exists as a partition");
+            Assert.assertEquals(e.getMessage(), "This topic already exists");
         }
     }
 

@@ -460,24 +460,22 @@ public class PersistentTopicsBase extends AdminResource {
         if (partitionMetadata.partitions > 0) {
             log.warn("[{}] Partitioned topic with the same name already exists {}", clientAppId(), topicName);
             throw new RestException(Status.CONFLICT, "This topic already exists");
-        } else {
-            if (topicName.isPartitioned()) {
-                final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), partitionedTopicName);
-                if (partitionMetadata.partitions > 0) {
-                    log.warn("[{}] Topic {} is a partition of an already existed topic (with {} partitions)",
-                            clientAppId(), topicName, partitionMetadata.partitions);
-                    throw new RestException(Status.CONFLICT, "This topic already exists as a partition");
-                }
-            }
         }
 
         try {
+            Optional<Topic> existedTopic = pulsar().getBrokerService().getTopicIfExists(topicName.toString()).get();
+            if (existedTopic.isPresent()) {
+                log.error("[{}] Topic {} already exists", clientAppId(), topicName);
+                throw new RestException(Status.CONFLICT, "This topic already exists");
+            }
+
             Topic createdTopic = getOrCreateTopic(topicName);
             log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), createdTopic);
         } catch (Exception e) {
-            log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
+            if (!(e instanceof RestException)) {
+                log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
+                throw new RestException(e);
+            }
         }
     }
 
