@@ -39,7 +39,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
                 MetadataStoreConfig.builder()
-                        .sessionTimeoutMillis(10_000)
+                        .sessionTimeoutMillis(30_000)
                         .build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
