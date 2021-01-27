@@ -200,7 +200,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                MessageId startMessageId,
                                                Schema<T> schema,
                                                ConsumerInterceptors<T> interceptors,
-                                               boolean createTopicIfDoesNotExist) {
+                                               boolean createTopicIfDoesNotExist)
+            throws PulsarClientException.InvalidConfigurationException {
         return newConsumerImpl(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
                 startMessageId, schema, interceptors, createTopicIfDoesNotExist, 0);
     }
@@ -216,7 +217,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                Schema<T> schema,
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist,
-                                               long startMessageRollbackDurationInSec) {
+                                               long startMessageRollbackDurationInSec)
+            throws PulsarClientException.InvalidConfigurationException {
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
                     subscribeFuture,
@@ -233,7 +235,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer,
             CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId,
             long startMessageRollbackDurationInSec, Schema<T> schema, ConsumerInterceptors<T> interceptors,
-            boolean createTopicIfDoesNotExist) {
+            boolean createTopicIfDoesNotExist) throws PulsarClientException.InvalidConfigurationException {
         super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = conf.getSubscriptionMode();
@@ -321,6 +323,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (conf.getDeadLetterPolicy() != null) {
             // DLQ only supports non-ordered subscriptions, don't enable DLQ on Key_Shared subType since it require message ordering for given key.
+            if (conf.getSubscriptionType() == SubscriptionType.Key_Shared &&
+                    StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
+                throw new PulsarClientException.InvalidConfigurationException("Deadletter topic on Key_Shared " +
+                        "subscription type is not supported.");
+            }
+
             if (conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
                 possibleSendToDeadLetterTopicMessages = new ConcurrentHashMap<>();
             } else {
@@ -702,7 +710,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES, String.valueOf(reconsumetimes));
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_DELAY_TIME, String.valueOf(unit.toMillis(delayTime)));
 
-                // DLQ only supports non-ordered subscriptions, don't enable DLQ on Key_Shared subType since it require message ordering for given key.
                 if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount() && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
                    processPossibleToDLQ((MessageIdImpl)messageId);
                     if (deadLetterProducer == null) {
@@ -1187,7 +1194,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // Enqueue the message so that it can be retrieved when application calls receive()
                 // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
                 // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
-                if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+                if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()
+                && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(), Collections.singletonList(message));
                 }
                 if (peekPendingReceive() != null) {
