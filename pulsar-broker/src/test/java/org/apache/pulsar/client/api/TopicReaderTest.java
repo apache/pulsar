@@ -1090,14 +1090,14 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .topic(topicName).create();
 
         //For batch-messages with single message, the type of client messageId should be the same as that of broker
-        MessageId messageId = producer.send("msg".getBytes());
+        MessageIdImpl messageId = (MessageIdImpl) producer.send("msg".getBytes());
         assertTrue(messageId instanceof MessageIdImpl);
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>)pulsarClient.newReader().topic(topicName)
                 .startMessageId(messageId).startMessageIdInclusive().create();
-        MessageId lastMsgId = reader.getConsumer().getLastMessageId();
-        assertTrue(lastMsgId instanceof BatchMessageIdImpl);
+        MessageIdImpl lastMsgId = (MessageIdImpl) reader.getConsumer().getLastMessageId();
         assertTrue(messageId instanceof BatchMessageIdImpl);
-        assertEquals(lastMsgId, messageId);
+        assertEquals(lastMsgId.getLedgerId(), messageId.getLedgerId());
+        assertEquals(lastMsgId.getEntryId(), messageId.getEntryId());
         reader.close();
 
         CountDownLatch latch = new CountDownLatch(numOfMessage);
@@ -1135,7 +1135,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         //For non-batch message, the type of client messageId should be the same as that of broker
         producer = pulsarClient.newProducer()
                 .enableBatching(false).topic(topicName).create();
-        messageId = producer.send("non-batch".getBytes());
+        messageId = (MessageIdImpl) producer.send("non-batch".getBytes());
         assertFalse(messageId instanceof BatchMessageIdImpl);
         assertTrue(messageId instanceof MessageIdImpl);
         reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
