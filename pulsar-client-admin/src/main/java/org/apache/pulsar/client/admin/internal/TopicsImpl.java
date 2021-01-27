@@ -1857,7 +1857,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         return future;
     }
 
-    @Deprecated
     @Override
     public void enableDeduplication(String topic, boolean enabled) throws PulsarAdminException {
         try {
@@ -1873,7 +1872,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
     }
 
-    @Deprecated
     @Override
     public CompletableFuture<Void> enableDeduplicationAsync(String topic, boolean enabled) {
         TopicName topicName = validateTopic(topic);
