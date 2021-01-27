@@ -31,6 +31,7 @@ import javax.net.ssl.SSLSession;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
@@ -75,7 +76,11 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private static final Counter expiredTokenMetrics = Counter.build()
             .name("pulsar_expired_token_count")
             .help("Pulsar expired token")
-            .labelNames("expired_time")
+            .register();
+    private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
+            .name("pulsar_expiring_token_minutes")
+            .help("The remaining time of expiring token in minutes")
+            .buckets(5, 10, 60, 240)
             .register();
 
     private Key validationKey;
@@ -209,11 +214,13 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 }
             }
 
+            if (jwt.getBody().getExpiration() != null) {
+                expiringTokenMinutesMetrics.observe((double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
+            }
             return jwt;
         } catch (JwtException e) {
             if (e instanceof ExpiredJwtException) {
-                String expiredTime = new Date(1000L * (Integer) ((ExpiredJwtException) e).getClaims().get("exp")).toString();
-                expiredTokenMetrics.labels(expiredTime).inc();
+                expiredTokenMetrics.inc();
             }
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
