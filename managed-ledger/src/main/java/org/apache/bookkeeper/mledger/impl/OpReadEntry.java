@@ -114,8 +114,7 @@ class OpReadEntry implements ReadEntriesCallback {
         } else {
             if (!(exception instanceof TooManyRequestsException)) {
                 log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(),
-                        cursor.getName(), readPosition, exception.getMessage());
-                log.warn("error caused by: ", exception.getCause());
+                        cursor.getName(), readPosition, exception.getCause());
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] read throttled failed from ledger at position:{}", cursor.ledger.getName(),
