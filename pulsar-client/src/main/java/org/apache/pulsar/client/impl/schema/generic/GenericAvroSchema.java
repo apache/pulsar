@@ -73,6 +73,21 @@ public class GenericAvroSchema extends GenericSchemaImpl {
 
     public static FieldSchema convertType(Schema.Field f) {
         switch (f.schema().getType()) {
+            case RECORD:
+            case    ENUM:
+            case ARRAY:
+            case MAP:
+            case UNION:
+            case FIXED:
+            case BYTES:
+            case LONG:
+            case FLOAT:
+            case DOUBLE:
+                return FieldSchema.
+            case BOOLEAN:
+                return FieldSchema.BOOLEAN;
+            case NULL:
+                return FieldSchema.UNKNOWN;
             case STRING:
                 return FieldSchema.STRING;
             case INT:

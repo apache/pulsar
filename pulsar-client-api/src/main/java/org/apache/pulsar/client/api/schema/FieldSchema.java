@@ -41,6 +41,17 @@ public class FieldSchema {
     public static final FieldSchema STRING = new FieldSchema(SchemaType.STRING, null);
     public static final FieldSchema INT32 = new FieldSchema(SchemaType.INT32, null);
     public static final FieldSchema INT64 = new FieldSchema(SchemaType.INT64, null);
+    public static final FieldSchema DOUBLE = new FieldSchema(SchemaType.DOUBLE, null);
+    public static final FieldSchema FLOAT = new FieldSchema(SchemaType.FLOAT, null);
+
+    public static final FieldSchema BYTES = new FieldSchema(SchemaType.BYTES, null);
+
+    public static final FieldSchema INSTANT = new FieldSchema(SchemaType.INSTANT, null);
+
+    public static final FieldSchema DATE = new FieldSchema(SchemaType.DATE, null);
+
+    public static final FieldSchema FLOAT = new FieldSchema(SchemaType.FLOAT, null);
+
 
     /**
      * the type
