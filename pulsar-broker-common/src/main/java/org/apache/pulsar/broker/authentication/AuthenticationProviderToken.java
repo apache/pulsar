@@ -30,6 +30,7 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -121,7 +122,14 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         // Get Token
-        String token = getToken(authData);
+        String token;
+        try {
+            token = getToken(authData);
+            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+        } catch (AuthenticationException exception) {
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
+            throw exception;
+        }
 
         // Parse Token by validating
         return getPrincipal(authenticateToken(token));

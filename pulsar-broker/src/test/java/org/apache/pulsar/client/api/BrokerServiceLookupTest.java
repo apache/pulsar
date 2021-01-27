@@ -112,18 +112,15 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         conf.setDefaultNumberOfNamespaceBundles(1);
-        super.init();
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .build();
-        super.producerBaseSetup();
+        isTcpLookup = true;
+        internalSetup();
+        producerBaseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.internalCleanup();
+        internalCleanup();
     }
 
     /**
