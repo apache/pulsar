@@ -260,6 +260,46 @@ module.exports = [
         logo: 'https://s04.cdn.ipalfish.com/kid/img/logo.ad4731cb.png',
     },
     {
+        name: 'Dada Group',
+        url: 'https://about.imdada.cn',
+        logo: 'https://fe.imdada.cn/alaskan/static/logo_color-aaed10c6738b703ad2b54c17f4c3f114.png',
+    },
+    {
+        name: 'Huawei Cloud',
+        url: 'https://www.huaweicloud.com',
+        logo: 'https://res.hc-cdn.com/cnpm-common-resource/2.0.2/base/header/components/images/logo.png',
+    },
+    {
+        name: 'Su Ning',
+        url: 'https://www.suning.com',
+        logo: 'https://image1.suning.cn/uimg/cms/img/159642507148437980.png',
+    },
+    {
+        name: 'Pingan Securites',
+        url: 'https://stock.pingan.com',
+        logo: 'https://stock.pingan.com/static/uploads/softdowm/2018-10-9/upload_c9ac4929e293f5109623b541740618ba.png',
+    },
+    {
+        name: 'Ge Tui',
+        url: 'https://www.getui.com',
+        logo: 'https://gt-static.getui.com/getui_pc/client/img/e33ecd9.svg',
+    },
+    {
+        name: 'KAISA',
+        url: 'https://www.kaisafin.com',
+        logo: 'https://www.kaisafin.com/images/logo.svg',
+    },
+    {
+        name: 'Bairong.Inc',
+        url: 'http://www.brgroup.com',
+        logo: 'http://www.brgroup.com/_nuxt/img/logo.d2a976e.png',
+    },
+    {
+        name: 'Itcast.cn',
+        url: 'http://www.itcast.cn',
+        logo: 'http://www.itcast.cn/2018czgw/images/logo2.png',
+    },
+    {
         name: 'Appen',
         url: 'https://www.appen.com.cn/',
         logo: 'https://resources.appen.com/wp-content/uploads/2020/03/no-tagline.svg',
