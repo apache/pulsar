@@ -152,8 +152,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this.userProvidedProducerName = true;
         }
         this.partitionIndex = partitionIndex;
-        this.pendingMessages = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
-        this.pendingCallbacks = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
+        this.pendingMessages = createPendingMessagesQueue();
+        this.pendingCallbacks = createPendingCallbacksQueue();
         this.semaphore = new Semaphore(conf.getMaxPendingMessages(), true);
 
         this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
@@ -243,6 +243,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this);
 
         grabCnx();
+    }
+
+    protected BlockingQueue<OpSendMsg> createPendingMessagesQueue() {
+        return Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
+    }
+
+    protected BlockingQueue<OpSendMsg> createPendingCallbacksQueue() {
+        return Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
     }
 
     public ConnectionHandler getConnectionHandler() {
@@ -656,7 +664,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return Commands.newSend(producerId, lowestSequenceId, highestSequenceId, numMessages, getChecksumType(), msgMetadata, compressedPayload);
     }
 
-    private ChecksumType getChecksumType() {
+    protected ChecksumType getChecksumType() {
         if (connectionHandler.cnx() == null
                 || connectionHandler.cnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
             return ChecksumType.Crc32c;
@@ -1694,8 +1702,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
                         last -> Math.max(last, getHighestSequenceId(op)));
             }
-            ClientCnx cnx = cnx();
-            if (isConnected()) {
+            if (shouldWriteOpSendMsg()) {
+                ClientCnx cnx = cnx();
                 if (op.msg != null && op.msg.getSchemaState() == None) {
                     tryRegisterSchema(cnx, op.msg, op.callback);
                     return;
@@ -1724,6 +1732,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op.sendComplete(new PulsarClientException(t, op.sequenceId));
             }
         }
+    }
+
+    /**
+     * Hook method for testing. By returning false, it's possible to prevent messages
+     * being delivered to the broker.
+     *
+     * @return true if OpSend messages should be written to open connection
+     */
+    protected boolean shouldWriteOpSendMsg() {
+        return isConnected();
     }
 
     private void recoverProcessOpSendMsgFrom(ClientCnx cnx, MessageImpl from) {
