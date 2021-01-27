@@ -37,10 +37,10 @@ import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -341,6 +341,26 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         return packageLocationMetaDataBuilder;
     }
 
+    private void deleteStatestoreTableAsync(String namespace, String table) {
+        StorageAdminClient adminClient = worker().getStateStoreAdminClient();
+        if (adminClient != null) {
+            adminClient.deleteStream(namespace, table).whenComplete((res, throwable) -> {
+                if ((throwable == null && res.booleanValue())
+                        || (throwable != null &&
+                        (throwable instanceof NamespaceNotFoundException
+                                || throwable instanceof StreamNotFoundException) )) {
+                    log.info("{}/{} table deleted successfully", namespace, table);
+                } else {
+                    if (throwable != null) {
+                        log.error("{}/{} table deletion failed {}  but moving on", namespace, table, throwable);
+                    } else {
+                        log.error("{}/{} table deletion failed but moving on", namespace, table);
+                    }
+                }
+            });
+        }
+    }
+
     @Override
     public void deregisterFunction(final String tenant,
                                    final String namespace,
@@ -361,19 +381,6 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
-        // delete state table
-        if (null != worker().getStateStoreAdminClient()) {
-            final String tableNs = getStateNamespace(tenant, namespace);
-            final String tableName = componentName;
-            try {
-                FutureUtils.result(worker().getStateStoreAdminClient().deleteStream(tableNs, tableName));
-            } catch (NamespaceNotFoundException | StreamNotFoundException e) {
-                // ignored if the state table doesn't exist
-            } catch (Exception e) {
-                log.error("{}/{}/{} Failed to delete state table: {}", tenant, namespace, componentName, e.getMessage());
-                throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
-            }
         }
 
         // validate parameters
@@ -416,6 +423,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                   functionMetaData.getPackageLocation().getPackagePath(), e);
             }
         }
+
+        deleteStatestoreTableAsync(getStateNamespace(tenant, namespace), componentName);
     }
 
     @Override
