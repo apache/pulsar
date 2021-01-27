@@ -50,9 +50,6 @@ public class FieldSchema {
 
     public static final FieldSchema DATE = new FieldSchema(SchemaType.DATE, null);
 
-    public static final FieldSchema FLOAT = new FieldSchema(SchemaType.FLOAT, null);
-
-
     /**
      * the type
      */
