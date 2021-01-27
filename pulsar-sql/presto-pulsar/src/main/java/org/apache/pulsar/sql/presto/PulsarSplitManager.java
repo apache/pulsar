@@ -128,6 +128,11 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         try {
             OffloadPolicies offloadPolicies = this.pulsarAdmin.namespaces()
                                                 .getOffloadPolicies(topicName.getNamespace());
+            if (offloadPolicies != null) {
+                offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
+                offloadPolicies.setManagedLedgerOffloadMaxThreads(
+                        pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads());
+            }
             if (!PulsarConnectorUtils.isPartitionedTopic(topicName, this.pulsarAdmin)) {
                 splits = getSplitsNonPartitionedTopic(
                         numSplits, topicName, tableHandle, schemaInfo, tupleDomain, offloadPolicies);
