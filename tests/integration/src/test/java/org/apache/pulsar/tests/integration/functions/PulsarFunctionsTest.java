@@ -1972,6 +1972,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
+    private static void checkPublisherCleanup(String topic) throws Exception {
+        try {
+            ContainerExecResult result = pulsarCluster.getAnyBroker().execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "stats",
+                    topic);
+            TopicStats topicStats = new Gson().fromJson(result.getStdout(), TopicStats.class);
+            assertEquals(topicStats.publishers.size(), 0);
+
+        } catch (ContainerExecException e) {
+            fail("Command should have exited with non-zero");
+        }
+    }
+
     private static void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts) throws Exception {
         getFunctionStatus(functionName, numMessages, checkRestarts, 1);
     }
@@ -2688,7 +2703,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // make sure subscriptions are cleanup
         checkSubscriptionsCleanup(inputTopicName);
-        checkSubscriptionsCleanup(logTopicName);
+        checkPublisherCleanup(logTopicName);
 
     }
 
@@ -2754,6 +2769,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertTrue(expectedMessages.contains(logMsg));
             expectedMessages.remove(logMsg);
         }
+
+        consumer.close();
+        producer.close();
+        client.close();
     }
 
 }
