@@ -75,23 +75,27 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             }
         } while (true);
 
-        OkHttpClient okHttpClient = new OkHttpClient();
-        Request request = new Request.Builder()
-                .url("http://" + pulsarCluster.getPrestoWorkerContainer().getUrl() + "/v1/node")
-                .build();
-        do {
-            try (Response response = okHttpClient.newCall(request).execute()) {
-                Assert.assertNotNull(response.body());
-                String nodeJsonStr = response.body().string();
-                Assert.assertTrue(nodeJsonStr.length() > 0);
-                log.info("presto node info: {}", nodeJsonStr);
-                if (nodeJsonStr.contains("uri")) {
-                    log.info("presto node exist.");
-                    break;
+        // check presto follow workers start finish.
+        if (pulsarCluster.getSqlFollowWorkerContainers() != null
+                && pulsarCluster.getSqlFollowWorkerContainers().size() > 0) {
+            OkHttpClient okHttpClient = new OkHttpClient();
+            Request request = new Request.Builder()
+                    .url("http://" + pulsarCluster.getPrestoWorkerContainer().getUrl() + "/v1/node")
+                    .build();
+            do {
+                try (Response response = okHttpClient.newCall(request).execute()) {
+                    Assert.assertNotNull(response.body());
+                    String nodeJsonStr = response.body().string();
+                    Assert.assertTrue(nodeJsonStr.length() > 0);
+                    log.info("presto node info: {}", nodeJsonStr);
+                    if (nodeJsonStr.contains("uri")) {
+                        log.info("presto node exist.");
+                        break;
+                    }
+                    Thread.sleep(1000);
                 }
-                Thread.sleep(1000);
-            }
-        } while (true);
+            } while (true);
+        }
     }
 
     protected int prepareData(TopicName topicName, boolean isBatch, boolean useNsOffloadPolices) throws Exception {
@@ -153,12 +157,13 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             printCurrent(res);
             timestamps.add(res.getTimestamp("__publish_time__"));
         }
-        log.info("query result for topic {} timestamps size {}", topic, timestamps.size());
+        log.info("Executing query: result for topic {} timestamps size {}", topic, timestamps.size());
 
         assertThat(timestamps.size()).isGreaterThan(messageNum - 2);
 
         query = String.format("select * from pulsar" +
-                ".\"%s\".\"%s\" where __publish_time__ > timestamp '%s' order by __publish_time__", namespace, topic, timestamps.get(timestamps.size() / 2));
+                ".\"%s\".\"%s\" where __publish_time__ > timestamp '%s' order by __publish_time__",
+                namespace, topic, timestamps.get(timestamps.size() / 2));
         log.info("Executing query: {}", query);
         res = connection.createStatement().executeQuery(query);
 
@@ -168,7 +173,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             returnedTimestamps.add(res.getTimestamp("__publish_time__"));
         }
 
-        log.info("query result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
+        log.info("Executing query: result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
         if (timestamps.size() % 2 == 0) {
             // for example: total size 10, the right receive number is 4, so 4 + 1 == 10 / 2
             assertThat(returnedTimestamps.size() + 1).isEqualTo(timestamps.size() / 2);
@@ -190,7 +195,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             returnedTimestamps.add(res.getTimestamp("__publish_time__"));
         }
 
-        log.info("query result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
+        log.info("Executing query: result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
         assertThat(returnedTimestamps.size()).isEqualTo(timestamps.size());
 
         // Try with a predicate that has a latter time than any entry
@@ -207,7 +212,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             returnedTimestamps.add(res.getTimestamp("__publish_time__"));
         }
 
-        log.info("query result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
+        log.info("Executing query: result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
         assertThat(returnedTimestamps.size()).isEqualTo(0);
     }
 
