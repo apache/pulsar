@@ -49,12 +49,10 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
 
 
     public static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(Schema.Field f, SchemaType mainType) {
-        log.info("convert {} {}", f.name(), f.schema());
         return convertFieldSchema(f.schema(), mainType);
     }
 
     private static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(Schema schema, SchemaType mainType) {
-        log.info("convert {}", schema);
         switch (schema.getType()) {
             case RECORD:
                 return buildStructSchema(schema, mainType);
