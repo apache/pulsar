@@ -28,6 +28,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -2655,6 +2657,8 @@ public class PersistentTopic extends AbstractTopic
         }
         replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                 .ifPresent(DispatchRateLimiter::updateDispatchRate));
+
+        checkDeduplicationStatus();
     }
 
     private Optional<Policies> getNamespacePolicies() {

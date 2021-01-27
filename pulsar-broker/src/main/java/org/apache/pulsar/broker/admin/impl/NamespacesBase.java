@@ -1151,7 +1151,7 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    protected void internalModifyDeduplication(boolean enableDeduplication) {
+    protected void internalModifyDeduplication(Boolean enableDeduplication) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
@@ -1168,8 +1168,12 @@ public abstract class NamespacesBase extends AdminResource {
                     jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
 
-            log.info("[{}] Successfully {} on namespace {}", clientAppId(),
-                    enableDeduplication ? "enabled" : "disabled", namespaceName);
+            if (enableDeduplication == null) {
+                log.info("[{}] Successfully removed on namespace {}", clientAppId(), namespaceName);
+            } else {
+                log.info("[{}] Successfully {} on namespace {}", clientAppId(),
+                        enableDeduplication ? "enabled" : "disabled", namespaceName);
+            }
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to modify deduplication status for namespace {}: does not exist", clientAppId(),
                     namespaceName);
@@ -2602,6 +2606,11 @@ public abstract class NamespacesBase extends AdminResource {
                     clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected Boolean internalGetDeduplication() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.READ);
+        return getNamespacePolicies(namespaceName).deduplicationEnabled;
     }
 
     protected Integer internalGetMaxConsumersPerTopic() {

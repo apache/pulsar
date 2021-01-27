@@ -2566,7 +2566,20 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected CompletableFuture<Void> internalSetDeduplicationEnabled(Boolean enabled) {
+    protected CompletableFuture<Boolean> internalGetDeduplication(boolean applied) {
+        Boolean deduplicationEnabled = getTopicPolicies(topicName)
+                .map(TopicPolicies::getDeduplicationEnabled)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Boolean enabled = getNamespacePolicies(namespaceName).deduplicationEnabled;
+                        return enabled == null ? config().isBrokerDeduplicationEnabled() : enabled;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(deduplicationEnabled);
+    }
+
+    protected CompletableFuture<Void> internalSetDeduplication(Boolean enabled) {
         TopicPolicies topicPolicies = null;
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
