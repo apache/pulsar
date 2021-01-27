@@ -28,7 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 @UtilityClass
 public class DefaultImplementation {
     private static final Class<PulsarAdminBuilder> ADMIN_CLIENT_BUILDER_IMPL = ReflectionUtils.newClassInstance(
-            "org.apache.pulsar.client.admin.impl.PulsarAdminBuilderImpl");
+            "org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl");
 
     public static PulsarAdminBuilder newAdminClientBuilder() {
         return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.newInstance());
