@@ -1169,9 +1169,9 @@ public abstract class NamespacesBase extends AdminResource {
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
 
             if (enableDeduplication == null) {
-                log.info("[{}] Successfully removed on namespace {}", clientAppId(), namespaceName);
+                log.info("[{}] Deduplication was successfully removed on namespace {}", clientAppId(), namespaceName);
             } else {
-                log.info("[{}] Successfully {} on namespace {}", clientAppId(),
+                log.info("[{}] Deduplication was successfully {} on namespace {}", clientAppId(),
                         enableDeduplication ? "enabled" : "disabled", namespaceName);
             }
         } catch (KeeperException.NoNodeException e) {
