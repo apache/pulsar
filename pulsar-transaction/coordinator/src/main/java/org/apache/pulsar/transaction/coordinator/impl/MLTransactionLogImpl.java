@@ -86,7 +86,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime());
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.latest);
     }
 
     @Override
@@ -118,7 +118,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         transactionMetadataEntry.writeTo(buf);
         managedLedger.asyncAddEntry(buf, new AsyncCallbacks.AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 buf.release();
                 completableFuture.complete(position);
             }

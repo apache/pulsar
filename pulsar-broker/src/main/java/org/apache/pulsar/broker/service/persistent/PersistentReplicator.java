@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -296,7 +297,8 @@ public class PersistentReplicator extends AbstractReplicator
                     log.debug("[{}][{} -> {}] Schedule read of {} messages", topicName, localCluster, remoteCluster,
                             messagesToRead);
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this, null);
+                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
+                        null, PositionImpl.latest);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Not scheduling read due to pending read. Messages To Read {}", topicName,

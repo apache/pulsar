@@ -45,9 +45,11 @@ public interface ReadOnlyCursor {
      * @param numberOfEntriesToRead maximum number of entries to return
      * @param callback              callback object
      * @param ctx                   opaque context
+     * @param maxPosition           max position can read
      * @see #readEntries(int)
      */
-    void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
+    void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback,
+                          Object ctx, PositionImpl maxPosition);
 
     /**
      * Get the read position. This points to the next message to be read from the cursor.

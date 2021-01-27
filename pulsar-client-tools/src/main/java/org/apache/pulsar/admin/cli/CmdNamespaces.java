@@ -1097,6 +1097,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove delayed delivery policies from a namespace")
+    private class RemoveDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeDelayedDeliveryMessages(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get the inactive topic policy for a namespace")
     private class GetInactiveTopicPolicies extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1254,6 +1266,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove max producers per topic for a namespace")
+    private class RemoveMaxProducersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeMaxProducersPerTopic(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set maxProducersPerTopic for a namespace")
     private class SetMaxProducersPerTopic extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -1293,6 +1317,18 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             admin.namespaces().setMaxConsumersPerTopic(namespace, maxConsumersPerTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max consumers per topic for a namespace")
+    private class RemoveMaxConsumersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeMaxConsumersPerTopic(namespace);
         }
     }
 
@@ -1972,6 +2008,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
         jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
+        jcommander.addCommand("remove-delayed-delivery", new RemoveDelayedDelivery());
 
         jcommander.addCommand("get-inactive-topic-policies", new GetInactiveTopicPolicies());
         jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
@@ -1979,8 +2016,12 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-max-producers-per-topic", new GetMaxProducersPerTopic());
         jcommander.addCommand("set-max-producers-per-topic", new SetMaxProducersPerTopic());
+        jcommander.addCommand("remove-max-producers-per-topic", new RemoveMaxProducersPerTopic());
+
         jcommander.addCommand("get-max-consumers-per-topic", new GetMaxConsumersPerTopic());
         jcommander.addCommand("set-max-consumers-per-topic", new SetMaxConsumersPerTopic());
+        jcommander.addCommand("remove-max-consumers-per-topic", new RemoveMaxConsumersPerTopic());
+
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
         jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
         jcommander.addCommand("get-max-unacked-messages-per-subscription", new GetMaxUnackedMessagesPerSubscription());

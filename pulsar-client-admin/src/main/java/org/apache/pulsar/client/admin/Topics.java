@@ -1530,6 +1530,24 @@ public interface Topics {
     void removeBacklogQuota(String topic) throws PulsarAdminException;
 
     /**
+     * Get the delayed delivery policy applied for a specified topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic
+            , boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the delayed delivery policy applied for a specified topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic
+            , boolean applied);
+    /**
      * Get the delayed delivery policy for a specified topic.
      * @param topic
      * @return
@@ -1604,7 +1622,15 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMessageTTL(String topic) throws PulsarAdminException;
+    Integer getMessageTTL(String topic) throws PulsarAdminException;
+
+    /**
+     * Get message TTL applied for a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMessageTTL(String topic, boolean applied) throws PulsarAdminException;
 
     /**
      * Remove message TTL for a topic.
@@ -1802,6 +1828,21 @@ public interface Topics {
      */
     CompletableFuture<Void> removeMaxUnackedMessagesOnConsumerAsync(String topic);
 
+    /**
+     * Get inactive topic policies applied for a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    InactiveTopicPolicies getInactiveTopicPolicies(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get inactive topic policies applied for a topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String topic, boolean applied);
     /**
      * get inactive topic policies of a topic.
      * @param topic
@@ -2162,6 +2203,70 @@ public interface Topics {
     CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic);
 
     /**
+     * Set replicatorDispatchRate for the topic.
+     * <p/>
+     * Replicator dispatch rate under this topic can dispatch this many messages per second
+     *
+     * @param topic
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setReplicatorDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
+     * Set replicatorDispatchRate for the topic asynchronously.
+     * <p/>
+     * Replicator dispatch rate under this topic can dispatch this many messages per second.
+     *
+     * @param topic
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setReplicatorDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Get replicatorDispatchRate for the topic.
+     * <p/>
+     * Replicator dispatch rate under this topic can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getReplicatorDispatchRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get replicatorDispatchRate asynchronously.
+     * <p/>
+     * Replicator dispatch rate under this topic can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns DispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String topic);
+
+    /**
+     * Remove replicatorDispatchRate for a topic.
+     * @param topic
+     *            Topic name
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    void removeReplicatorDispatchRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove replicatorDispatchRate for a topic asynchronously.
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeReplicatorDispatchRateAsync(String topic);
+
+    /**
      * Get the compactionThreshold for a topic. The maximum number of bytes
      * can have before compaction is triggered. 0 disables.
      * <p/>
@@ -2421,6 +2526,23 @@ public interface Topics {
      * @throws PulsarAdminException Unexpected error
      */
     CompletableFuture<Integer> getMaxProducersAsync(String topic);
+
+    /**
+     * Get the max number of producer applied for specified topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxProducers(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the max number of producer applied for specified topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<Integer> getMaxProducersAsync(String topic, boolean applied);
 
 
     /**

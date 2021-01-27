@@ -634,7 +634,7 @@ public class AuthenticationProviderTokenTest {
         assertTrue(authState.isComplete());
 
         AuthData brokerData = authState.refreshAuthentication();
-        assertNull(brokerData);
+        assertEquals(brokerData, AuthData.REFRESH_AUTH_DATA);
     }
 
     // tests for Token Audience
