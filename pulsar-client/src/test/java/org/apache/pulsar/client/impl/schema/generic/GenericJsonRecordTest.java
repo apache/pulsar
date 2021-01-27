@@ -20,6 +20,9 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
@@ -32,7 +35,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
-
+@Slf4j
 public class GenericJsonRecordTest {
 
     @Test
@@ -69,4 +72,37 @@ public class GenericJsonRecordTest {
         Object boolValue = record.getField("on");
         assertTrue((boolean)boolValue);
     }
+
+    @Data
+    private static final class Nested {
+        private int value;
+    }
+
+    @Data
+    private static final class MyStruct {
+        private String name;
+        private Nested nested;
+
+    }
+
+    @Test
+    public void decodeNestedStructWhileReadingJson() throws Exception{
+        byte[] json = ("{\"name\":\"foo\",\"nested\":{" +
+                "\"value\": 98"+
+                "}}").getBytes(UTF_8);
+        Schema<MyStruct> schema = Schema.JSON(MyStruct.class);
+        GenericSchemaImpl genericSchema = GenericJsonSchema.of(schema.getSchemaInfo());
+        GenericJsonRecord record
+                = new GenericJsonReader(genericSchema.getFields())
+                .read(json, 0, json.length);
+        assertEquals(record.getField("name"), "foo");
+        GenericJsonRecord nested = (GenericJsonRecord) record.getField("nested");
+        assertEquals(nested.getField("value"), 98);
+        assertEquals(nested.getFields().size(), 1);
+        nested.getFields().forEach( f -> {
+            log.info("field {} {}", f, f.getSchema());
+        });
+        assertEquals(SchemaType.INT32, nested.getFields().get(0).getSchema().getSchemaInfo().getType());
+    }
+
 }

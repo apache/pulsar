@@ -52,8 +52,7 @@ public class GenericJsonSchema extends GenericSchemaImpl {
         throw new UnsupportedOperationException("Json Schema doesn't support record builder yet");
     }
 
-    public static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(JsonNode fn) {
-        log.info("convertJsonFieldSchema {} {} {}", fn, fn.getNodeType(), fn.isContainerNode());
+    static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(JsonNode fn) {
         if (fn.isContainerNode()) {
             return buildStructSchema(fn, new AtomicInteger());
         }

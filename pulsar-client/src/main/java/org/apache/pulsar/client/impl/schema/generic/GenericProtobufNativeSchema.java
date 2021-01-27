@@ -52,7 +52,7 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
         setWriter(new GenericProtobufNativeWriter());
     }
 
-    public static org.apache.pulsar.client.api.Schema<?> convertSchemaType(Descriptors.FieldDescriptor f) {
+    static org.apache.pulsar.client.api.Schema<?> convertSchemaType(Descriptors.FieldDescriptor f) {
         // Schema information is optional, no need to report for Protobuf
         // also Protobuf is still not supported for AUTO_CONSUME schema, typically used for Sinks
         return null;

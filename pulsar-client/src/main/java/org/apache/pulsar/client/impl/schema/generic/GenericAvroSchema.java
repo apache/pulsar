@@ -20,10 +20,9 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.avro.Schema;
-import org.apache.pulsar.client.api.schema.*;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A generic avro schema.
@@ -68,5 +67,4 @@ public class GenericAvroSchema extends GenericSchemaImpl {
         }
         return schema;
     }
-
 }

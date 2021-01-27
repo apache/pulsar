@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,7 @@ public class MultiVersionGenericJsonReader extends AbstractMultiVersionGenericRe
             return new GenericJsonReader(schemaVersion.get(),
                     readerSchema.getFields()
                             .stream()
-                            .map(f -> new Field(f.name(), f.pos(), GenericSchemaImpl.convertFieldSchema(f)))
+                            .map(f -> new Field(f.name(), f.pos(), GenericSchemaImpl.convertFieldSchema(f, SchemaType.JSON)))
                             .collect(Collectors.toList()), schemaInfo);
         } else {
             LOG.warn("No schema found for version({}), use latest schema : {}",

@@ -22,6 +22,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -35,6 +37,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 @Slf4j
 public class GenericJsonRecord extends VersionedGenericRecord {
 
+    private final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final JsonNode jn;
     private final SchemaInfo schemaInfo;
 
@@ -61,10 +64,12 @@ public class GenericJsonRecord extends VersionedGenericRecord {
         JsonNode fn = jn.get(fieldName);
         if (fn.isContainerNode()) {
             AtomicInteger idx = new AtomicInteger(0);
-            List<Field> fields = Lists.newArrayList(fn.fieldNames())
-                .stream()
-                .map(f -> new Field(f, idx.getAndIncrement(), GenericJsonSchema.convertFieldSchema(fn)))
-                .collect(Collectors.toList());
+            List<Field> fields = new ArrayList<>();
+            fn.fieldNames().forEachRemaining((String subFieldName) -> {
+                JsonNode jsonNode = fn.get(subFieldName);
+                Field f = new Field(fieldName, idx.getAndIncrement(), GenericJsonSchema.convertFieldSchema(jsonNode));
+                fields.add(f);
+            });
             return new GenericJsonRecord(schemaVersion, fields, fn, schemaInfo);
         } else if (fn.isBoolean()) {
             return fn.asBoolean();
@@ -97,7 +102,6 @@ public class GenericJsonRecord extends VersionedGenericRecord {
         }
     }
 
-
     private boolean isBinaryValue(String fieldName) {
         boolean isBinary = false;
 
@@ -109,8 +113,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             try {
                 org.apache.avro.Schema schema = parseAvroSchema(schemaInfo.getSchemaDefinition());
                 org.apache.avro.Schema.Field field = schema.getField(fieldName);
-                ObjectMapper objectMapper = new ObjectMapper();
-                JsonNode jsonNode = objectMapper.readTree(field.schema().toString());
+                JsonNode jsonNode = OBJECT_MAPPER.readTree(field.schema().toString());
                 for (JsonNode node : jsonNode) {
                     JsonNode jn = node.get("type");
                     if (jn != null && ("bytes".equals(jn.asText()) || "byte".equals(jn.asText()))) {

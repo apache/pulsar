@@ -43,19 +43,21 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
 
         this.fields = schema.getFields()
                 .stream()
-                .map(f -> new Field(f.name(), f.pos(), convertFieldSchema(f)))
+                .map(f -> new Field(f.name(), f.pos(), convertFieldSchema(f, schemaInfo.getType())))
                 .collect(Collectors.toList());
     }
 
 
-    public static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(Schema.Field f) {
-        return convertFieldSchema(f.schema());
+    public static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(Schema.Field f, SchemaType mainType) {
+        log.info("convert {} {}", f.name(), f.schema());
+        return convertFieldSchema(f.schema(), mainType);
     }
 
-    private static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(Schema schema) {
+    private static org.apache.pulsar.client.api.Schema<?> convertFieldSchema(Schema schema, SchemaType mainType) {
+        log.info("convert {}", schema);
         switch (schema.getType()) {
             case RECORD:
-                return buildStructSchema(schema);
+                return buildStructSchema(schema, mainType);
             case BYTES:
                 return GenericSchema.BYTES;
             case LONG:
@@ -75,7 +77,7 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
                 // the first entry is "null", the second is the effective type
                 List<Schema> types = schema.getTypes();
                 if (types.size() == 2 && types.get(0).getType() == Schema.Type.NULL) {
-                    return convertFieldSchema(types.get(1));
+                    return convertFieldSchema(types.get(1), mainType);
                 }
                 return null;
             case NULL:
@@ -124,7 +126,7 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
         }
     }
 
-    public static GenericSchema<?> buildStructSchema(Schema schema) {
+    static GenericSchema<?> buildStructSchema(Schema schema, SchemaType mainType) {
         RecordSchemaBuilder record = SchemaBuilder.record(schema.getName());
         schema.getFields().forEach(f -> {
             SchemaType schemaType = convertFieldSchemaType(f.schema());
@@ -135,7 +137,7 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
                     log.debug("Unhandled type {} for field {}", f.schema(), f.name());
                 }
             } else {
-                org.apache.pulsar.client.api.Schema<?> schemaForField = convertFieldSchema(f);
+                org.apache.pulsar.client.api.Schema<?> schemaForField = convertFieldSchema(f, mainType);
                 if (schemaForField != null) {
                     record.field(f.name(), schemaForField).type(schemaType);
                 } else {
@@ -143,8 +145,14 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
                 }
             }
         });
-        SchemaInfo build = record.build(SchemaType.AVRO);
-        return GenericAvroSchema.of(build);
+        SchemaInfo build = record.build(mainType);
+        if (mainType == SchemaType.AVRO) {
+            return GenericAvroSchema.of(build);
+        } else if (mainType == SchemaType.JSON) {
+            return GenericJsonSchema.of(build);
+        } else {
+            throw new IllegalArgumentException("bad type "+mainType);
+        }
     }
 
     @Override
