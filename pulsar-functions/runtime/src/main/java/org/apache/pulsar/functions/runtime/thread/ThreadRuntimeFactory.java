@@ -118,7 +118,9 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 InstanceUtils.createPulsarClient(workerConfig.getPulsarServiceUrl(), authenticationConfig),
                 workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
                 null, workerConfig.getNarExtractionDirectory(), null,
-                InstanceUtils.createPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(), authenticationConfig));
+                workerConfig.isExposeAdminClientEnabled() ?
+                        InstanceUtils.createPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+                                authenticationConfig) : null);
     }
 
     @Override

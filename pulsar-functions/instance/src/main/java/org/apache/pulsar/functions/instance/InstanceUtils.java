@@ -173,7 +173,8 @@ public class InstanceUtils {
             clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
             return clientBuilder.build();
         }
-        throw new PulsarClientException("pulsarServiceUrl cannot be null");
+        log.warn("pulsarServiceUrl cannot be null");
+        return null;
     }
 
     public static PulsarAdmin createPulsarAdminClient(String pulsarWebServiceUrl, AuthenticationConfig authConfig) throws PulsarClientException {
