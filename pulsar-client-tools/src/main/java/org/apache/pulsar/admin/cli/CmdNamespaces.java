@@ -1106,7 +1106,7 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().removeDelayedDeliveryMessages(namespace);
+            getAdmin().namespaces().removeDelayedDeliveryMessages(namespace);
         }
     }
 

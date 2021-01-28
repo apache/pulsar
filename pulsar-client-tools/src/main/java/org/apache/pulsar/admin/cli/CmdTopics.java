@@ -1314,7 +1314,7 @@ public class CmdTopics extends CmdBase {
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
-            admin.topics().enableDeduplication(persistentTopic, enable);
+            getAdmin().topics().enableDeduplication(persistentTopic, enable);
         }
     }
 
