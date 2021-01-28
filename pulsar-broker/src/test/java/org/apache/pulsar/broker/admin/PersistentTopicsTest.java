@@ -438,6 +438,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String partitionName = TopicName.get(topicName).getPartition(0).getLocalName();
         try {
             persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, partitionName, false);
+            Assert.fail();
         } catch (RestException e) {
             log.error("Failed to create {}: {}", partitionName, e.getMessage());
             Assert.assertEquals(e.getResponse().getStatus(), 409);
