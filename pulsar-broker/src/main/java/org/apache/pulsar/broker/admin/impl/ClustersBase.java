@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.namespace.NamespaceService.NAMESPACE_ISOLATION_POLICIES;
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
@@ -30,7 +28,6 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Example;
 import io.swagger.annotations.ExampleProperty;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,9 +48,10 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.impl.ClusterResources.FailureDomainResources;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.common.naming.Constants;
@@ -66,14 +64,11 @@ import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs.Ids;
-import org.apache.zookeeper.data.Stat;
+import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ClustersBase extends AdminResource {
+public class ClustersBase extends PulsarWebResource {
 
     @GET
     @ApiOperation(
@@ -87,7 +82,7 @@ public class ClustersBase extends AdminResource {
     public Set<String> getClusters() throws Exception {
         try {
             // Remove "global" cluster from returned list
-            Set<String> clusters = clustersListCache().get().stream()
+            Set<String> clusters = clusterResources().list().stream()
                     .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster)).collect(Collectors.toSet());
             return clusters;
         } catch (Exception e) {
@@ -119,7 +114,7 @@ public class ClustersBase extends AdminResource {
         validateSuperUserAccess();
 
         try {
-            return clustersCache().get(path("clusters", cluster))
+            return clusterResources().get(path("clusters", cluster))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
@@ -171,11 +166,12 @@ public class ClustersBase extends AdminResource {
 
         try {
             NamedEntity.checkName(cluster);
-            zkCreate(path("clusters", cluster), jsonMapper().writeValueAsBytes(clusterData));
+            if (clusterResources().get(path("clusters", cluster)).isPresent()) {
+                log.warn("[{}] Failed to create already existing cluster {}", clientAppId(), cluster);
+                throw new RestException(Status.CONFLICT, "Cluster already exists");
+            }
+            clusterResources().create(path("clusters", cluster), clusterData);
             log.info("[{}] Created cluster {}", clientAppId(), cluster);
-        } catch (KeeperException.NodeExistsException e) {
-            log.warn("[{}] Failed to create already existing cluster {}", clientAppId(), cluster);
-            throw new RestException(Status.CONFLICT, "Cluster already exists");
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to create cluster with invalid name {}", clientAppId(), cluster, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Cluster name is not valid");
@@ -222,23 +218,12 @@ public class ClustersBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            String clusterPath = path("clusters", cluster);
-            Stat nodeStat = new Stat();
-            byte[] content = globalZk().getData(clusterPath, null, nodeStat);
-            ClusterData currentClusterData = null;
-            if (content.length > 0) {
-                currentClusterData = jsonMapper().readValue(content, ClusterData.class);
-                // only update cluster-url-data and not overwrite other metadata such as peerClusterNames
-                currentClusterData.update(clusterData);
-            } else {
-                currentClusterData = clusterData;
-            }
-            // Write back the new updated ClusterData into zookeeper
-            globalZk().setData(clusterPath, jsonMapper().writeValueAsBytes(currentClusterData),
-                    nodeStat.getVersion());
-            globalZkCache().invalidate(clusterPath);
+            clusterResources().set(path("clusters", cluster), old -> {
+                old.update(clusterData);
+                return old;
+            });
             log.info("[{}] Updated cluster {}", clientAppId(), cluster);
-        } catch (KeeperException.NoNodeException e) {
+        } catch (NotFoundException e) {
             log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         } catch (Exception e) {
@@ -292,7 +277,7 @@ public class ClustersBase extends AdminResource {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 cluster + " itself can't be part of peer-list");
                     }
-                    clustersCache().get(path("clusters", peerCluster))
+                    clusterResources().get(path("clusters", peerCluster))
                             .orElseThrow(() -> new RestException(Status.PRECONDITION_FAILED,
                                     "Peer cluster " + peerCluster + " does not exist"));
                 } catch (RestException e) {
@@ -308,16 +293,12 @@ public class ClustersBase extends AdminResource {
         }
 
         try {
-            String clusterPath = path("clusters", cluster);
-            Stat nodeStat = new Stat();
-            byte[] content = globalZk().getData(clusterPath, null, nodeStat);
-            ClusterData currentClusterData = jsonMapper().readValue(content, ClusterData.class);
-            currentClusterData.setPeerClusterNames(peerClusterNames);
-            // Write back the new updated ClusterData into zookeeper
-            globalZk().setData(clusterPath, jsonMapper().writeValueAsBytes(currentClusterData), nodeStat.getVersion());
-            globalZkCache().invalidate(clusterPath);
+            clusterResources().set(path("clusters", cluster), old -> {
+                old.setPeerClusterNames(peerClusterNames);
+                return old;
+            });
             log.info("[{}] Successfully added peer-cluster {} for {}", clientAppId(), peerClusterNames, cluster);
-        } catch (KeeperException.NoNodeException e) {
+        } catch (NotFoundException e) {
             log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         } catch (Exception e) {
@@ -347,15 +328,10 @@ public class ClustersBase extends AdminResource {
             @PathParam("cluster") String cluster
     ) {
         validateSuperUserAccess();
-
         try {
-            String clusterPath = path("clusters", cluster);
-            byte[] content = globalZk().getData(clusterPath, null, null);
-            ClusterData clusterData = jsonMapper().readValue(content, ClusterData.class);
+            ClusterData clusterData = clusterResources().get(path("clusters", cluster))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
             return clusterData.getPeerClusterNames();
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to get cluster {}: Does not exist", clientAppId(), cluster);
-            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         } catch (Exception e) {
             log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
             throw new RestException(e);
@@ -388,12 +364,12 @@ public class ClustersBase extends AdminResource {
         // Check that the cluster is not used by any property (eg: no namespaces provisioned there)
         boolean isClusterUsed = false;
         try {
-            for (String property : globalZk().getChildren(path(POLICIES), false)) {
-                if (globalZk().exists(path(POLICIES, property, cluster), false) == null) {
+            for (String property : tenantResources().getChildren(path(POLICIES))) {
+                if (!clusterResources().exists(path(POLICIES, property, cluster))) {
                     continue;
                 }
 
-                if (!globalZk().getChildren(path(POLICIES, property, cluster), false).isEmpty()) {
+                if (!clusterResources().getChildren(path(POLICIES, property, cluster)).isEmpty()) {
                     // We found a property that has at least a namespace in this cluster
                     isClusterUsed = true;
                     break;
@@ -402,13 +378,12 @@ public class ClustersBase extends AdminResource {
 
             // check the namespaceIsolationPolicies associated with the cluster
             String path = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
-            Optional<NamespaceIsolationPolicies> nsIsolationPolicies = namespaceIsolationPoliciesCache().get(path);
+            Optional<NamespaceIsolationPolicies> nsIsolationPolicies = namespaceIsolationPolicies().getPolicies(path);
 
             // Need to delete the isolation policies if present
             if (nsIsolationPolicies.isPresent()) {
                 if (nsIsolationPolicies.get().getPolicies().isEmpty()) {
-                    globalZk().delete(path, -1);
-                    namespaceIsolationPoliciesCache().invalidate(path);
+                    namespaceIsolationPolicies().delete(path);
                 } else {
                     isClusterUsed = true;
                 }
@@ -426,10 +401,9 @@ public class ClustersBase extends AdminResource {
         try {
             String clusterPath = path("clusters", cluster);
             deleteFailureDomain(clusterPath);
-            globalZk().delete(clusterPath, -1);
-            globalZkCache().invalidate(clusterPath);
+            clusterResources().delete(clusterPath);
             log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
-        } catch (KeeperException.NoNodeException e) {
+        } catch (NotFoundException e) {
             log.warn("[{}] Failed to delete cluster {} - Does not exist", clientAppId(), cluster);
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         } catch (Exception e) {
@@ -441,16 +415,14 @@ public class ClustersBase extends AdminResource {
     private void deleteFailureDomain(String clusterPath) {
         try {
             String failureDomain = joinPath(clusterPath, ConfigurationCacheService.FAILURE_DOMAIN);
-            if (globalZk().exists(failureDomain, false) == null) {
+            if (!clusterResources().exists(failureDomain)) {
                 return;
             }
-            for (String domain : globalZk().getChildren(failureDomain, false)) {
+            for (String domain : clusterResources().getChildren(failureDomain)) {
                 String domainPath = joinPath(failureDomain, domain);
-                globalZk().delete(domainPath, -1);
+                clusterResources().delete(domainPath);
             }
-            globalZk().delete(failureDomain, -1);
-            failureDomainCache().clear();
-            failureDomainListCache().clear();
+            clusterResources().delete(failureDomain);
         } catch (Exception e) {
             log.warn("Failed to delete failure-domain under cluster {}", clusterPath);
             throw new RestException(e);
@@ -478,13 +450,13 @@ public class ClustersBase extends AdminResource {
         @PathParam("cluster") String cluster
     ) throws Exception {
         validateSuperUserAccess();
-        if (!clustersCache().get(path("clusters", cluster)).isPresent()) {
+        if (!clusterResources().exists(path("clusters", cluster))) {
             throw new RestException(Status.NOT_FOUND, "Cluster " + cluster + " does not exist.");
         }
 
         try {
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
-                    .get(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
+            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
+                    .getPolicies(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to Namespace isolation data map
@@ -524,8 +496,8 @@ public class ClustersBase extends AdminResource {
         validateClusterExists(cluster);
 
         try {
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
-                    .get(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
+            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
+                    .getPolicies(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to Namespace isolation data map
@@ -577,8 +549,8 @@ public class ClustersBase extends AdminResource {
             throw new RestException(e);
         }
         try {
-            Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPoliciesCache()
-                    .get(nsIsolationPoliciesPath);
+            Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPolicies()
+                    .getPolicies(nsIsolationPoliciesPath);
             if (!nsPoliciesResult.isPresent()) {
                 throw new RestException(Status.NOT_FOUND, "namespace-isolation policies not found for " + cluster);
             }
@@ -639,8 +611,8 @@ public class ClustersBase extends AdminResource {
         final String nsIsolationPoliciesPath = AdminResource.path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
         Map<String, NamespaceIsolationData> nsPolicies;
         try {
-            Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPoliciesCache()
-                    .get(nsIsolationPoliciesPath);
+            Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPolicies()
+                    .getPolicies(nsIsolationPoliciesPath);
             if (!nsPoliciesResult.isPresent()) {
                 throw new RestException(Status.NOT_FOUND, "namespace-isolation policies not found for " + cluster);
             }
@@ -710,21 +682,18 @@ public class ClustersBase extends AdminResource {
             jsonInput = ObjectMapperFactory.create().writeValueAsString(policyData);
 
             String nsIsolationPolicyPath = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
-                    .get(nsIsolationPolicyPath).orElseGet(() -> {
+            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
+                    .getPolicies(nsIsolationPolicyPath).orElseGet(() -> {
                         try {
-                            this.createZnodeIfNotExist(nsIsolationPolicyPath, Optional.of(Collections.emptyMap()));
+                            namespaceIsolationPolicies().create(nsIsolationPolicyPath, Collections.emptyMap());
                             return new NamespaceIsolationPolicies();
-                        } catch (KeeperException | InterruptedException e) {
+                        } catch (Exception e) {
                             throw new RestException(e);
                         }
                     });
 
             nsIsolationPolicies.setPolicy(policyName, policyData);
-            globalZk().setData(nsIsolationPolicyPath, jsonMapper().writeValueAsBytes(nsIsolationPolicies.getPolicies()),
-                    -1);
-            // make sure that the cache content will be refreshed for the next read access
-            namespaceIsolationPoliciesCache().invalidate(nsIsolationPolicyPath);
+            namespaceIsolationPolicies().set(nsIsolationPolicyPath, old -> nsIsolationPolicies.getPolicies());
 
             // whether or not make the isolation update on time.
             if (pulsar().getConfiguration().isEnableNamespaceIsolationUpdateOnTime()) {
@@ -738,7 +707,7 @@ public class ClustersBase extends AdminResource {
                     clientAppId(), cluster, policyName, iae);
             asyncResponse.resume(new RestException(Status.BAD_REQUEST,
                     "Invalid format of input policy data. policy: " + policyName + "; data: " + jsonInput));
-        } catch (KeeperException.NoNodeException nne) {
+        } catch (NotFoundException nne) {
             log.warn("[{}] Failed to update clusters/{}/namespaceIsolationPolicies: Does not exist", clientAppId(),
                     cluster);
             asyncResponse.resume(new RestException(Status.NOT_FOUND,
@@ -832,29 +801,6 @@ public class ClustersBase extends AdminResource {
         });
     }
 
-    private boolean createZnodeIfNotExist(String path, Optional<Object> value)
-            throws KeeperException, InterruptedException {
-        // create persistent node on ZooKeeper
-        if (globalZk().exists(path, false) == null) {
-            // create all the intermediate nodes
-            try {
-                ZkUtils.createFullPathOptimistic(globalZk(), path,
-                        value.isPresent() ? jsonMapper().writeValueAsBytes(value.get()) : null, Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-                return true;
-            } catch (KeeperException.NodeExistsException nee) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Other broker preempted the full path [{}] already. Continue...", path);
-                }
-            } catch (JsonGenerationException e) {
-                // ignore json error as it is empty hash
-            } catch (JsonMappingException e) {
-            } catch (IOException e) {
-            }
-        }
-        return false;
-    }
-
     @DELETE
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
     @ApiOperation(
@@ -886,22 +832,19 @@ public class ClustersBase extends AdminResource {
         try {
 
             String nsIsolationPolicyPath = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
-                    .get(nsIsolationPolicyPath).orElseGet(() -> {
+            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
+                    .getPolicies(nsIsolationPolicyPath).orElseGet(() -> {
                         try {
-                            this.createZnodeIfNotExist(nsIsolationPolicyPath, Optional.of(Collections.emptyMap()));
+                            namespaceIsolationPolicies().create(nsIsolationPolicyPath, Collections.emptyMap());
                             return new NamespaceIsolationPolicies();
-                        } catch (KeeperException | InterruptedException e) {
+                        } catch (Exception e) {
                             throw new RestException(e);
                         }
                     });
 
             nsIsolationPolicies.deletePolicy(policyName);
-            globalZk().setData(nsIsolationPolicyPath, jsonMapper().writeValueAsBytes(nsIsolationPolicies.getPolicies()),
-                    -1);
-            // make sure that the cache content will be refreshed for the next read access
-            namespaceIsolationPoliciesCache().invalidate(nsIsolationPolicyPath);
-        } catch (KeeperException.NoNodeException nne) {
+            namespaceIsolationPolicies().set(nsIsolationPolicyPath, old -> nsIsolationPolicies.getPolicies());
+        } catch (NotFoundException nne) {
             log.warn("[{}] Failed to update brokers/{}/namespaceIsolationPolicies: Does not exist", clientAppId(),
                     cluster);
             throw new RestException(Status.NOT_FOUND,
@@ -949,15 +892,9 @@ public class ClustersBase extends AdminResource {
 
         try {
             String domainPath = joinPath(pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT, domainName);
-            if (this.createZnodeIfNotExist(domainPath, Optional.ofNullable(domain))) {
-                // clear domains-children cache
-                this.failureDomainListCache().clear();
-            } else {
-                globalZk().setData(domainPath, jsonMapper().writeValueAsBytes(domain), -1);
-                // make sure that the domain-cache will be refreshed for the next read access
-                failureDomainCache().invalidate(domainPath);
-            }
-        } catch (KeeperException.NoNodeException nne) {
+            FailureDomainResources failureDomainListCache = clusterResources().getFailureDomainResources();
+            failureDomainListCache.create(domainPath, old -> domain);
+        } catch (NotFoundException nne) {
             log.warn("[{}] Failed to update domain {}. clusters {}  Does not exist", clientAppId(), cluster,
                     domainName);
             throw new RestException(Status.NOT_FOUND,
@@ -992,16 +929,17 @@ public class ClustersBase extends AdminResource {
         Map<String, FailureDomain> domains = Maps.newHashMap();
         try {
             final String failureDomainRootPath = pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
-            for (String domainName : failureDomainListCache().get()) {
+            FailureDomainResources failureDomainListCache = clusterResources().getFailureDomainResources();
+            for (String domainName : failureDomainListCache.getChildren(failureDomainRootPath)) {
                 try {
-                    Optional<FailureDomain> domain = failureDomainCache()
+                    Optional<FailureDomain> domain = failureDomainListCache
                             .get(joinPath(failureDomainRootPath, domainName));
                     domain.ifPresent(failureDomain -> domains.put(domainName, failureDomain));
                 } catch (Exception e) {
                     log.warn("Failed to get domain {}", domainName, e);
                 }
             }
-        } catch (KeeperException.NoNodeException e) {
+        } catch (NotFoundException e) {
             log.warn("[{}] Failure-domain is not configured for cluster {}", clientAppId(), cluster, e);
             return Collections.emptyMap();
         } catch (Exception e) {
@@ -1041,7 +979,7 @@ public class ClustersBase extends AdminResource {
 
         try {
             final String failureDomainRootPath = pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
-            return failureDomainCache().get(joinPath(failureDomainRootPath, domainName))
+            return clusterResources().getFailureDomainResources().get(joinPath(failureDomainRootPath, domainName))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Domain " + domainName + " for cluster " + cluster + " does not exist"));
         } catch (RestException re) {
@@ -1082,11 +1020,8 @@ public class ClustersBase extends AdminResource {
         try {
             final String domainPath = joinPath(pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT,
                     domainName);
-            globalZk().delete(domainPath, -1);
-            // clear domain cache
-            failureDomainCache().invalidate(domainPath);
-            failureDomainListCache().clear();
-        } catch (KeeperException.NoNodeException nne) {
+            clusterResources().getFailureDomainResources().delete(domainPath);
+        } catch (NotFoundException nne) {
             log.warn("[{}] Domain {} does not exist in {}", clientAppId(), domainName, cluster);
             throw new RestException(Status.NOT_FOUND,
                     "Domain-name " + domainName + " or cluster " + cluster + " does not exist");
@@ -1101,13 +1036,14 @@ public class ClustersBase extends AdminResource {
         if (inputDomain != null && inputDomain.brokers != null) {
             try {
                 final String failureDomainRootPath = pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
-                for (String domainName : failureDomainListCache().get()) {
+                for (String domainName : clusterResources().getFailureDomainResources()
+                        .getChildren(failureDomainRootPath)) {
                     if (inputDomainName.equals(domainName)) {
                         continue;
                     }
                     try {
                         Optional<FailureDomain> domain =
-                                failureDomainCache()
+                                clusterResources().getFailureDomainResources()
                                         .get(joinPath(failureDomainRootPath, domainName));
                         if (domain.isPresent() && domain.get().brokers != null) {
                             List<String> duplicateBrokers = domain.get().brokers.stream().parallel()
@@ -1124,7 +1060,7 @@ public class ClustersBase extends AdminResource {
                         log.warn("Failed to get domain {}", domainName, e);
                     }
                 }
-            } catch (KeeperException.NoNodeException e) {
+            } catch (NotFoundException e) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Domain is not configured for cluster", clientAppId(), e);
                 }
