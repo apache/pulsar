@@ -25,7 +25,7 @@ import org.apache.kafka.clients.consumer.*;
  * Simple Kafka Source that just transfers the value part of the kafka records
  * as Strings
  */
-public class KafkaStringSource extends KafkaAbstractSource<String> {
+public class KafkaStringSource extends KafkaAbstractSource<byte[], String> {
     @Override
     public String extractValue(ConsumerRecord<String, byte[]> record) {
         return new String(record.value());

@@ -19,14 +19,16 @@
 
 package org.apache.pulsar.io.kafka;
 
-import java.util.Properties;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
+
+import java.util.Properties;
 
 /**
  * Simple Kafka Source that just transfers the value part of the kafka records
@@ -39,18 +41,28 @@ import org.apache.pulsar.io.core.annotations.IOType;
     configClass = KafkaSourceConfig.class
 )
 @Slf4j
-public class KafkaBytesSource extends KafkaAbstractSource<byte[], byte[]> {
+public class KafkaGenericRecordSource extends KafkaAbstractSource<Object, GenericRecord> {
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
+        props.put("schema.registry.url", "http://localhost:8081");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
+
         log.info("Created kafka consumer config : {}", props);
         return props;
     }
 
     @Override
-    public byte[] extractValue(ConsumerRecord<String, byte[]> record) {
-        return record.value();
+    public GenericRecord extractValue(ConsumerRecord<String, Object> record) {
+       Object value = record.value();
+        System.out.println("extractValue from " + value);
+        if (value instanceof org.apache.avro.generic.GenericRecord) {
+            org.apache.avro.generic.GenericRecord container = (org.apache.avro.generic.GenericRecord) value;
+            GenericRecord result = new KafkaGenericRecord(container);
+            return result;
+        }
+        throw new IllegalArgumentException("cannot convert "+value+" to a GenericRecord");
     }
+
 }

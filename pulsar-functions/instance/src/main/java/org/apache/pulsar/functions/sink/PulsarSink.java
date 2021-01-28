@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
@@ -109,7 +110,7 @@ public class PulsarSink<T> implements Sink<T> {
                     .blockIfQueueFull(true)
                     .enableBatching(true)
                     .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                    .compressionType(CompressionType.LZ4)
+                    //.compressionType(CompressionType.LZ4)
                     .hashingScheme(HashingScheme.Murmur3_32Hash) //
                     .messageRoutingMode(MessageRoutingMode.CustomPartition)
                     .messageRouter(FunctionResultRouter.of())
@@ -226,7 +227,7 @@ public class PulsarSink<T> implements Sink<T> {
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
-
+            log.info("schemaToWrite {}", schemaToWrite);
             if (schemaToWrite != null) {
                 return getProducer(record
                         .getDestinationTopic()
@@ -323,10 +324,10 @@ public class PulsarSink<T> implements Sink<T> {
         log.info("Opening pulsar sink with config: {}", pulsarSinkConfig);
 
         Schema<T> schema = initializeSchema();
-        if (schema == null) {
+        /*if (schema == null) {
             log.info("Since output type is null, not creating any real sink");
             return;
-        }
+        }*/
 
         Crypto crypto = initializeCrypto();
         if (crypto == null) {
@@ -350,6 +351,7 @@ public class PulsarSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) {
         SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
+        log.info("here {}", pulsarSinkProcessor);
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(sinkRecord);
 
         if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema &&
@@ -393,8 +395,10 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
-        if (Void.class.equals(typeArg)) {
+        if (Void.class.equals(typeArg)
+                || GenericRecord.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check
+            log.info("typeClassName is {}, no need to create a schema", this.pulsarSinkConfig.getTypeClassName());
             return null;
         }
         ConsumerConfig consumerConfig = new ConsumerConfig();

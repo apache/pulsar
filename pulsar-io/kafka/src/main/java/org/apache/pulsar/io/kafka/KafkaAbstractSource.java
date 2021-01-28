@@ -19,34 +19,33 @@
 
 package org.apache.pulsar.io.kafka;
 
-import java.util.Collections;
-import java.util.Objects;
+import java.util.*;
+
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic
  */
-public abstract class KafkaAbstractSource<V> extends PushSource<V> {
+public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
-    private volatile Consumer<String, byte[]> consumer;
+    private volatile Consumer<String, KV> consumer;
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
@@ -118,17 +117,18 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     public void start() {
         runnerThread = new Thread(() -> {
-            LOG.info("Starting kafka source");
+            LOG.info("Starting kafka source on {}", kafkaSourceConfig.getTopic());
             consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
-            ConsumerRecords<String, byte[]> consumerRecords;
+            ConsumerRecords<String, KV> consumerRecords;
             while (running) {
                 consumerRecords = consumer.poll(1000);
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
-                for (ConsumerRecord<String, byte[]> consumerRecord : consumerRecords) {
-                    LOG.debug("Record received from kafka, key: {}. value: {}", consumerRecord.key(), consumerRecord.value());
+                for (ConsumerRecord<String, KV> consumerRecord : consumerRecords) {
+                    LOG.info("Record received from kafka, key: {}. value: {}", consumerRecord.key(), consumerRecord.value());
                     KafkaRecord<V> record = new KafkaRecord<>(consumerRecord, extractValue(consumerRecord));
+                    LOG.info("consume {} {}", record, record.getValue());
                     consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;
@@ -151,16 +151,16 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         runnerThread.start();
     }
 
-    public abstract V extractValue(ConsumerRecord<String, byte[]> record);
+    public abstract V extractValue(ConsumerRecord<String, KV> record);
 
+    @Slf4j
     static private class KafkaRecord<V> implements Record<V> {
-        private final ConsumerRecord<String, byte[]> record;
+        private final ConsumerRecord<String, ?> record;
         private final V value;
         @Getter
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public KafkaRecord(ConsumerRecord<String, byte[]> record,
-                           V value) {
+        public KafkaRecord(ConsumerRecord<String,?> record, V value) {
             this.record = record;
             this.value = value;
         }
@@ -187,6 +187,20 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         @Override
         public void ack() {
             completableFuture.complete(null);
+        }
+
+        @Override
+        public Schema<V> getSchema() {
+            new Exception("getSchema "+value.getClass()).printStackTrace(System.out);
+            if (value instanceof KafkaGenericRecord) {
+                return (Schema) ((KafkaGenericRecord) value).getPulsarSchema();
+            } else if (value instanceof String) {
+                log.info("value {} schema STRING", value);
+                return (Schema) Schema.STRING;
+            } else {
+                log.info("value {} schema BYTES", value);
+                return (Schema) Schema.BYTES;
+            }
         }
     }
 }

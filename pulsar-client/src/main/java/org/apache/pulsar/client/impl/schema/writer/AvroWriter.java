@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.writer;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
@@ -28,7 +29,9 @@ import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Optional;
 
+@Slf4j
 public class AvroWriter<T> implements SchemaWriter<T> {
     private final ReflectDatumWriter<T> writer;
     private BinaryEncoder encoder;
@@ -48,16 +51,19 @@ public class AvroWriter<T> implements SchemaWriter<T> {
 
     @Override
     public synchronized byte[] write(T message) {
+        log.info("serialize {} {} writer {}", message, Optional.ofNullable(message).map(Object::getClass), writer);
         byte[] outputBytes = null;
         try {
             writer.write(message, this.encoder);
         } catch (Exception e) {
+            log.error("error", e);
             throw new SchemaSerializationException(e);
         } finally {
             try {
                 this.encoder.flush();
                 outputBytes = this.byteArrayOutputStream.toByteArray();
             } catch (Exception ex) {
+                log.error("error", ex);
                 throw new SchemaSerializationException(ex);
             }
             this.byteArrayOutputStream.reset();
