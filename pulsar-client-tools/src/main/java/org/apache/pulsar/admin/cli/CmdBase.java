@@ -42,8 +42,9 @@ public abstract class CmdBase {
     public CmdBase(String cmdName, Supplier<PulsarAdmin> adminSupplier) {
         this.adminSupplier = adminSupplier;
         jcommander = new JCommander();
-        usageFormatter = new DefaultUsageFormatter(jcommander);
+        usageFormatter = new CmdUsageFormatter(jcommander);
         jcommander.setProgramName("pulsar-admin " + cmdName);
+        jcommander.setUsageFormatter(usageFormatter);
     }
 
     protected IUsageFormatter getUsageFormatter() {

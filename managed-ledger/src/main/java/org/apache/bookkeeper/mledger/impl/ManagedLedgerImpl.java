@@ -34,6 +34,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.ReferenceCountUtil;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
@@ -64,7 +65,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import io.netty.util.ReferenceCountUtil;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -1683,6 +1683,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return getLedgerHandle(ledgerId).thenApply(rh -> rh.getLedgerMetadata().toSafeString());
     }
 
+    @Override
+    public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
+        CompletableFuture<LedgerInfo> result = new CompletableFuture<>();
+        final LedgerInfo ledgerInfo = ledgers.get(ledgerId);
+        result.complete(ledgerInfo);
+        return result;
+    }
+
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
         CompletableFuture<ReadHandle> ledgerHandle = ledgerCache.get(ledgerId);
         if (ledgerHandle != null) {
@@ -2805,12 +2813,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } else {
                     try {
                         LedgerInfo newInfo = transformation.transform(oldInfo);
-                        ledgers.put(ledgerId, newInfo);
-                        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat,
+                        final HashMap<Long, LedgerInfo> newLedgers = new HashMap<>(ledgers);
+                        newLedgers.put(ledgerId, newInfo);
+                        store.asyncUpdateLedgerIds(name, buildManagedLedgerInfo(newLedgers), ledgersStat,
                                 new MetaStoreCallback<Void>() {
                                     @Override
                                     public void operationComplete(Void result, Stat stat) {
                                         ledgersStat = stat;
+                                        ledgers.put(ledgerId, newInfo);
                                         unlockingPromise.complete(null);
                                     }
 
@@ -3266,6 +3276,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private ManagedLedgerInfo getManagedLedgerInfo() {
+        ManagedLedgerInfo.Builder mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values());
+        if (state == State.Terminated) {
+            mlInfo.setTerminatedPosition(NestedPositionInfo.newBuilder().setLedgerId(lastConfirmedEntry.getLedgerId())
+                    .setEntryId(lastConfirmedEntry.getEntryId()));
+        }
+        if (managedLedgerInterceptor != null) {
+            managedLedgerInterceptor.onUpdateManagedLedgerInfo(propertiesMap);
+        }
+        for (Map.Entry<String, String> property : propertiesMap.entrySet()) {
+            mlInfo.addProperties(MLDataFormats.KeyValue.newBuilder()
+                    .setKey(property.getKey()).setValue(property.getValue()));
+        }
+
+        return mlInfo.build();
+    }
+
+    private ManagedLedgerInfo buildManagedLedgerInfo(Map<Long, LedgerInfo> ledgers) {
         ManagedLedgerInfo.Builder mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values());
         if (state == State.Terminated) {
             mlInfo.setTerminatedPosition(NestedPositionInfo.newBuilder().setLedgerId(lastConfirmedEntry.getLedgerId())
