@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.io.rabbitmq.sink;
 
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
@@ -25,11 +29,6 @@ import org.apache.pulsar.io.rabbitmq.RabbitMQSink;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 public class RabbitMQSinkTest {
     private RabbitMQBrokerManager rabbitMQBrokerManager;
@@ -65,7 +64,23 @@ public class RabbitMQSinkTest {
         RabbitMQSink sink = new RabbitMQSink();
 
         // open should success
-        sink.open(configs, null);
+        // rabbitmq service may need time to initialize
+        int tryCount = 5;
+        Exception lastError = null;
+        while (tryCount > 0) {
+            try {
+                tryCount -= 1;
+                sink.open(configs, null);
+                break;
+            } catch (Exception e) {
+                lastError = e;
+            }
+            Thread.sleep(1000);
+        }
+
+        if (tryCount == 0 && lastError != null) {
+            throw lastError;
+        }
 
         // write should success
         Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue", "fakeRoutingKey");
