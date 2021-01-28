@@ -65,6 +65,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import org.awaitility.Awaitility;
 
 public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
 
@@ -76,7 +77,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         super.setup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     private void clean() throws Exception {
         super.cleanup();
     }
@@ -90,9 +91,10 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
     public void testBrokerDiscoveryRoundRobin() throws Exception {
         addBrokerToZk(5);
         String prevUrl = null;
+        BrokerDiscoveryProvider discoveryProvider = service.getDiscoveryProvider();
         for (int i = 0; i < 10; i++) {
-            String current = service.getDiscoveryProvider().nextBroker().getPulsarServiceUrl();
-            assertNotEquals(prevUrl, current);
+            String current = discoveryProvider.nextBroker().getPulsarServiceUrl();
+            assertNotEquals(prevUrl, current, "unexpected " + current + " vs " + prevUrl + ", available " + discoveryProvider.getAvailableBrokers());
             prevUrl = current;
         }
     }
@@ -245,6 +247,9 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         ZooKeeperChildrenCache availableBrokersCache = (ZooKeeperChildrenCache) field
                 .get(service.getDiscoveryProvider().localZkCache);
         availableBrokersCache.reloadCache(LOADBALANCE_BROKERS_ROOT);
+
+        Awaitility.await().until(()
+                -> service.getDiscoveryProvider().getAvailableBrokers().size() == number);
     }
 
 }

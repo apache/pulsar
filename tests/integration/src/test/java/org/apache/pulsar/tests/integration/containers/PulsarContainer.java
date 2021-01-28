@@ -149,7 +149,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         beforeStart();
         super.start();
         afterStart();
-        log.info("Start pulsar service {} at container {}", serviceName, getContainerId());
+        log.info("[{}] Start pulsar service {} at container {}", getContainerName(), serviceName, getContainerId());
     }
 
     @Override
