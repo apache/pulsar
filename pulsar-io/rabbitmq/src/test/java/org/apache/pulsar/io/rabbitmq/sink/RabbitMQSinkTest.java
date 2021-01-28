@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.rabbitmq.sink;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -67,14 +66,7 @@ public class RabbitMQSinkTest {
 
         // open should success
         // rabbitmq service may need time to initialize
-        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> {
-            try {
-                sink.open(configs, null);
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        });
+        Awaitility.await().untilAsserted(() -> sink.open(configs, null));
 
         // write should success
         Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue", "fakeRoutingKey");
