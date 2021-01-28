@@ -346,9 +346,8 @@ public abstract class AdminResource extends PulsarWebResource {
     protected void validateTopicName(String property, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
-            final String localName = TopicName.get(topic).getLocalName();
             this.namespaceName = NamespaceName.get(property, namespace);
-            this.topicName = TopicName.get(domain(), namespaceName, localName);
+            this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), property, namespace,
                     topic, e);
