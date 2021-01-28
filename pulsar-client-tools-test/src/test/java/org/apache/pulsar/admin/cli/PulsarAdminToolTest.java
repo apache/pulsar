@@ -848,7 +848,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setMaxMessageSize("persistent://myprop/clust/ns1/ds1", 99);
 
         cmdTopics.run(split("get-max-producers persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getMaxProducers("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getMaxProducers("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-max-producers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeMaxProducers("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-max-producers persistent://myprop/clust/ns1/ds1 -p 99"));
