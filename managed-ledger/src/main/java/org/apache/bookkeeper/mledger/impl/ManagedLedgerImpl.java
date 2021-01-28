@@ -3253,6 +3253,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && !(t.getCause() instanceof CompletionException) /* check to avoid stackoverlflow */) {
             return createManagedLedgerException(t.getCause());
         } else {
+            log.error("Unknown exception for ManagedLedgerException.", t);
             return new ManagedLedgerException("Unknown exception");
         }
     }
