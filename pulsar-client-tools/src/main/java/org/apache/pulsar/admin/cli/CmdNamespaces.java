@@ -453,7 +453,7 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(admin.namespaces().getDeduplicationStatus(namespace));
+            print(getAdmin().namespaces().getDeduplicationStatus(namespace));
         }
     }
 
@@ -465,7 +465,7 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().removeDeduplicationStatus(namespace);
+            getAdmin().namespaces().removeDeduplicationStatus(namespace);
         }
     }
 
