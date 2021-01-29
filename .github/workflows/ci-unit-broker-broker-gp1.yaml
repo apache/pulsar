@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: apachepulsar/pulsar-build:latest
-    timeout-minutes: 120
+    timeout-minutes: 45
 
     steps:
       - name: checkout
