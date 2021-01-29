@@ -551,6 +551,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     if (!typeDefs.containsKey(summaryMetricName)) {
                         fail("Metric " + metricName + " does not have a corresponding summary type definition");
                     }
+                } else if (metricName.endsWith("_bucket")) {
+                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_bucket"));
+                    if (!typeDefs.containsKey(summaryMetricName)) {
+                        fail("Metric " + metricName + " does not have a corresponding summary type definition");
+                    }
                 } else {
                     fail("Metric " + metricName + " does not have a type definition");
                 }
