@@ -173,7 +173,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         Value value = map.get(path);
         if (value == null) {
             return FutureUtils.exception(new NotFoundException(""));
-        } else if (value != null && optExpectedVersion.isPresent() && optExpectedVersion.get() != value.version) {
+        } else if (optExpectedVersion.isPresent() && optExpectedVersion.get() != value.version) {
             return FutureUtils.exception(new BadVersionException(""));
         } else {
             map.remove(path);
@@ -191,6 +191,6 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             return false;
         }
 
-        return path != "/" || !path.endsWith("/");
+        return !path.equals("/") || !path.endsWith("/");
     }
 }
