@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-
+import com.google.common.annotations.VisibleForTesting;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +34,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
+import lombok.Getter;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -49,6 +49,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
+    @Getter
     private final MetadataStore store;
     private final MetadataSerde<T> serde;
 
@@ -225,6 +226,11 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     public void invalidate(String path) {
         objCache.synchronous().invalidate(path);
+    }
+
+    @VisibleForTesting
+    public void invalidateAll() {
+        objCache.synchronous().invalidateAll();
     }
 
     @Override

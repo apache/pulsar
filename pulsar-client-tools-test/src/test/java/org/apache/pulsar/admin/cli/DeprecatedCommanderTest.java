@@ -47,7 +47,7 @@ public class DeprecatedCommanderTest {
         when(admin.topics()).thenReturn(mockTopics);
         mockSchemas = mock(Schemas.class);
         when(admin.schemas()).thenReturn(mockSchemas);
-        cmdTopics = new CmdTopics(admin);
+        cmdTopics = new CmdTopics(() -> admin);
     }
 
     @Test
@@ -71,7 +71,7 @@ public class DeprecatedCommanderTest {
         assertTrue(defaultOutput.contains("get-deduplication"));
 
         // annotation was changed to hidden, reset it.
-        cmdTopics = new CmdTopics(admin);
+        cmdTopics = new CmdTopics(() -> admin);
         CmdUsageFormatter formatter = (CmdUsageFormatter)cmdTopics.jcommander.getUsageFormatter();
         formatter.clearDeprecatedCommand();
         StringBuilder builder3 = new StringBuilder();
