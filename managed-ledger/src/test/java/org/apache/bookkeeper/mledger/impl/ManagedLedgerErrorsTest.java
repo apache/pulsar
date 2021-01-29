@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -332,7 +334,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
                 // not-ok
             }
 
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 // ok
             }
         }, null);
@@ -342,7 +344,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
                 promise.complete(null);
             }
 
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 promise.completeExceptionally(new Exception("should have failed"));
             }
         }, null);
@@ -445,7 +447,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         AddEntryCallback cb = new AddEntryCallback() {
 
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 counter.countDown();
             }
 

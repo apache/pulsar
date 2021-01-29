@@ -62,6 +62,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         config.setSuperUserRoles(superUser);
         config.setClusterName("c1");
         config.setWebServicePort(Optional.of(0));
+        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         service.start();

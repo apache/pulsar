@@ -18,19 +18,11 @@
     under the License.
 
 -->
-<configuration scan="true">
-<!--
-	<logger name="org.apache" level="IN" />
-	<logger name="org.apache.bookkeeper.mledger" level="ERROR" />
- -->
-	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-		<encoder>
-			<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
-			</pattern>
-		</encoder>
-	</appender>
-
-	<root level="INFO">
-		<appender-ref ref="STDOUT" />
-	</root>
-</configuration>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="Pulsar Auth Integration Tests" verbose="2" annotations="JDK">
+    <test name="pulsar-auth-test-suite" preserve-order="true" >
+        <classes>
+            <class name="org.apache.pulsar.tests.integration.auth.admin.PackagesOpsWithAuthTest"/>
+        </classes>
+    </test>
+</suite>

@@ -89,7 +89,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
-    private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
+    public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     public static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
     private static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
 
@@ -115,6 +115,10 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void zkCreate(String path, byte[] content) throws Exception {
         globalZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+    }
+
+    protected void localZKCreate(String path, byte[] content) throws Exception {
+        localZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
     protected void zkCreateOptimistic(String path, byte[] content) throws Exception {
@@ -165,7 +169,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     // This is a stub method for Mockito
     @Override
-    protected void validateSuperUserAccess() {
+    public void validateSuperUserAccess() {
         super.validateSuperUserAccess();
     }
 
@@ -498,10 +502,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
         final ServiceConfiguration config = pulsar().getConfiguration();
 
-        if (policies.max_consumers_per_topic < 1) {
-            policies.max_consumers_per_topic = config.getMaxConsumersPerTopic();
-        }
-
         if (policies.max_consumers_per_subscription < 1) {
             policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
         }
@@ -526,10 +526,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
         if (policies.clusterSubscribeRate.isEmpty()) {
             policies.clusterSubscribeRate.put(cluster, subscribeRate());
-        }
-
-        if (policies.message_ttl_in_seconds == null) {
-            policies.message_ttl_in_seconds = config.getTtlDurationDefaultInSeconds();
         }
     }
 
@@ -744,7 +740,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
    protected void validateClusterExists(String cluster) {
         try {
-            if (!clustersCache().get(path("clusters", cluster)).isPresent()) {
+            if (!clusterResources().get(path("clusters", cluster)).isPresent()) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
             }
         } catch (Exception e) {

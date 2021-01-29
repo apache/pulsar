@@ -55,7 +55,7 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.CREATE
                     && path.equals("/admin/clusters/my-cluster-2");
             });

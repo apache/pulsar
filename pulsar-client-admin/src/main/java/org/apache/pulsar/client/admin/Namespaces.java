@@ -821,7 +821,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getNamespaceMessageTTL(String namespace) throws PulsarAdminException;
+    Integer getNamespaceMessageTTL(String namespace) throws PulsarAdminException;
 
     /**
      * Get the message TTL for a namespace asynchronously.
@@ -2339,6 +2339,19 @@ public interface Namespaces {
             String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies);
 
     /**
+     * Remove the delayed delivery messages for all topics within a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDelayedDeliveryMessages(String namespace) throws PulsarAdminException;
+    /**
+     * Remove the delayed delivery messages for all topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDelayedDeliveryMessagesAsync(String namespace);
+
+    /**
      * Get the inactive deletion strategy for all topics within a namespace synchronously.
      * @param namespace
      * @return
@@ -2615,7 +2628,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxConsumersPerTopic(String namespace) throws PulsarAdminException;
+    Integer getMaxConsumersPerTopic(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxProducersPerTopic for a namespace asynchronously.
@@ -2669,6 +2682,20 @@ public interface Namespaces {
      *            maxConsumersPerTopic value for a namespace
      */
     CompletableFuture<Void> setMaxConsumersPerTopicAsync(String namespace, int maxConsumersPerTopic);
+
+    /**
+     * Remove maxConsumersPerTopic for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxConsumersPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove maxConsumersPerTopic for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxConsumersPerTopicAsync(String namespace);
 
     /**
      * Get the maxConsumersPerSubscription for a namespace.

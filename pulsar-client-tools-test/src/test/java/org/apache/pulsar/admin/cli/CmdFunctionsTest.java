@@ -117,9 +117,9 @@ public class CmdFunctionsTest {
         when(admin.functions()).thenReturn(functions);
         when(admin.getServiceUrl()).thenReturn("http://localhost:1234");
         when(admin.getClientConfigData()).thenReturn(new ClientConfigurationData());
-        this.cmd = new CmdFunctions(admin);
-        this.cmdSinks = new CmdSinks(admin);
-        this.cmdSources = new CmdSources(admin);
+        this.cmd = new CmdFunctions(() -> admin);
+        this.cmdSinks = new CmdSinks(() -> admin);
+        this.cmdSources = new CmdSources(() -> admin);
 
         // mock reflections
         mockStatic(Reflections.class);
