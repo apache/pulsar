@@ -86,7 +86,7 @@ You can configure the AWS S3 offloader driver in the configuration file `broker.
 
     Optional | Description | Example value
     |---|---|---
-    `s3ManagedLedgerOffloadRegion` | Bucket region | eu-west-3
+    `s3ManagedLedgerOffloadRegion` | Bucket region <br><br>**Note**: | eu-west-3
     `s3ManagedLedgerOffloadReadBufferSizeInBytes`|Size of block read|1 MB
     `s3ManagedLedgerOffloadMaxBlockSizeInBytes`|Size of block write|64 MB
     `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|2
