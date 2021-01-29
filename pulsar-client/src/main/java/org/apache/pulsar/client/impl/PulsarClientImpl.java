@@ -90,7 +90,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
 
-    private final ClientConfigurationData conf;
+    protected final ClientConfigurationData conf;
     private LookupService lookup;
     private final ConnectionPool cnxPool;
     private final Timer timer;
@@ -109,7 +109,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final AtomicLong consumerIdGenerator = new AtomicLong();
     private final AtomicLong requestIdGenerator = new AtomicLong();
 
-    private final EventLoopGroup eventLoopGroup;
+    protected final EventLoopGroup eventLoopGroup;
     private final MemoryLimitController memoryLimitController;
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache = CacheBuilder.newBuilder().maximumSize(100000)
@@ -290,10 +290,10 @@ public class PulsarClientImpl implements PulsarClient {
 
             ProducerBase<T> producer;
             if (metadata.partitions > 0) {
-                producer = new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
-                        producerCreatedFuture, schema, interceptors);
+                producer = newPartitionedProducerImpl(topic, conf, schema, interceptors, producerCreatedFuture,
+                        metadata);
             } else {
-                producer = new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1, schema, interceptors);
+                producer = newProducerImpl(topic, -1, conf, schema, interceptors, producerCreatedFuture);
             }
 
             producers.add(producer);
@@ -304,6 +304,53 @@ public class PulsarClientImpl implements PulsarClient {
         });
 
         return producerCreatedFuture;
+    }
+
+    /**
+     * Factory method for creating PartitionedProducerImpl instance.
+     *
+     * Allows overriding the PartitionedProducerImpl instance in tests.
+     *
+     * @param topic topic name
+     * @param conf producer configuration
+     * @param schema topic schema
+     * @param interceptors producer interceptors
+     * @param producerCreatedFuture future for signaling completion of async producer creation
+     * @param metadata partitioned topic metadata
+     * @param <T> message type class
+     * @return new PartitionedProducerImpl instance
+     */
+    protected <T> PartitionedProducerImpl<T> newPartitionedProducerImpl(String topic,
+                                                                        ProducerConfigurationData conf,
+                                                                        Schema<T> schema,
+                                                                        ProducerInterceptors interceptors,
+                                                                        CompletableFuture<Producer<T>> producerCreatedFuture,
+                                                                        PartitionedTopicMetadata metadata) {
+        return new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
+                producerCreatedFuture, schema, interceptors);
+    }
+
+    /**
+     * Factory method for creating ProducerImpl instance.
+     *
+     * Allows overriding the ProducerImpl instance in tests.
+     *
+     * @param topic topic name
+     * @param partitionIndex partition index of a partitioned topic. the value -1 is used for non-partitioned topics.
+     * @param conf producer configuration
+     * @param schema topic schema
+     * @param interceptors producer interceptors
+     * @param producerCreatedFuture future for signaling completion of async producer creation
+     * @param <T> message type class
+     * @return
+     */
+    protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex,
+                                                  ProducerConfigurationData conf,
+                                                  Schema<T> schema,
+                                                  ProducerInterceptors interceptors,
+                                                  CompletableFuture<Producer<T>> producerCreatedFuture) {
+        return new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, partitionIndex, schema,
+                interceptors);
     }
 
     public CompletableFuture<Consumer<byte[]>> subscribeAsync(ConsumerConfigurationData<byte[]> conf) {

@@ -1433,4 +1433,18 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 -> assertNull(admin.topics().getReplicatorDispatchRate(topic)));
     }
 
+    @Test(timeOut = 30000)
+    public void testAutoCreationDisabled() throws Exception {
+        cleanup();
+        conf.setAllowAutoTopicCreation(false);
+        setup();
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 3);
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        //should not fail
+        assertNull(admin.topics().getMessageTTL(topic));
+    }
+
 }
