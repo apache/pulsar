@@ -3436,7 +3436,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return createManagedLedgerException(t.getCause());
         } else {
             log.error("Unknown exception for ManagedLedgerException.", t);
-            return new ManagedLedgerException("Unknown exception");
+            return new ManagedLedgerException("Other exception", t);
         }
     }
 
