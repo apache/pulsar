@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Getter;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -33,17 +34,24 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 public class NamespaceResources extends BaseResources<Policies> {
     private IsolationPolicyResources isolationPolicies;
     private LocalPoliciesResources localPolicies;
+    private PartitionedTopicResources partitionedTopicResouces;
+    private MetadataStoreExtended localStore;
+    private MetadataStoreExtended configurationStore;
 
-    public NamespaceResources(MetadataStoreExtended localStore, MetadataStoreExtended configurationStore) {
-        super(configurationStore, Policies.class);
-        isolationPolicies = new IsolationPolicyResources(configurationStore);
-        localPolicies = new LocalPoliciesResources(localStore);
+    public NamespaceResources(MetadataStoreExtended localStore, MetadataStoreExtended configurationStore,
+            int operationTimeoutSec) {
+        super(configurationStore, Policies.class, operationTimeoutSec);
+        this.localStore = localStore;
+        this.configurationStore = configurationStore;
+        isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
+        localPolicies = new LocalPoliciesResources(localStore, operationTimeoutSec);
+        partitionedTopicResouces = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
     }
 
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationData>> {
-        public IsolationPolicyResources(MetadataStoreExtended store) {
+        public IsolationPolicyResources(MetadataStoreExtended store, int operationTimeoutSec) {
             super(store, new TypeReference<Map<String, NamespaceIsolationData>>() {
-            });
+            }, operationTimeoutSec);
         }
 
         public Optional<NamespaceIsolationPolicies> getPolicies(String path) throws MetadataStoreException {
@@ -53,8 +61,14 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public static class LocalPoliciesResources extends BaseResources<LocalPolicies> {
-        public LocalPoliciesResources(MetadataStoreExtended configurationStore) {
-            super(configurationStore, LocalPolicies.class);
+        public LocalPoliciesResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
+            super(configurationStore, LocalPolicies.class, operationTimeoutSec);
+        }
+    }
+
+    public static class PartitionedTopicResources extends BaseResources<PartitionedTopicMetadata> {
+        public PartitionedTopicResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
+            super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
         }
     }
 }

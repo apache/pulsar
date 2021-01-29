@@ -24,8 +24,9 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {
 
-    public DynamicConfigurationResources(MetadataStoreExtended store) {
-        super(store, new TypeReference<Map<String, String>>(){});
+    public DynamicConfigurationResources(MetadataStoreExtended store, int operationTimeoutSec) {
+        super(store, new TypeReference<Map<String, String>>() {
+        }, operationTimeoutSec);
     }
 
 }

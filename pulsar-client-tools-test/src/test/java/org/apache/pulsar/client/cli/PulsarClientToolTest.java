@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.cli;
 
+import static org.testng.Assert.assertEquals;
+
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -30,19 +32,19 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class PulsarClientToolTest extends BrokerTestBase {
 
-    @BeforeClass
+    @BeforeMethod
     @Override
     public void setup() throws Exception {
         super.internalSetup();
     }
 
-    @AfterClass
+    @AfterMethod
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -127,17 +129,15 @@ public class PulsarClientToolTest extends BrokerTestBase {
         });
 
         // Make sure subscription has been created
-        while (true) {
+        retryStrategically((test) -> {
             try {
-                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                if (subscriptions.size() == 1) {
-                    break;
-                }
+                return admin.topics().getSubscriptions(topicName).size() == 1;
             } catch (Exception e) {
+                return false;
             }
-            Thread.sleep(200);
-        }
+        }, 10, 500);
 
+        assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
 
         String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
