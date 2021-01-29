@@ -688,7 +688,7 @@ public class Namespaces extends NamespacesBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/retention")
-    @ApiOperation(value = " Set retention configuration on a namespace.")
+    @ApiOperation(value = " Remove retention configuration on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
