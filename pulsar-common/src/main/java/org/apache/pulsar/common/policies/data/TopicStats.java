@@ -66,6 +66,9 @@ public class TopicStats {
     /** Get estimated total unconsumed or backlog size in bytes. */
     public long backlogSize;
 
+    /** Space used to store the offloaded messages for the topic/. */
+    public long offloadedStorageSize;
+
     /** List of connected publishers on this topic w/ their stats. */
     public List<PublisherStats> publishers;
 
@@ -115,6 +118,7 @@ public class TopicStats {
         this.topicEpoch = null;
         this.nonContiguousDeletedMessagesRanges = 0;
         this.nonContiguousDeletedMessagesRangesSerializedSize = 0;
+        this.offloadedStorageSize = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -135,6 +139,7 @@ public class TopicStats {
         this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;
         this.backlogSize += stats.backlogSize;
+        this.offloadedStorageSize += stats.offloadedStorageSize;
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         if (this.publishers.size() != stats.publishers.size()) {

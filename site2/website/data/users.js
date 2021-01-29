@@ -62,7 +62,7 @@ module.exports = [
     {
         name: 'The Hut Group',
         url: 'https://www.thg.com',
-        logo: 'https://media-exp1.licdn.com/dms/image/C4D0BAQFTQW37dNzMJQ/company-logo_200_200/0?e=1608768000&v=beta&t=jX_8bxciHMwoiJcGbxlPW-FBlF6YYjGVBOOKm-N2gls'
+        logo: 'https://1000logos.net/wp-content/uploads/2020/09/THG-Logo-1024x640.png'
     },
     {
         name: 'Turtlequeue',
@@ -99,6 +99,7 @@ module.exports = [
         name: 'EMQ',
         url: 'https://www.emqx.io/',
         logo: 'https://www.emqx.io/static/img/logo.svg'
+        logo_white: true
     },
     {
         name: 'Tencent',
@@ -242,7 +243,7 @@ module.exports = [
     {
         name: 'Keytop',
         url: 'https://www.ikeytop.com/',
-        logo: 'https://static.wixstatic.com/media/ecbdea_434ae22f85ed4e93ba3fdc39c7141c3f~mv2.png/v1/fill/w_424,h_116,al_c,q_85,usm_0.66_1.00_0.01/Keytop_logo.webp',
+        logo: 'https://static.wixstatic.com/media/ecbdea_434ae22f85ed4e93ba3fdc39c7141c3f~mv2.png/v1/fill/w_424,h_116,al_c,usm_0.66_1.00_0.01/Keytop_logo.png',
     },
     {
         name: 'Zhihu',
@@ -283,6 +284,13 @@ module.exports = [
         name: 'Ge Tui',
         url: 'https://www.getui.com',
         logo: 'https://gt-static.getui.com/getui_pc/client/img/e33ecd9.svg',
+        logo_white: true
+    },
+    {
+        name: 'Kesque',
+        url: 'https://kesque.com',
+        logo: 'https://static.kafkaesque.io/wp-content/uploads/2020/06/kesque_logo.svg',
+        logo_white: true
     },
     {
         name: 'KAISA',
@@ -293,6 +301,7 @@ module.exports = [
         name: 'Bairong.Inc',
         url: 'http://www.brgroup.com',
         logo: 'http://www.brgroup.com/_nuxt/img/logo.d2a976e.png',
+          logo_white: true
     },
     {
         name: 'Itcast.cn',
