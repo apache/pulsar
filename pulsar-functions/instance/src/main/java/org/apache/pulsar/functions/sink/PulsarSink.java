@@ -114,7 +114,7 @@ public class PulsarSink<T> implements Sink<T> {
                     .blockIfQueueFull(true)
                     .enableBatching(true)
                     .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                    //.compressionType(CompressionType.LZ4)
+                    .compressionType(CompressionType.LZ4)
                     .hashingScheme(HashingScheme.Murmur3_32Hash) //
                     .messageRoutingMode(MessageRoutingMode.CustomPartition)
                     .messageRouter(FunctionResultRouter.of())
@@ -232,7 +232,6 @@ public class PulsarSink<T> implements Sink<T> {
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
-            log.info("schemaToWrite {}", schemaToWrite);
             if (schemaToWrite != null) {
                 return getProducer(record
                         .getDestinationTopic()
@@ -263,10 +262,7 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
             msg.sendAsync()
-                    .thenAccept(messageId -> {
-                        log.info("ack {}", messageId);
-                        record.ack();
-                    })
+                    .thenAccept(messageId ->record.ack())
                     .exceptionally(getPublishErrorHandler(record, true));
         }
     }
@@ -361,7 +357,6 @@ public class PulsarSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) {
         SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
-        log.info("here {}", pulsarSinkProcessor);
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(sinkRecord);
 
         if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema &&

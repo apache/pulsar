@@ -19,8 +19,6 @@
 
 package org.apache.pulsar.io.kafka;
 
-import java.util.*;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -35,11 +33,12 @@ import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Simple Kafka Source to transfer messages from a Kafka topic
+ * Simple Kafka Source to transfer messages from a Kafka topic.
  */
 public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
 
@@ -194,10 +193,8 @@ public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
             if (value instanceof AvroRecordWithPulsarSchema) {
                 return (Schema) ((AvroRecordWithPulsarSchema) value).getPulsarSchema();
             } else if (value instanceof String) {
-                log.info("value {} schema STRING", value);
                 return (Schema) Schema.STRING;
             } else {
-                log.info("value {} schema BYTES", value);
                 return (Schema) Schema.BYTES;
             }
         }

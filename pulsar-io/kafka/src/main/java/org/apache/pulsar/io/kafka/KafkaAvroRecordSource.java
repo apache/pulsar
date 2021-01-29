@@ -46,7 +46,9 @@ public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRe
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
-        props.put("schema.registry.url", "http://localhost:8081");
+        if (!props.containsKey("schema.registry.url")) {
+            props.put("schema.registry.url", "http://localhost:8081");
+        }
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
 
@@ -57,13 +59,12 @@ public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRe
     @Override
     public GenericRecord extractValue(ConsumerRecord<String, Object> record) {
        Object value = record.value();
-        log.info("extractValue from " + value);
-        if (value instanceof org.apache.avro.generic.GenericRecord) {
+       if (value instanceof org.apache.avro.generic.GenericRecord) {
             org.apache.avro.generic.GenericRecord container = (org.apache.avro.generic.GenericRecord) value;
             AvroRecordWithPulsarSchema result = new AvroRecordWithPulsarSchema(container);
             return result;
-        }
-        throw new IllegalArgumentException("cannot convert "+value+" to a GenericRecord");
+       }
+       throw new IllegalArgumentException("cannot convert " + value + " to a GenericRecord");
     }
 
 }

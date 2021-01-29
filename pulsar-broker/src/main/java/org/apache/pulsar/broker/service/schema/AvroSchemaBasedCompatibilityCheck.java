@@ -64,7 +64,7 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
             log.warn("Error during schema parsing: {}", e.getMessage());
             throw new IncompatibleSchemaException(e);
         } catch (SchemaValidationException e) {
-            log.warn("Error during schema compatibility check: {}", e);
+            log.warn("Error during schema compatibility check: {}", e.getMessage());
             throw new IncompatibleSchemaException(e);
         }
     }

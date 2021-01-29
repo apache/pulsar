@@ -51,19 +51,16 @@ public class AvroWriter<T> implements SchemaWriter<T> {
 
     @Override
     public synchronized byte[] write(T message) {
-        log.info("serialize {} {} writer {}", message, Optional.ofNullable(message).map(Object::getClass), writer);
         byte[] outputBytes = null;
         try {
             writer.write(message, this.encoder);
         } catch (Exception e) {
-            log.error("error", e);
             throw new SchemaSerializationException(e);
         } finally {
             try {
                 this.encoder.flush();
                 outputBytes = this.byteArrayOutputStream.toByteArray();
             } catch (Exception ex) {
-                log.error("error", ex);
                 throw new SchemaSerializationException(ex);
             }
             this.byteArrayOutputStream.reset();

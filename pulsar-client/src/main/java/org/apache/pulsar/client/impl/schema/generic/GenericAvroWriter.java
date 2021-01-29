@@ -60,7 +60,6 @@ public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
             this.encoder.flush();
             return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {
-            log.error("error", e);
             throw new SchemaSerializationException(e);
         } finally {
             this.byteArrayOutputStream.reset();

@@ -34,16 +34,21 @@ import java.util.stream.Collectors;
 public class AvroRecordWithPulsarSchema implements GenericRecord {
     private final org.apache.avro.generic.GenericRecord container;
     private final Schema<GenericRecord> schema;
+    private final List<Field> fields;
 
     public AvroRecordWithPulsarSchema(org.apache.avro.generic.GenericRecord container) {
         this.container = container;
+        log.info("schema identity {} {}", System.identityHashCode(container.getSchema()), container.getSchema() );
         String schema = container.getSchema().toString(false);
-        log.info("schema {}", schema);
         this.schema = GenericAvroSchema.of(SchemaInfo.builder()
                 .type(SchemaType.AVRO)
                 .name(container.getSchema().getName())
-                .schema(container.getSchema().toString(false).getBytes(StandardCharsets.UTF_8)
+                .schema(schema.getBytes(StandardCharsets.UTF_8)
             ).build());
+        this.fields = this.container.getSchema().getFields()
+                .stream()
+                .map(f-> new Field(f.name(), f.pos()))
+                .collect(Collectors.toList());
     }
 
     public Schema<GenericRecord> getPulsarSchema() {
@@ -52,15 +57,12 @@ public class AvroRecordWithPulsarSchema implements GenericRecord {
 
     @Override
     public byte[] getSchemaVersion() {
-        return new byte[0];
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public List<Field> getFields() {
-        return this.container.getSchema().getFields()
-                .stream()
-                .map(f-> new Field(f.name(), f.pos()))
-                .collect(Collectors.toList());
+        return fields;
     }
 
     @Override
