@@ -114,7 +114,7 @@ public class PulsarSink<T> implements Sink<T> {
                     .blockIfQueueFull(true)
                     .enableBatching(true)
                     .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                    .compressionType(CompressionType.LZ4)
+                    //.compressionType(CompressionType.LZ4)
                     .hashingScheme(HashingScheme.Murmur3_32Hash) //
                     .messageRoutingMode(MessageRoutingMode.CustomPartition)
                     .messageRouter(FunctionResultRouter.of())
@@ -187,6 +187,7 @@ public class PulsarSink<T> implements Sink<T> {
         public Function<Throwable, Void> getPublishErrorHandler(SinkRecord<T> record, boolean failSource) {
 
             return throwable -> {
+                log.info("error", throwable);
                 Record<T> srcRecord = record.getSourceRecord();
                 if (failSource) {
                     srcRecord.fail();
@@ -261,7 +262,10 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
             msg.sendAsync()
-                    .thenAccept(messageId -> record.ack())
+                    .thenAccept(messageId -> {
+                        log.info("ack {}", messageId);
+                        record.ack();
+                    })
                     .exceptionally(getPublishErrorHandler(record, true));
         }
     }

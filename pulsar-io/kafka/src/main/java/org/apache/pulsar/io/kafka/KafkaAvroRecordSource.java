@@ -44,6 +44,8 @@ import java.util.Properties;
 @Slf4j
 public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRecord> {
 
+    private PulsarSchemaCache<GenericRecord> schemaCache = new PulsarSchemaCache<>();
+
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
         if (!props.containsKey("schema.registry.url")) {
@@ -61,7 +63,7 @@ public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRe
        Object value = record.value();
        if (value instanceof org.apache.avro.generic.GenericRecord) {
             org.apache.avro.generic.GenericRecord container = (org.apache.avro.generic.GenericRecord) value;
-            AvroRecordWithPulsarSchema result = new AvroRecordWithPulsarSchema(container);
+            AvroRecordWithPulsarSchema result = new AvroRecordWithPulsarSchema(container, schemaCache);
             return result;
        }
        throw new IllegalArgumentException("cannot convert " + value + " to a GenericRecord");

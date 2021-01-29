@@ -36,19 +36,11 @@ public class AvroRecordWithPulsarSchema implements GenericRecord {
     private final Schema<GenericRecord> schema;
     private final List<Field> fields;
 
-    public AvroRecordWithPulsarSchema(org.apache.avro.generic.GenericRecord container) {
+    public AvroRecordWithPulsarSchema(org.apache.avro.generic.GenericRecord container, PulsarSchemaCache<GenericRecord> schemaCache) {
         this.container = container;
-        log.info("schema identity {} {}", System.identityHashCode(container.getSchema()), container.getSchema() );
-        String schema = container.getSchema().toString(false);
-        this.schema = GenericAvroSchema.of(SchemaInfo.builder()
-                .type(SchemaType.AVRO)
-                .name(container.getSchema().getName())
-                .schema(schema.getBytes(StandardCharsets.UTF_8)
-            ).build());
-        this.fields = this.container.getSchema().getFields()
-                .stream()
-                .map(f-> new Field(f.name(), f.pos()))
-                .collect(Collectors.toList());
+        PulsarSchemaCache.CachedSchema<GenericRecord> cachedSchema = schemaCache.get(container.getSchema());
+        this.schema = cachedSchema.getSchema();
+        this.fields = cachedSchema.getFields();
     }
 
     public Schema<GenericRecord> getPulsarSchema() {
