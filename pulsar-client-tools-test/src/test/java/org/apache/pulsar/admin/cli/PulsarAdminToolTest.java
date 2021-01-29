@@ -566,11 +566,13 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).clearOffloadDeleteLag("myprop/clust/ns1");
 
         namespaces.run(split(
-                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first"));
-        verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
-                OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
-                        "http://test.endpoint", null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
-                        10 * 1024 * 1024L, 10000L, OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST));
+                "set-offload-policies -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first --offloadMethod streaming-based myprop/clust/ns1"));
+        final OffloadPolicies expectPolicies = OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
+                "http://test.endpoint", null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
+                10 * 1024 * 1024L, 10000L, OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST);
+        expectPolicies.setOffloadMethod(OffloadPolicies.OffloadMethod.STREAMING_BASED);
+        verify(mockNamespaces, times(1)).setOffloadPolicies("myprop/clust/ns1",
+                expectPolicies);
 
         namespaces.run(split("remove-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).removeOffloadPolicies("myprop/clust/ns1");
@@ -588,6 +590,28 @@ public class PulsarAdminToolTest {
         namespaces.run(split("remove-deduplication-snapshot-interval myprop/clust/ns1"));
         verify(mockNamespaces).removeDeduplicationSnapshotInterval("myprop/clust/ns1");
 
+    }
+
+    @Test
+    void namespacesOptional() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Namespaces mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        Lookup mockLookup = mock(Lookup.class);
+        when(admin.lookups()).thenReturn(mockLookup);
+
+
+        CmdNamespaces namespaces = new CmdNamespaces(() -> admin);
+        //test with no explicit region
+        namespaces.run(split(
+                "set-offload-policies -d aws-s3 -b pulsar-integtest -e http://s3:9090 --maxSegmentRolloverTimeSec 5 -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first --offloadMethod streaming-based offload-test-threshold-sxpn/ns2"));
+        final OffloadPolicies expectPolicies2 = OffloadPolicies.create("aws-s3", null, "pulsar-integtest",
+                "http://s3:9090", null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
+                10 * 1024 * 1024L, 10000L, OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST);
+        expectPolicies2.setOffloadMethod(OffloadPolicies.OffloadMethod.STREAMING_BASED);
+        expectPolicies2.setMaxOffloadSegmentRolloverTimeInSeconds(5L);
+        verify(mockNamespaces, times(1)).setOffloadPolicies("offload-test-threshold-sxpn/ns2",
+                expectPolicies2);
     }
 
     @Test
@@ -809,9 +833,10 @@ public class PulsarAdminToolTest {
         verify(mockTopics).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
         cmdTopics.run(split(
-                "set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
+                "set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first --offloadMethod streaming-based"));
         OffloadPolicies offloadPolicies = OffloadPolicies.create("s3", "region", "bucket"
                 , "endpoint", null, null, 8, 9, 10L, null, OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST);
+        offloadPolicies.setOffloadMethod(OffloadPolicies.OffloadMethod.STREAMING_BASED);
         verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
 
         cmdTopics.run(split("get-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));

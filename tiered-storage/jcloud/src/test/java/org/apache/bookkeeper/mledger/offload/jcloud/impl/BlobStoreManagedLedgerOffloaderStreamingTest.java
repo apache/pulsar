@@ -53,7 +53,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
     private TieredStorageConfiguration mockedConfig;
     private static final Random random = new Random();
 
-    BlobStoreManagedLedgerOffloaderStreamingTest() throws Exception {
+    public BlobStoreManagedLedgerOffloaderStreamingTest() throws Exception {
         super();
         config = getConfiguration(BUCKET);
         JCloudBlobStoreProvider provider = getBlobStoreProvider();
@@ -62,7 +62,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         blobStore = provider.getBlobStore(config);
     }
 
-    private BlobStoreManagedLedgerOffloader getOffloader(Map<String, String> additionalConfig) throws IOException {
+    public BlobStoreManagedLedgerOffloader getOffloader(Map<String, String> additionalConfig) throws IOException {
         return getOffloader(BUCKET, additionalConfig);
     }
 

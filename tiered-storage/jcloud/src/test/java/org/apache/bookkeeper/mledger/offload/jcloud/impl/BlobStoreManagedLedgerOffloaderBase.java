@@ -45,12 +45,17 @@ import org.testng.Assert;
 public abstract class BlobStoreManagedLedgerOffloaderBase {
 
     public final static String BUCKET = "pulsar-unittest";
-    protected static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
-    protected static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
+    protected static final int DEFAULT_BLOCK_SIZE = 5 * 1024 * 1024;
+    protected static final int DEFAULT_READ_BUFFER_SIZE = 1 * 1024 * 1024;
 
     protected final OrderedScheduler scheduler;
     protected final PulsarMockBookKeeper bk;
     protected final JCloudBlobStoreProvider provider;
+
+    public TieredStorageConfiguration getConfig() {
+        return config;
+    }
+
     protected TieredStorageConfiguration config;
     protected BlobStore blobStore = null;
 

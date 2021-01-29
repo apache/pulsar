@@ -64,6 +64,10 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         return new PositionImpl(ledgerId, entryId);
     }
 
+    public static PositionImpl get(Position positon) {
+        return new PositionImpl(positon.getLedgerId(), positon.getEntryId());
+    }
+
     public static PositionImpl get(long ledgerId, long entryId, long[] ackSet) {
         return new PositionImpl(ledgerId, entryId, ackSet);
     }

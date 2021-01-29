@@ -20,11 +20,9 @@ package org.apache.pulsar.tests.integration.offload;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -53,17 +51,22 @@ public class TestS3Offload extends TestBaseOffload {
         }
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
         super.testPublishOffloadAndConsumeViaCLI(serviceUrl, adminUrl);
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testPublishOffloadAndConsumeViaThreshold(String serviceUrl, String adminUrl) throws Exception {
         super.testPublishOffloadAndConsumeViaThreshold(serviceUrl, adminUrl);
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    @Test(dataProvider = "ServiceAndAdminUrls")
+    public void testStreamingOffload(String serviceUrl, String adminUrl) throws Exception {
+        super.testStreamingOffload(serviceUrl, adminUrl);
+    }
+
+    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testPublishOffloadAndConsumeDeletionLag(String serviceUrl, String adminUrl) throws Exception {
         super.testPublishOffloadAndConsumeDeletionLag(serviceUrl, adminUrl);
 

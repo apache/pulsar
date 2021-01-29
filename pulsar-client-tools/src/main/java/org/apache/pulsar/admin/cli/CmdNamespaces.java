@@ -1749,11 +1749,25 @@ public class CmdNamespaces extends CmdBase {
         private String offloadAfterThresholdStr;
 
         @Parameter(
-                names = {"--offloadedReadPriority", "-orp"},
+                names = { "--offloadedReadPriority", "-orp" },
                 description = "read priority for offloaded messages",
                 required = false
         )
         private String offloadReadPriorityStr;
+
+        @Parameter(
+                names = { "--offloadMethod", "-om" },
+                description = "offload method",
+                required = false
+        )
+        private String offloadMethod;
+
+        @Parameter(
+                names = { "--maxSegmentRolloverTimeSec", "-mrs" },
+                description = "offload method",
+                required = false
+        )
+        private Long maxOffloadSegmentRolloverTimeInSeconds;
 
         public final ImmutableList<String> DRIVER_NAMES = OffloadPolicies.DRIVER_NAMES;
 
@@ -1850,6 +1864,14 @@ public class CmdNamespaces extends CmdBase {
             OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
                     offloadAfterElapsedInMillis, offloadedReadPriority);
+
+            if (offloadMethod != null) {
+                offloadPolicies.setOffloadMethod(OffloadPolicies.OffloadMethod.fromString(offloadMethod));
+            }
+
+            if (maxOffloadSegmentRolloverTimeInSeconds != null) {
+                offloadPolicies.setMaxOffloadSegmentRolloverTimeInSeconds(maxOffloadSegmentRolloverTimeInSeconds);
+            }
 
             getAdmin().namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }

@@ -134,6 +134,8 @@ public class OffloadPoliciesTest {
         final String fileSystemURI = "tset-system-uri";
 
         final String driver = "test-driver";
+        final String offloadMethod = "ledger-based";
+        final String offloadPriority = "bookkeeper-first";
         Properties properties = new Properties();
 
         properties.setProperty("offloadersDirectory", offloadersDirectory);
@@ -164,13 +166,16 @@ public class OffloadPoliciesTest {
 
         properties.setProperty("fileSystemProfilePath", fileSystemProfilePath);
         properties.setProperty("fileSystemURI", fileSystemURI);
+        properties.setProperty("offloadMethod", offloadMethod);
+        properties.setProperty("managedLedgerOffloadedReadPriority", offloadPriority);
 
         OffloadPolicies offloadPolicies = OffloadPolicies.create(properties);
 
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloadersDirectory);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), managedLedgerOffloadPrefetchRounds);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
+                managedLedgerOffloadPrefetchRounds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
 
@@ -197,6 +202,9 @@ public class OffloadPoliciesTest {
 
         Assert.assertEquals(offloadPolicies.getFileSystemProfilePath(), fileSystemProfilePath);
         Assert.assertEquals(offloadPolicies.getFileSystemURI(), fileSystemURI);
+        Assert.assertEquals(offloadPolicies.getOffloadMethod(), OffloadPolicies.OffloadMethod.LEDGER_BASED);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority(),
+                OffloadedReadPriority.BOOKKEEPER_FIRST);
     }
 
     @Test

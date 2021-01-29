@@ -112,6 +112,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadMethod;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
@@ -1724,7 +1725,15 @@ public class PersistentTopic extends AbstractTopic
             info.ledgerId = li.getLedgerId();
             info.entries = li.getEntries();
             info.size = li.getSize();
-            info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
+            info.offloaded = li.hasOffloadContext() && (li.getOffloadContext().getComplete()
+                    || ManagedLedgerImpl.isStreamingOffloadCompleted(li));
+            if (info.offloaded) {
+                if (li.getOffloadContext().getComplete()) {
+                    info.offloadMethod = OffloadMethod.LEDGER_BASED.getStrValue();
+                } else {
+                    info.offloadMethod = OffloadMethod.STREAMING_BASED.getStrValue();
+                }
+            }
             stats.ledgers.add(info);
             if (futures != null) {
                 futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {

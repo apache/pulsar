@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.util.FieldParser.value;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -96,6 +95,56 @@ public class OffloadPolicies implements Serializable {
         }
     }
 
+    @InterfaceAudience.Public
+    @InterfaceStability.Stable
+    public enum OffloadMethod {
+        /**
+         * Ledger based offload, one offload segment corresponding to a ledger
+         */
+        LEDGER_BASED("ledger-based"),
+        /**
+         * Streaming offload, offload segments are divided by time or size
+         */
+        STREAMING_BASED("streaming-based"),
+        /**
+         * Disable offload
+         */
+        NONE("none");
+
+        private final String strValue;
+
+        OffloadMethod(String strValue) {
+            this.strValue = strValue;
+        }
+
+        public boolean equalsName(String otherName) {
+            return strValue.equals(otherName);
+        }
+
+        @Override
+        public String toString() {
+            return strValue;
+        }
+
+        public static OffloadMethod fromString(String str) {
+            for (OffloadMethod value : OffloadMethod.values()) {
+                if (value.strValue.equals(str)) {
+                    return value;
+                }
+            }
+
+            throw new IllegalArgumentException("--offloadMethod parameter must be one of "
+                    + Arrays.stream(OffloadMethod.values())
+                    .map(OffloadMethod::toString)
+                    .collect(Collectors.joining(","))
+                    + " but got: " + str);
+        }
+
+        public String getStrValue() {
+            return strValue;
+        }
+    }
+
     private final static long serialVersionUID = 0L;
 
     private final static List<Field> CONFIGURATION_FIELDS;
@@ -125,6 +174,9 @@ public class OffloadPolicies implements Serializable {
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
     public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.TIERED_STORAGE_FIRST;
+    public final static OffloadMethod DEFAULT_OFFLOAD_METHOD = OffloadMethod.LEDGER_BASED;
+    public static final long DEFAULT_MAX_SEGMENT_TIME_IN_SECOND = 600;
+
 
     // common config
     @Configuration
@@ -148,6 +200,11 @@ public class OffloadPolicies implements Serializable {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
+    @Configuration
+    private OffloadMethod offloadMethod = DEFAULT_OFFLOAD_METHOD;
+
+    @Configuration
+    private Long maxOffloadSegmentRolloverTimeInSeconds = DEFAULT_MAX_SEGMENT_TIME_IN_SECOND;
 
     // s3 config, set by service configuration or cli
     @Configuration
@@ -338,6 +395,8 @@ public class OffloadPolicies implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(
+                maxOffloadSegmentRolloverTimeInSeconds,
+                offloadMethod,
                 managedLedgerOffloadedReadPriority,
                 managedLedgerOffloadDriver,
                 managedLedgerOffloadMaxThreads,
@@ -374,7 +433,9 @@ public class OffloadPolicies implements Serializable {
             return false;
         }
         OffloadPolicies other = (OffloadPolicies) obj;
-        return Objects.equals(managedLedgerOffloadedReadPriority, other.getManagedLedgerOffloadedReadPriority())
+        return Objects.equals(maxOffloadSegmentRolloverTimeInSeconds, other.getMaxOffloadSegmentRolloverTimeInSeconds())
+                && Objects.equals(offloadMethod, other.getOffloadMethod())
+                && Objects.equals(managedLedgerOffloadedReadPriority, other.getManagedLedgerOffloadedReadPriority())
                 && Objects.equals(managedLedgerOffloadDriver, other.getManagedLedgerOffloadDriver())
                 && Objects.equals(managedLedgerOffloadMaxThreads, other.getManagedLedgerOffloadMaxThreads())
                 && Objects.equals(managedLedgerOffloadPrefetchRounds, other.getManagedLedgerOffloadPrefetchRounds())
@@ -415,6 +476,7 @@ public class OffloadPolicies implements Serializable {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                .add("offloadMethod", offloadMethod)
                 .add("managedLedgerOffloadedReadPriority", managedLedgerOffloadedReadPriority)
                 .add("managedLedgerOffloadDriver", managedLedgerOffloadDriver)
                 .add("managedLedgerOffloadMaxThreads", managedLedgerOffloadMaxThreads)
@@ -446,6 +508,7 @@ public class OffloadPolicies implements Serializable {
 
     public Properties toProperties() {
         Properties properties = new Properties();
+        setProperty(properties, "offloadMethod", this.getOffloadMethod());
         setProperty(properties, "managedLedgerOffloadedReadPriority", this.getManagedLedgerOffloadedReadPriority());
         setProperty(properties, "offloadersDirectory", this.getOffloadersDirectory());
         setProperty(properties, "managedLedgerOffloadDriver", this.getManagedLedgerOffloadDriver());
@@ -457,6 +520,8 @@ public class OffloadPolicies implements Serializable {
                 this.getManagedLedgerOffloadThresholdInBytes());
         setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
                 this.getManagedLedgerOffloadDeletionLagInMillis());
+        setProperty(properties, "maxOffloadSegmentRolloverTimeInSeconds",
+                this.getMaxOffloadSegmentRolloverTimeInSeconds());
 
         if (this.isS3Driver()) {
             setProperty(properties, "s3ManagedLedgerOffloadRegion",

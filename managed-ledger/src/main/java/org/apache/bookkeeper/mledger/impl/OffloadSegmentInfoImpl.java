@@ -43,15 +43,16 @@ public class OffloadSegmentInfoImpl {
     volatile private long endLedgerId;
     volatile private long endEntryId;
     volatile boolean closed = false;
+    public final long beginTimestamp = System.currentTimeMillis();
     public final Map<String, String> driverMetadata;
 
     public boolean isClosed() {
         return closed;
     }
 
-    public void closeSegment(long endLedger, long endEntry) {
-        this.endLedgerId = endLedger;
-        this.endEntryId = endEntry;
+    public void closeSegment(long endLedgerId, long endEntryId) {
+        this.endLedgerId = endLedgerId;
+        this.endEntryId = endEntryId;
         this.closed = true;
     }
 
