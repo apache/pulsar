@@ -191,9 +191,8 @@ public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
 
         @Override
         public Schema<V> getSchema() {
-            new Exception("getSchema "+value.getClass()).printStackTrace(System.out);
-            if (value instanceof KafkaGenericRecord) {
-                return (Schema) ((KafkaGenericRecord) value).getPulsarSchema();
+            if (value instanceof AvroRecordWithPulsarSchema) {
+                return (Schema) ((AvroRecordWithPulsarSchema) value).getPulsarSchema();
             } else if (value instanceof String) {
                 log.info("value {} schema STRING", value);
                 return (Schema) Schema.STRING;

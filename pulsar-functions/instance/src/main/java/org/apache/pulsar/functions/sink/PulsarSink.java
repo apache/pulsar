@@ -21,11 +21,15 @@ package org.apache.pulsar.functions.sink;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.nio.charset.StandardCharsets;
+
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
+import org.apache.avro.generic.IndexedRecord;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -183,6 +187,7 @@ public class PulsarSink<T> implements Sink<T> {
         public Function<Throwable, Void> getPublishErrorHandler(SinkRecord<T> record, boolean failSource) {
 
             return throwable -> {
+                log.info("error {}", throwable);
                 Record<T> srcRecord = record.getSourceRecord();
                 if (failSource) {
                     srcRecord.fail();
@@ -258,7 +263,10 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
             msg.sendAsync()
-                    .thenAccept(messageId -> record.ack())
+                    .thenAccept(messageId -> {
+                        log.info("ack {}", messageId);
+                        record.ack();
+                    })
                     .exceptionally(getPublishErrorHandler(record, true));
         }
     }
@@ -323,11 +331,13 @@ public class PulsarSink<T> implements Sink<T> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         log.info("Opening pulsar sink with config: {}", pulsarSinkConfig);
 
-        Schema<T> schema = initializeSchema();
-        /*if (schema == null) {
-            log.info("Since output type is null, not creating any real sink");
+        InitSchemaResult<T> schemaInitializeResult = initializeSchema();
+        if (!schemaInitializeResult.requireSink) {
+            log.info("Current output type does not need any real sink");
             return;
-        }*/
+        }
+        // may be null, in case of GenericRecord
+        Schema<T> schema = schemaInitializeResult.schema;
 
         Crypto crypto = initializeCrypto();
         if (crypto == null) {
@@ -376,7 +386,7 @@ public class PulsarSink<T> implements Sink<T> {
             Optional<Long> eventTime = sinkRecord.getSourceRecord().getEventTime();
             eventTime.ifPresent(msg::eventTime);
         }
-
+        log.info("before sending {} {}", msg, sinkRecord);
         pulsarSinkProcessor.sendOutputMessage(msg, sinkRecord);
     }
 
@@ -387,30 +397,43 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
+    @AllArgsConstructor
+    static class InitSchemaResult<T> {
+        final Schema<T> schema;
+        final boolean requireSink;
+    }
+
     @SuppressWarnings("unchecked")
     @VisibleForTesting
-    Schema<T> initializeSchema() throws ClassNotFoundException {
+    InitSchemaResult<T> initializeSchema() throws ClassNotFoundException {
         if (StringUtils.isEmpty(this.pulsarSinkConfig.getTypeClassName())) {
-            return (Schema<T>) Schema.BYTES;
+            return new InitSchemaResult((Schema<T>) Schema.BYTES, true);
         }
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
-        if (Void.class.equals(typeArg)
-                || GenericRecord.class.equals(typeArg)) {
+        if (Void.class.equals(typeArg)) {
             // return type is 'void', so there's no schema to check
-            log.info("typeClassName is {}, no need to create a schema", this.pulsarSinkConfig.getTypeClassName());
-            return null;
+            log.info("typeClassName is {}, no need to force a schema", this.pulsarSinkConfig.getTypeClassName());
+            return new InitSchemaResult(null, false);
+        }
+        if (GenericRecord.class.equals(typeArg)) {
+            // if we are receiving GenericRecord records the schema will be created
+            // while processing messages, we do not have enough information at this point
+            // and we cannot create a generic schema that won't be compatible with the
+            // schema present on the records
+            log.info("typeClassName is {}, no need to force a schema", this.pulsarSinkConfig.getTypeClassName());
+            return new InitSchemaResult(null, true);
         }
         ConsumerConfig consumerConfig = new ConsumerConfig();
         consumerConfig.setSchemaProperties(pulsarSinkConfig.getSchemaProperties());
         if (!StringUtils.isEmpty(pulsarSinkConfig.getSchemaType())) {
             consumerConfig.setSchemaType(pulsarSinkConfig.getSchemaType());
-            return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    consumerConfig, false);
+            return new InitSchemaResult((Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
+                    consumerConfig, false), true);
         } else {
             consumerConfig.setSchemaType(pulsarSinkConfig.getSerdeClassName());
-            return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    consumerConfig, false, functionClassLoader);
+            return new InitSchemaResult((Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
+                    consumerConfig, false, functionClassLoader), true);
         }
     }
 

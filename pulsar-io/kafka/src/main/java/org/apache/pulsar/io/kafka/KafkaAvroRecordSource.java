@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kafka;
 
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.generic.IndexedRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -41,7 +42,7 @@ import java.util.Properties;
     configClass = KafkaSourceConfig.class
 )
 @Slf4j
-public class KafkaGenericRecordSource extends KafkaAbstractSource<Object, GenericRecord> {
+public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRecord> {
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
@@ -56,10 +57,10 @@ public class KafkaGenericRecordSource extends KafkaAbstractSource<Object, Generi
     @Override
     public GenericRecord extractValue(ConsumerRecord<String, Object> record) {
        Object value = record.value();
-        System.out.println("extractValue from " + value);
+        log.info("extractValue from " + value);
         if (value instanceof org.apache.avro.generic.GenericRecord) {
             org.apache.avro.generic.GenericRecord container = (org.apache.avro.generic.GenericRecord) value;
-            GenericRecord result = new KafkaGenericRecord(container);
+            AvroRecordWithPulsarSchema result = new AvroRecordWithPulsarSchema(container);
             return result;
         }
         throw new IllegalArgumentException("cannot convert "+value+" to a GenericRecord");

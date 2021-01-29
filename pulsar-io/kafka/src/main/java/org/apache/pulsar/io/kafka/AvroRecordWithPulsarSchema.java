@@ -21,27 +21,29 @@ package org.apache.pulsar.io.kafka;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.*;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class KafkaGenericRecord implements GenericRecord, IndexedRecord {
+public class AvroRecordWithPulsarSchema implements GenericRecord {
     private final org.apache.avro.generic.GenericRecord container;
     private final Schema<GenericRecord> schema;
 
-    public KafkaGenericRecord(org.apache.avro.generic.GenericRecord container) {
+    public AvroRecordWithPulsarSchema(org.apache.avro.generic.GenericRecord container) {
         this.container = container;
         String schema = container.getSchema().toString(false);
         log.info("schema {}", schema);
-        this.schema = (Schema) Schema.AVRO(SchemaDefinition
-                .builder()
-                .withJsonDef(schema)
-                .build());
-
+        this.schema = GenericAvroSchema.of(SchemaInfo.builder()
+                .type(SchemaType.AVRO)
+                .name(container.getSchema().getName())
+                .schema(container.getSchema().toString(false).getBytes(StandardCharsets.UTF_8)
+            ).build());
     }
 
     public Schema<GenericRecord> getPulsarSchema() {
@@ -55,31 +57,14 @@ public class KafkaGenericRecord implements GenericRecord, IndexedRecord {
 
     @Override
     public List<Field> getFields() {
-        return container
-                .getSchema()
-                .getFields()
+        return this.container.getSchema().getFields()
                 .stream()
-                .map(f -> new Field(f.name(), f.pos()))
+                .map(f-> new Field(f.name(), f.pos()))
                 .collect(Collectors.toList());
     }
 
     @Override
     public Object getField(String fieldName) {
         return container.get(fieldName);
-    }
-
-    @Override
-    public void put(int i, Object o) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Object get(int i) {
-        return container.get(i);
-    }
-
-    @Override
-    public org.apache.avro.Schema getSchema() {
-        return container.getSchema();
     }
 }
