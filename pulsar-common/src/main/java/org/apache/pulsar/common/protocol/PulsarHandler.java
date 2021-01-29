@@ -34,13 +34,17 @@ import org.slf4j.LoggerFactory;
 public abstract class PulsarHandler extends PulsarDecoder {
     protected ChannelHandlerContext ctx;
     protected SocketAddress remoteAddress;
-    protected int remoteEndpointProtocolVersion = ProtocolVersion.v0.getValue();
+    private int remoteEndpointProtocolVersion = ProtocolVersion.v0.getValue();
     private final long keepAliveIntervalSeconds;
     private boolean waitingForPingResponse = false;
     private ScheduledFuture<?> keepAliveTask;
 
     public int getRemoteEndpointProtocolVersion() {
         return remoteEndpointProtocolVersion;
+    }
+
+    protected void setRemoteEndpointProtocolVersion(int remoteEndpointProtocolVersion) {
+        this.remoteEndpointProtocolVersion = remoteEndpointProtocolVersion;
     }
 
     public PulsarHandler(int keepAliveInterval, TimeUnit unit) {
@@ -98,7 +102,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
             // response later and thus not enforce the strict timeout here.
             log.warn("[{}] Forcing connection to close after keep-alive timeout", ctx.channel());
             ctx.close();
-        } else if (remoteEndpointProtocolVersion >= ProtocolVersion.v1.getValue()) {
+        } else if (getRemoteEndpointProtocolVersion() >= ProtocolVersion.v1.getValue()) {
             // Send keep alive probe to peer only if it supports the ping/pong commands, added in v1
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Sending ping message", ctx.channel());

@@ -24,8 +24,10 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -33,35 +35,45 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.data.Stat;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TenantsBase extends AdminResource {
+public class TenantsBase extends PulsarWebResource {
+
+    private static final Logger log = LoggerFactory.getLogger(TenantsBase.class);
 
     @GET
     @ApiOperation(value = "Get the list of existing tenants.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant doesn't exist") })
-    public List<String> getTenants() {
-        validateSuperUserAccess();
-
+    public void getTenants(@Suspended final AsyncResponse asyncResponse) {
+        final String clientAppId = clientAppId();
         try {
-            List<String> tenants = globalZk().getChildren(path(POLICIES), false);
-            tenants.sort(null);
-            return tenants;
+            validateSuperUserAccess();
         } catch (Exception e) {
-            log.error("[{}] Failed to get tenants list", clientAppId(), e);
-            throw new RestException(e);
+            asyncResponse.resume(e);
+            return;
         }
+        tenantResources().getChildrenAsync(path(POLICIES)).whenComplete((tenants, e) -> {
+            if (e != null) {
+                log.error("[{}] Failed to get tenants list", clientAppId, e);
+                asyncResponse.resume(new RestException(e));
+                return;
+            }
+            tenants.sort(null);
+            asyncResponse.resume(tenants);
+        });
     }
 
     @GET
@@ -69,18 +81,25 @@ public class TenantsBase extends AdminResource {
     @ApiOperation(value = "Get the admin configuration for a given tenant.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist") })
-    public TenantInfo getTenantAdmin(
-        @ApiParam(value = "The tenant name")
-        @PathParam("tenant") String tenant) {
-        validateSuperUserAccess();
-
+    public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant) {
+        final String clientAppId = clientAppId();
         try {
-            return tenantsCache().get(path(POLICIES, tenant))
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
+            validateSuperUserAccess();
         } catch (Exception e) {
-            log.error("[{}] Failed to get tenant {}", clientAppId(), tenant, e);
-            throw new RestException(e);
+            asyncResponse.resume(e);
         }
+
+        tenantResources().getAsync(path(POLICIES, tenant)).whenComplete((tenantInfo, e) -> {
+            if (e != null) {
+                log.error("[{}] Failed to get Tenant {}", clientAppId, e.getMessage());
+                asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get Tenant"));
+                return;
+            }
+            boolean response = tenantInfo.isPresent() ? asyncResponse.resume(tenantInfo.get())
+                    : asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant does not exist"));
+            return;
+        });
     }
 
     @PUT
@@ -91,103 +110,113 @@ public class TenantsBase extends AdminResource {
             @ApiResponse(code = 412, message = "Tenant name is not valid"),
             @ApiResponse(code = 412, message = "Clusters can not be empty"),
             @ApiResponse(code = 412, message = "Clusters do not exist") })
-    public void createTenant(
-        @ApiParam(value = "The tenant name")
-        @PathParam("tenant") String tenant,
-        @ApiParam(value = "TenantInfo") TenantInfo config) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
-        validateClusters(config);
+    public void createTenant(@Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
+            @ApiParam(value = "TenantInfo") TenantInfo tenantInfo) {
 
+        final String clientAppId = clientAppId();
         try {
+            validateSuperUserAccess();
+            validatePoliciesReadOnlyAccess();
+            validateClusters(tenantInfo);
             NamedEntity.checkName(tenant);
-
-            int maxTenants = pulsar().getConfiguration().getMaxTenants();
-            //Due to the cost of distributed locks, no locks are added here.
-            //In a concurrent scenario, the threshold will be exceeded.
-            if (maxTenants > 0) {
-                List<String> tenants = globalZk().getChildren(path(POLICIES), false);
-                if (tenants != null && tenants.size() >= maxTenants) {
-                    throw new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants");
-                }
-            }
-            zkCreate(path(POLICIES, tenant), jsonMapper().writeValueAsBytes(config));
-            log.info("[{}] Created tenant {}", clientAppId(), tenant);
-        } catch (KeeperException.NodeExistsException e) {
-            log.warn("[{}] Failed to create already existing tenant {}", clientAppId(), tenant);
-            throw new RestException(Status.CONFLICT, "Tenant already exists");
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to create tenant with invalid name {}", clientAppId(), tenant, e);
-            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid");
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
+            return;
         } catch (Exception e) {
-            log.error("[{}] Failed to create tenant {}", clientAppId(), tenant, e);
-            throw new RestException(e);
+            asyncResponse.resume(e);
+            return;
         }
+
+        tenantResources().getChildrenAsync(path(POLICIES)).whenComplete((tenants, e) -> {
+            if (e != null) {
+                log.error("[{}] Failed to create tenant ", clientAppId, e.getCause());
+                asyncResponse.resume(new RestException(e));
+                return;
+            }
+
+            int maxTenants = pulsar().getConfiguration().getMaxTenants();
+            // Due to the cost of distributed locks, no locks are added here.
+            // In a concurrent scenario, the threshold will be exceeded.
+            if (maxTenants > 0) {
+                if (tenants != null && tenants.size() >= maxTenants) {
+                    asyncResponse.resume(
+                            new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants"));
+                    return;
+                }
+            }
+            tenantResources().existsAsync(path(POLICIES, tenant)).thenAccept(exist ->{
+                if (exist) {
+                    asyncResponse.resume(new RestException(Status.CONFLICT, "Tenant already exist"));
+                    return;
+                }
+                tenantResources().createAsync(path(POLICIES, tenant), tenantInfo).thenAccept((r) -> {
+                    log.info("[{}] Created tenant {}", clientAppId(), tenant);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to create tenant {}", clientAppId, tenant, e);
+                    asyncResponse.resume(new RestException(ex));
+                    return null;
+                });
+            }).exceptionally(ex -> {
+                log.error("[{}] Failed to create tenant {}", clientAppId(), tenant, e);
+                asyncResponse.resume(new RestException(ex));
+                return null;
+            });
+        });
     }
 
     @POST
     @Path("/{tenant}")
     @ApiOperation(value = "Update the admins for a tenant.",
-            notes = "This operation requires Pulsar super-user privileges.")
+    notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
             @ApiResponse(code = 412, message = "Clusters can not be empty"),
             @ApiResponse(code = 412, message = "Clusters do not exist") })
-    public void updateTenant(
-        @ApiParam(value = "The tenant name")
-        @PathParam("tenant") String tenant,
-        @ApiParam(value = "TenantInfo") TenantInfo newTenantAdmin) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
-        validateClusters(newTenantAdmin);
-
-        Stat nodeStat = new Stat();
+    public void updateTenant(@Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
+            @ApiParam(value = "TenantInfo") TenantInfo newTenantAdmin) {
         try {
-            byte[] content = globalZk().getData(path(POLICIES, tenant), null, nodeStat);
-            TenantInfo oldTenantAdmin = jsonMapper().readValue(content, TenantInfo.class);
-            List<String> clustersWithActiveNamespaces = Lists.newArrayList();
-            if (oldTenantAdmin.getAllowedClusters().size() > newTenantAdmin.getAllowedClusters().size()) {
-                // Get the colo(s) being removed from the list
-                oldTenantAdmin.getAllowedClusters().removeAll(newTenantAdmin.getAllowedClusters());
-                log.debug("Following clusters are being removed : [{}]", oldTenantAdmin.getAllowedClusters());
-                for (String cluster : oldTenantAdmin.getAllowedClusters()) {
-                    if (Constants.GLOBAL_CLUSTER.equals(cluster)) {
-                        continue;
-                    }
-                    List<String> activeNamespaces = Lists.newArrayList();
-                    try {
-                        activeNamespaces = globalZk().getChildren(path(POLICIES, tenant, cluster), false);
-                        if (activeNamespaces.size() != 0) {
-                            // There are active namespaces in this cluster
-                            clustersWithActiveNamespaces.add(cluster);
-                        }
-                    } catch (KeeperException.NoNodeException nne) {
-                        // Fine, some cluster does not have active namespace. Move on!
-                    }
-                }
-                if (!clustersWithActiveNamespaces.isEmpty()) {
-                    // Throw an exception because colos being removed are having active namespaces
-                    String msg = String.format(
-                            "Failed to update the tenant because active namespaces are present in colos %s."
-                                    + " Please delete those namespaces first",
-                            clustersWithActiveNamespaces);
-                    throw new RestException(Status.CONFLICT, msg);
-                }
-            }
-            String tenantPath = path(POLICIES, tenant);
-            globalZk().setData(tenantPath, jsonMapper().writeValueAsBytes(newTenantAdmin), -1);
-            globalZkCache().invalidate(tenantPath);
-            log.info("[{}] updated tenant {}", clientAppId(), tenant);
-        } catch (RestException re) {
-            throw re;
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update tenant {}: does not exist", clientAppId(), tenant);
-            throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
+            validateSuperUserAccess();
+            validatePoliciesReadOnlyAccess();
+            validateClusters(newTenantAdmin);
         } catch (Exception e) {
-            log.error("[{}] Failed to update tenant {}", clientAppId(), tenant, e);
-            throw new RestException(e);
+            asyncResponse.resume(e);
+            return;
         }
+
+        final String clientAddId = clientAppId();
+        tenantResources().getAsync(path(POLICIES, tenant)).thenAccept(tenantAdmin -> {
+            if (!tenantAdmin.isPresent()) {
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found"));
+                return;
+            }
+            TenantInfo oldTenantAdmin = tenantAdmin.get();
+            Set<String> newClusters = new HashSet<>(newTenantAdmin.getAllowedClusters());
+            canUpdateCluster(tenant, oldTenantAdmin.getAllowedClusters(), newClusters).thenApply(r -> {
+                tenantResources().setAsync(path(POLICIES, tenant), old -> {
+                    return newTenantAdmin;
+                }).thenAccept(done -> {
+                    log.info("Successfully updated tenant info {}", tenant);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    log.warn("Failed to update tenant {}", tenant, ex.getCause());
+                    asyncResponse.resume(new RestException(ex));
+                    return null;
+                });
+                return null;
+            }).exceptionally(nsEx -> {
+                asyncResponse.resume(nsEx.getCause());
+                return null;
+            });
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to get tenant {}", clientAddId, tenant, ex.getCause());
+            asyncResponse.resume(new RestException(ex));
+            return null;
+        });
     }
 
     @DELETE
@@ -196,47 +225,59 @@ public class TenantsBase extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "The tenant still has active namespaces") })
-    public void deleteTenant(
-        @PathParam("tenant")
-        @ApiParam(value = "The tenant name")
-        String tenant) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
-
-        boolean isTenantEmpty;
+    public void deleteTenant(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant) {
         try {
-            isTenantEmpty = getListOfNamespaces(tenant).isEmpty();
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to delete tenant {}: does not exist", clientAppId(), tenant);
-            throw new RestException(Status.NOT_FOUND, "The tenant does not exist");
+            validateSuperUserAccess();
+            validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
-            log.error("[{}] Failed to get tenant status {}", clientAppId(), tenant, e);
-            throw new RestException(e);
+            asyncResponse.resume(e);
+            return;
         }
 
-        if (!isTenantEmpty) {
-            log.warn("[{}] Failed to delete tenant {}: not empty", clientAppId(), tenant);
-            throw new RestException(Status.CONFLICT, "The tenant still has active namespaces");
-        }
-
-        try {
-            // First try to delete every cluster z-node
-            for (String cluster : globalZk().getChildren(path(POLICIES, tenant), false)) {
-                globalZk().delete(path(POLICIES, tenant, cluster), -1);
+        tenantResources().existsAsync(path(POLICIES, tenant)).thenApply(exists ->{
+            if (!exists) {
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant doesn't exist"));
+                return null;
             }
-
-            globalZk().delete(path(POLICIES, tenant), -1);
-            log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, e);
-            throw new RestException(e);
-        }
+            return hasActiveNamespace(tenant).thenAccept(ns -> {
+                try {
+                    // already fetched children and they should be in the cache
+                    List<CompletableFuture<Void>> clusterList = Lists.newArrayList();
+                    for (String cluster : tenantResources().getChildrenAsync(path(POLICIES, tenant)).get()) {
+                        clusterList.add(tenantResources().deleteAsync(path(POLICIES, tenant, cluster)));
+                    }
+                    FutureUtil.waitForAll(clusterList).thenAccept(c -> {
+                        tenantResources().deleteAsync(path(POLICIES, tenant)).thenAccept(t -> {
+                            log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
+                            asyncResponse.resume(Response.noContent().build());
+                        }).exceptionally(ex -> {
+                            log.error("Failed to delete tenant {}", tenant, ex.getCause());
+                            asyncResponse.resume(new RestException(ex));
+                            return null;
+                        });
+                    }).exceptionally(ex -> {
+                        log.error("Failed to delete clusters under tenant {}", tenant, ex.getCause());
+                        asyncResponse.resume(new RestException(ex));
+                        return null;
+                    });
+                    log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
+                } catch (Exception e) {
+                    log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, e);
+                    asyncResponse.resume(new RestException(e));
+                }
+            }).exceptionally(ex -> {
+                log.error("Failed to delete tenant due to active namespace {}", tenant, ex.getCause());
+                asyncResponse.resume(new RestException(ex));
+                return null;
+            });
+        });
     }
 
     private void validateClusters(TenantInfo info) {
         // empty cluster shouldn't be allowed
-        if (info == null || info.getAllowedClusters().stream()
-                .filter(c -> !StringUtils.isBlank(c)).collect(Collectors.toSet()).isEmpty()
+        if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c))
+                .collect(Collectors.toSet()).isEmpty()
                 || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
             log.warn("[{}] Failed to validate due to clusters are empty", clientAppId());
             throw new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty");
@@ -244,11 +285,11 @@ public class TenantsBase extends AdminResource {
 
         List<String> nonexistentClusters;
         try {
-            Set<String> availableClusters = clustersListCache().get();
+            Set<String> availableClusters = clusterResources().list();
             Set<String> allowedClusters = info.getAllowedClusters();
-            nonexistentClusters = allowedClusters.stream()
-                .filter(cluster -> !(availableClusters.contains(cluster) || Constants.GLOBAL_CLUSTER.equals(cluster)))
-                .collect(Collectors.toList());
+            nonexistentClusters = allowedClusters.stream().filter(
+                    cluster -> !(availableClusters.contains(cluster) || Constants.GLOBAL_CLUSTER.equals(cluster)))
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("[{}] Failed to get available clusters", clientAppId(), e);
             throw new RestException(e);
@@ -258,6 +299,4 @@ public class TenantsBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(TenantsBase.class);
 }

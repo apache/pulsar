@@ -90,7 +90,7 @@ public class BrokerDiscoveryProvider implements Closeable {
      * @throws PulsarServerException
      */
     LoadManagerReport nextBroker() throws PulsarServerException {
-        List<LoadManagerReport> availableBrokers = localZkCache.getAvailableBrokers();
+        List<LoadManagerReport> availableBrokers = getAvailableBrokers();
 
         if (availableBrokers.isEmpty()) {
             throw new PulsarServerException("No active broker is available");
@@ -99,6 +99,11 @@ public class BrokerDiscoveryProvider implements Closeable {
             int nextIdx = signSafeMod(counter.getAndIncrement(), brokersCount);
             return availableBrokers.get(nextIdx);
         }
+    }
+
+    List<LoadManagerReport> getAvailableBrokers() {
+        List<LoadManagerReport> availableBrokers = localZkCache.getAvailableBrokers();
+        return availableBrokers;
     }
 
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DiscoveryService service,
