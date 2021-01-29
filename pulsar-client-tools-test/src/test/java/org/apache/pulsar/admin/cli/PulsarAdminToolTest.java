@@ -855,7 +855,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setMaxProducers("persistent://myprop/clust/ns1/ds1", 99);
 
         cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-max-consumers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeMaxConsumers("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-max-consumers persistent://myprop/clust/ns1/ds1 -c 99"));
