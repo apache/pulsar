@@ -21,12 +21,16 @@ package org.apache.pulsar.broker.web;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.admin.AdminResource.POLICIES_READONLY_FLAG_PATH;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +48,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.impl.ClusterResources;
+import org.apache.pulsar.broker.admin.impl.NamespaceResources;
+import org.apache.pulsar.broker.admin.impl.NamespaceResources.IsolationPolicyResources;
+import org.apache.pulsar.broker.admin.impl.TenantResources;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -65,7 +73,9 @@ import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
-import org.apache.zookeeper.KeeperException;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,7 +179,7 @@ public abstract class PulsarWebResource {
      * @throws WebApplicationException
      *             if not authorized
      */
-    protected void validateSuperUserAccess() {
+    public void validateSuperUserAccess() {
         if (config().isAuthenticationEnabled()) {
             String appId = clientAppId();
             if (log.isDebugEnabled()) {
@@ -245,15 +255,8 @@ public abstract class PulsarWebResource {
                     (isClientAuthenticated(clientAppId)), clientAppId);
         }
 
-        TenantInfo tenantInfo;
-
-        try {
-            tenantInfo = pulsar.getConfigurationCache().propertiesCache().get(path(POLICIES, tenant))
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("Failed to get tenant info data for non existing tenant {}", tenant);
-            throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
-        }
+        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+                .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId)) {
@@ -308,7 +311,7 @@ public abstract class PulsarWebResource {
     protected void validateClusterForTenant(String tenant, String cluster) {
         TenantInfo tenantInfo;
         try {
-            tenantInfo = pulsar().getConfigurationCache().propertiesCache().get(path(POLICIES, tenant))
+            tenantInfo = pulsar().getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (RestException e) {
             log.warn("Failed to get tenant admin data for tenant {}", tenant);
@@ -858,5 +861,135 @@ public abstract class PulsarWebResource {
                                 operation.toString(), namespaceName, policy.toString()));
             }
         }
+    }
+
+    protected TenantResources tenantResources() {
+        return pulsar().getPulsarResources().getTenatResources();
+    }
+
+    protected ClusterResources clusterResources() {
+        return pulsar().getPulsarResources().getClusterResources();
+    }
+
+    protected NamespaceResources namespaceResources() {
+        return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected IsolationPolicyResources namespaceIsolationPolicies(){
+        return namespaceResources().getIsolationPolicies();
+    }
+
+    public static ObjectMapper jsonMapper() {
+        return ObjectMapperFactory.getThreadLocal();
+    }
+
+    public void validatePoliciesReadOnlyAccess() {
+        try {
+            if (clusterResources().existsAsync(AdminResource.POLICIES_READONLY_FLAG_PATH).get()) {
+                log.debug("Policies are read-only. Broker cannot do read-write operations");
+                throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
+            }
+        } catch (Exception e) {
+            log.warn("Unable to fetch read-only policy config {}", POLICIES_READONLY_FLAG_PATH, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected CompletableFuture<Void> hasActiveNamespace(String tenant) {
+        CompletableFuture<Void> activeNamespaceFuture = new CompletableFuture<>();
+        tenantResources().getChildrenAsync(path(POLICIES, tenant)).thenAccept(clusterOrNamespaceList -> {
+            if (clusterOrNamespaceList == null || clusterOrNamespaceList.isEmpty()) {
+                activeNamespaceFuture.complete(null);
+                return;
+            }
+            List<CompletableFuture<Void>> activeNamespaceListFuture = Lists.newArrayList();
+            clusterOrNamespaceList.forEach(clusterOrNamespace -> {
+                // get list of active V1 namespace
+                CompletableFuture<Void> checkNs = new CompletableFuture<>();
+                activeNamespaceListFuture.add(checkNs);
+                tenantResources().getChildrenAsync(path(POLICIES, tenant, clusterOrNamespace))
+                        .whenComplete((children, ex) -> {
+                            if (ex != null) {
+                                checkNs.completeExceptionally(ex);
+                                return;
+                            }
+                            if (children != null && !children.isEmpty()) {
+                                checkNs.completeExceptionally(
+                                        new RestException(Status.PRECONDITION_FAILED, "Tenant has active namespace"));
+                                return;
+                            }
+                            String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
+                            // if the length is 0 then this is probably a leftover cluster from namespace
+                            // created
+                            // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to
+                            // add it to the list
+                            namespaceResources().getAsync(path(POLICIES, namespace)).thenApply(data -> {
+                                if (data.isPresent()) {
+                                    checkNs.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                                            "Tenant has active namespace"));
+                                } else {
+                                    checkNs.complete(null);
+                                }
+                                return null;
+                            }).exceptionally(ex2 -> {
+                                if (ex2.getCause() instanceof MetadataStoreException.ContentDeserializationException) {
+                                    // it's not a valid namespace-node
+                                    checkNs.complete(null);
+                                } else {
+                                    checkNs.completeExceptionally(
+                                            new RestException(Status.INTERNAL_SERVER_ERROR, ex2.getCause()));
+                                }
+                                return null;
+                            });
+                        });
+                FutureUtil.waitForAll(activeNamespaceListFuture).thenAccept(r -> {
+                    activeNamespaceFuture.complete(null);
+                }).exceptionally(ex -> {
+                    activeNamespaceFuture.completeExceptionally(ex.getCause());
+                    return null;
+                });
+            });
+        }).exceptionally(ex -> {
+            activeNamespaceFuture.completeExceptionally(ex.getCause());
+            return null;
+        });
+        return activeNamespaceFuture;
+    }
+
+    protected void validateClusterExists(String cluster) {
+        try {
+            if (!clusterResources().get(path("clusters", cluster)).isPresent()) {
+                throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
+            }
+        } catch (Exception e) {
+            throw new RestException(e);
+        }
+    }
+
+    protected CompletableFuture<Void> canUpdateCluster(String tenant, Set<String> oldClusters,
+            Set<String> newClusters) {
+        List<CompletableFuture<Void>> activeNamespaceFuture = Lists.newArrayList();
+        for (String cluster : oldClusters) {
+            if (Constants.GLOBAL_CLUSTER.equals(cluster) || newClusters.contains(cluster)) {
+                continue;
+            }
+            CompletableFuture<Void> checkNs = new CompletableFuture<>();
+            activeNamespaceFuture.add(checkNs);
+            tenantResources().getChildrenAsync(path(POLICIES, tenant, cluster)).whenComplete((activeNamespaces, ex) -> {
+                if (ex != null) {
+                    log.warn("Failed to get namespaces under {}-{}, {}", tenant, cluster, ex.getCause().getMessage());
+                    checkNs.completeExceptionally(ex.getCause());
+                    return;
+                }
+                if (activeNamespaces.size() > 0) {
+                    log.warn("{}/{} Active-namespaces {}", tenant, cluster, activeNamespaces);
+                    checkNs.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, "Active namespaces"));
+                    return;
+                }
+                checkNs.complete(null);
+            });
+        }
+        return activeNamespaceFuture.isEmpty() ? CompletableFuture.completedFuture(null)
+                : FutureUtil.waitForAll(activeNamespaceFuture);
     }
 }

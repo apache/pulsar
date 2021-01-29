@@ -339,7 +339,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             } catch (PulsarAdminException e) {
                 assertTrue(e instanceof NotFoundException);
             }
-
             // verify delete cluster failed
             try {
                 admin.clusters().deleteCluster("test");
@@ -626,6 +625,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test(enabled = true)
     public void properties() throws PulsarAdminException {
+        try {
+            admin.tenants().getTenantInfo("does-not-exist");
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof NotFoundException);
+        }
+        
         Set<String> allowedClusters = Sets.newHashSet("test");
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), allowedClusters);
         admin.tenants().updateTenant("prop-xyz", tenantInfo);

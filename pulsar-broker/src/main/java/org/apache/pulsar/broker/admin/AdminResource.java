@@ -89,7 +89,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
-    private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
+    public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     public static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
     private static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
 
@@ -169,7 +169,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     // This is a stub method for Mockito
     @Override
-    protected void validateSuperUserAccess() {
+    public void validateSuperUserAccess() {
         super.validateSuperUserAccess();
     }
 
@@ -740,7 +740,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
    protected void validateClusterExists(String cluster) {
         try {
-            if (!clustersCache().get(path("clusters", cluster)).isPresent()) {
+            if (!clusterResources().get(path("clusters", cluster)).isPresent()) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
             }
         } catch (Exception e) {

@@ -102,10 +102,9 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
                 .authentication(authentication)
                 .build());
 
-        pulsarClient = PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
+        replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
                 .statsInterval(0, TimeUnit.SECONDS)
-                .authentication(authentication)
-                .build();
+                .authentication(authentication));
     }
 
     @AfterMethod(alwaysRun = true)
