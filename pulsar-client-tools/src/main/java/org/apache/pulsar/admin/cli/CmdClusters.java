@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import java.util.Arrays;
+import java.util.function.Supplier;
 
 import org.apache.commons.lang3.StringUtils;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -38,7 +39,7 @@ public class CmdClusters extends CmdBase {
     @Parameters(commandDescription = "List the existing clusters")
     private class List extends CliCommand {
         void run() throws PulsarAdminException {
-            print(admin.clusters().getClusters());
+            print(getAdmin().clusters().getClusters());
         }
     }
 
@@ -49,7 +50,7 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            print(admin.clusters().getCluster(cluster));
+            print(getAdmin().clusters().getCluster(cluster));
         }
     }
 
@@ -78,7 +79,7 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            admin.clusters().createCluster(cluster,
+            getAdmin().clusters().createCluster(cluster,
                     new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls, proxyServiceUrl,
                             proxyProtocol));
         }
@@ -109,7 +110,7 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            admin.clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl,
+            getAdmin().clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl,
                     brokerServiceUrlTls, proxyServiceUrl, proxyProtocol));
         }
     }
@@ -126,22 +127,22 @@ public class CmdClusters extends CmdBase {
             String cluster = getOneArgument(params);
 
             if (deleteAll) {
-                for (String tenant : admin.tenants().getTenants()) {
-                    for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                for (String tenant : getAdmin().tenants().getTenants()) {
+                    for (String namespace : getAdmin().namespaces().getNamespaces(tenant)) {
                         // Partitioned topic's schema must be deleted by deletePartitionedTopic() but not delete() for each partition
-                        for (String topic : admin.topics().getPartitionedTopicList(namespace)) {
-                            admin.topics().deletePartitionedTopic(topic, true, true);
+                        for (String topic : getAdmin().topics().getPartitionedTopicList(namespace)) {
+                            getAdmin().topics().deletePartitionedTopic(topic, true, true);
                         }
-                        for (String topic : admin.topics().getList(namespace)) {
-                            admin.topics().delete(topic, true, true);
+                        for (String topic : getAdmin().topics().getList(namespace)) {
+                            getAdmin().topics().delete(topic, true, true);
                         }
-                        admin.namespaces().deleteNamespace(namespace, true);
+                        getAdmin().namespaces().deleteNamespace(namespace, true);
                     }
-                    admin.tenants().deleteTenant(tenant);
+                    getAdmin().tenants().deleteTenant(tenant);
                 }
             }
 
-            admin.clusters().deleteCluster(cluster);
+            getAdmin().clusters().deleteCluster(cluster);
         }
     }
 
@@ -157,7 +158,7 @@ public class CmdClusters extends CmdBase {
             String cluster = getOneArgument(params);
             java.util.LinkedHashSet<String> clusters = StringUtils.isBlank(peerClusterNames) ? null
                     : Sets.newLinkedHashSet(Arrays.asList(peerClusterNames.split(",")));
-            admin.clusters().updatePeerClusterNames(cluster, clusters);
+            getAdmin().clusters().updatePeerClusterNames(cluster, clusters);
         }
     }
 
@@ -169,7 +170,7 @@ public class CmdClusters extends CmdBase {
         
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            print(admin.clusters().getPeerClusterNames(cluster));
+            print(getAdmin().clusters().getPeerClusterNames(cluster));
         }
     }
     
@@ -189,7 +190,7 @@ public class CmdClusters extends CmdBase {
             String cluster = getOneArgument(params);
             FailureDomain domain = new FailureDomain();
             domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")): null));
-            admin.clusters().createFailureDomain(cluster, domainName, domain);
+            getAdmin().clusters().createFailureDomain(cluster, domainName, domain);
         }
     }
 
@@ -208,7 +209,7 @@ public class CmdClusters extends CmdBase {
             String cluster = getOneArgument(params);
             FailureDomain domain = new FailureDomain();
             domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")) : null));
-            admin.clusters().updateFailureDomain(cluster, domainName, domain);
+            getAdmin().clusters().updateFailureDomain(cluster, domainName, domain);
         }
     }
     
@@ -222,7 +223,7 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            admin.clusters().deleteFailureDomain(cluster, domainName);
+            getAdmin().clusters().deleteFailureDomain(cluster, domainName);
         }
     }
 
@@ -234,7 +235,7 @@ public class CmdClusters extends CmdBase {
         
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            print(admin.clusters().getFailureDomains(cluster));
+            print(getAdmin().clusters().getFailureDomains(cluster));
         }
     }
 
@@ -248,11 +249,11 @@ public class CmdClusters extends CmdBase {
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            print(admin.clusters().getFailureDomain(cluster, domainName));
+            print(getAdmin().clusters().getFailureDomain(cluster, domainName));
         }
     }
     
-    public CmdClusters(PulsarAdmin admin) {
+    public CmdClusters(Supplier<PulsarAdmin> admin) {
         super("clusters", admin);
         jcommander.addCommand("get", new Get());
         jcommander.addCommand("create", new Create());

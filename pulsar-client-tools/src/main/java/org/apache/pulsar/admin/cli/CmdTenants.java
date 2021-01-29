@@ -25,6 +25,7 @@ import com.beust.jcommander.converters.CommaParameterSplitter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.function.Supplier;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -36,7 +37,7 @@ public class CmdTenants extends CmdBase {
     private class List extends CliCommand {
         @Override
         void run() throws PulsarAdminException {
-            print(admin.tenants().getTenants());
+            print(getAdmin().tenants().getTenants());
         }
     }
 
@@ -48,7 +49,7 @@ public class CmdTenants extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String tenant = getOneArgument(params);
-            print(admin.tenants().getTenantInfo(tenant));
+            print(getAdmin().tenants().getTenantInfo(tenant));
         }
     }
 
@@ -75,11 +76,11 @@ public class CmdTenants extends CmdBase {
 
             if (allowedClusters == null || allowedClusters.isEmpty()) {
                 // Default to all available cluster
-                allowedClusters = admin.clusters().getClusters();
+                allowedClusters = getAdmin().clusters().getClusters();
             }
 
             TenantInfo tenantInfo = new TenantInfo(new HashSet<>(adminRoles), new HashSet<>(allowedClusters));
-            admin.tenants().createTenant(tenant, tenantInfo);
+            getAdmin().tenants().createTenant(tenant, tenantInfo);
         }
     }
 
@@ -101,15 +102,15 @@ public class CmdTenants extends CmdBase {
             String tenant = getOneArgument(params);
 
             if (adminRoles == null) {
-                adminRoles = new ArrayList<>(admin.tenants().getTenantInfo(tenant).getAdminRoles());
+                adminRoles = new ArrayList<>(getAdmin().tenants().getTenantInfo(tenant).getAdminRoles());
             }
 
             if (allowedClusters == null) {
-                allowedClusters = new ArrayList<>(admin.tenants().getTenantInfo(tenant).getAllowedClusters());
+                allowedClusters = new ArrayList<>(getAdmin().tenants().getTenantInfo(tenant).getAllowedClusters());
             }
 
             TenantInfo tenantInfo = new TenantInfo(new HashSet<>(adminRoles), new HashSet<>(allowedClusters));
-            admin.tenants().updateTenant(tenant, tenantInfo);
+            getAdmin().tenants().updateTenant(tenant, tenantInfo);
         }
     }
 
@@ -121,11 +122,11 @@ public class CmdTenants extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String tenant = getOneArgument(params);
-            admin.tenants().deleteTenant(tenant);
+            getAdmin().tenants().deleteTenant(tenant);
         }
     }
 
-    public CmdTenants(PulsarAdmin admin) {
+    public CmdTenants(Supplier<PulsarAdmin> admin) {
         super("tenants", admin);
         jcommander.addCommand("list", new List());
         jcommander.addCommand("get", new Get());
@@ -136,7 +137,7 @@ public class CmdTenants extends CmdBase {
 
     @Parameters(hidden = true)
     static class CmdProperties extends CmdTenants {
-        public CmdProperties(PulsarAdmin admin) {
+        public CmdProperties(Supplier<PulsarAdmin> admin) {
             super(admin);
         }
 

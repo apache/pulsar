@@ -38,6 +38,8 @@ import java.net.Socket;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -65,6 +67,7 @@ import org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.commons.configuration.CompositeConfiguration;
+import org.apache.commons.io.FileUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
@@ -170,6 +173,16 @@ public class LocalBookkeeperEnsemble {
     StreamStorageLifecycleComponent streamStorage;
     Integer streamStoragePort = 4181;
 
+    // directories created by this instance
+    // it is safe to drop them on stop
+    List<File> temporaryDirectories = new ArrayList<>();
+
+    private File createTempDirectory(String seed) throws IOException {
+        File res = Files.createTempDirectory(seed).toFile();
+        temporaryDirectories.add(res);
+        return res;
+    }
+
     private void runZookeeper(int maxCC) throws IOException {
         // create a ZooKeeper server(dataDir, dataLogDir, port)
         LOG.info("Starting ZK server");
@@ -177,7 +190,7 @@ public class LocalBookkeeperEnsemble {
         // ClientBase.setupTestEnv();
 
         File zkDataDir = isNotBlank(zkDataDirName) ? Files.createDirectories(Paths.get(zkDataDirName)).toFile()
-                : Files.createTempDirectory("zktest").toFile();
+                : createTempDirectory("zktest");
 
         if (this.clearOldData) {
             cleanDirectory(zkDataDir);
@@ -273,7 +286,7 @@ public class LocalBookkeeperEnsemble {
 
             File bkDataDir = isNotBlank(bkDataDirName)
                     ? Files.createDirectories(Paths.get(bkDataDirName + Integer.toString(i))).toFile()
-                    : Files.createTempDirectory("bk" + Integer.toString(i) + "test").toFile();
+                    : createTempDirectory("bk" + Integer.toString(i) + "test");
 
             if (this.clearOldData) {
                 cleanDirectory(bkDataDir);
@@ -492,6 +505,11 @@ public class LocalBookkeeperEnsemble {
             zkDataCleanupManager.shutdown();
         }
         LOG.debug("Local ZK/BK stopped");
+        for (File managedDir : temporaryDirectories) {
+            LOG.info("deleting test directory {}", managedDir);
+            FileUtils.deleteDirectory(managedDir);
+        }
+        temporaryDirectories.clear();
     }
 
     /* Watching SyncConnected event from ZooKeeper */

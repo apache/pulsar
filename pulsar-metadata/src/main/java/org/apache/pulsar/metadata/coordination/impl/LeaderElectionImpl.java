@@ -108,8 +108,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T>, Consumer<Notification>
                             log.warn("Exception in state change listener", t);
                         }
                     }
+                    return CompletableFuture.completedFuture(leaderElectionState);
                 }
-                return CompletableFuture.completedFuture(leaderElectionState);
             } else {
                 return tryToBecomeLeader();
             }
@@ -143,8 +143,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T>, Consumer<Notification>
                                                     log.warn("Exception in state change listener", t);
                                                 }
                                             }
+                                            result.complete(leaderElectionState);
                                         }
-                                        result.complete(leaderElectionState);
                                     }).exceptionally(ex -> {
                                         // We fail to do the get(), so clean up the leader election fail the whole
                                         // operation
