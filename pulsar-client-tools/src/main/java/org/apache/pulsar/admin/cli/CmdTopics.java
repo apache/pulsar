@@ -1315,7 +1315,7 @@ public class CmdTopics extends CmdBase {
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
-            getAdmin().topics().enableDeduplication(persistentTopic, enable);
+            getAdmin().topics().setDeduplicationStatus(persistentTopic, enable);
         }
     }
 
@@ -1327,12 +1327,24 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getDeduplicationEnabled(persistentTopic));
+            print(getAdmin().topics().getDeduplicationStatus(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the deduplication policy for a topic")
+    private class RemoveDeduplicationStatus extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getAdmin().topics().removeDeduplicationStatus(persistentTopic);
         }
     }
 
     @Parameters(commandDescription = "Remove the retention policy for a topic")
-    private class RemoveDeduplicationStatus extends CliCommand {
+    private class RemoveRetention extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
