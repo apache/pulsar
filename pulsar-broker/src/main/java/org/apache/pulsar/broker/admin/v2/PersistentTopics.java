@@ -1669,10 +1669,11 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getRetention(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic) {
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         try {
-            internalGetRetention(asyncResponse);
+            internalGetRetention(asyncResponse, applied);
         } catch (RestException e) {
             asyncResponse.resume(e);
         } catch (Exception e) {

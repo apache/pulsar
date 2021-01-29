@@ -1740,6 +1740,23 @@ public interface Topics {
     CompletableFuture<RetentionPolicies> getRetentionAsync(String topic);
 
     /**
+     * Get the applied retention configuration for a topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    RetentionPolicies getRetention(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the applied retention configuration for a topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<RetentionPolicies> getRetentionAsync(String topic, boolean applied);
+
+    /**
      * Remove the retention configuration for all the topics on a topic.
      * <p/>
      * Remove the retention configuration on a topic. This operation requires Pulsar super-user access.
