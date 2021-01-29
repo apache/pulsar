@@ -37,6 +37,7 @@ public class PersistentTopicStatsTest {
         topicStats.msgThroughputOut = 1;
         topicStats.averageMsgSize = 1;
         topicStats.storageSize = 1;
+        topicStats.offloadedStorageSize = 1;
         topicStats.publishers.add(new PublisherStats());
         topicStats.subscriptions.put("test_ns", new SubscriptionStats());
         topicStats.replication.put("test_ns", new ReplicatorStats());
@@ -47,6 +48,7 @@ public class PersistentTopicStatsTest {
         assertEquals(topicStats.msgRateOut, 1.0);
         assertEquals(topicStats.msgThroughputOut, 1.0);
         assertEquals(topicStats.averageMsgSize, 1.0);
+        assertEquals(topicStats.offloadedStorageSize, 1);
         assertEquals(topicStats.storageSize, 1);
         assertEquals(topicStats.publishers.size(), 1);
         assertEquals(topicStats.subscriptions.size(), 1);
@@ -61,6 +63,7 @@ public class PersistentTopicStatsTest {
         assertEquals(topicStats.publishers.size(), 0);
         assertEquals(topicStats.subscriptions.size(), 0);
         assertEquals(topicStats.replication.size(), 0);
+        assertEquals(topicStats.offloadedStorageSize, 0);
     }
 
     @Test
