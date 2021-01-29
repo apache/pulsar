@@ -1692,6 +1692,7 @@ public class PersistentTopic extends AbstractTopic
         stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
+        stats.offloadedStorageSize = ledger.getOffloadedSize();
         return stats;
     }
 
