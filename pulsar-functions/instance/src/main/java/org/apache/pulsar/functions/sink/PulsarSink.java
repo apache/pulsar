@@ -187,7 +187,6 @@ public class PulsarSink<T> implements Sink<T> {
         public Function<Throwable, Void> getPublishErrorHandler(SinkRecord<T> record, boolean failSource) {
 
             return throwable -> {
-                log.info("error {}", throwable);
                 Record<T> srcRecord = record.getSourceRecord();
                 if (failSource) {
                     srcRecord.fail();
@@ -262,7 +261,7 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
             msg.sendAsync()
-                    .thenAccept(messageId ->record.ack())
+                    .thenAccept(messageId -> record.ack())
                     .exceptionally(getPublishErrorHandler(record, true));
         }
     }
@@ -381,7 +380,6 @@ public class PulsarSink<T> implements Sink<T> {
             Optional<Long> eventTime = sinkRecord.getSourceRecord().getEventTime();
             eventTime.ifPresent(msg::eventTime);
         }
-        log.info("before sending {} {}", msg, sinkRecord);
         pulsarSinkProcessor.sendOutputMessage(msg, sinkRecord);
     }
 
