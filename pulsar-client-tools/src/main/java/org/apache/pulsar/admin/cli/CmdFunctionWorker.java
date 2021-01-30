@@ -24,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
 
+import java.util.function.Supplier;
+
 @Slf4j
 @Parameters(commandDescription = "Operations to collect function-worker statistics")
 public class CmdFunctionWorker extends CmdBase {
@@ -50,7 +52,7 @@ public class CmdFunctionWorker extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            print(admin.worker().getFunctionsStats());
+            print(getAdmin().worker().getFunctionsStats());
         }
     }
 
@@ -59,7 +61,7 @@ public class CmdFunctionWorker extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            print(admin.worker().getMetrics());
+            print(getAdmin().worker().getMetrics());
         }
     }
 
@@ -68,7 +70,7 @@ public class CmdFunctionWorker extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            print(admin.worker().getCluster());
+            print(getAdmin().worker().getCluster());
         }
     }
 
@@ -77,7 +79,7 @@ public class CmdFunctionWorker extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            print(admin.worker().getClusterLeader());
+            print(getAdmin().worker().getClusterLeader());
         }
     }
 
@@ -87,11 +89,11 @@ public class CmdFunctionWorker extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            print(admin.worker().getAssignments());
+            print(getAdmin().worker().getAssignments());
         }
     }
 
-    public CmdFunctionWorker(PulsarAdmin admin) throws PulsarClientException {
+    public CmdFunctionWorker(Supplier<PulsarAdmin> admin) throws PulsarClientException {
         super("functions-worker", admin);
         jcommander.addCommand("function-stats", new FunctionsStats());
         jcommander.addCommand("monitoring-metrics", new CmdMonitoringMetrics());

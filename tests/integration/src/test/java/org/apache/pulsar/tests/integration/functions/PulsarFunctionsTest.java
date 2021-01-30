@@ -24,6 +24,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.gson.Gson;
+
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -1970,6 +1972,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
+    private static void checkPublisherCleanup(String topic) throws Exception {
+        try {
+            ContainerExecResult result = pulsarCluster.getAnyBroker().execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "stats",
+                    topic);
+            TopicStats topicStats = new Gson().fromJson(result.getStdout(), TopicStats.class);
+            assertEquals(topicStats.publishers.size(), 0);
+
+        } catch (ContainerExecException e) {
+            fail("Command should have exited with non-zero");
+        }
+    }
+
     private static void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts) throws Exception {
         getFunctionStatus(functionName, numMessages, checkRestarts, 1);
     }
@@ -2619,6 +2636,143 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         } else {
             return KeyValueSchema.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED);
         }
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testJavaLoggingFunction() throws Exception {
+        testLoggingFunction(Runtime.JAVA);
+    }
+
+    private void testLoggingFunction(Runtime runtime) throws Exception {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
+            // python can only run on process mode
+            return;
+        }
+
+        if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.GO) {
+            // go can only run on process mode
+            return;
+        }
+
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
+        
+        Schema<?> schema;
+        if (Runtime.JAVA == runtime) {
+            schema = Schema.STRING;
+        } else {
+            schema = Schema.BYTES;
+        }
+
+        String inputTopicName = "persistent://public/default/test-log-" + runtime + "-input-" + randomName(8);
+        String logTopicName = "test-log-" + runtime + "-log-topic-" + randomName(8);
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(inputTopicName);
+            admin.topics().createNonPartitionedTopic(logTopicName);
+        }
+
+        String functionName = "test-logging-fn-" + randomName(8);
+        final int numMessages = 10;
+
+        // submit the exclamation function
+        submitJavaLoggingFunction(
+                inputTopicName, logTopicName, functionName, schema);
+
+        // get function info
+        getFunctionInfoSuccess(functionName);
+
+        // get function stats
+        getFunctionStatsEmpty(functionName);
+
+        // publish and consume result
+        publishAndConsumeMessages(inputTopicName, logTopicName, numMessages, "-log");
+
+        // get function status
+        getFunctionStatus(functionName, numMessages, true);
+
+        // get function stats
+        getFunctionStats(functionName, numMessages);
+
+        // delete function
+        deleteFunction(functionName);
+
+        // get function info
+        getFunctionInfoNotFound(functionName);
+
+        // make sure subscriptions are cleanup
+        checkSubscriptionsCleanup(inputTopicName);
+        checkPublisherCleanup(logTopicName);
+
+    }
+
+    private static void submitJavaLoggingFunction(String inputTopicName,
+                                                  String logTopicName,
+                                                  String functionName,
+                                                  Schema<?> schema) throws Exception {
+        CommandGenerator generator;
+        log.info("------- INPUT TOPIC: '{}'", inputTopicName);
+        if (inputTopicName.endsWith(".*")) {
+            log.info("----- CREATING TOPIC PATTERN FUNCTION --- ");
+            generator = CommandGenerator.createTopicPatternGenerator(inputTopicName, LOGGING_JAVA_CLASS);
+        } else {
+            log.info("----- CREATING REGULAR FUNCTION --- ");
+            generator = CommandGenerator.createDefaultGenerator(inputTopicName, LOGGING_JAVA_CLASS);
+        }
+        generator.setLogTopic(logTopicName);
+        generator.setFunctionName(functionName);
+        String command = generator.generateCreateFunctionCommand();
+
+        log.info("---------- Function command: {}", command);
+        String[] commands = {
+                "sh", "-c", command
+        };
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                commands);
+        assertTrue(result.getStdout().contains("\"Created successfully\""));
+
+        ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), schema);
+    }
+
+    private static void publishAndConsumeMessages(String inputTopic,
+                                                  String outputTopic,
+                                                  int numMessages,
+                                                  String messagePostfix) throws Exception {
+        @Cleanup PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup Consumer<byte[]> consumer = client.newConsumer()
+                .topic(outputTopic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("test-sub")
+                .subscribe();
+
+        @Cleanup Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(inputTopic)
+                .create();
+
+        for (int i = 0; i < numMessages; i++) {
+            producer.send("message-" + i);
+        }
+
+        Set<String> expectedMessages = new HashSet<>();
+        for (int i = 0; i < numMessages; i++) {
+            expectedMessages.add("message-" + i + messagePostfix);
+        }
+
+        for (int i = 0; i < numMessages; i++) {
+            Message<byte[]> msg = consumer.receive(30, TimeUnit.SECONDS);
+            String logMsg = new String(msg.getValue(), UTF_8);
+            log.info("Received: {}", logMsg);
+            assertTrue(expectedMessages.contains(logMsg));
+            expectedMessages.remove(logMsg);
+        }
+
+        consumer.close();
+        producer.close();
+        client.close();
     }
 
 }

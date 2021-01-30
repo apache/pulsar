@@ -69,6 +69,7 @@ import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.ZookeeperSessionExpiredHandlers;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.impl.PulsarResources;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -220,6 +221,8 @@ public class PulsarService implements AutoCloseable {
     private MetadataStoreExtended localMetadataStore;
     private CoordinationService coordinationService;
 
+    private MetadataStoreExtended configurationMetadataStore;
+    private PulsarResources pulsarResources;
 
     public enum State {
         Init, Started, Closed
@@ -279,6 +282,14 @@ public class PulsarService implements AutoCloseable {
         this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
                 new DefaultThreadFactory("zk-cache-callback"));
         }
+
+    public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
+        return MetadataStoreExtended.create(config.getConfigurationStoreServers(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
+                        .allowReadOnlyOperations(false)
+                        .build());
+    }
 
     /**
      * Close the current pulsar service. All resources are released.
@@ -396,6 +407,9 @@ public class PulsarService implements AutoCloseable {
             if (localMetadataStore != null) {
                 localMetadataStore.close();
             }
+            if (configurationMetadataStore != null) {
+                configurationMetadataStore.close();
+            }
 
             state = State.Closed;
             isClosedCondition.signalAll();
@@ -467,8 +481,10 @@ public class PulsarService implements AutoCloseable {
             }
 
             localMetadataStore = createLocalMetadataStore();
-
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
+
+            configurationMetadataStore = createConfigurationMetadataStore();
+            pulsarResources = new PulsarResources(configurationMetadataStore);
 
             orderedExecutor = OrderedExecutor.newBuilder()
                     .numThreads(config.getNumOrderedExecutorThreads())

@@ -83,6 +83,8 @@ public class PulsarCluster {
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
     private PrestoWorkerContainer prestoWorkerContainer;
+    @Getter
+    private Map<String, PrestoWorkerContainer> sqlFollowWorkerContainers;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private final boolean enablePrestoWorker;
 
@@ -93,17 +95,10 @@ public class PulsarCluster {
         this.network = Network.newNetwork();
         this.enablePrestoWorker = spec.enablePrestoWorker();
 
+        this.sqlFollowWorkerContainers = Maps.newTreeMap();
         if (enablePrestoWorker) {
-            prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
-                .withNetwork(network)
-                .withNetworkAliases(PrestoWorkerContainer.NAME)
-                .withEnv("clusterName", clusterName)
-                .withEnv("zkServers", ZKContainer.NAME)
-                .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
-                .withEnv("pulsar.bookkeeper-explicit-interval", "10")
-                .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+            prestoWorkerContainer = buildPrestoWorkerContainer(
+                    PrestoWorkerContainer.NAME, true, null, null);
         } else {
             prestoWorkerContainer = null;
         }
@@ -358,39 +353,76 @@ public class PulsarCluster {
     public void startPrestoWorker(String offloadDriver, String offloadProperties) {
         log.info("[startPrestoWorker] offloadDriver: {}, offloadProperties: {}", offloadDriver, offloadProperties);
         if (null == prestoWorkerContainer) {
-            prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
+            prestoWorkerContainer = buildPrestoWorkerContainer(
+                    PrestoWorkerContainer.NAME, true, offloadDriver, offloadProperties);
+        }
+        prestoWorkerContainer.start();
+        log.info("[{}] Presto coordinator start finished.", prestoWorkerContainer.getContainerName());
+    }
+
+    public void stopPrestoWorker() {
+        if (sqlFollowWorkerContainers != null && sqlFollowWorkerContainers.size() > 0) {
+            for (PrestoWorkerContainer followWorker : sqlFollowWorkerContainers.values()) {
+                followWorker.stop();
+                log.info("Stopped presto follow worker {}.", followWorker.getContainerName());
+            }
+            sqlFollowWorkerContainers.clear();
+            log.info("Stopped all presto follow workers.");
+        }
+        if (null != prestoWorkerContainer) {
+            prestoWorkerContainer.stop();
+            log.info("Stopped presto coordinator.");
+            prestoWorkerContainer = null;
+        }
+    }
+
+    public void startPrestoFollowWorkers(int numSqlFollowWorkers, String offloadDriver, String offloadProperties) {
+        log.info("start presto follow worker containers.");
+        sqlFollowWorkerContainers.putAll(runNumContainers(
+                "sql-follow-worker",
+                numSqlFollowWorkers,
+                (name) -> {
+                    log.info("build presto follow worker with name {}", name);
+                    return buildPrestoWorkerContainer(name, false, offloadDriver, offloadProperties);
+                }
+        ));
+        // Start workers that have been initialized
+        sqlFollowWorkerContainers.values().parallelStream().forEach(PrestoWorkerContainer::start);
+        log.info("Successfully started {} presto follow worker containers.", sqlFollowWorkerContainers.size());
+    }
+
+    private PrestoWorkerContainer buildPrestoWorkerContainer(String hostName, boolean isCoordinator,
+                                                             String offloadDriver, String offloadProperties) {
+        String resourcePath = isCoordinator ? "presto-coordinator-config.properties"
+                : "presto-follow-worker-config.properties";
+        PrestoWorkerContainer container = new PrestoWorkerContainer(
+                clusterName, hostName)
                 .withNetwork(network)
-                .withNetworkAliases(PrestoWorkerContainer.NAME)
+                .withNetworkAliases(hostName)
                 .withEnv("clusterName", clusterName)
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
-            if (spec.queryLastMessage) {
-                prestoWorkerContainer.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
+                .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080")
+                .withClasspathResourceMapping(
+                        resourcePath, "/pulsar/conf/presto/config.properties", BindMode.READ_WRITE);
+        if (spec.queryLastMessage) {
+            container.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
                     .withEnv("pulsar.bookkeeper-explicit-interval", "10");
-            }
-            if (offloadDriver != null && offloadProperties != null) {
-                log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
-                        offloadDriver, offloadProperties);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloader-properties", offloadProperties);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
-                // used in s3 tests
-                prestoWorkerContainer.withEnv("AWS_ACCESS_KEY_ID", "accesskey");
-                prestoWorkerContainer.withEnv("AWS_SECRET_KEY", "secretkey");
-            }
         }
-        log.info("[startPrestoWorker] Starting Presto Worker");
-        prestoWorkerContainer.start();
-    }
-
-    public void stopPrestoWorker() {
-        if (null != prestoWorkerContainer) {
-            prestoWorkerContainer.stop();
-            log.info("Stopped Presto Worker");
-            prestoWorkerContainer = null;
+        if (offloadDriver != null && offloadProperties != null) {
+            log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
+                    offloadDriver, offloadProperties);
+            // used to query from tiered storage
+            container.withEnv("SQL_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
+            container.withEnv("SQL_PREFIX_pulsar.offloader-properties", offloadProperties);
+            container.withEnv("SQL_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
+            container.withEnv("AWS_ACCESS_KEY_ID", "accesskey");
+            container.withEnv("AWS_SECRET_KEY", "secretkey");
         }
+        log.info("[{}] build presto worker container. isCoordinator: {}, resourcePath: {}",
+                container.getContainerName(), isCoordinator, resourcePath);
+        return container;
     }
 
     public synchronized void setupFunctionWorkers(String suffix, FunctionRuntimeType runtimeType, int numFunctionWorkers) {
