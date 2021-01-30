@@ -18,22 +18,14 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import lombok.AccessLevel;
-import lombok.Getter;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.util.Map;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-@Getter(AccessLevel.PUBLIC)
-public class PulsarResources {
+public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {
 
-    private TenantResources tenatResources;
-    private ClusterResources clusterResources;
-    private NamespaceResources namespaceResources;
-    private DynamicConfigurationResources dynamicConfigResources;
-
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore) {
-        tenatResources = new TenantResources(configurationMetadataStore);
-        clusterResources = new ClusterResources(configurationMetadataStore);
-        namespaceResources = new NamespaceResources(configurationMetadataStore);
-        dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore);
+    public DynamicConfigurationResources(MetadataStoreExtended store) {
+        super(store, new TypeReference<Map<String, String>>(){});
     }
+
 }
