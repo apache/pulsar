@@ -200,7 +200,7 @@ public class BrokersBase extends PulsarWebResource {
                 throw new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value");
             }
             if (BrokerService.isDynamicConfiguration(configName)) {
-                dynamicConfigurationResources().create(BROKER_SERVICE_CONFIGURATION_PATH, (old) -> {
+                dynamicConfigurationResources().setWithCreate(BROKER_SERVICE_CONFIGURATION_PATH, (old) -> {
                     Map<String, String> configurationMap = old.isPresent() ? old.get() : Maps.newHashMap();
                     configurationMap.put(configName, configValue);
                     return configurationMap;
