@@ -831,6 +831,7 @@ public class KubernetesRuntimeTest {
         assertEquals(goInstanceConfig.get("name"), TEST_NAME);
         assertEquals(goInstanceConfig.get("expectedHealthCheckInterval"), 0);
         assertEquals(goInstanceConfig.get("deadLetterTopic"), "");
+        assertEquals(goInstanceConfig.get("metricsPort"), 4331);
 
         // check padding and xmx
         V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), RESOURCES);
