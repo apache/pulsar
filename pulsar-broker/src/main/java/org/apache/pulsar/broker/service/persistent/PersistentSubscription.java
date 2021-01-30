@@ -507,7 +507,9 @@ public class PersistentSubscription implements Subscription {
                     log.debug("[{}][{}] Backlog size after clearing: {}", topicName, subName,
                             cursor.getNumberOfEntriesInBacklog(false));
                 }
-                dispatcher.clearDelayedMessages();
+                if (dispatcher != null) {
+                    dispatcher.clearDelayedMessages();
+                }
                 future.complete(null);
             }
 
