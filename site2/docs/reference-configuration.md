@@ -392,6 +392,8 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 
 ## Log4j
 
+You can set the log level and configuration in the  [log4j2.yaml](https://github.com/apache/pulsar/blob/d557e0aa286866363bc6261dec87790c055db1b0/conf/log4j2.yaml#L155) file. The following logging configuration parameters are available.
+
 |Name|Default|
 |---|---|
 |pulsar.root.logger|  WARN,CONSOLE|
