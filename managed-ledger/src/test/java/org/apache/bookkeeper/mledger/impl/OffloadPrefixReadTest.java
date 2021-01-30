@@ -97,21 +97,21 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             assertEquals(new String(e.getData()), "entry-" + i++);
         }
         verify(offloader, times(1))
-            .readOffloaded(anyLong(), any(), anyMap());
+                .readOffloaded(anyLong(), (UUID) any(), anyMap());
         verify(offloader).readOffloaded(anyLong(), eq(firstLedgerUUID), anyMap());
 
         for (Entry e : cursor.readEntries(10)) {
             assertEquals(new String(e.getData()), "entry-" + i++);
         }
         verify(offloader, times(2))
-                .readOffloaded(anyLong(), any(), anyMap());
+                .readOffloaded(anyLong(), (UUID) any(), anyMap());
         verify(offloader).readOffloaded(anyLong(), eq(secondLedgerUUID), anyMap());
 
         for (Entry e : cursor.readEntries(5)) {
             assertEquals(new String(e.getData()), "entry-" + i++);
         }
         verify(offloader, times(2))
-                .readOffloaded(anyLong(), any(), anyMap());
+                .readOffloaded(anyLong(), (UUID) any(), anyMap());
     }
 
     @Test
@@ -164,7 +164,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
         // For offloaded first and not deleted ledgers, they should be read from bookkeeper.
         verify(offloader, never())
-                .readOffloaded(anyLong(), any(), anyMap());
+                .readOffloaded(anyLong(), (UUID) any(), anyMap());
 
         // Delete offladed message from bookkeeper
         assertEventuallyTrue(() -> bkc.getLedgers().contains(firstLedger.getLedgerId()));
@@ -186,7 +186,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         // Ledgers deleted from bookkeeper, now should read from offloader
         verify(offloader, atLeastOnce())
-                .readOffloaded(anyLong(), any(), anyMap());
+                .readOffloaded(anyLong(), (UUID) any(), anyMap());
         verify(offloader).readOffloaded(anyLong(), eq(secondLedgerUUID), anyMap());
 
     }

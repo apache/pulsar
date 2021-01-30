@@ -24,7 +24,6 @@ import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Map;
@@ -55,20 +54,21 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     private final ConnectionPool connectionPool;
     private final NamespaceService namespaceService;
     private final AtomicLong requestIdGenerator = new AtomicLong();
-    private long operationTimeoutInMills;
+    private final long operationTimeoutInMills;
     private Timeout requestTimeout;
-    private HashedWheelTimer timer;
+    private final HashedWheelTimer timer;
     private final Semaphore semaphore;
     private final boolean blockIfReachMaxPendingOps;
 
-    public TransactionBufferHandlerImpl(ConnectionPool connectionPool, NamespaceService namespaceService) {
+    public TransactionBufferHandlerImpl(ConnectionPool connectionPool, NamespaceService namespaceService,
+                                        HashedWheelTimer timer) {
         this.connectionPool = connectionPool;
         this.pendingRequests = new ConcurrentSkipListMap<>();
         this.namespaceService = namespaceService;
         this.operationTimeoutInMills = 3000L;
         this.semaphore = new Semaphore(10000);
         this.blockIfReachMaxPendingOps = true;
-        this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-buffer-client-timer"));
+        this.timer = timer;
         this.requestTimeout = timer.newTimeout(this, operationTimeoutInMills, TimeUnit.MILLISECONDS);
     }
 

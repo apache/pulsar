@@ -76,6 +76,9 @@ public interface Topic {
 
         void completed(Exception e, long ledgerId, long entryId);
 
+        default void setMetadataFromEntryData(ByteBuf entryData) {
+        }
+
         default long getHighestSequenceId() {
             return  -1L;
         }

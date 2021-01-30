@@ -35,6 +35,10 @@ public class MetadataStoreException extends IOException {
         super(msg);
     }
 
+    public MetadataStoreException(String msg, Throwable t) {
+        super(msg, t);
+    }
+
     /**
      * Implementation is invalid
      */

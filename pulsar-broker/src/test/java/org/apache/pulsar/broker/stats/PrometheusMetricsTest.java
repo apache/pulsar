@@ -23,22 +23,35 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import javax.crypto.SecretKey;
+import javax.naming.AuthenticationException;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -48,14 +61,10 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 
 public class PrometheusMetricsTest extends BrokerTestBase {
 
@@ -692,6 +701,72 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         p1.close();
         p2.close();
+    }
+
+    @Test
+    public void testAuthMetrics() throws IOException, AuthenticationException {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String authExceptionMessage = "";
+
+        try {
+            provider.authenticate(new AuthenticationDataSource() {
+            });
+            fail("Should have failed");
+        } catch (AuthenticationException e) {
+            // expected, no credential passed
+            authExceptionMessage = e.getMessage();
+        }
+
+        String token = AuthTokenUtils.createToken(secretKey, "subject", Optional.empty());
+
+        // Pulsar protocol auth
+        String subject = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_authentication_success_count");
+        boolean haveSucceed = false;
+        for (Metric metric : cm) {
+            if (Objects.equals(metric.tags.get("auth_method"), "token")
+                    && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
+                haveSucceed = true;
+            }
+        }
+        Assert.assertTrue(haveSucceed);
+
+        cm = (List<Metric>) metrics.get("pulsar_authentication_failures_count");
+
+        boolean haveFailed = false;
+        for (Metric metric : cm) {
+            if (Objects.equals(metric.tags.get("auth_method"), "token")
+                    && Objects.equals(metric.tags.get("reason"), authExceptionMessage)
+                    && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
+                haveFailed = true;
+            }
+        }
+        Assert.assertTrue(haveFailed);
     }
 
     /**
