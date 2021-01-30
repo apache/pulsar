@@ -97,6 +97,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private Integer metricsPort;
     private String narExtractionDirectory;
     private String functionInstanceClassPath;
+    private String downloadDirectory;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -166,6 +167,14 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.configAdminCLI = factoryConfig.getConfigAdminCLI();
         } else {
             this.configAdminCLI = "/bin/pulsar-admin";
+        }
+        if (!isEmpty(workerConfig.getDownloadDirectory())) {
+            this.downloadDirectory = workerConfig.getDownloadDirectory();
+        } else {
+            this.downloadDirectory = "download/pulsar_functions";
+        }
+        if (!Paths.get(this.downloadDirectory).isAbsolute()) {
+            this.downloadDirectory = this.pulsarRootDir + "/" + this.downloadDirectory;
         }
 
         this.submittingInsidePod = factoryConfig.getSubmittingInsidePod();
@@ -309,7 +318,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             metricsPort,
             narExtractionDirectory,
             manifestCustomizer,
-            functionInstanceClassPath);
+            functionInstanceClassPath,
+            downloadDirectory);
     }
 
     @Override

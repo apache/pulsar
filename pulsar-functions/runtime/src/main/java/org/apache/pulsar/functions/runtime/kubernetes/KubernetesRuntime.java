@@ -152,6 +152,7 @@ public class KubernetesRuntime implements Runtime {
     private String narExtractionDirectory;
     private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
     private String functionInstanceClassPath;
+    private String downloadDirectory;
 
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
@@ -187,7 +188,8 @@ public class KubernetesRuntime implements Runtime {
                       Integer metricsPort,
                       String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer,
-                      String functinoInstanceClassPath) throws Exception {
+                      String functinoInstanceClassPath,
+                      String downloadDirectory) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -200,7 +202,11 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarRootDir = pulsarRootDir;
         this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
-        this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
+        this.downloadDirectory = this.pulsarRootDir; // for backward comp
+        if (downloadDirectory != null) {
+            this.downloadDirectory = downloadDirectory;
+        }
+        this.originalCodeFileName = downloadDirectory + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
