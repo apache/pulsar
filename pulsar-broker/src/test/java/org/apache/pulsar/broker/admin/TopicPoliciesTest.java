@@ -330,6 +330,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         lastActive.setAccessible(true);
         //set last active to 2 minutes ago
         lastActive.setLong(persistentTopic, System.nanoTime() - TimeUnit.MINUTES.toNanos(2));
+        //the default value of the broker-level is 0, so it is not retained by default
+        assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         //set namespace-level policy
         RetentionPolicies retentionPolicies = new RetentionPolicies(1, 1);
         admin.namespaces().setRetention(myNamespace, retentionPolicies);
@@ -345,7 +347,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setRetention(topic, new RetentionPolicies(0, 0));
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
                 -> assertEquals(admin.topics().getRetention(topic).getRetentionSizeInMB(), 0));
-        assertTrue((boolean) shouldTopicBeRetained.invoke(persistentTopic));
+        assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         // remove topic-level policy
         admin.topics().removeRetention(topic);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
@@ -355,7 +357,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention(myNamespace, new RetentionPolicies(0, 0));
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNotNull(admin.namespaces().getRetention(myNamespace)));
-        assertTrue((boolean) shouldTopicBeRetained.invoke(persistentTopic));
+        assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         //change namespace-level policy
         admin.namespaces().setRetention(myNamespace, new RetentionPolicies(1, 1));
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
@@ -365,7 +367,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeRetention(myNamespace);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNull(admin.namespaces().getRetention(myNamespace)));
-        assertTrue((boolean) shouldTopicBeRetained.invoke(persistentTopic));
+        //the default value of the broker-level is 0, so it is not retained by default
+        assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
     }
 
     @Test

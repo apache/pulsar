@@ -2025,7 +2025,7 @@ public class PersistentTopic extends AbstractTopic
         long retentionTime = TimeUnit.MINUTES.toNanos(retentionPolicies.getRetentionTimeInMinutes());
         // Negative retention time means the topic should be retained indefinitely,
         // because its own data has to be retained
-        return retentionTime <= 0 || (System.nanoTime() - lastActive) < retentionTime;
+        return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
     }
 
     @Override
