@@ -209,7 +209,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader, webServiceUrl);
+                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
+                exposePulsarAdminClientEnabled, webServiceUrl);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

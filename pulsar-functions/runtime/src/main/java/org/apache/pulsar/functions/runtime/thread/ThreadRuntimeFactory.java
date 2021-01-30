@@ -71,10 +71,11 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry, String narExtractionDirectory,
-                                ClassLoader rootClassLoader, String pulsarWebServiceUrl) throws Exception {
+                                ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
+                                String pulsarWebServiceUrl) throws Exception {
         initialize(threadGroupName, InstanceUtils.createPulsarClient(pulsarServiceUrl, authConfig),
                 storageServiceUrl, null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
-                InstanceUtils.createPulsarAdminClient(pulsarWebServiceUrl, authConfig));
+                exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(pulsarWebServiceUrl, authConfig) : null);
     }
 
     @VisibleForTesting

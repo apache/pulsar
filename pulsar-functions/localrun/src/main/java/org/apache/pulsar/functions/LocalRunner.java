@@ -455,12 +455,17 @@ public class LocalRunner {
         } else {
             secretsProvider = new ClearTextSecretsProvider();
         }
+        boolean exposePulsarAdminClientEnabled = false;
+        if (functionConfig != null && functionConfig.getExposePulsarAdminClientEnabled() != null) {
+            exposePulsarAdminClientEnabled = functionConfig.getExposePulsarAdminClientEnabled();
+        }
         ThreadRuntimeFactory threadRuntimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                 serviceUrl,
                 stateStorageServiceUrl,
                 authConfig,
                 secretsProvider,
-                null, narExtractionDirectory, null, webServiceUrl);
+                null, narExtractionDirectory, null,
+                exposePulsarAdminClientEnabled, webServiceUrl);
         for (int i = 0; i < parallelism; ++i) {
             InstanceConfig instanceConfig = new InstanceConfig();
             instanceConfig.setFunctionDetails(functionDetails);
