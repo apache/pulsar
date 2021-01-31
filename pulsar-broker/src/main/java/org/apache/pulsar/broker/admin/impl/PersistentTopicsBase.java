@@ -2540,6 +2540,7 @@ public class PersistentTopicsBase extends AdminResource {
             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Backlog Quota exceeds configured retention quota for topic. "
                             + "Please increase retention quota and retry"));
+            return;
         }
 
         if (backlogQuota != null) {
