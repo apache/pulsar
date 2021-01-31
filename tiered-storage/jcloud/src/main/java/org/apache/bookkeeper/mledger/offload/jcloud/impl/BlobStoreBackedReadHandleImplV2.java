@@ -216,7 +216,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                 log.debug("entries are in earlier indices, skip this segment ledger id: {}, begin entry id: {}",
                         ledgerId, startEntryId);
             } else {
-                groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
+                groupedReaders.add(new GroupedReader(ledgerId, Math.max(firstEntry, startEntryId), lastEntry, index,
+                        inputStreams.get(i),
                         dataStreams.get(i)));
                 lastEntry = startEntryId - 1;
             }
