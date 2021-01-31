@@ -89,7 +89,7 @@ flexible messaging model and an intuitive client API.</description>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
-    <testRetryCount>1</testRetryCount>
+    <testRetryCount>0</testRetryCount>
     <docker.organization>apachepulsar</docker.organization>
 
     <!-- apache commons -->
@@ -601,7 +601,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jna</artifactId>
         <version>${jna.version}</version>
       </dependency>
-      
+
       <dependency>
          <groupId>com.github.docker-java</groupId>
          <artifactId>docker-java-core</artifactId>
