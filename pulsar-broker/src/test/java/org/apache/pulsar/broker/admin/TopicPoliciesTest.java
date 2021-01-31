@@ -218,7 +218,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
-        Thread.sleep(2000 );
+        Thread.sleep(2000);
         // Setting the value fail, so it should be null
         assertNull(admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage));
