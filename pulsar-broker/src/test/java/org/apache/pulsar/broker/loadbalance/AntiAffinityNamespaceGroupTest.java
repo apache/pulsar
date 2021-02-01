@@ -113,6 +113,8 @@ public class AntiAffinityNamespaceGroupTest {
         config1.setFailureDomainsEnabled(true);
         config1.setLoadBalancerEnabled(true);
         config1.setAdvertisedAddress("localhost");
+        // Don't want overloaded threshold to affect namespace placement
+        config1.setLoadBalancerBrokerOverloadedThresholdPercentage(100);
         createCluster(bkEnsemble.getZkClient(), config1);
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
@@ -130,6 +132,8 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setBrokerServicePort(Optional.of(0));
         config2.setFailureDomainsEnabled(true);
         config2.setAdvertisedAddress("localhost");
+        // Don't want overloaded threshold to affect namespace placement
+        config2.setLoadBalancerBrokerOverloadedThresholdPercentage(100);
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
 
