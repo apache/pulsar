@@ -26,14 +26,12 @@ import com.google.common.collect.Queues;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1490,8 +1488,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = msgMetadata.getUncompressedSize();
         int payloadSize = payload.readableBytes();
-        log.info("uncompress {} unsize {} payloadsize {}", compressionType, uncompressedSize, payloadSize);
-        log.info("compressed '{}'", ByteBufUtil.prettyHexDump(payload));
         if (checkMaxMessageSize && payloadSize > ClientCnx.getMaxMessageSize()) {
             // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
             log.error("[{}][{}] Got corrupted payload message size {} at {}", topic, subscription, payloadSize,
@@ -1500,7 +1496,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return null;
         }
         try {
-
             ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
             return uncompressedPayload;
         } catch (IOException e) {
