@@ -18,21 +18,9 @@
     under the License.
 
 -->
-<configuration scan="true">
-	<logger name="org.apache" level="INFO" />
-	<logger name="org" level="INFO" />
-	<logger name="com" level="INFO" />
-	<logger name="io" level="INFO" />
-	<logger name="org.apache.pulsar.client.api" level="INFO" />
-
-	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-		<encoder>
-			<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
-			</pattern>
-		</encoder>
-	</appender>
-
-	<root level="DEBUG">
-		<appender-ref ref="STDOUT" />
-	</root>
-</configuration>
+<FindBugsFilter>
+    <Match>
+        <Class name="org.apache.pulsar.metadata.api.GetResult" />
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
+    </Match>
+</FindBugsFilter>

@@ -38,6 +38,17 @@ message OffloadContext {
     optional bool bookkeeperDeleted = 4;
     optional int64 timestamp = 5;
     optional OffloadDriverMetadata driverMetadata = 6;
+    repeated OffloadSegment offloadSegment = 7;
+}
+
+message OffloadSegment {
+    optional int64 uidMsb = 1;
+    optional int64 uidLsb = 2;
+    optional bool complete = 3;
+    optional int64 assignedTimestamp = 4; //timestamp in millisecond
+    optional int64 offloadedTimestamp = 5; //timestamp in millisecond
+    optional int64 endEntryId = 6;
+    optional OffloadDriverMetadata driverMetadata = 7;
 }
 
 message ManagedLedgerInfo {

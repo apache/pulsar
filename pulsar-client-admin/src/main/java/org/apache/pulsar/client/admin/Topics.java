@@ -1530,6 +1530,24 @@ public interface Topics {
     void removeBacklogQuota(String topic) throws PulsarAdminException;
 
     /**
+     * Get the delayed delivery policy applied for a specified topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic
+            , boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the delayed delivery policy applied for a specified topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic
+            , boolean applied);
+    /**
      * Get the delayed delivery policy for a specified topic.
      * @param topic
      * @return
@@ -2682,6 +2700,22 @@ public interface Topics {
      */
     CompletableFuture<Integer> getMaxConsumersAsync(String topic);
 
+    /**
+     * Get the max number of consumer applied for specified topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxConsumers(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the max number of consumer applied for specified topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<Integer> getMaxConsumersAsync(String topic, boolean applied);
 
     /**
      * Set the max number of consumer for specified topic.

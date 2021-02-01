@@ -618,15 +618,20 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
                                            @PathParam("tenant") String tenant,
                                            @PathParam("namespace") String namespace,
-                                           @PathParam("topic") @Encoded String encodedTopic) {
+                                           @PathParam("topic") @Encoded String encodedTopic,
+                                           @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
-        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-        if (topicPolicies.isDelayedDeliveryEnabledSet() && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
-            asyncResponse.resume(new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
-                    , topicPolicies.getDelayedDeliveryEnabled()));
-        } else {
-            asyncResponse.resume(Response.noContent().build());
-        }
+        internalGetDelayedDeliveryPolicies(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get DelayedDeliveryPolicies", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get DelayedDeliveryPolicies", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(res);
+            }
+        });
     }
 
     @POST
@@ -2098,20 +2103,20 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getMaxConsumers(@Suspended final AsyncResponse asyncResponse,
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace,
-                                @PathParam("topic") @Encoded String encodedTopic) {
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
-        try {
-            Optional<Integer> maxConsumers = internalGetMaxConsumers();
-            if (!maxConsumers.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
+        internalGetMaxConsumers(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get maxConsumers", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get maxConsumers", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(maxConsumers.get());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST
