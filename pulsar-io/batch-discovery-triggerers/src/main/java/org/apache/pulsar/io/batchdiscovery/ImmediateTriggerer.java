@@ -23,10 +23,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ImmediateTriggerer implements BatchSourceTriggerer {
