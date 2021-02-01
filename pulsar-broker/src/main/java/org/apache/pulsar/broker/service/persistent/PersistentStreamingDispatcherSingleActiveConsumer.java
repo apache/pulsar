@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
@@ -37,7 +36,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.streamingdispatch.PendingReadEntryRequest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingEntryReader;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 /**
  * A {@link PersistentDispatcherSingleActiveConsumer} implemented {@link StreamingDispatcher}.
