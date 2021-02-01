@@ -22,11 +22,21 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @Slf4j
 public class TestBasicPresto extends TestPulsarSQLBase {
@@ -56,6 +66,64 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         TopicName topicName = TopicName.get("public/default/stocks_nonbatched_" + randomName(5));
         pulsarSQLBasicTest(topicName, false, false);
     }
+
+    @DataProvider(name = "keyValueEncodingType")
+    public Object[][] keyValueEncodingType() {
+        return new Object[][] { { KeyValueEncodingType.INLINE }, { KeyValueEncodingType.SEPARATED } };
+    }
+
+    @Test(dataProvider = "keyValueEncodingType")
+    public void testKeyValueSchema(KeyValueEncodingType type) throws Exception {
+        waitPulsarSQLReady();
+        TopicName topicName = TopicName.get("public/default/stocks" + randomName(20));
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        Producer<KeyValue<Stock,Stock>> producer = pulsarClient.newProducer(Schema
+                .KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), type))
+                .topic(topicName.toString())
+                .create();
+
+        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+            int j = 100 * i;
+            final Stock stock1 = new Stock(j, "STOCK_" + j , 100.0 + j * 10);
+            final Stock stock2 = new Stock(i,i + "STOCK_" + i , 100.0 + i * 10);
+            producer.send(new KeyValue<>(stock1, stock2));
+        }
+
+        producer.flush();
+
+        validateMetadata(topicName);
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+                () -> {
+                    ContainerExecResult containerExecResult = execQuery(
+                            String.format("select * from pulsar.\"%s\".\"%s\" order by entryid;",
+                                    topicName.getNamespace(), topicName.getLocalName()));
+                    assertThat(containerExecResult.getExitCode()).isEqualTo(0);
+                    log.info("select sql query output \n{}", containerExecResult.getStdout());
+                    String[] split = containerExecResult.getStdout().split("\n");
+                    assertThat(split.length).isEqualTo(NUM_OF_STOCKS);
+                    String[] split2 = containerExecResult.getStdout().split("\n|,");
+                    for (int i = 0; i < NUM_OF_STOCKS; ++i) {
+                        int j = 100 * i;
+                        assertThat(split2).contains("\"" + i + "\"");
+                        assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
+                        assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
+
+                        assertThat(split2).contains("\"" + j + "\"");
+                        assertThat(split2).contains("\"" + "STOCK_" + j + "\"");
+                        assertThat(split2).contains("\"" + (100.0 + j * 10) + "\"");
+                    }
+                }
+        );
+
+    }
+
+
 
     @Override
     protected int prepareData(TopicName topicName, boolean isBatch, boolean useNsOffloadPolices) throws Exception {
