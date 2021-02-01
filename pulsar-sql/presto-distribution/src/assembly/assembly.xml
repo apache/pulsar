@@ -40,6 +40,17 @@
             <directory>${basedir}/../presto-pulsar-plugin/target/pulsar-presto-connector/</directory>
             <outputDirectory>plugin/</outputDirectory>
         </fileSet>
+        <fileSet>
+            <directory>${basedir}/../presto-password-authenticators-plugin/target/presto-password-authenticators-plugin</directory>
+            <outputDirectory>plugin/</outputDirectory>
+        </fileSet>
+        <fileSet>
+            <directory>${basedir}/../presto-password-authenticators-plugin/target/</directory>
+            <outputDirectory>plugin/presto-password-authenticators-plugin</outputDirectory>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
     </fileSets>
     <dependencySets>
         <dependencySet>
