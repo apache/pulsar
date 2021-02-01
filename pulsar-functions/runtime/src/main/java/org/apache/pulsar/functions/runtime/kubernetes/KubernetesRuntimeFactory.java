@@ -168,10 +168,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.configAdminCLI = "/bin/pulsar-admin";
         }
+        this.downloadDirectory = this.pulsarRootDir; // for backward comp
         if (!isEmpty(workerConfig.getDownloadDirectory())) {
             this.downloadDirectory = workerConfig.getDownloadDirectory();
-        } else {
-            this.downloadDirectory = "download/pulsar_functions";
         }
         if (!Paths.get(this.downloadDirectory).isAbsolute()) {
             this.downloadDirectory = this.pulsarRootDir + "/" + this.downloadDirectory;

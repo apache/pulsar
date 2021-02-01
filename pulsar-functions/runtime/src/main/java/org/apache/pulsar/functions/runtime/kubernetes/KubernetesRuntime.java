@@ -55,6 +55,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -71,6 +72,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -203,10 +205,10 @@ public class KubernetesRuntime implements Runtime {
         this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
         this.downloadDirectory = this.pulsarRootDir; // for backward comp
-        if (downloadDirectory != null) {
+        if (StringUtils.isNotBlank(downloadDirectory)) {
             this.downloadDirectory = downloadDirectory;
         }
-        this.originalCodeFileName = downloadDirectory + "/" + originalCodeFileName;
+        this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
