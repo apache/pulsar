@@ -335,6 +335,30 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to encrypt the message payloads.
+     *
+     * @param publicKey
+     *            the public key that is always used to encrypt message payloads.
+     * @return the producer builder instance
+     * @since 2.8.0
+     */
+    ProducerBuilder<T> defaultCryptoKeyReader(String publicKey);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to encrypt the message payloads.
+     *
+     * @param publicKeys
+     *            the map of public key names and their URIs used to encrypt message payloads.
+     * @return the producer builder instance
+     * @since 2.8.0
+     */
+    ProducerBuilder<T> defaultCryptoKeyReader(Map<String, String> publicKeys);
+
+    /**
      * Add public encryption key, used by producer to encrypt the data key.
      *
      * <p>At the time of producer creation, Pulsar client checks if there are keys added to encryptionKeys. If keys are
