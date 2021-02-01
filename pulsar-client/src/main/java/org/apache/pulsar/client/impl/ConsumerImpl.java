@@ -1622,7 +1622,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         checkArgument(messageIds.stream().findFirst().get() instanceof MessageIdImpl);
 
         if (conf.getSubscriptionType() != SubscriptionType.Shared
-                && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
+                && deadLetterPolicy != null && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
             return;
