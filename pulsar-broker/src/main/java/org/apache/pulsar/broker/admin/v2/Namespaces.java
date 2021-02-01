@@ -1431,6 +1431,34 @@ public class Namespaces extends NamespacesBase {
         internalSetIsAllowAutoUpdateSchema(isAllowAutoUpdateSchema);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/subscriptionSharedEnable")
+    @ApiOperation(value = "The flag of whether allow shared sub type")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public boolean getSubscriptionSharedEnable(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetSubscriptionSharedEnable();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/subscriptionSharedEnable")
+    @ApiOperation(value = "Update flag of whether allow share sub type")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setSubscriptionSharedEnable(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Flag of whether to allow share sub type", required = true)
+                    boolean subscriptionSharedEnable) {
+        validateNamespaceName(tenant, namespace);
+        internalSetSubscriptionSharedEnable(subscriptionSharedEnable);
+    }
+
 
     @GET
     @Path("/{tenant}/{namespace}/schemaValidationEnforced")

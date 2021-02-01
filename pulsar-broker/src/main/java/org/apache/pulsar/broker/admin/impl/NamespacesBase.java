@@ -3009,6 +3009,24 @@ public abstract class NamespacesBase extends AdminResource {
                 "isAllowAutoUpdateSchema");
     }
 
+    protected boolean internalGetSubscriptionSharedEnable() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
+                PolicyOperation.READ);
+        return getNamespacePolicies(namespaceName).subscription_shared_enable;
+    }
+
+    protected void internalSetSubscriptionSharedEnable(boolean subscriptionSharedEnable) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
+                PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        mutatePolicy((policies) -> {
+                    policies.subscription_shared_enable = subscriptionSharedEnable;
+                    return policies;
+                }, (policies) -> policies.subscription_shared_enable,
+                "subscriptionSharedEnable");
+    }
+
 
     private <T> void mutatePolicy(Function<Policies, Policies> policyTransformation,
                                   Function<Policies, T> getter,

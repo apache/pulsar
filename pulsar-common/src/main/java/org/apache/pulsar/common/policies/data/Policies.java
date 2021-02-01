@@ -119,6 +119,8 @@ public class Policies {
 
     public Integer deduplicationSnapshotIntervalSeconds = null;
 
+    public boolean subscription_shared_enable = true;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -139,7 +141,8 @@ public class Policies {
                 schema_validation_enforced,
                 schema_compatibility_strategy,
                 is_allow_auto_update_schema,
-                offload_policies);
+                offload_policies,
+                subscription_shared_enable);
     }
 
     @Override
@@ -180,7 +183,8 @@ public class Policies {
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
                     && is_allow_auto_update_schema == other.is_allow_auto_update_schema
-                    && Objects.equals(offload_policies, other.offload_policies);
+                    && Objects.equals(offload_policies, other.offload_policies)
+                    && subscription_shared_enable == other.subscription_shared_enable;
         }
 
         return false;
@@ -239,7 +243,8 @@ public class Policies {
                 .add("schema_validation_enforced", schema_validation_enforced)
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
                 .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
-                .add("offload_policies", offload_policies).toString();
+                .add("offload_policies", offload_policies)
+                .add("subscription_shared_enable", subscription_shared_enable).toString();
     }
 
     private static final long MAX_BUNDLES = ((long) 1) << 32;

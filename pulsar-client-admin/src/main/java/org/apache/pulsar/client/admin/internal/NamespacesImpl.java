@@ -960,6 +960,64 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void setSubscriptionSharedEnable(String namespace,
+                                            boolean subscriptionSharedEnable) throws PulsarAdminException {
+        try {
+            setSubscriptionSharedEnableAsync(namespace, subscriptionSharedEnable)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionSharedEnableAsync(String namespace,
+                                                                    boolean subscriptionSharedEnable) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionSharedEnable");
+        return asyncPostRequest(path, Entity.entity(subscriptionSharedEnable, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public boolean getSubscriptionSharedEnable(String namespace) throws PulsarAdminException {
+        try {
+            return getSubscriptionSharedEnableAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getSubscriptionSharedEnableAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionSharedEnable");
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean subscriptionSharedEnable) {
+                        future.complete(subscriptionSharedEnable);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void removeAutoSubscriptionCreation(String namespace) throws PulsarAdminException {
         try {
             removeAutoSubscriptionCreationAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

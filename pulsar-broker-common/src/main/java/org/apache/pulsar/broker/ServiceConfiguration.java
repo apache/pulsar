@@ -403,6 +403,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int subscriptionExpiryCheckIntervalInMinutes = 5;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Enable Shared subscription (default is enabled)"
+    )
+    private boolean subscriptionSharedEnable = true;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "Enable Key_Shared subscription (default is enabled)"

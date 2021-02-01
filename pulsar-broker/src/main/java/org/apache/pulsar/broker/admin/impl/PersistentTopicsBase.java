@@ -3671,6 +3671,20 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
+    protected Optional<Boolean> internalGetSubscriptionSharedEnable() {
+        preValidation();
+        return getTopicPolicies(topicName).map(TopicPolicies::isSubscriptionSharedEnable);
+
+    }
+
+    protected CompletableFuture<Void> internalSetSubscriptionSharedEnable(boolean subscriptionSharedEnable) {
+        preValidation();
+        TopicPolicies topicPolicies = getTopicPolicies(topicName)
+                .orElseGet(TopicPolicies::new);
+        topicPolicies.setSubscriptionSharedEnable(subscriptionSharedEnable);
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+    }
+
     protected CompletableFuture<Void> internalRemovePublishRate() {
         preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);

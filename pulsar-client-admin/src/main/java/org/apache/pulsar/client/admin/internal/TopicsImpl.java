@@ -2991,6 +2991,63 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void setSubscriptionSharedEnable(String topic,
+                                            boolean subscriptionSharedEnable) throws PulsarAdminException {
+        try {
+            setSubscriptionSharedEnableAsync(topic, subscriptionSharedEnable)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionSharedEnableAsync(String topic, boolean subscriptionSharedEnable) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "subscriptionSharedEnable");
+        return asyncPostRequest(path, Entity.entity(subscriptionSharedEnable, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Boolean getSubscriptionSharedEnable(String topic) throws PulsarAdminException {
+        try {
+            return getSubscriptionSharedEnableAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getSubscriptionSharedEnableAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionSharedEnable");
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean subscriptionSharedEnable) {
+                        future.complete(subscriptionSharedEnable);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public DispatchRate getReplicatorDispatchRate(String topic) throws PulsarAdminException {
         try {
             return getReplicatorDispatchRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

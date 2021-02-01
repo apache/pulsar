@@ -271,6 +271,7 @@ public class PersistentTopic extends AbstractTopic
 
             setSchemaCompatibilityStrategy(policies);
             isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
+            subscriptionSharedEnable = policies.subscription_shared_enable;
 
             schemaValidationEnforced = policies.schema_validation_enforced;
             if (policies.inactive_topic_policies != null) {
@@ -632,6 +633,20 @@ public class PersistentTopic extends AbstractTopic
             );
             return future;
         }
+
+        try {
+            if (subType == SubType.Shared
+                    && (!brokerService.pulsar().getConfiguration().isSubscriptionSharedEnable()
+                    || !checkIsSubscriptionSharedEnable())) {
+                future.completeExceptionally(
+                        new NotAllowedException("Topic[{" + topic + "}] don't support share sub type!"));
+                return future;
+            }
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+            return future;
+        }
+
         if (isBlank(subscriptionName)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Empty subscription name", topic);
@@ -2721,6 +2736,19 @@ public class PersistentTopic extends AbstractTopic
         }
 
         return false;
+    }
+
+    public boolean checkIsSubscriptionSharedEnable() throws Exception {
+        TopicName topicName = TopicName.get(topic);
+        if (brokerService.pulsar().getConfiguration().isTopicLevelPoliciesEnabled()) {
+            return brokerService.pulsar().getTopicPoliciesService()
+                    .getTopicPolicies(TopicName.get(topic)).isSubscriptionSharedEnable();
+        } else {
+            Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            return policies.map(value ->
+                    value.subscription_shared_enable).orElse(false);
+        }
     }
 
     public PositionImpl getMaxReadPosition() {

@@ -23,7 +23,9 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 
 /**
@@ -33,6 +35,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Getter
+@Setter
 public class TopicPolicies {
 
     private Map<String, BacklogQuota> backLogQuotaMap = Maps.newHashMap();
@@ -58,6 +62,7 @@ public class TopicPolicies {
     private Integer maxMessageSize = null;
     private Integer maxSubscriptionsPerTopic = null;
     private DispatchRate replicatorDispatchRate = null;
+    private boolean subscriptionSharedEnable = true;
 
     public boolean isReplicatorDispatchRateSet() {
         return replicatorDispatchRate != null;

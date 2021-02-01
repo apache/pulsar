@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
@@ -1570,6 +1572,30 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 0, -1);
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, -2, 1);
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, -2);
+    }
+
+    @Test
+    public void testSubscriptionSharedEnable() throws PulsarAdminException, PulsarClientException {
+        conf.setTopicLevelPoliciesEnabled(false);
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        String topic = namespace + "/test";
+        admin.namespaces().createNamespace(namespace);
+
+        ConsumerBuilder<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("share");
+
+        consumer.subscribe().close();
+        assertTrue(admin.namespaces().getSubscriptionSharedEnable(namespace));
+
+        admin.namespaces().setSubscriptionSharedEnable(namespace, false);
+        assertFalse(admin.namespaces().getSubscriptionSharedEnable(namespace));
+        try {
+            consumer.subscribe().close();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            pulsarClientException.printStackTrace();
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
     }
 
     private void assertValidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
