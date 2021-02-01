@@ -862,7 +862,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setMaxProducers("persistent://myprop/clust/ns1/ds1", 99);
 
         cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-max-consumers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeMaxConsumers("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-max-consumers persistent://myprop/clust/ns1/ds1 -c 99"));
@@ -936,6 +936,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-delayed-delivery persistent://myprop/clust/ns1/ds1 --applied"));
         verify(mockTopics).getDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1", true);
     }
 
     @Test

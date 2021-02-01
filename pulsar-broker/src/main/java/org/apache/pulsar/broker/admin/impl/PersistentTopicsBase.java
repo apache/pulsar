@@ -2540,6 +2540,7 @@ public class PersistentTopicsBase extends AdminResource {
             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Backlog Quota exceeds configured retention quota for topic. "
                             + "Please increase retention quota and retry"));
+            return;
         }
 
         if (backlogQuota != null) {
@@ -2813,9 +2814,18 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected Optional<Integer> internalGetMaxConsumers() {
+    protected CompletableFuture<Integer> internalGetMaxConsumers(boolean applied) {
         preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxConsumerPerTopic);
+        Integer maxNum = getTopicPolicies(topicName)
+                .map(TopicPolicies::getMaxConsumerPerTopic)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer maxConsumer = getNamespacePolicies(namespaceName).max_consumers_per_topic;
+                        return maxConsumer == null ? config().getMaxConsumersPerTopic() : maxConsumer;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(maxNum);
     }
 
     protected CompletableFuture<Void> internalSetMaxConsumers(Integer maxConsumers) {

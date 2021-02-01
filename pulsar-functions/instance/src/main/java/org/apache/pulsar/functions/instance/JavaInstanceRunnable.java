@@ -231,7 +231,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     ContextImpl setupContext() {
-        Logger instanceLog = LoggerFactory.getLogger(
+        Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager);
@@ -478,6 +478,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             log.info("Unloading JAR files for function {}", instanceConfig);
             instanceCache = null;
         }
+
+        if (logAppender != null) {
+            removeLogTopicAppender(LoggerContext.getContext());
+            removeLogTopicAppender(LoggerContext.getContext(false));
+            logAppender.stop();
+            logAppender = null;
+        }
     }
 
     public String getStatsAsString() throws IOException {
@@ -600,28 +607,37 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             logAppender = new LogAppender(client, instanceConfig.getFunctionDetails().getLogTopic(),
                     FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
             logAppender.start();
+            setupLogTopicAppender(LoggerContext.getContext());
         }
     }
 
     private void addLogTopicHandler() {
         if (logAppender == null) return;
-        LoggerContext context = LoggerContext.getContext(false);
+        setupLogTopicAppender(LoggerContext.getContext(false));
+    }
+
+    private void setupLogTopicAppender(LoggerContext context) {
         Configuration config = context.getConfiguration();
         config.addAppender(logAppender);
         for (final LoggerConfig loggerConfig : config.getLoggers().values()) {
             loggerConfig.addAppender(logAppender, null, null);
         }
         config.getRootLogger().addAppender(logAppender, null, null);
+        context.updateLoggers();
     }
 
     private void removeLogTopicHandler() {
         if (logAppender == null) return;
-        LoggerContext context = LoggerContext.getContext(false);
+        removeLogTopicAppender(LoggerContext.getContext(false));
+    }
+
+    private void removeLogTopicAppender(LoggerContext context) {
         Configuration config = context.getConfiguration();
         for (final LoggerConfig loggerConfig : config.getLoggers().values()) {
             loggerConfig.removeAppender(logAppender.getName());
         }
         config.getRootLogger().removeAppender(logAppender.getName());
+        context.updateLoggers();
     }
 
     private void setupInput(ContextImpl contextImpl) throws Exception {

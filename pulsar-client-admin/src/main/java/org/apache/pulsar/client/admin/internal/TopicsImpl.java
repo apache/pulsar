@@ -2916,8 +2916,18 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public Integer getMaxConsumers(String topic) throws PulsarAdminException {
+        return getMaxConsumers(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<Integer> getMaxConsumersAsync(String topic) {
+        return getMaxConsumersAsync(topic, false);
+    }
+
+    @Override
+    public Integer getMaxConsumers(String topic, boolean applied) throws PulsarAdminException {
         try {
-            return getMaxConsumersAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getMaxConsumersAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -2929,9 +2939,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Integer> getMaxConsumersAsync(String topic) {
+    public CompletableFuture<Integer> getMaxConsumersAsync(String topic, boolean applied) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxConsumers");
+        path = path.queryParam("applied", applied);
         final CompletableFuture<Integer> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Integer>() {
