@@ -370,6 +370,11 @@ public class AntiAffinityNamespaceGroupTest {
     /**
      * It verifies anti-affinity with failure domain enabled with 2 brokers.
      *
+     * Note: in this class's setup method, the LoadBalancerBrokerOverloadedThresholdPercentage
+     * is set to 100 to ensure that the overloaded logic doesn't affect the broker selection.
+     * Without that configuration, two namespaces in the same anti-affinity group could
+     * be placed on the same broker.
+     *
      * <pre>
      * 1. Register brokers to domain: domain-1: broker1 & domain-2: broker2
      * 2. Load-Manager receives a watch and updates brokerToDomain cache with new domain data
