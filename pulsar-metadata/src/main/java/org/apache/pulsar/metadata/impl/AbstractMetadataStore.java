@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -209,6 +210,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public void close() throws Exception {
         executor.shutdownNow();
         executor.awaitTermination(10, TimeUnit.SECONDS);
+    }
+
+    @VisibleForTesting
+    public void invalidateAll() {
+        childrenCache.synchronous().invalidateAll();
+        existsCache.synchronous().invalidateAll();
     }
 
     protected static String parent(String path) {
