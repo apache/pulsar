@@ -1518,7 +1518,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 headerFrame.resetReaderIndex();
             }
         } else {
-            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName, null);
+            log.warn("[{}] Failed while casting null into ByteBufPair", producerName);
         }
     }
 
