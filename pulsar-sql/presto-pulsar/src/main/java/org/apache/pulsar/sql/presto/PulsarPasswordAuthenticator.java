@@ -18,22 +18,14 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.google.common.collect.ImmutableList;
-import io.prestosql.spi.Plugin;
-import io.prestosql.spi.connector.ConnectorFactory;
-import io.prestosql.spi.security.PasswordAuthenticatorFactory;
+import io.prestosql.spi.security.AccessDeniedException;
+import io.prestosql.spi.security.PasswordAuthenticator;
 
-/**
- * Implementation of the Pulsar plugin for Pesto.
- */
-public class PulsarPlugin implements Plugin {
-    @Override
-    public Iterable<ConnectorFactory> getConnectorFactories() {
-        return ImmutableList.of(new PulsarConnectorFactory());
-    }
+import java.security.Principal;
 
+public class PulsarPasswordAuthenticator implements PasswordAuthenticator {
     @Override
-    public Iterable<PasswordAuthenticatorFactory> getPasswordAuthenticatorFactories() {
-        return ImmutableList.of(new PulsarPasswordAuthenticatorFactory());
+    public Principal createAuthenticatedPrincipal(String user, String password) {
+        throw new AccessDeniedException("Test for auth-presto.");
     }
 }

@@ -18,22 +18,16 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.google.common.collect.ImmutableList;
-import io.prestosql.spi.Plugin;
-import io.prestosql.spi.connector.ConnectorFactory;
-import io.prestosql.spi.security.PasswordAuthenticatorFactory;
+import com.google.inject.Binder;
+import com.google.inject.Module;
+import com.google.inject.Scopes;
 
 /**
- * Implementation of the Pulsar plugin for Pesto.
+ * This class defines binding of classes in the Presto password authenticator.
  */
-public class PulsarPlugin implements Plugin {
+public class PulsarPasswordAuthenticatorModule implements Module {
     @Override
-    public Iterable<ConnectorFactory> getConnectorFactories() {
-        return ImmutableList.of(new PulsarConnectorFactory());
-    }
-
-    @Override
-    public Iterable<PasswordAuthenticatorFactory> getPasswordAuthenticatorFactories() {
-        return ImmutableList.of(new PulsarPasswordAuthenticatorFactory());
+    public void configure(Binder binder) {
+        binder.bind(PulsarPasswordAuthenticator.class).in(Scopes.SINGLETON);
     }
 }
