@@ -119,7 +119,8 @@ public class RuntimeUtils {
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
                                                 String originalCodeFileName,
                                                 String pulsarServiceUrl,
-                                                boolean k8sRuntime) throws IOException {
+                                                boolean k8sRuntime,
+                                                int metricsPort) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
@@ -219,6 +220,10 @@ public class RuntimeUtils {
             goInstanceConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
 
+        if (metricsPort > 0 && metricsPort < 65536) {
+            goInstanceConfig.setMetricsPort(metricsPort);
+        }
+
         goInstanceConfig.setKillAfterIdleMs(0);
         goInstanceConfig.setPort(instanceConfig.getPort());
 
@@ -261,7 +266,7 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
+            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime, metricsPort);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {

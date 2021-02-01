@@ -685,7 +685,8 @@ public class ClustersBase extends PulsarWebResource {
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
                     .getPolicies(nsIsolationPolicyPath).orElseGet(() -> {
                         try {
-                            namespaceIsolationPolicies().create(nsIsolationPolicyPath, Collections.emptyMap());
+                            namespaceIsolationPolicies().setWithCreate(nsIsolationPolicyPath,
+                                    (p) -> Collections.emptyMap());
                             return new NamespaceIsolationPolicies();
                         } catch (Exception e) {
                             throw new RestException(e);
@@ -835,7 +836,8 @@ public class ClustersBase extends PulsarWebResource {
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
                     .getPolicies(nsIsolationPolicyPath).orElseGet(() -> {
                         try {
-                            namespaceIsolationPolicies().create(nsIsolationPolicyPath, Collections.emptyMap());
+                            namespaceIsolationPolicies().setWithCreate(nsIsolationPolicyPath,
+                                    (p) -> Collections.emptyMap());
                             return new NamespaceIsolationPolicies();
                         } catch (Exception e) {
                             throw new RestException(e);
@@ -893,7 +895,7 @@ public class ClustersBase extends PulsarWebResource {
         try {
             String domainPath = joinPath(pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT, domainName);
             FailureDomainResources failureDomainListCache = clusterResources().getFailureDomainResources();
-            failureDomainListCache.create(domainPath, old -> domain);
+            failureDomainListCache.setWithCreate(domainPath, old -> domain);
         } catch (NotFoundException nne) {
             log.warn("[{}] Failed to update domain {}. clusters {}  Does not exist", clientAppId(), cluster,
                     domainName);

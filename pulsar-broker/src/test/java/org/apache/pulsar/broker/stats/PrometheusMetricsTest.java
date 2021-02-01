@@ -23,37 +23,31 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import java.io.BufferedReader;
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.HttpClientBuilder;
+import javax.crypto.SecretKey;
+import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -67,17 +61,10 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-
-import javax.crypto.SecretKey;
-import javax.naming.AuthenticationException;
 
 public class PrometheusMetricsTest extends BrokerTestBase {
 
@@ -760,15 +747,26 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String metricsStr = new String(statsOut.toByteArray());
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_authentication_success_count");
-        Metric metric = cm.get(cm.size() - 1);
-        assertEquals(metric.tags.get("auth_method"), "token");
-        assertEquals(metric.tags.get("provider_name"), provider.getClass().getSimpleName());
+        boolean haveSucceed = false;
+        for (Metric metric : cm) {
+            if (Objects.equals(metric.tags.get("auth_method"), "token")
+                    && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
+                haveSucceed = true;
+            }
+        }
+        Assert.assertTrue(haveSucceed);
 
         cm = (List<Metric>) metrics.get("pulsar_authentication_failures_count");
-        metric = cm.get(cm.size() - 1);
-        assertEquals(metric.tags.get("auth_method"), "token");
-        assertEquals(metric.tags.get("reason"), authExceptionMessage);
-        assertEquals(metric.tags.get("provider_name"), provider.getClass().getSimpleName());
+
+        boolean haveFailed = false;
+        for (Metric metric : cm) {
+            if (Objects.equals(metric.tags.get("auth_method"), "token")
+                    && Objects.equals(metric.tags.get("reason"), authExceptionMessage)
+                    && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
+                haveFailed = true;
+            }
+        }
+        Assert.assertTrue(haveFailed);
     }
 
     /**

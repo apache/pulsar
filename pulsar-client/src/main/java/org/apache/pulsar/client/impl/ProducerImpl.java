@@ -1722,15 +1722,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             releaseSemaphoreForSendOp(op);
-            if (op != null) {
-                op.sendComplete(new PulsarClientException(ie, op.sequenceId));
-            }
+            op.sendComplete(new PulsarClientException(ie, op.sequenceId));
         } catch (Throwable t) {
             releaseSemaphoreForSendOp(op);
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
-            if (op != null) {
-                op.sendComplete(new PulsarClientException(t, op.sequenceId));
-            }
+            op.sendComplete(new PulsarClientException(t, op.sequenceId));
         }
     }
 
