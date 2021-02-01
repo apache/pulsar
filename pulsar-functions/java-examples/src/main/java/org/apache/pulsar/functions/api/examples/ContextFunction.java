@@ -31,9 +31,8 @@ public class ContextFunction implements Function<String, Void> {
         String inputTopics = context.getInputTopics().stream().collect(Collectors.joining(", "));
         String functionName = context.getFunctionName();
 
-        String logMessage = String.format("A message with a value of \"%s\" has arrived on one of the following topics: %s\n",
-                input,
-                inputTopics);
+        String logMessage = String.format("A message with a value of \"%s\" has arrived on one of " +
+                "the following topics: %s %n", input, inputTopics);
 
         LOG.info(logMessage);
 

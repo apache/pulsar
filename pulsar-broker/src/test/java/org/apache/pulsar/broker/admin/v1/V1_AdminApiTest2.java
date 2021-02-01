@@ -83,6 +83,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        resetConfig();
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
 
@@ -292,7 +293,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/use/ns2";
         admin.namespaces().createNamespace(namespace);
 
-        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(2, 2, 2, 0.0));
+        assertEquals(admin.namespaces().getPersistence(namespace), null);
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 10.0));
 

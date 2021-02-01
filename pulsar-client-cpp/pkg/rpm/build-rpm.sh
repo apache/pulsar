@@ -31,7 +31,7 @@ VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`
 
 mkdir -p BUILD RPMS SOURCES SPECS SRPMS
 
-cp $ROOT_DIR/distribution/server/target/apache-pulsar-$POM_VERSION-src.tar.gz SOURCES
+cp $ROOT_DIR/target/apache-pulsar-$POM_VERSION-src.tar.gz SOURCES
 
 rpmbuild -v -bb --clean \
         --define "version $VERSION" \

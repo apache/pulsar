@@ -25,7 +25,7 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.protocol.Commands;
@@ -81,13 +81,14 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
 
     @Override
     public void onManagedLedgerLastLedgerInitialize(String name, LedgerHandle lh) {
+        LedgerEntries ledgerEntries = null;
         try {
             for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
                 if (interceptor instanceof AppendIndexMetadataInterceptor && lh.getLastAddConfirmed() >= 0) {
-                    LedgerEntries ledgerEntries =
+                    ledgerEntries =
                             lh.read(lh.getLastAddConfirmed(), lh.getLastAddConfirmed());
                     for (LedgerEntry entry : ledgerEntries) {
-                        PulsarApi.BrokerEntryMetadata brokerEntryMetadata =
+                        BrokerEntryMetadata brokerEntryMetadata =
                                 Commands.parseBrokerEntryMetadataIfExist(entry.getEntryBuffer());
                         if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
                             ((AppendIndexMetadataInterceptor) interceptor)
@@ -99,6 +100,10 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
             }
         } catch (org.apache.bookkeeper.client.api.BKException | InterruptedException e) {
             log.error("[{}] Read last entry error.", name, e);
+        } finally {
+            if (ledgerEntries != null) {
+                ledgerEntries.close();
+            }
         }
     }
 

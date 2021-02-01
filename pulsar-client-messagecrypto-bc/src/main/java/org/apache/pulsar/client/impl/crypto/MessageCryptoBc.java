@@ -38,15 +38,14 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-
 import java.util.function.Supplier;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -58,18 +57,16 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
+import org.apache.pulsar.common.api.proto.EncryptionKeys;
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -88,7 +85,7 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
 @Slf4j
-public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMetadata.Builder> {
+public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMetadata> {
 
     private static final String ECDSA = "ECDSA";
     private static final String RSA = "RSA";
@@ -378,9 +375,9 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
      */
     @Override
     public synchronized ByteBuf encrypt(Set<String> encKeys, CryptoKeyReader keyReader,
-                                        Supplier<Builder> messageMetadataBuilderSupplier, ByteBuf payload) throws PulsarClientException {
+                                        Supplier<MessageMetadata> messageMetadataBuilderSupplier, ByteBuf payload) throws PulsarClientException {
 
-        Builder msgMetadata = messageMetadataBuilderSupplier.get();
+        MessageMetadata msgMetadata = messageMetadataBuilderSupplier.get();
 
         if (encKeys.isEmpty()) {
             return payload;
@@ -396,15 +393,18 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             EncryptionKeyInfo keyInfo = encryptedDataKeyMap.get(keyName);
             if (keyInfo != null) {
                 if (keyInfo.getMetadata() != null && !keyInfo.getMetadata().isEmpty()) {
-                    List<KeyValue> kvList = new ArrayList<KeyValue>();
+                    EncryptionKeys encKey = msgMetadata.addEncryptionKey()
+                            .setKey(keyName)
+                            .setValue(keyInfo.getKey());
                     keyInfo.getMetadata().forEach((key, value) -> {
-                        kvList.add(KeyValue.newBuilder().setKey(key).setValue(value).build());
+                        encKey.addMetadata()
+                                .setKey(key)
+                                .setValue(value);
                     });
-                    msgMetadata.addEncryptionKeys(EncryptionKeys.newBuilder().setKey(keyName)
-                            .setValue(ByteString.copyFrom(keyInfo.getKey())).addAllMetadata(kvList).build());
                 } else {
-                    msgMetadata.addEncryptionKeys(EncryptionKeys.newBuilder().setKey(keyName)
-                            .setValue(ByteString.copyFrom(keyInfo.getKey())).build());
+                    msgMetadata.addEncryptionKey()
+                            .setKey(keyName)
+                            .setValue(keyInfo.getKey());
                 }
             } else {
                 // We should never reach here.
@@ -419,7 +419,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         GCMParameterSpec gcmParam = new GCMParameterSpec(tagLen, iv);
 
         // Update message metadata with encryption param
-        msgMetadata.setEncryptionParam(ByteString.copyFrom(iv));
+        msgMetadata.setEncryptionParam(iv);
 
         ByteBuf targetBuf = null;
         try {
@@ -503,11 +503,10 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         return true;
     }
 
-    private ByteBuf decryptData(SecretKey dataKeySecret, PulsarApi.MessageMetadata msgMetadata, ByteBuf payload) {
+    private ByteBuf decryptData(SecretKey dataKeySecret, MessageMetadata msgMetadata, ByteBuf payload) {
 
         // unpack iv and encrypted data
-        ByteString ivString = msgMetadata.getEncryptionParam();
-        ivString.copyTo(iv, 0);
+        iv =  msgMetadata.getEncryptionParam();
 
         GCMParameterSpec gcmParams = new GCMParameterSpec(tagLen, iv);
         ByteBuf targetBuf = null;
@@ -544,7 +543,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         // Go through all keys to retrieve data key from cache
         for (int i = 0; i < encKeys.size(); i++) {
 
-            byte[] msgDataKey = encKeys.get(i).getValue().toByteArray();
+            byte[] msgDataKey = encKeys.get(i).getValue();
             byte[] keyDigest = digest.digest(msgDataKey);
             SecretKey storedSecretKey = dataKeyCache.getIfPresent(ByteBuffer.wrap(keyDigest));
             if (storedSecretKey != null) {
@@ -595,8 +594,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         List<EncryptionKeys> encKeys = msgMetadata.getEncryptionKeysList();
         EncryptionKeys encKeyInfo = encKeys.stream().filter(kbv -> {
 
-            byte[] encDataKey = kbv.getValue().toByteArray();
-            List<KeyValue> encKeyMeta = kbv.getMetadataList();
+            byte[] encDataKey = kbv.getValue();
+            List<KeyValue> encKeyMeta = kbv.getMetadatasList();
             return decryptDataKey(kbv.getKey(), encDataKey, encKeyMeta, keyReader);
 
         }).findFirst().orElse(null);

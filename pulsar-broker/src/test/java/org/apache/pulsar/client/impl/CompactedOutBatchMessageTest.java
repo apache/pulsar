@@ -26,9 +26,9 @@ import io.netty.buffer.Unpooled;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -51,22 +51,25 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
     public void testCompactedOutMessages() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/my-topic";
 
-        MessageMetadata metadata = MessageMetadata.newBuilder().setProducerName("foobar")
-            .setSequenceId(1).setPublishTime(1).setNumMessagesInBatch(3).build();
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("foobar")
+                .setSequenceId(1)
+                .setPublishTime(1)
+                .setNumMessagesInBatch(3);
 
         // build a buffer with 4 messages, first and last compacted out
         ByteBuf batchBuffer = Unpooled.buffer(1000);
         Commands.serializeSingleMessageInBatchWithPayload(
-                SingleMessageMetadata.newBuilder().setCompactedOut(true).setPartitionKey("key1"),
+                new SingleMessageMetadata().setCompactedOut(true).setPartitionKey("key1"),
                 Unpooled.EMPTY_BUFFER, batchBuffer);
         Commands.serializeSingleMessageInBatchWithPayload(
-                SingleMessageMetadata.newBuilder().setCompactedOut(true).setPartitionKey("key2"),
+                new SingleMessageMetadata().setCompactedOut(true).setPartitionKey("key2"),
                 Unpooled.EMPTY_BUFFER, batchBuffer);
         Commands.serializeSingleMessageInBatchWithPayload(
-                SingleMessageMetadata.newBuilder().setCompactedOut(false).setPartitionKey("key3"),
+                new SingleMessageMetadata().setCompactedOut(false).setPartitionKey("key3"),
                 Unpooled.EMPTY_BUFFER, batchBuffer);
         Commands.serializeSingleMessageInBatchWithPayload(
-                SingleMessageMetadata.newBuilder().setCompactedOut(true).setPartitionKey("key4"),
+                new SingleMessageMetadata().setCompactedOut(true).setPartitionKey("key4"),
                 Unpooled.EMPTY_BUFFER, batchBuffer);
 
         try (ConsumerImpl<byte[]> consumer
@@ -74,8 +77,8 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscriber-name").subscribe()) {
             // shove it in the sideways
             consumer.receiveIndividualMessagesFromBatch(metadata, 0, null, batchBuffer,
-                                                        MessageIdData.newBuilder().setLedgerId(1234)
-                                                        .setEntryId(567).build(), consumer.cnx());
+                                                        new MessageIdData().setLedgerId(1234)
+                                                        .setEntryId(567), consumer.cnx());
             Message<?> m = consumer.receive();
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getLedgerId(), 1234);
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getEntryId(), 567);

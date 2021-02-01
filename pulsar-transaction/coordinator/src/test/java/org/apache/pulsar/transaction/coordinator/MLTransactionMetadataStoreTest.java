@@ -27,7 +27,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
-import org.apache.pulsar.transaction.coordinator.proto.PulsarTransactionMetadata.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
@@ -52,7 +53,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 new ManagedLedgerConfig());
         MLTransactionMetadataStore transactionMetadataStore =
-                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog);
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new TransactionTimeoutTrackerImpl());
         int checkReplayRetryCount = 0;
         while (true) {
             checkReplayRetryCount++;
@@ -115,7 +117,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig);
         MLTransactionMetadataStore transactionMetadataStore =
-                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog);
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new TransactionTimeoutTrackerImpl());
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -154,8 +157,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
                 MLTransactionMetadataStore transactionMetadataStoreTest =
                         new MLTransactionMetadataStore(transactionCoordinatorID,
-
-                                new MLTransactionLogImpl(transactionCoordinatorID, factory, new ManagedLedgerConfig()));
+                                new MLTransactionLogImpl(transactionCoordinatorID, factory,
+                                        new ManagedLedgerConfig()), new TransactionTimeoutTrackerImpl());
 
                 while (true) {
                     if (checkReplayRetryCount > 6) {
@@ -216,7 +219,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 new ManagedLedgerConfig());
         MLTransactionMetadataStore transactionMetadataStore =
-                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog);
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new TransactionTimeoutTrackerImpl());
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -263,6 +267,29 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 checkReplayRetryCount++;
                 Thread.sleep(100);
             }
+        }
+    }
+
+    public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker {
+
+        @Override
+        public CompletableFuture<Boolean> addTransaction(long sequenceId, long timeout) {
+            return null;
+        }
+
+        @Override
+        public void replayAddTransaction(long sequenceId, long timeout) {
+
+        }
+
+        @Override
+        public void start() {
+
+        }
+
+        @Override
+        public void close() {
+
         }
     }
 }

@@ -18,17 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
 import io.netty.util.ReferenceCountUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -37,13 +31,18 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.SafeRunnable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * Handles the life-cycle of an addEntry() operation.
  *
  */
+@Slf4j
 public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
@@ -193,24 +192,25 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             entry.release();
         }
 
-        // We are done using the byte buffer
-        ReferenceCountUtil.release(data);
-
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
         if (closeWhenDone) {
+            ReferenceCountUtil.release(data);
             log.info("[{}] Closing ledger {} for being full", ml.getName(), ledger.getId());
             ledger.asyncClose(this, ctx);
         } else {
             updateLatency();
             AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
             if (cb != null) {
-                cb.addComplete(lastEntry, ctx);
+                cb.addComplete(lastEntry, data.asReadOnly(), ctx);
+                ReferenceCountUtil.release(data);
                 ml.notifyCursors();
                 ml.notifyWaitingEntryCallBacks();
                 this.recycle();
+            } else {
+                ReferenceCountUtil.release(data);
             }
         }
     }
@@ -221,7 +221,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                 lh.getId());
 
         if (rc == BKException.Code.OK) {
-            log.debug("Successfuly closed ledger {}", lh.getId());
+            log.debug("Successfully closed ledger {}", lh.getId());
         } else {
             log.warn("Error when closing ledger {}. Status={}", lh.getId(), BKException.getMessage(rc));
         }
@@ -231,7 +231,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            cb.addComplete(PositionImpl.get(lh.getId(), entryId), ctx);
+            cb.addComplete(PositionImpl.get(lh.getId(), entryId), null, ctx);
             ml.notifyCursors();
             ml.notifyWaitingEntryCallBacks();
             this.recycle();
@@ -335,5 +335,15 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         recyclerHandle.recycle(this);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(OpAddEntry.class);
+    @Override
+    public String toString() {
+        return "OpAddEntry{" +
+                "mlName" + ml.getName() +
+                "ledgerId=" + ledger.getId() +
+                ", entryId=" + entryId +
+                ", startTime=" + startTime +
+                ", dataLength=" + dataLength +
+                '}';
+    }
+
 }

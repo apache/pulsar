@@ -645,7 +645,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.topicDispatchRate.put("test", ConfigHelper.topicDispatchRate(conf));
         policies.subscriptionDispatchRate.put("test", ConfigHelper.subscriptionDispatchRate(conf));
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
-        policies.message_ttl_in_seconds = pulsar.getConfiguration().getTtlDurationDefaultInSeconds();
 
         policies.max_unacked_messages_per_subscription = 200000;
         policies.max_unacked_messages_per_consumer = 50000;
@@ -659,7 +658,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.auth_policies.namespace_auth.remove("my-role");
         assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1"), policies);
 
-        assertEquals(admin.namespaces().getPersistence("prop-xyz/use/ns1"), new PersistencePolicies(2, 2, 2, 0.0));
+        assertEquals(admin.namespaces().getPersistence("prop-xyz/use/ns1"), null);
         admin.namespaces().setPersistence("prop-xyz/use/ns1", new PersistencePolicies(3, 2, 1, 10.0));
         assertEquals(admin.namespaces().getPersistence("prop-xyz/use/ns1"), new PersistencePolicies(3, 2, 1, 10.0));
 

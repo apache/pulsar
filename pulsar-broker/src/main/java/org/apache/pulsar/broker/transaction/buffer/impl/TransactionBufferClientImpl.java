@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
-import java.util.List;
+import io.netty.util.HashedWheelTimer;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.TxnAction;
 
 /**
  * The implementation of {@link TransactionBufferClient}.
@@ -41,37 +40,36 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         this.tbHandler = tbHandler;
     }
 
-    public static TransactionBufferClient create(NamespaceService namespaceService, ConnectionPool connectionPool) {
-        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(connectionPool, namespaceService);
+    public static TransactionBufferClient create(NamespaceService namespaceService, ConnectionPool connectionPool,
+                                                 HashedWheelTimer timer) {
+        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(connectionPool, namespaceService, timer);
         return new TransactionBufferClientImpl(handler);
     }
 
     @Override
-    public CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
-                                                     List<MessageId> messageIdList) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.COMMIT,
-                messageIdList);
+    public CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits,
+                                                     long txnIdLeastBits, long lowWaterMark) {
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, TxnAction.COMMIT, lowWaterMark);
     }
 
     @Override
-    public CompletableFuture<TxnID> abortTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
-                                                    List<MessageId> messageIdList) {
-        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.ABORT,
-                messageIdList);
+    public CompletableFuture<TxnID> abortTxnOnTopic(String topic, long txnIdMostBits,
+                                                    long txnIdLeastBits, long lowWaterMark) {
+        return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, TxnAction.ABORT, lowWaterMark);
     }
 
     @Override
     public CompletableFuture<TxnID> commitTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
                                                             long txnIdLeastBits) {
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
-                PulsarApi.TxnAction.COMMIT);
+                TxnAction.COMMIT);
     }
 
     @Override
     public CompletableFuture<TxnID> abortTxnOnSubscription(String topic, String subscription,
                                                            long txnIdMostBits, long txnIdLeastBits) {
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
-                PulsarApi.TxnAction.ABORT);
+                TxnAction.ABORT);
     }
 
     @Override

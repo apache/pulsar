@@ -116,17 +116,9 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
     }
 
     public synchronized void internalReadEntryComplete(Entry entry, PendingReadEntryRequest ctx) {
-        boolean isReplayRead = false;
         if (ctx.isLast()) {
             readFailureBackoff.reduceToHalf();
             havePendingRead = false;
-        }
-        if (havePendingReplayRead) {
-            isReplayRead = true;
-            messagesToRedeliver.remove(entry.getLedgerId(), entry.getEntryId());
-            if (ctx.isLast()) {
-                havePendingReplayRead = false;
-            }
         }
 
         if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
@@ -170,7 +162,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(1);
             filterEntriesForConsumer(Lists.newArrayList(entry), batchSizes, sendMessageInfo, batchIndexesAcks,
-                    cursor, isReplayRead);
+                    cursor, false);
             // Update cursor's read position.
             cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                     .getNextValidPosition((PositionImpl) entry.getPosition()));
@@ -201,22 +193,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
             }
             havePendingRead = true;
 
-            if (havePendingReplayRead) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Skipping replay while awaiting previous replay read to complete", name);
-                }
-                return;
-            }
-
-            if (messagesToRedeliver != null && messagesToRedeliver.size() > 0) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule replay of {} messages", name, messagesToRedeliver.size());
-                }
-
-                havePendingReplayRead = true;
-                Set<PositionImpl> positionSet = messagesToRedeliver.items(messagesToRead, PositionImpl::get);
-                cursor.asyncReplayEntries(positionSet, this, consumer, true);
-            } else if (consumer.readCompacted()) {
+            if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
                 streamingEntryReader.asyncReadEntries(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(),

@@ -89,9 +89,9 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
@@ -827,6 +827,25 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected CompletableFuture<DelayedDeliveryPolicies> internalGetDelayedDeliveryPolicies(boolean applied) {
+        TopicPolicies policies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
+        DelayedDeliveryPolicies delayedDeliveryPolicies = null;
+        if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()) {
+            delayedDeliveryPolicies = new DelayedDeliveryPolicies(
+                    policies.getDelayedDeliveryTickTimeMillis(),
+                    policies.getDelayedDeliveryEnabled());
+        }
+        if (delayedDeliveryPolicies == null && applied) {
+            delayedDeliveryPolicies = getNamespacePolicies(namespaceName).delayed_delivery_policies;
+            if (delayedDeliveryPolicies == null) {
+                delayedDeliveryPolicies = new DelayedDeliveryPolicies(
+                        pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis(),
+                        pulsar().getConfiguration().isDelayedDeliveryEnabled());
+            }
+        }
+        return CompletableFuture.completedFuture(delayedDeliveryPolicies);
+    }
+
     protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPolicies offloadPolicies) {
         TopicPolicies topicPolicies = null;
         try {
@@ -863,6 +882,22 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 });
         return completableFuture;
+    }
+
+    protected CompletableFuture<InactiveTopicPolicies> internalGetInactiveTopicPolicies(boolean applied) {
+        InactiveTopicPolicies inactiveTopicPolicies = getTopicPolicies(topicName)
+                .map(TopicPolicies::getInactiveTopicPolicies)
+                .orElseGet(() -> {
+                    if (applied) {
+                        InactiveTopicPolicies policies = getNamespacePolicies(namespaceName).inactive_topic_policies;
+                        return policies == null ? new InactiveTopicPolicies(
+                                config().getBrokerDeleteInactiveTopicsMode(),
+                                config().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                                config().isBrokerDeleteInactiveTopicsEnabled()) : policies;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(inactiveTopicPolicies);
     }
 
     protected CompletableFuture<Void> internalSetInactiveTopicPolicies(InactiveTopicPolicies inactiveTopicPolicies) {
@@ -2409,9 +2444,9 @@ public class PersistentTopicsBase extends AdminResource {
             responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
         }
         if (metadata.hasNullValue()) {
-            responseBuilder.header("X-Pulsar-null-value", metadata.hasNullValue());
+            responseBuilder.header("X-Pulsar-null-value", metadata.isNullValue());
         }
-        if (metadata.getNumChunksFromMsg() > 0) {
+        if (metadata.hasNumChunksFromMsg()) {
             responseBuilder.header("X-Pulsar-PROPERTY-TOTAL-CHUNKS", Integer.toString(metadata.getNumChunksFromMsg()));
             responseBuilder.header("X-Pulsar-PROPERTY-CHUNK-ID", Integer.toString(metadata.getChunkId()));
         }
@@ -2690,9 +2725,18 @@ public class PersistentTopicsBase extends AdminResource {
         return getTopicPolicies(topicName).map(TopicPolicies::getMaxMessageSize);
     }
 
-    protected Optional<Integer> internalGetMaxProducers() {
+    protected CompletableFuture<Integer> internalGetMaxProducers(boolean applied) {
         preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxProducerPerTopic);
+        Integer maxNum = getTopicPolicies(topicName)
+                .map(TopicPolicies::getMaxProducerPerTopic)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer maxProducer = getNamespacePolicies(namespaceName).max_producers_per_topic;
+                        return maxProducer == null ? config().getMaxProducersPerTopic() : maxProducer;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(maxNum);
     }
 
     protected CompletableFuture<Void> internalSetMaxProducers(Integer maxProducers) {
@@ -2725,6 +2769,18 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
+    protected Optional<DispatchRate> internalGetReplicatorDispatchRate() {
+        preValidation();
+        return getTopicPolicies(topicName).map(TopicPolicies::getReplicatorDispatchRate);
+    }
+
+    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(DispatchRate dispatchRate) {
+        preValidation();
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
+        topicPolicies.setReplicatorDispatchRate(dispatchRate);
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+    }
+
     private void preValidation() {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
@@ -2744,9 +2800,18 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected Optional<Integer> internalGetMaxConsumers() {
+    protected CompletableFuture<Integer> internalGetMaxConsumers(boolean applied) {
         preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxConsumerPerTopic);
+        Integer maxNum = getTopicPolicies(topicName)
+                .map(TopicPolicies::getMaxConsumerPerTopic)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer maxConsumer = getNamespacePolicies(namespaceName).max_consumers_per_topic;
+                        return maxConsumer == null ? config().getMaxConsumersPerTopic() : maxConsumer;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(maxNum);
     }
 
     protected CompletableFuture<Void> internalSetMaxConsumers(Integer maxConsumers) {

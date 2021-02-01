@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -28,7 +29,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,7 +116,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
             totalMsgExpired.add(numMessagesExpired);
             updateRates();
             // If the subscription is a Key_Shared subscription, we should to trigger message dispatch.
-            if (subscription != null && subscription.getType() == PulsarApi.CommandSubscribe.SubType.Key_Shared) {
+            if (subscription != null && subscription.getType() == SubType.Key_Shared) {
                 subscription.getDispatcher().markDeletePositionMoveForward();
             }
             if (log.isDebugEnabled()) {
@@ -134,7 +135,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     public void findEntryComplete(Position position, Object ctx) {
         if (position != null) {
             log.info("[{}][{}] Expiring all messages until position {}", topicName, subName, position);
+            Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
             cursor.asyncMarkDelete(position, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
+            if (!Objects.equals(cursor.getMarkDeletedPosition(), prevMarkDeletePos) && subscription != null) {
+                subscription.updateLastMarkDeleteAdvancedTimestamp();
+            }
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] No messages to expire", topicName, subName);

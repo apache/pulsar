@@ -400,6 +400,19 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     	return tlsEnabled || workerPortTls != null;
     }
 
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Whether to initialize distributed log metadata in runtime"
+    )
+    private Boolean initializedDlogMetadata = false;
+
+    public Boolean isInitializedDlogMetadata() {
+        if (this.initializedDlogMetadata == null){
+            return false;
+        }
+        return this.initializedDlogMetadata;
+    };
+
     /******** security settings for pulsar broker client **********/
 
     @FieldContext(
