@@ -542,7 +542,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(topics.getStats(topic, getPreciseBacklog, subscriptionBacklogSize));
+            print(getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize));
         }
     }
 

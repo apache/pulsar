@@ -932,7 +932,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "If return precise backlog or imprecise backlog")
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
-            @ApiParam(value = "If return backlob size for each subscription, require locking on ledger so be careful "
+            @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
         validateTopicName(tenant, namespace, encodedTopic);
