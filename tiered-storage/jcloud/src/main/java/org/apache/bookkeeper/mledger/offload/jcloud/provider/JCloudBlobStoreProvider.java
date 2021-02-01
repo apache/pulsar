@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorag
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration.S3_ROLE_SESSION_NAME_FIELD;
 
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
@@ -279,33 +280,42 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final CredentialBuilder AWS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
         if (config.getCredentials() == null) {
-            AWSCredentials awsCredentials = null;
+            final AWSCredentialsProvider authChain;
             try {
                 if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
-                    awsCredentials = DefaultAWSCredentialsProviderChain.getInstance().getCredentials();
+                    authChain = DefaultAWSCredentialsProviderChain.getInstance();
                 } else {
-                    awsCredentials =
+                    authChain =
                             new STSAssumeRoleSessionCredentialsProvider.Builder(
                                     config.getConfigProperty(S3_ROLE_FIELD),
                                     config.getConfigProperty(S3_ROLE_SESSION_NAME_FIELD)
-                            ).build().getCredentials();
+                            ).build();
                 }
 
-                if (awsCredentials instanceof AWSSessionCredentials) {
-                    // if we have session credentials, we need to send the session token
-                    // this allows us to support EC2 metadata credentials
-                    SessionCredentials sessionCredentials =  SessionCredentials.builder()
-                            .accessKeyId(awsCredentials.getAWSAccessKeyId())
-                            .secretAccessKey(awsCredentials.getAWSSecretKey())
-                            .sessionToken(((AWSSessionCredentials) awsCredentials).getSessionToken())
-                            .build();
-                    config.setProviderCredentials(() -> sessionCredentials);
-                } else {
-                    Credentials credentials = new Credentials(
-                            awsCredentials.getAWSAccessKeyId(), awsCredentials.getAWSSecretKey());
-                    config.setProviderCredentials(() -> credentials);
-                }
+                // Important! Delay the building of actual credentials
+                // until later to support tokens that may be refreshed
+                // such as all session tokens
+                config.setProviderCredentials(() -> {
+                    AWSCredentials newCreds = authChain.getCredentials();
+                    Credentials jcloudCred = null;
 
+                    if (newCreds instanceof AWSSessionCredentials) {
+                        // if we have session credentials, we need to send the session token
+                        // this allows us to support EC2 metadata credentials
+                        jcloudCred = SessionCredentials.builder()
+                                .accessKeyId(newCreds.getAWSAccessKeyId())
+                                .secretAccessKey(newCreds.getAWSSecretKey())
+                                .sessionToken(((AWSSessionCredentials) newCreds).getSessionToken())
+                                .build();
+                    } else {
+                        // in the event we hit this branch, we likely don't have expiring
+                        // credentials, however, this still allows for the user to update
+                        // profiles creds or some other mechanism
+                        jcloudCred = new Credentials(
+                                newCreds.getAWSAccessKeyId(), newCreds.getAWSSecretKey());
+                    }
+                    return jcloudCred;
+                });
             } catch (Exception e) {
                 // allowed, some mock s3 service do not need credential
                 log.warn("Exception when get credentials for s3 ", e);
