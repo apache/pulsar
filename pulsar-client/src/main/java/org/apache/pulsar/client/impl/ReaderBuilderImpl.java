@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.api.KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
 import com.google.common.base.Preconditions;
 import java.util.Arrays;
@@ -26,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -36,6 +38,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.DefaultCryptoKeyReader;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -137,6 +140,18 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     public ReaderBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> defaultCryptoKeyReader(String privateKey) {
+        checkArgument(StringUtils.isNotBlank(privateKey), "privateKey cannot be blank");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().defaultPrivateKey(privateKey).build());
+    }
+
+    @Override
+    public ReaderBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> privateKeys) {
+        checkArgument(!privateKeys.isEmpty(), "privateKeys cannot be empty");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().privateKeys(privateKeys).build());
     }
 
     @Override
