@@ -48,10 +48,8 @@ public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRe
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
-        if (!props.containsKey("schema.registry.url")) {
-            props.put("schema.registry.url", "http://localhost:8081");
-        }
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.putIfAbsent("schema.registry.url", "http://localhost:8081");
+        props.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
 
         log.info("Created kafka consumer config : {}", props);
