@@ -114,7 +114,7 @@ public class PulsarSink<T> implements Sink<T> {
                     .blockIfQueueFull(true)
                     .enableBatching(true)
                     .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                    //.compressionType(CompressionType.LZ4)
+                    .compressionType(CompressionType.LZ4)
                     .hashingScheme(HashingScheme.Murmur3_32Hash) //
                     .messageRoutingMode(MessageRoutingMode.CustomPartition)
                     .messageRouter(FunctionResultRouter.of())
@@ -232,6 +232,7 @@ public class PulsarSink<T> implements Sink<T> {
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
+            log.info("schemaToWrite {}", schemaToWrite);
             if (schemaToWrite != null) {
                 return getProducer(record
                         .getDestinationTopic()

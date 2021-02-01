@@ -70,12 +70,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import lombok.Cleanup;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -934,6 +937,39 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         consumer.close();
 
+    }
+
+    @Data
+    @EqualsAndHashCode
+    public static class MyBean {
+        private String field;
+    }
+    @Test
+    public void testSendCompressedWithDeferredSchemaSetup() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topic = "persistent://my-property/my-ns/deferredSchemaCompressed";
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionName("testsub")
+                .subscribe();
+        
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .enableBatching(true)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .compressionType(CompressionType.LZ4)
+                .create();
+        MyBean payload = new MyBean();
+        payload.setField("aaaaaaaaaaaaaaaaaaaaaaaaa");
+        producer.newMessage(Schema.AVRO(MyBean.class)).value(payload).send();
+        producer.close();
+
+
+        GenericRecord res = consumer.receive().getValue();
+        consumer.close();
+        for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
+            log.info("field {} {}", f.getName(), res.getField(f));
+        }
     }
 
     /**

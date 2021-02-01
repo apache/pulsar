@@ -22,6 +22,7 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.util.ReferenceCountUtil;
 
 import java.io.IOException;
@@ -208,7 +209,10 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
                         msg.getDataBuffer(), batchedMessageMetadataAndPayload);
             }
             int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
+            log.info("compressBatchKey uncompressedSize {} uncompressed {}", uncompressedSize, ByteBufUtil.prettyHexDump(batchedMessageMetadataAndPayload));
             ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
+            log.info("compressBatchKey compressed {}", ByteBufUtil.prettyHexDump(compressedPayload));
+
             batchedMessageMetadataAndPayload.release();
             if (compressionType != CompressionType.NONE) {
                 messageMetadata.setCompression(compressionType);

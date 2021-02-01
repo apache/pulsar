@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import io.netty.buffer.ByteBufUtil;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -122,7 +123,9 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
 
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
+        log.info("compressBatch uncompressedSize {} uncompressed {}", uncompressedSize, ByteBufUtil.prettyHexDump(batchedMessageMetadataAndPayload));
         ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
+        log.info("compressBatch compressed {}", ByteBufUtil.prettyHexDump(compressedPayload));
         batchedMessageMetadataAndPayload.release();
         if (compressionType != CompressionType.NONE) {
             messageMetadata.setCompression(compressionType);

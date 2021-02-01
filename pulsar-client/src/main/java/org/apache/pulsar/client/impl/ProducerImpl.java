@@ -33,6 +33,7 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
@@ -41,6 +42,7 @@ import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -365,6 +367,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
+    private ByteBuf compressPayload(ByteBuf payload) {
+        ByteBuf compressedPayload = compressor.encode(payload);
+        payload.release();
+        return compressedPayload;
+    }
+
     public void sendAsync(Message<?> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
 
@@ -376,7 +384,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         MessageMetadata msgMetadata = msg.getMessageBuilder();
         ByteBuf payload = msg.getDataBuffer();
         int uncompressedSize = payload.readableBytes();
-
+        log.info("send {} uncompressedSize {} payload {} schema {}", msg, uncompressedSize, ByteBufUtil.prettyHexDump(payload), msg.getSchema());
         if (!canEnqueueRequest(callback, message.getSequenceId(), uncompressedSize)) {
             return;
         }
@@ -386,8 +394,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // Batch will be compressed when closed
         // If a message has a delayed delivery time, we'll always send it individually
         if (!isBatchMessagingEnabled() || msgMetadata.hasDeliverAtTime()) {
-            compressedPayload = compressor.encode(payload);
-            payload.release();
+            compressedPayload = compressPayload(payload);
+            log.info("compressed hex '{}'", ByteBufUtil.prettyHexDump(compressedPayload));
 
             // validate msg-size (For batching this will be check at the batch completion size)
             int compressedSize = compressedPayload.readableBytes();
@@ -402,7 +410,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
                 return;
             }
+        } else {
+            log.info("not compressed ? {} {}", isBatchMessagingEnabled(), msgMetadata.hasDeliverAtTime());
         }
+        log.info("final payload {}", ByteBufUtil.prettyHexDump(payload));
 
         if (!msg.isReplicated() && msgMetadata.hasProducerName()) {
             PulsarClientException.InvalidMessageException invalidMessageException =
@@ -412,7 +423,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             compressedPayload.release();
             return;
         }
-
+        log.info("beforePopulate");
         if (!populateMessageSchema(msg, callback)) {
             compressedPayload.release();
             return;
@@ -422,6 +433,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         int totalChunks = canAddToBatch(msg) ? 1
                 : Math.max(1, compressedPayload.readableBytes()) / ClientCnx.getMaxMessageSize()
                         + (Math.max(1, compressedPayload.readableBytes()) % ClientCnx.getMaxMessageSize() == 0 ? 0 : 1);
+        log.info("qui totalChunks {} ", totalChunks);
         // chunked message also sent individually so, try to acquire send-permits
         for (int i = 0; i < (totalChunks - 1); i++) {
             if (!canEnqueueRequest(callback, message.getSequenceId(), 0 /* The memory was already reserved */)) {
@@ -441,6 +453,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
                 for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
+                    log.info("chunk {}", chunkId);
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload,
                             compressedPayload.readableBytes(), uncompressedSize, callback);
@@ -460,6 +473,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             int compressedPayloadSize,
             int uncompressedSize, SendCallback callback) throws IOException, InterruptedException {
         ByteBuf chunkPayload = compressedPayload;
+        log.info("serializeAndSendMessage {} totalChunks {}", ByteBufUtil.prettyHexDump(chunkPayload), totalChunks);
         MessageMetadata msgMetadata = msg.getMessageBuilder();
         if (totalChunks > 1 && TopicName.get(topic).isPersistent()) {
             chunkPayload = compressedPayload.slice(readStartIndex,
@@ -502,8 +516,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.info("Message with sequence id {} might be a duplicate but cannot be determined at this time.",
                             sequenceId);
                     }
+                    log.info("addBach 1");
                     doBatchSendAndAdd(msg, callback, payload);
                 } else {
+                    log.info("adBach 2 {}", isLastSequenceIdPotentialDuplicated);
                     // Should flush the last potential duplicated since can't combine potential duplicated messages
                     // and non-duplicated messages into a batch.
                     if (isLastSequenceIdPotentialDuplicated) {
@@ -524,8 +540,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 doBatchSendAndAdd(msg, callback, payload);
             }
         } else {
-            ByteBuf encryptedPayload = encryptMessage(msgMetadata, chunkPayload);
-
+            log.info("bohBefore {} compressor {}", ByteBufUtil.prettyHexDump(chunkPayload), compressor);
+            ByteBuf recompressedPayload = compressPayload(chunkPayload);
+            log.info("bohAfter {} compressor {}", ByteBufUtil.prettyHexDump(recompressedPayload), compressor);
+            chunkPayload = recompressedPayload;
+            final ByteBuf encryptedPayload = encryptMessage(msgMetadata, chunkPayload);
+            log.info("bohAfterEncrypt {} compressor {}", ByteBufUtil.prettyHexDump(encryptedPayload), compressor);
             // When publishing during replication, we need to set the correct number of message in batch
             // This is only used in tracking the publish rate stats
             int numMessages = msg.getMessageBuilder().hasNumMessagesInBatch()
@@ -533,12 +553,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     : 1;
             final OpSendMsg op;
             if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
+                log.info("schema ready");
                 ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, msgMetadata, encryptedPayload);
                 op = OpSendMsg.create(msg, cmd, sequenceId, callback);
             } else {
+                log.info("schema not read {}", msg.getSchemaState());
                 op = OpSendMsg.create(msg, null, sequenceId, callback);
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
+                    log.info("siamo qui??? {}", ByteBufUtil.prettyHexDump(encryptedPayload));
                     op.cmd = sendMessage(producerId, sequenceId, numMessages, finalMsgMetadata, encryptedPayload);
                 };
             }
@@ -1745,6 +1768,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private void recoverProcessOpSendMsgFrom(ClientCnx cnx, MessageImpl from) {
+        log.info("recover....");
         final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
         Iterator<OpSendMsg> msgIterator = pendingMessages.iterator();
         OpSendMsg pendingRegisteringOp = null;
@@ -1758,8 +1782,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             }
             if (op.msg != null) {
+                log.info("recover schema state {}", op.msg.getSchemaState());
                 if (op.msg.getSchemaState() == None) {
                     if (!rePopulateMessageSchema(op.msg)) {
+                        log.info("failed rePopulateMessageSchema");
                         pendingRegisteringOp = op;
                         break;
                     }

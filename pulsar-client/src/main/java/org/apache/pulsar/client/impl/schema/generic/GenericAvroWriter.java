@@ -33,15 +33,15 @@ import java.io.ByteArrayOutputStream;
 public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
 
     private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> writer;
-    private final BinaryEncoder encoder;
+    private BinaryEncoder encoder;
     private final ByteArrayOutputStream byteArrayOutputStream;
-    private final GenericRecordAdapter adapter;
+    private final Schema schema;
 
     public GenericAvroWriter(Schema schema) {
-        this.adapter = new GenericRecordAdapter(schema);
+        this.schema = schema;
         this.writer = new GenericDatumWriter<>(schema);
         this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, null);
+        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
     }
 
     @Override
@@ -50,13 +50,11 @@ public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
             if (message instanceof GenericAvroRecord) {
                 writer.write(((GenericAvroRecord) message).getAvroRecord(), this.encoder);
             } else {
+                final GenericRecordAdapter adapter = new GenericRecordAdapter(schema);
                 adapter.setCurrentMessage(message);
-                try {
-                    writer.write(adapter, this.encoder);
-                } finally {
-                    adapter.setCurrentMessage(null);
-                }
+                writer.write(adapter, this.encoder);
             }
+            log.info("written");
             this.encoder.flush();
             return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {

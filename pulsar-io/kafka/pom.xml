@@ -71,12 +71,18 @@
       <artifactId>kafka-streams-avro-serde</artifactId>
       <version>${kafka.confluent.schemaregstryclient.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>io.airlift</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
   </dependencies>

@@ -64,6 +64,7 @@ public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRe
        if (value instanceof org.apache.avro.generic.GenericRecord) {
             org.apache.avro.generic.GenericRecord container = (org.apache.avro.generic.GenericRecord) value;
             AvroRecordWithPulsarSchema result = new AvroRecordWithPulsarSchema(container, schemaCache);
+
             return result;
        }
        throw new IllegalArgumentException("cannot convert " + value + " to a GenericRecord");
