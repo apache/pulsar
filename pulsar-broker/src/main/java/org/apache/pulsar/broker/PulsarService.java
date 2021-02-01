@@ -92,6 +92,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
@@ -158,7 +159,7 @@ public class PulsarService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private ServiceConfiguration config = null;
     private NamespaceService nsService = null;
-    private ManagedLedgerClientFactory managedLedgerClientFactory = null;
+    private ManagedLedgerStorage managedLedgerClientFactory = null;
     private LeaderElectionService leaderElectionService = null;
     private BrokerService brokerService = null;
     private WebService webService = null;
@@ -516,7 +517,9 @@ public class PulsarService implements AutoCloseable {
             this.startZkCacheService();
 
             this.bkClientFactory = newBookKeeperClientFactory();
-            managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(), bkClientFactory);
+            managedLedgerClientFactory = ManagedLedgerStorage.create(
+                config, getZkClient(), bkClientFactory
+            );
 
             this.brokerService = new BrokerService(this);
 
@@ -973,7 +976,7 @@ public class PulsarService implements AutoCloseable {
         return managedLedgerClientFactory.getManagedLedgerFactory();
     }
 
-    public ManagedLedgerClientFactory getManagedLedgerClientFactory() {
+    public ManagedLedgerStorage getManagedLedgerClientFactory() {
         return managedLedgerClientFactory;
     }
 
