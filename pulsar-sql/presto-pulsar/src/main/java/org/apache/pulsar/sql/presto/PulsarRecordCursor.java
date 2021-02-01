@@ -156,7 +156,8 @@ public class PulsarRecordCursor implements RecordCursor {
 
         this.schemaHandler = PulsarSchemaHandlers
                 .newPulsarSchemaHandler(this.topicName,
-                        this.pulsarConnectorConfig, pulsarSplit.getSchemaInfo(), columnHandles);
+                        this.pulsarConnectorConfig, pulsarSplit.getSchemaInfo(),
+                        columnHandles, PulsarSqlSchemaInfoProvider.Type.NONE);
 
         log.info("Initializing split with parameters: %s", pulsarSplit);
 

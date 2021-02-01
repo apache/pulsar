@@ -29,7 +29,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -43,11 +45,19 @@ import org.slf4j.LoggerFactory;
  */
 public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
 
+    public enum Type{
+        NONE,
+        Key,
+        Value,
+    }
+
     private static final Logger LOG = LoggerFactory.getLogger(PulsarSqlSchemaInfoProvider.class);
 
     private final TopicName topicName;
 
     private final PulsarAdmin pulsarAdmin;
+
+    private final Type type;
 
     private final LoadingCache<BytesSchemaVersion, SchemaInfo> cache = CacheBuilder.newBuilder().maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<BytesSchemaVersion, SchemaInfo>() {
@@ -57,9 +67,10 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
                 }
             });
 
-    PulsarSqlSchemaInfoProvider(TopicName topicName, PulsarAdmin pulsarAdmin) {
+    PulsarSqlSchemaInfoProvider(TopicName topicName, PulsarAdmin pulsarAdmin, Type type) {
         this.topicName = topicName;
         this.pulsarAdmin = pulsarAdmin;
+        this.type = type;
     }
 
     @Override
@@ -94,8 +105,19 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
     }
 
     private SchemaInfo loadSchema(BytesSchemaVersion bytesSchemaVersion) throws PulsarAdminException {
-        return pulsarAdmin.schemas()
+        SchemaInfo schemaInfo = pulsarAdmin.schemas()
                 .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
+        switch (type) {
+            case NONE:
+                return schemaInfo;
+            case Key:
+                return KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo).getKey();
+            case Value:
+                return KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo).getValue();
+            default:
+                throw new PulsarAdminException(new PulsarClientException
+                        .NotSupportedException("PulsarSqlSchemaInfoProvider don't support this Type : " + type));
+        }
     }
 
 }
