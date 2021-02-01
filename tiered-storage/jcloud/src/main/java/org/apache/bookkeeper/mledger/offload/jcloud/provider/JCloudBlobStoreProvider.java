@@ -305,7 +305,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final CredentialBuilder AWS_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
         if (config.getCredentials() == null) {
-            AWSCredentialsProvider authChain = null;
+            final AWSCredentialsProvider authChain;
             try {
                 if (Strings.isNullOrEmpty(config.getConfigProperty(S3_ROLE_FIELD))) {
                     authChain = DefaultAWSCredentialsProviderChain.getInstance();
@@ -320,9 +320,8 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                 // Important! Delay the building of actual credentials
                 // until later to support tokens that may be refreshed
                 // such as all session tokens
-                AWSCredentialsProvider finalAuthChain = authChain;
                 config.setProviderCredentials(() -> {
-                    AWSCredentials newCreds = finalAuthChain.getCredentials();
+                    AWSCredentials newCreds = authChain.getCredentials();
                     Credentials jcloudCred = null;
 
                     if (newCreds instanceof AWSSessionCredentials) {
@@ -334,6 +333,9 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
                                 .sessionToken(((AWSSessionCredentials) newCreds).getSessionToken())
                                 .build();
                     } else {
+                        // in the event we hit this branch, we likely don't have expiring
+                        // credentials, however, this still allows for the user to update
+                        // profiles creds or some other mechanism
                         jcloudCred = new Credentials(
                                 newCreds.getAWSAccessKeyId(), newCreds.getAWSSecretKey());
                     }
