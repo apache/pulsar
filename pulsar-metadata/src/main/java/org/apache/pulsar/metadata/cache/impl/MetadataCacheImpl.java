@@ -34,6 +34,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
+
 import lombok.Getter;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -118,7 +120,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<Void> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction) {
-        return objCache.get(path)
+        return executeWithRetry(() -> objCache.get(path)
                 .thenCompose(optEntry -> {
                     Optional<T> currentValue;
                     long expectedVersion;
@@ -145,12 +147,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         objCache.put(path,
                                 FutureUtils.value(Optional.of(new SimpleImmutableEntry<T, Stat>(newValueObj, stat))));
                     });
-                });
+                }), path);
     }
 
     @Override
     public CompletableFuture<Void> readModifyUpdate(String path, Function<T, T> modifyFunction) {
-        return objCache.get(path)
+        return executeWithRetry(() -> objCache.get(path)
                 .thenCompose(optEntry -> {
                     if (!optEntry.isPresent()) {
                         return FutureUtils.exception(new NotFoundException(""));
@@ -174,7 +176,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         objCache.put(path,
                                 FutureUtils.value(Optional.of(new SimpleImmutableEntry<T, Stat>(newValueObj, stat))));
                     });
-                });
+                }), path);
     }
 
     @Override
@@ -252,5 +254,26 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         default:
             break;
         }
+    }
+
+    private CompletableFuture<Void> executeWithRetry(Supplier<CompletableFuture<Void>> op, String key) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        op.get().handle((r, ex) -> {
+            if (ex == null) {
+                result.complete(null);
+            } else if (ex.getCause() instanceof BadVersionException) {
+                // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
+                // exception. so, try to invalidate the cache and try one more time.
+                objCache.synchronous().invalidate(key);
+                op.get().thenAccept((c) -> result.complete(null)).exceptionally((ex1) -> {
+                    result.completeExceptionally(ex1.getCause());
+                    return null;
+                });
+            } else {
+                result.completeExceptionally(ex.getCause());
+            }
+            return null;
+        });
+        return result;
     }
 }

@@ -23,6 +23,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import java.util.Map;
 import java.util.Optional;
@@ -41,7 +43,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
+import org.apache.pulsar.metadata.cache.impl.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.testng.annotations.Test;
 
 public class MetadataCacheTest extends BaseMetadataStoreTest {
@@ -258,4 +263,28 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(newValue1.get().b, 2);
     }
 
+    @Test
+    public void readModifyUpdateBadVersionRetry() throws Exception {
+        String url =  zks.getConnectionString(); 
+        @Cleanup
+        ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
+
+        String key1 = newKey();
+
+        MyClass value1 = new MyClass("a", 1);
+        objCache.create(key1, value1).join();
+
+        objCache.get(key1).join();
+
+        MetadataSerde<MyClass> ser = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(MyClass.class, null));
+
+        MyClass value2 = new MyClass("a", 1);
+        store.getZooKeeper().setData(key1, ser.serialize(value2), -1);
+
+        objCache.readModifyUpdate(key1, v -> {
+            return new MyClass(v.a, v.b + 1);
+        }).join();
+    }
 }

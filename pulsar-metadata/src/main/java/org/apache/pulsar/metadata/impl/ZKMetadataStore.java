@@ -327,6 +327,11 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         receivedNotification(new Notification(type, event.getPath()));
     }
 
+    @VisibleForTesting
+    public ZooKeeper getZooKeeper() {
+        return zkc;
+    }
+
     private static CreateMode getCreateMode(EnumSet<CreateOption> options) {
         if (options.contains(CreateOption.Ephemeral)) {
             if (options.contains(CreateOption.Sequential)) {
