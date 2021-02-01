@@ -218,8 +218,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
-        Thread.sleep(2000);
-        // Setting the value fail, so it should be null
+        //Ensure that the cache has not been updated after a long time
+        Awaitility.await().atLeast(1, TimeUnit.SECONDS);
         assertNull(admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage));
     }
