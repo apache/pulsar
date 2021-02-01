@@ -56,6 +56,7 @@ public class PulsarPasswordAuthenticatorFactory implements PasswordAuthenticator
                     .initialize();
 
             PulsarPasswordAuthenticator authenticator = injector.getInstance(PulsarPasswordAuthenticator.class);
+            authenticator.initialize();
             return authenticator;
         } catch (Exception e) {
             throwIfUnchecked(e);

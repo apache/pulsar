@@ -20,12 +20,38 @@ package org.apache.pulsar.sql.presto;
 
 import io.prestosql.spi.security.AccessDeniedException;
 import io.prestosql.spi.security.PasswordAuthenticator;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 
+import javax.naming.AuthenticationException;
+import java.io.IOException;
 import java.security.Principal;
 
 public class PulsarPasswordAuthenticator implements PasswordAuthenticator {
+
+    private final AuthenticationProviderBasic authProvider = new AuthenticationProviderBasic();
+
+    public void initialize() throws IOException {
+        authProvider.initialize(null);
+    }
+
     @Override
     public Principal createAuthenticatedPrincipal(String user, String password) {
-        throw new AccessDeniedException("Test for auth-presto.");
+        try {
+            String userId = authProvider.authenticate(new AuthenticationDataSource() {
+                @Override
+                public boolean hasDataFromCommand() {
+                    return true;
+                }
+
+                @Override
+                public String getCommandData() {
+                    return String.format("%s:%s", user, password);
+                }
+            });
+            return () -> userId;
+        } catch (AuthenticationException e) {
+            throw new AccessDeniedException(e.getMessage());
+        }
     }
 }
