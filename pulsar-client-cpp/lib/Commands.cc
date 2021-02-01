@@ -653,6 +653,11 @@ void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::Messa
     if (metadata.has_replicated_from()) {
         batchMetadata.set_replicated_from(metadata.replicated_from());
     }
+    if (metadata.replicate_to_size() > 0) {
+        for (int i = 0; i < metadata.replicate_to_size(); i++) {
+            batchMetadata.add_replicate_to(metadata.replicate_to(i));
+        }
+    }
     // TODO: set other optional fields
 }
 
