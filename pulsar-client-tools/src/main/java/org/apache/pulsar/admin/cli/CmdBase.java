@@ -28,26 +28,36 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
 
+import java.util.function.Supplier;
+
 public abstract class CmdBase {
     protected final JCommander jcommander;
-    protected final PulsarAdmin admin;
-    protected IUsageFormatter usageFormatter;
+    private final Supplier<PulsarAdmin> adminSupplier;
+    private PulsarAdmin admin;
+    private IUsageFormatter usageFormatter;
 
     @Parameter(names = { "-h", "--help" }, help = true, hidden = true)
     private boolean help;
 
-    public CmdBase(String cmdName, PulsarAdmin admin) {
-        this.admin = admin;
+    public CmdBase(String cmdName, Supplier<PulsarAdmin> adminSupplier) {
+        this.adminSupplier = adminSupplier;
         jcommander = new JCommander();
         usageFormatter = new CmdUsageFormatter(jcommander);
         jcommander.setProgramName("pulsar-admin " + cmdName);
         jcommander.setUsageFormatter(usageFormatter);
     }
 
+    protected IUsageFormatter getUsageFormatter() {
+        if (usageFormatter == null) {
+             usageFormatter = new DefaultUsageFormatter(jcommander);
+        }
+        return usageFormatter;
+    }
+
     private void tryShowCommandUsage() {
         try {
             String chosenCommand = jcommander.getParsedCommand();
-            usageFormatter.usage(chosenCommand);
+            getUsageFormatter().usage(chosenCommand);
         } catch (Exception e) {
             // it is caused by an invalid command, the invalid command can not be parsed
             System.err.println("Invalid command, please use `pulsar-admin --help` to check out how to use");
@@ -82,7 +92,7 @@ public abstract class CmdBase {
             } catch (ConnectException e) {
                 System.err.println(e.getMessage());
                 System.err.println();
-                System.err.println("Error connecting to: " + admin.getServiceUrl());
+                System.err.println("Error connecting to: " + getAdmin().getServiceUrl());
                 return false;
             } catch (PulsarAdminException e) {
                 System.err.println(e.getHttpError());
@@ -94,5 +104,12 @@ public abstract class CmdBase {
                 return false;
             }
         }
+    }
+
+    protected PulsarAdmin getAdmin() {
+        if (admin == null) {
+            admin = adminSupplier.get();
+        }
+        return admin;
     }
 }

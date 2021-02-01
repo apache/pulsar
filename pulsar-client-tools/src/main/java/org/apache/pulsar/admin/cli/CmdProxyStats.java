@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import java.io.IOException;
+import java.util.function.Supplier;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 
@@ -40,7 +41,7 @@ public class CmdProxyStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JsonArray stats = admin.proxyStats().getConnections();
+            JsonArray stats = getAdmin().proxyStats().getConnections();
             printStats(stats, indent);
         }
     }
@@ -52,7 +53,7 @@ public class CmdProxyStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JsonObject stats = admin.proxyStats().getTopics();
+            JsonObject stats = getAdmin().proxyStats().getTopics();
             printStats(stats, indent);
         }
     }
@@ -63,7 +64,7 @@ public class CmdProxyStats extends CmdBase {
         System.out.println(gson.toJson(json));
     }
 
-    public CmdProxyStats(PulsarAdmin admin) {
+    public CmdProxyStats(Supplier<PulsarAdmin> admin) {
         super("proxy-stats", admin);
         jcommander.addCommand("connections", new CmdConnectionMetrics());
         jcommander.addCommand("topics", new CmdTopicsMetrics());
