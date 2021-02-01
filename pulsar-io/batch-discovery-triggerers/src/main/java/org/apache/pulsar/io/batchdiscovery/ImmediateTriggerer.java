@@ -20,55 +20,29 @@ package org.apache.pulsar.io.batchdiscovery;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
-import org.springframework.scheduling.Trigger;
-import org.springframework.scheduling.TriggerContext;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ImmediateTriggerer implements BatchSourceTriggerer {
 	
-	private ThreadPoolTaskScheduler scheduler;
+  @Override
+  public void init(Map<String, Object> map, SourceContext sourceContext) throws Exception {
+    log.info("Initialized ImmediateTrigger at: {}",  DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(LocalDate.now()));
+  }
 
-	@Override
-	public void init(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-	  scheduler = new ThreadPoolTaskScheduler();
-      scheduler.setThreadNamePrefix(String.format("%s/%s/%s-cron-triggerer-",
-	      sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()));
+  @Override
+  public void start(Consumer<String> consumer) {
+    consumer.accept("");
+  }
 
-	  log.info("Initialized ImmediateTrigger at: {}",  DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(LocalDate.now()));
-	}
+  @Override
+  public void stop() {
 
-	@Override
-	public void start(Consumer<String> trigger) {
-      scheduler.initialize();
-	  scheduler.schedule(() -> trigger.accept("IMMEDIATE"), new ExactlyOnceTrigger());
-	}
-
-	@Override
-	public void stop() {
-	  if (scheduler != null) {
-        scheduler.shutdown();
-	  }
-	}
-	
-	private static final class ExactlyOnceTrigger implements Trigger {
-
-	  @Override
-	  public Date nextExecutionTime(TriggerContext triggerContext) {		
-	    if (triggerContext.lastScheduledExecutionTime() == null) {
-	      return new Date();
-	    } else {
-	      return null;
-	    }
-	  }	
-	}
-
+  }
 }
