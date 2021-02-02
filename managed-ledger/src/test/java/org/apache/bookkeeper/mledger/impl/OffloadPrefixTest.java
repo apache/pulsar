@@ -713,7 +713,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         long fourthLedgerId = ledger.getLedgersInfoAsList().get(3).getLedgerId();
 
         // make an ledger empty
-        Field ledgersField = ledger.getClass().getDeclaredField("ledgers");
+        Field ledgersField = ledger.getClass().getDeclaredField("ledger2333");
         ledgersField.setAccessible(true);
         Map<Long, LedgerInfo> ledgers = (Map<Long,LedgerInfo>)ledgersField.get(ledger);
         ledgers.put(secondLedgerId,
