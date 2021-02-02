@@ -405,9 +405,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
-            doc = "Enable Shared subscription (default is enabled)"
+            doc = "Enable subscription types (default is all type enabled)"
     )
-    private boolean subscriptionSharedEnable = true;
+    private String subscriptionTypesEnable;
 
     @FieldContext(
         category = CATEGORY_POLICIES,

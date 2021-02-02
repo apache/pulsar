@@ -28,6 +28,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -636,7 +638,9 @@ public class PersistentTopic extends AbstractTopic
 
         try {
             if (subType == SubType.Shared
-                    && (!brokerService.pulsar().getConfiguration().isSubscriptionSharedEnable()
+                    && ((brokerService.pulsar().getConfiguration().getSubscriptionTypesEnable() != null
+                    && !Arrays.asList(brokerService.pulsar().getConfiguration()
+                    .getSubscriptionTypesEnable().split(",")).contains(subType.name()))
                     || !checkIsSubscriptionSharedEnable())) {
                 future.completeExceptionally(
                         new NotAllowedException("Topic[{" + topic + "}] don't support share sub type!"));

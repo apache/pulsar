@@ -1596,6 +1596,21 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsarClientException.printStackTrace();
             assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
         }
+
+        admin.namespaces().setSubscriptionSharedEnable(namespace, true);
+        consumer.subscribe().close();
+        conf.setSubscriptionTypesEnable("Failover");
+
+        try {
+            consumer.subscribe().close();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            pulsarClientException.printStackTrace();
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+
+        conf.setSubscriptionTypesEnable("Failover,Shared");
+        consumer.subscribe().close();
     }
 
     private void assertValidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
