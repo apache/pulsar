@@ -207,6 +207,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                 cb.addComplete(lastEntry, data.asReadOnly(), ctx);
                 ReferenceCountUtil.release(data);
                 ml.notifyCursors();
+                ml.notifyWaitingEntryCallBacks();
                 this.recycle();
             } else {
                 ReferenceCountUtil.release(data);
@@ -232,6 +233,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         if (cb != null) {
             cb.addComplete(PositionImpl.get(lh.getId(), entryId), null, ctx);
             ml.notifyCursors();
+            ml.notifyWaitingEntryCallBacks();
             this.recycle();
         }
     }
