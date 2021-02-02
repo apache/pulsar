@@ -40,6 +40,7 @@ type instanceConf struct {
 	pulsarServiceURL            string
 	killAfterIdle               time.Duration
 	expectedHealthCheckInterval int32
+	metricsPort                 int
 }
 
 func newInstanceConf() *instanceConf {
@@ -59,6 +60,7 @@ func newInstanceConf() *instanceConf {
 		pulsarServiceURL:            cfg.PulsarServiceURL,
 		killAfterIdle:               cfg.KillAfterIdleMs,
 		expectedHealthCheckInterval: cfg.ExpectedHealthCheckInterval,
+		metricsPort:                 cfg.MetricsPort,
 		funcDetails: pb.FunctionDetails{
 			Tenant:               cfg.Tenant,
 			Namespace:            cfg.NameSpace,

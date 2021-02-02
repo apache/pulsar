@@ -227,7 +227,7 @@ Pulsar Node.js consumers have the following methods available:
 | :-------- | :---------- | :------ |
 | `topic` | The Pulsar [topic](reference-terminology.md#topic) on which the consumer will establish a subscription and listen for messages. | |
 | `subscription` | The subscription name for this consumer. | |
-| `subscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover`. | `Exclusive` |
+| `subscriptionType` | Available options are `Exclusive`, `Shared`, `Key_Shared`, and `Failover`. | `Exclusive` |
 | `subscriptionInitialPosition` | Initial position at which to set cursor when subscribing to a topic at first time. | `SubscriptionInitialPosition.Latest` |
 | `ackTimeoutMs` | Acknowledge timeout in milliseconds. | 0 |
 | `nAckRedeliverTimeoutMs` | Delay to wait before redelivering messages that failed to be processed. | 60000 |

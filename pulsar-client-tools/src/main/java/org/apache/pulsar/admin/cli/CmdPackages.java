@@ -27,6 +27,7 @@ import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Commands for administering packages.
@@ -34,11 +35,11 @@ import java.util.Map;
 @Parameters(commandDescription = "Operations about packages")
 class CmdPackages extends CmdBase {
 
-    private final Packages packages;
+    private Packages packages;
 
-    public CmdPackages(PulsarAdmin admin) {
+    public CmdPackages(Supplier<PulsarAdmin> admin) {
         super("packages", admin);
-        this.packages = admin.packages();
+
 
         jcommander.addCommand("get-metadata", new GetMetadataCmd());
         jcommander.addCommand("update-metadata", new UpdateMetadataCmd());
@@ -49,6 +50,13 @@ class CmdPackages extends CmdBase {
         jcommander.addCommand("delete", new DeletePackageCmd());
     }
 
+    private Packages getPackages() {
+        if (packages == null) {
+            packages = getAdmin().packages();
+        }
+        return packages;
+    }
+
     @Parameters(commandDescription = "Get a package metadata information.")
     private class GetMetadataCmd extends CliCommand {
         @Parameter(description = "type://tenant/namespace/packageName@version", required = true)
@@ -56,7 +64,7 @@ class CmdPackages extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(packages.getMetadata(packageName));
+            print(getPackages().getMetadata(packageName));
         }
     }
 
@@ -76,7 +84,7 @@ class CmdPackages extends CmdBase {
 
         @Override
         void run() throws Exception {
-            packages.updateMetadata(packageName, PackageMetadata.builder()
+            getPackages().updateMetadata(packageName, PackageMetadata.builder()
                 .description(description).contact(contact).properties(properties).build());
             print(String.format("The metadata of the package '%s' updated successfully", packageName));
         }
@@ -105,7 +113,7 @@ class CmdPackages extends CmdBase {
                 .description(description)
                 .contact(contact)
                 .properties(properties).build();
-            packages.upload(metadata, packageName, path);
+            getPackages().upload(metadata, packageName, path);
             print(String.format("The package '%s' uploaded from path '%s' successfully", packageName, path));
         }
     }
@@ -120,7 +128,7 @@ class CmdPackages extends CmdBase {
 
         @Override
         void run() throws Exception {
-            packages.download(packageName, path);
+            getPackages().download(packageName, path);
             print(String.format("The package '%s' downloaded to path '%s' successfully", packageName, path));
         }
     }
@@ -133,7 +141,7 @@ class CmdPackages extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(packages.listPackageVersions(packageName));
+            print(getPackages().listPackageVersions(packageName));
         }
     }
 
@@ -147,7 +155,7 @@ class CmdPackages extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(packages.listPackages(type, namespace));
+            print(getPackages().listPackages(type, namespace));
         }
     }
 
@@ -158,7 +166,7 @@ class CmdPackages extends CmdBase {
 
         @Override
         void run() throws Exception {
-            packages.delete(packageName);
+            getPackages().delete(packageName);
             print(String.format("The package '%s' deleted successfully", packageName));
         }
     }
