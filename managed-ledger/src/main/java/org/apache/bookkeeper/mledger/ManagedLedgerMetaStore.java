@@ -19,5 +19,64 @@
 
 package org.apache.bookkeeper.mledger;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.util.CallbackMutex;
+
 public interface ManagedLedgerMetaStore {
+    interface NewInfoBuilder {
+        MLDataFormats.ManagedLedgerInfo build(Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> newLedgers);
+    }
+
+    interface LedgerInfoTransformation {
+        MLDataFormats.ManagedLedgerInfo.LedgerInfo transform(MLDataFormats.ManagedLedgerInfo.LedgerInfo oldInfo) throws
+                ManagedLedgerException;
+    }
+
+
+    class InitializeResult {
+        final private PositionImpl terminatedPosition;
+        final private Map<String, String> propertiesMap;
+
+        public InitializeResult(PositionImpl terminatedPosition,
+                                Map<String, String> propertiesMap) {
+            this.terminatedPosition = terminatedPosition;
+            this.propertiesMap = propertiesMap;
+        }
+
+        public Optional<PositionImpl> getTerminatedPosition() {
+            return Optional.ofNullable(terminatedPosition);
+        }
+
+        public Map<String, String> getPropertiesMap() {
+            return propertiesMap;
+        }
+    }
+
+    CallbackMutex getMetadataMutex();
+
+    MLDataFormats.ManagedLedgerInfo.LedgerInfo put(Long ledgerId, MLDataFormats.ManagedLedgerInfo.LedgerInfo info);
+
+    Long lastLedgerId();
+
+    boolean isEmpty();
+
+    void remove(Long ledgerId);
+
+    int size();
+
+    void closeLedger(long ledgerId, long ledgerLength, long entriesCountInLedger, long closeTimeInMillis);
+
+    Optional<MLDataFormats.ManagedLedgerInfo.LedgerInfo> get(Long ledgerId);
+
+    CompletableFuture<InitializeResult> initialize(String name, boolean createIfMissing);
+
+    void transformLedgerInfo(String name, long ledgerId,
+                             LedgerInfoTransformation transformation,
+                             CompletableFuture<Void> finalPromise, NewInfoBuilder builder,
+                             ScheduledExecutorService scheduler);
 }

@@ -19,53 +19,42 @@
 
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMetaStore;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.pulsar.metadata.api.Stat;
 
+@Slf4j
 public class ManagedLedgerMetaStoreImpl implements ManagedLedgerMetaStore {
+
+
+    protected volatile Stat ledgersStat;
+    private final CallbackMutex metadataMutex = new CallbackMutex();
     final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
     final MetaStore store;
+
+    public CallbackMutex getMetadataMutex() {
+        return metadataMutex;
+    }
+
 
     public ManagedLedgerMetaStoreImpl(MetaStore metaStore) {
         this.store = metaStore;
     }
 
-    static public class InitializeResult {
-        private Stat stat;
-        private Optional<PositionImpl> terminatedPosition;
-        private Map<String, String> propertiesMap;
-
-        public InitializeResult(Stat stat,
-                                Optional<PositionImpl> terminatedPosition,
-                                Map<String, String> propertiesMap) {
-            this.stat = stat;
-            this.terminatedPosition = terminatedPosition;
-            this.propertiesMap = propertiesMap;
-        }
-
-        public Stat getStat() {
-            return stat;
-        }
-
-        public Optional<PositionImpl> getTerminatedPosition() {
-            return terminatedPosition;
-        }
-
-        public Map<String, String> getPropertiesMap() {
-            return propertiesMap;
-        }
-    }
-
-    LedgerInfo put(Long ledgerId, LedgerInfo info) {
+    public LedgerInfo put(Long ledgerId, LedgerInfo info) {
         return ledgers.put(ledgerId, info);
     }
 
@@ -85,6 +74,12 @@ public class ManagedLedgerMetaStoreImpl implements ManagedLedgerMetaStore {
         return ledgers.size();
     }
 
+    public void closeLedger(long ledgerId, long ledgerLength, long entriesCountInLedger, long closeTimeInMillis) {
+        LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(ledgerId).setEntries(entriesCountInLedger)
+                .setSize(ledgerLength).setTimestamp(closeTimeInMillis).build();
+        put(ledgerId, info);
+    }
+
     public Optional<LedgerInfo> get(Long ledgerId) {
         final LedgerInfo ledgerInfo = ledgers.get(ledgerId);
         if (ledgerInfo == null) {
@@ -94,18 +89,20 @@ public class ManagedLedgerMetaStoreImpl implements ManagedLedgerMetaStore {
         }
     }
 
-    synchronized CompletableFuture<InitializeResult> initialize(String name, boolean createIfMissing) {
+    public synchronized CompletableFuture<InitializeResult> initialize(String name, boolean createIfMissing) {
         final CompletableFuture<InitializeResult> initResult = new CompletableFuture<>();
         store.getManagedLedgerInfo(name, createIfMissing,
                 new MetaStore.MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
                     @Override
                     public void operationComplete(MLDataFormats.ManagedLedgerInfo result, Stat stat) {
-                        final Optional<PositionImpl> terminatedPosition;
+                        ledgersStat = stat;
+                        final PositionImpl terminatedPosition;
                         if (result.hasTerminatedPosition()) {
-                            terminatedPosition = Optional.of(new PositionImpl(result.getTerminatedPosition()));
+                            terminatedPosition = new PositionImpl(result.getTerminatedPosition());
                         } else {
-                            terminatedPosition = Optional.empty();
+                            terminatedPosition = null;
                         }
+
                         final Map<String, String> propertiesMap = new HashMap<>();
 
                         if (result.getPropertiesCount() > 0) {
@@ -120,7 +117,7 @@ public class ManagedLedgerMetaStoreImpl implements ManagedLedgerMetaStore {
                             ledgers.put(ls.getLedgerId(), ls);
                         }
 
-                        initResult.complete(new InitializeResult(stat, terminatedPosition, propertiesMap));
+                        initResult.complete(new InitializeResult(terminatedPosition, propertiesMap));
                     }
 
                     @Override
@@ -129,5 +126,58 @@ public class ManagedLedgerMetaStoreImpl implements ManagedLedgerMetaStore {
                     }
                 });
         return initResult;
+    }
+
+    public void transformLedgerInfo(String name, long ledgerId,
+                                    LedgerInfoTransformation transformation,
+                                    CompletableFuture<Void> finalPromise, NewInfoBuilder builder,
+                                    ScheduledExecutorService scheduler) {
+        synchronized (this) {
+            if (!getMetadataMutex().tryLock()) {
+                // retry in 100 milliseconds
+                scheduler.schedule(
+                        safeRun(() -> transformLedgerInfo(name, ledgerId, transformation, finalPromise, builder,
+                                scheduler)), 100,
+                        TimeUnit.MILLISECONDS);
+            } else { // lock acquired
+                CompletableFuture<Void> unlockingPromise = new CompletableFuture<>();
+                unlockingPromise.whenComplete((res, ex) -> {
+                    getMetadataMutex().unlock();
+                    if (ex != null) {
+                        finalPromise.completeExceptionally(ex);
+                    } else {
+                        finalPromise.complete(res);
+                    }
+                });
+
+                LedgerInfo oldInfo = get(ledgerId).orElse(null);
+                if (oldInfo == null) {
+                    unlockingPromise.completeExceptionally(new ManagedLedgerImpl.OffloadConflict(
+                            "Ledger " + ledgerId + " no longer exists in ManagedLedger, likely trimmed"));
+                } else {
+                    try {
+                        LedgerInfo newInfo = transformation.transform(oldInfo);
+                        final HashMap<Long, LedgerInfo> newLedgers = new HashMap<>(ledgers);
+                        newLedgers.put(ledgerId, newInfo);
+                        store.asyncUpdateLedgerIds(name, builder.build(newLedgers), ledgersStat,
+                                new MetaStore.MetaStoreCallback<Void>() {
+                                    @Override
+                                    public void operationComplete(Void result, Stat stat) {
+                                        ledgersStat = stat;
+                                        put(ledgerId, newInfo);
+                                        unlockingPromise.complete(null);
+                                    }
+
+                                    @Override
+                                    public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                                        unlockingPromise.completeExceptionally(e);
+                                    }
+                                });
+                    } catch (ManagedLedgerException mle) {
+                        unlockingPromise.completeExceptionally(mle);
+                    }
+                }
+            }
+        }
     }
 }
