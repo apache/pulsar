@@ -140,6 +140,12 @@
     </dependency>
 
     <dependency>
+       <groupId>com.fasterxml.jackson.dataformat</groupId>
+       <artifactId>jackson-dataformat-avro</artifactId>
+       <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
       <scope>test</scope>
@@ -179,6 +185,27 @@
     <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-schema-registry</artifactId>
+      <version>${kafka.confluent.schemaregstryclient.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-avro-serializer</artifactId>
+      <version>${kafka.confluent.schemaregstryclient.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-streams-avro-serde</artifactId>
+      <version>${kafka.confluent.schemaregstryclient.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

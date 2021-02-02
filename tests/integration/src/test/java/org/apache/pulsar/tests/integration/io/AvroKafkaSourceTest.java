@@ -18,11 +18,17 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import com.fasterxml.jackson.dataformat.avro.AvroMapper;
+import com.fasterxml.jackson.dataformat.avro.AvroSchema;
 import com.google.gson.Gson;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import lombok.Cleanup;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.failsafe.Failsafe;
 import net.jodah.failsafe.RetryPolicy;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -343,26 +349,39 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 result.getStdout());
     }
 
-    public Map<String, String> produceSourceMessages(int numMessages) throws Exception{
-        KafkaProducer<String, String> producer = new KafkaProducer<>(
+    @Data
+    public static final class MyBean {
+        private String field;
+    }
+
+    public Map<String, MyBean> produceSourceMessages(int numMessages) throws Exception{
+
+        pp.put("schema.registry.url", "http://localhost:8081");
+        pp.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class.getName());
+
+        final AvroMapper avroMapper = new AvroMapper();
+        final AvroSchema schema = avroMapper.schemaFor(MyBean.class);
+
+        KafkaProducer<String, GenericRecord> producer = new KafkaProducer<>(
                 ImmutableMap.of(
                         ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
-                        ProducerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString()
-                ),
-                new StringSerializer(),
-                new StringSerializer()
+                        ProducerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString(),
+                        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class.getName(),
+                        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,  KafkaAvroSerializer.class.getName()
+                )
         );
-        LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
+        LinkedHashMap<String, MyBean> kvs = new LinkedHashMap<>();
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
-            String value = "value-" + i;
-            ProducerRecord<String, String> record = new ProducerRecord<>(
-                kafkaTopicName,
-                key,
-                value
-            );
+            MyBean value = new MyBean();
+            value.setField("value-"+i);
+            GenericRecordBuilder recordBuilder = new GenericRecordBuilder(schema.getAvroSchema());
+            recordBuilder.set("field", value.field);
+            final GenericData.Record genericRecord = recordBuilder.build();
+            final ProducerRecord<String, GenericRecord> producerRecord = new ProducerRecord<>(kafkaTopicName,
+                    "customer", genericRecord);
+            producer.send(producerRecord).get();
             kvs.put(key, value);
-            producer.send(record).get();
         }
 
         log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
