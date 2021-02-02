@@ -1484,9 +1484,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @param op
      */
     private void stripChecksum(OpSendMsg op) {
-        int totalMsgBufSize = op.cmd.readableBytes();
         ByteBufPair msg = op.cmd;
         if (msg != null) {
+            int totalMsgBufSize = msg.readableBytes();
             ByteBuf headerFrame = msg.getFirst();
             headerFrame.markReaderIndex();
             try {
@@ -1518,8 +1518,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 headerFrame.resetReaderIndex();
             }
         } else {
-            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName,
-                    (op.cmd == null ? null : op.cmd.getClass().getName()));
+            log.warn("[{}] Failed while casting null into ByteBufPair", producerName);
         }
     }
 
