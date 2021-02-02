@@ -24,10 +24,14 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
 
+import java.util.Date;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
@@ -68,6 +72,16 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     final static String CONF_TOKEN_AUDIENCE = "tokenAudience";
 
     final static String TOKEN = "token";
+
+    private static final Counter expiredTokenMetrics = Counter.build()
+            .name("pulsar_expired_token_count")
+            .help("Pulsar expired token")
+            .register();
+    private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
+            .name("pulsar_expiring_token_minutes")
+            .help("The remaining time of expiring token in minutes")
+            .buckets(5, 10, 60, 240)
+            .register();
 
     private Key validationKey;
     private String roleClaim;
@@ -121,18 +135,18 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        // Get Token
-        String token;
         try {
+            // Get Token
+            String token;
             token = getToken(authData);
+            // Parse Token by validating
+            String role = getPrincipal(authenticateToken(token));
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+            return role;
         } catch (AuthenticationException exception) {
             AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
             throw exception;
         }
-
-        // Parse Token by validating
-        return getPrincipal(authenticateToken(token));
     }
 
     @Override
@@ -200,8 +214,14 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 }
             }
 
+            if (jwt.getBody().getExpiration() != null) {
+                expiringTokenMinutesMetrics.observe((double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
+            }
             return jwt;
         } catch (JwtException e) {
+            if (e instanceof ExpiredJwtException) {
+                expiredTokenMetrics.inc();
+            }
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
     }
