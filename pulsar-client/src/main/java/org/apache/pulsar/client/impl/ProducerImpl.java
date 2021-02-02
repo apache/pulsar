@@ -371,13 +371,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @return a new payload
      */
     private ByteBuf applyCompression(ByteBuf payload) {
-        if (conf.getCompressionType() != CompressionType.NONE) {
-            ByteBuf compressedPayload = compressor.encode(payload);
-            payload.release();
-            return compressedPayload;
-        } else {
-            return payload;
-        }
+        ByteBuf compressedPayload = compressor.encode(payload);
+        payload.release();
+        return compressedPayload;
     }
 
     public void sendAsync(Message<?> message, SendCallback callback) {
