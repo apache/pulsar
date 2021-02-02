@@ -46,6 +46,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializat
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Stat;
+import org.checkerframework.checker.nullness.Opt;
 
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
 
@@ -258,10 +259,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     private CompletableFuture<Void> executeWithRetry(Supplier<CompletableFuture<Void>> op, String key) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        op.get().handle((r, ex) -> {
-            if (ex == null) {
-                result.complete(null);
-            } else if (ex.getCause() instanceof BadVersionException) {
+        op.get().thenAccept(r -> result.complete(null)).exceptionally((ex) -> {
+            if (ex.getCause() instanceof BadVersionException) {
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.
                 objCache.synchronous().invalidate(key);
@@ -269,9 +268,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     result.completeExceptionally(ex1.getCause());
                     return null;
                 });
-            } else {
-                result.completeExceptionally(ex.getCause());
+                return null;
             }
+            result.completeExceptionally(ex.getCause());
             return null;
         });
         return result;
