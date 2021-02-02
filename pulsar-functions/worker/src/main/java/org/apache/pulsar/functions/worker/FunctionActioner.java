@@ -188,6 +188,7 @@ public class FunctionActioner {
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
         instanceConfig.setMaxPendingAsyncRequests(workerConfig.getMaxPendingAsyncRequests());
+        instanceConfig.setExposePulsarAdminClientEnabled(workerConfig.isExposeAdminClientEnabled());
         return instanceConfig;
     }
 

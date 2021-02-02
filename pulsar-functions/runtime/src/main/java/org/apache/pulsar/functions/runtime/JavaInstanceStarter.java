@@ -132,6 +132,12 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance", required = false)
     public int maxPendingAsyncRequests = 1000;
 
+    @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
+    public String webServiceUrl = null;
+
+    @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client exposed to function context, default is disabled.", required = false)
+    public Boolean exposePulsarAdminClientEnabled = false;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -155,6 +161,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
+        instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
@@ -202,7 +209,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
+                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
+                exposePulsarAdminClientEnabled, webServiceUrl);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

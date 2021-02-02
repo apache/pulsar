@@ -1070,6 +1070,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " and resolving its metadata service location"
     )
     private String bookkeeperMetadataServiceUri;
+
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Authentication plugin to use when connecting to bookies"
