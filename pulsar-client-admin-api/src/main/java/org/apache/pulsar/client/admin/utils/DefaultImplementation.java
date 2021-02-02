@@ -16,27 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.client.admin.utils;
 
-package org.apache.pulsar.common.functions;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.experimental.UtilityClass;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 
 /**
- * Configuration of extra pulsar clusters to sent output message.
+ * Helper class for class instantiations and it also contains methods to work with schemas.
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
-public class ExternalPulsarConfig {
-    private String name;
-    private String serviceURL;
-    private String webServiceURL;
-    private AuthenticationConfig authConfig;
-    private ProducerConfig producerConfig;
+@SuppressWarnings("unchecked")
+@UtilityClass
+public class DefaultImplementation {
+    private static final Class<PulsarAdminBuilder> ADMIN_CLIENT_BUILDER_IMPL = ReflectionUtils.newClassInstance(
+            "org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl");
+
+    public static PulsarAdminBuilder newAdminClientBuilder() {
+        return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.newInstance());
+    }
 }
