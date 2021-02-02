@@ -707,9 +707,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                                                                  final String namespace,
                                                                  final String sinkName,
                                                                  final SinkConfig sinkConfig,
-                                                                 final File componentPackageFile) throws IOException {
+                                                                 final File sinkPackageFile) throws IOException {
 
-        Path archivePath = null;
         // The rest end points take precedence over whatever is there in sinkConfig
         sinkConfig.setTenant(tenant);
         sinkConfig.setNamespace(namespace);
@@ -727,9 +726,9 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         }
 
         // if sink is not builtin, attempt to extract classloader from package file if it exists
-        if (classLoader == null && sinkConfig != null) {
+        if (classLoader == null && sinkPackageFile != null) {
             classLoader = getClassLoaderFromPackage(sinkConfig.getClassName(),
-                    componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                    sinkPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
         }
 
         if (classLoader == null) {

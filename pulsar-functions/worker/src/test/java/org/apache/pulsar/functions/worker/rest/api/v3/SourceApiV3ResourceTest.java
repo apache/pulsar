@@ -854,6 +854,8 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
@@ -930,6 +932,8 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
@@ -1026,6 +1030,7 @@ public class SourceApiV3ResourceTest {
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
         PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
 
         doReturn(classLoader).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(), any());

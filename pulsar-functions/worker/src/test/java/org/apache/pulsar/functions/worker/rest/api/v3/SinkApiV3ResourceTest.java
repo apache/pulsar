@@ -297,8 +297,7 @@ public class SinkApiV3ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink package does not have the" +
             " correct format. Pulsar cannot determine if the package is a NAR package" +
-            " or JAR package.Sink classname is not provided and attempts to load it as a NAR package produced error: " +
-            "zip file is empty")
+            " or JAR package.Sink classname is not provided and attempts to load it as a NAR package produced the following error.")
     public void testRegisterSinkMissingPackageDetails() {
         try {
             testRegisterSinkMissingArguments(
@@ -318,7 +317,7 @@ public class SinkApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract Sink class from archive")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract sink class from archive")
     public void testRegisterSinkInvalidJarNoSink() throws IOException {
         try {
             FileInputStream inputStream = new FileInputStream(INVALID_JAR_FILE_PATH);
@@ -834,16 +833,16 @@ public class SinkApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
 
         doReturn(String.class).when(FunctionCommon.class);
-        FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
+        FunctionCommon.getSinkType(any());
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(), any());
 
         doReturn(ATLEAST_ONCE).when(FunctionCommon.class);
         FunctionCommon.convertProcessingGuarantee(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -908,9 +907,10 @@ public class SinkApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
 
         doReturn(String.class).when(FunctionCommon.class);
-        FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
+        FunctionCommon.getSinkType(any());
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(), any());
@@ -1003,8 +1003,9 @@ public class SinkApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         doReturn(String.class).when(FunctionCommon.class);
-        FunctionCommon.getSinkType(anyString(), any(NarClassLoader.class));
+        FunctionCommon.getSinkType(any());
         PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
         FunctionCommon.extractNarClassLoader(any(), any());

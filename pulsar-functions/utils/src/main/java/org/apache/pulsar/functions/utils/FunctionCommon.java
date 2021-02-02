@@ -25,6 +25,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
@@ -407,7 +408,7 @@ public class FunctionCommon {
                 throw new IllegalArgumentException(String.format("%s package does not have the correct format. " +
                                 "Pulsar cannot determine if the package is a NAR package or JAR package." +
                                 "%s classname is not provided and attempts to load it as a NAR package produced the following error.",
-                        componentType.toString(), componentType.toString()),
+                        capFirstLetter(componentType), capFirstLetter(componentType)),
                         narClassLoaderException);
             }
             try {
@@ -426,7 +427,7 @@ public class FunctionCommon {
                 classLoader = narClassLoader;
             } catch (ClassNotFoundException | NoClassDefFoundError e) {
                 throw new IllegalArgumentException(
-                        String.format("%s class %s must be in class path", componentType.toString(), connectorClassName), e);
+                        String.format("%s class %s must be in class path", capFirstLetter(componentType), connectorClassName), e);
             }
 
         } else {
@@ -445,11 +446,11 @@ public class FunctionCommon {
                         } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                             throw new IllegalArgumentException(
                                     String.format("%s class %s must be in class path",
-                                            componentType.toString(), connectorClassName), e1);
+                                            capFirstLetter(componentType), connectorClassName), e1);
                         }
                     } else {
                         throw new IllegalArgumentException(
-                                String.format("%s class %s must be in class path", componentType.toString(),
+                                String.format("%s class %s must be in class path", capFirstLetter(componentType),
                                         connectorClassName), e);
                     }
                 }
@@ -460,10 +461,10 @@ public class FunctionCommon {
                 } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                     throw new IllegalArgumentException(
                             String.format("%s class %s must be in class path",
-                                    componentType.toString(),connectorClassName), e1);
+                                    capFirstLetter(componentType), connectorClassName), e1);
                 }
             } else {
-                StringBuilder errorMsg = new StringBuilder(componentType.toString()
+                StringBuilder errorMsg = new StringBuilder(capFirstLetter(componentType)
                         + " package does not have the correct format."
                         + " Pulsar cannot determine if the package is a NAR package or JAR package.");
 
@@ -479,5 +480,9 @@ public class FunctionCommon {
             }
         }
         return classLoader;
+    }
+
+    public static String capFirstLetter(Enum en) {
+        return StringUtils.capitalize(en.toString().toLowerCase());
     }
 }
