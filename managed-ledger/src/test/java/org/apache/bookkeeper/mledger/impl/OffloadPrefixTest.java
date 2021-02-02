@@ -24,7 +24,6 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.ImmutableSet;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -713,13 +712,12 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         long fourthLedgerId = ledger.getLedgersInfoAsList().get(3).getLedgerId();
 
         // make an ledger empty
-        Field ledgersField = ledger.getClass().getDeclaredField("ledger2333");
-        ledgersField.setAccessible(true);
-        Map<Long, LedgerInfo> ledgers = (Map<Long,LedgerInfo>)ledgersField.get(ledger);
-        ledgers.put(secondLedgerId,
-                    ledgers.get(secondLedgerId).toBuilder().setEntries(0).setSize(0).build());
+        Map<Long, LedgerInfo> ledgers = ledger.getLedgersInfo();
 
-        PositionImpl firstUnoffloaded = (PositionImpl)ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        ledgers.put(secondLedgerId,
+                ledgers.get(secondLedgerId).toBuilder().setEntries(0).setSize(0).build());
+
+        PositionImpl firstUnoffloaded = (PositionImpl) ledger.offloadPrefix(ledger.getLastConfirmedEntry());
         assertEquals(firstUnoffloaded.getLedgerId(), fourthLedgerId);
         assertEquals(firstUnoffloaded.getEntryId(), 0);
 

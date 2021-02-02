@@ -335,8 +335,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             // Last ledger stat may be zeroed, we must update it
-            if (ledgerMetaStore.ledgers.size() > 0) {
-                final long id = ledgerMetaStore.ledgers.lastKey();
+            if (!ledgerMetaStore.isEmpty()) {
+                final long id = ledgerMetaStore.lastLedgerId();
                 OpenCallback opencb = (rc, lh, ctx1) -> {
                     executor.executeOrdered(name, safeRun(() -> {
                         mbean.endDataLedgerOpenOp();
@@ -353,8 +353,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             }
                             initializeBookKeeper(callback);
                         } else if (isNoSuchLedgerExistsException(rc)) {
-                            log.warn("[{}] Ledger not found: {}", name, ledgerMetaStore.ledgers.lastKey());
-                            ledgerMetaStore.ledgers.remove(ledgerMetaStore.ledgers.lastKey());
+                            log.warn("[{}] Ledger not found: {}", name, ledgerMetaStore.lastLedgerId());
+                            ledgerMetaStore.remove(ledgerMetaStore.lastLedgerId());
                             initializeBookKeeper(callback);
                         } else {
                             log.error("[{}] Failed to open ledger {}: {}", name, id, BKException.getMessage(rc));
@@ -1089,7 +1089,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             LedgerInfo ledgerInfo = null;
             synchronized (this) {
-                ledgerInfo = ledgerMetaStore.ledgers.get(pos.getLedgerId());
+                ledgerInfo = ledgerMetaStore.get(pos.getLedgerId()).orElse(null);
             }
             if (ledgerInfo == null) {
                 // ledger was removed
@@ -1115,7 +1115,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     long estimateBacklogFromPosition(PositionImpl pos) {
         synchronized (this) {
-            LedgerInfo ledgerInfo = ledgerMetaStore.ledgers.get(pos.getLedgerId());
+            LedgerInfo ledgerInfo = ledgerMetaStore.get(pos.getLedgerId()).orElse(null);
             if (ledgerInfo == null) {
                 return getTotalSize(); // position no longer in managed ledger, so return total size
             }
@@ -1368,8 +1368,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             lastLedgerCreationFailureTimestamp = clock.millis();
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
-            ledgerMetaStore.ledgers
-                    .put(lh.getId(), LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build());
+            ledgerMetaStore.put(lh.getId(), LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build());
             final long previousEntries = currentLedgerEntries;
             final long previousLedgerId = currentLedger.getId();
             currentLedger = lh;
@@ -1418,7 +1417,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.warn("[{}] Error updating meta data with the new list of ledgers: {}", name, e.getMessage());
 
                     // Remove the ledger, since we failed to update the list
-                    ledgerMetaStore.ledgers.remove(lh.getId());
+                    ledgerMetaStore.remove(lh.getId());
                     mbean.startDataLedgerDeleteOp();
                     bookKeeper.asyncDeleteLedger(lh.getId(), (rc1, ctx1) -> {
                         mbean.endDataLedgerDeleteOp();
@@ -1530,10 +1529,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (entriesInLedger > 0) {
             LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setEntries(entriesInLedger)
                     .setSize(lh.getLength()).setTimestamp(clock.millis()).build();
-            ledgerMetaStore.ledgers.put(lh.getId(), info);
+            ledgerMetaStore.put(lh.getId(), info);
         } else {
             // The last ledger was empty, so we can discard it
-            ledgerMetaStore.ledgers.remove(lh.getId());
+            ledgerMetaStore.remove(lh.getId());
             mbean.startDataLedgerDeleteOp();
             bookKeeper.asyncDeleteLedger(lh.getId(), (rc, ctx) -> {
                 mbean.endDataLedgerDeleteOp();
@@ -1657,7 +1656,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // ledger handles (read & write)for the same ledger.
             internalReadFromLedger(currentLedger, opReadEntry);
         } else {
-            LedgerInfo ledgerInfo = ledgerMetaStore.ledgers.get(ledgerId);
+            LedgerInfo ledgerInfo = ledgerMetaStore.get(ledgerId).orElse(null);
             if (ledgerInfo == null || ledgerInfo.getEntries() == 0) {
                 // Cursor is pointing to a empty ledger, there's no need to try opening it. Skip this ledger and
                 // move to the next one
@@ -1684,7 +1683,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
         CompletableFuture<LedgerInfo> result = new CompletableFuture<>();
-        final LedgerInfo ledgerInfo = ledgerMetaStore.ledgers.get(ledgerId);
+        final LedgerInfo ledgerInfo = ledgerMetaStore.get(ledgerId).orElse(null);
         result.complete(ledgerInfo);
         return result;
     }
@@ -1705,7 +1704,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
 
-            LedgerInfo info = ledgerMetaStore.ledgers.get(ledgerId);
+            LedgerInfo info = ledgerMetaStore.get(ledgerId).orElse(null);
             CompletableFuture<ReadHandle> openFuture = new CompletableFuture<>();
 
             if (config.getLedgerOffloader() != null
@@ -2340,7 +2339,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
                 ledgerCache.remove(ls.getLedgerId());
 
-                ledgerMetaStore.ledgers.remove(ls.getLedgerId());
+                ledgerMetaStore.remove(ls.getLedgerId());
                 NUMBER_OF_ENTRIES_UPDATER.addAndGet(this, -ls.getEntries());
                 TOTAL_SIZE_UPDATER.addAndGet(this, -ls.getSize());
 
@@ -2354,7 +2353,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 Map<String, String> driverMetadata = OffloadUtils.getOffloadDriverMetadata(ls,
                         config.getLedgerOffloader().getOffloadDriverMetadata());
                 OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
-                ledgerMetaStore.ledgers.put(ls.getLedgerId(), newInfoBuilder.build());
+                ledgerMetaStore.put(ls.getLedgerId(), newInfoBuilder.build());
             }
 
             if (log.isDebugEnabled()) {
@@ -2365,7 +2364,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 @Override
                 public void operationComplete(Void result, Stat stat) {
                     log.info("[{}] End TrimConsumedLedgers. ledgers={} totalSize={}", name,
-                            ledgerMetaStore.ledgers.size(),
+                            ledgerMetaStore.size(),
                             TOTAL_SIZE_UPDATER.get(ManagedLedgerImpl.this));
                     ledgersStat = stat;
                     metadataMutex.unlock();
@@ -2672,7 +2671,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
-            long current = ledgerMetaStore.ledgers.lastKey();
+            long current = ledgerMetaStore.lastLedgerId();
 
             // the first ledger which will not be offloaded. Defaults to current,
             // in the case that the whole headmap is offloaded. Otherwise it will
@@ -2821,7 +2820,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                 });
 
-                LedgerInfo oldInfo = ledgerMetaStore.ledgers.get(ledgerId);
+                LedgerInfo oldInfo = ledgerMetaStore.get(ledgerId).orElse(null);
                 if (oldInfo == null) {
                     unlockingPromise.completeExceptionally(new OffloadConflict(
                             "Ledger " + ledgerId + " no longer exists in ManagedLedger, likely trimmed"));
@@ -2835,7 +2834,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     @Override
                                     public void operationComplete(Void result, Stat stat) {
                                         ledgersStat = stat;
-                                        ledgerMetaStore.ledgers.put(ledgerId, newInfo);
+                                        ledgerMetaStore.put(ledgerId, newInfo);
                                         unlockingPromise.complete(null);
                                     }
 
@@ -2974,7 +2973,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             count += toIncluded ? 1 : 0;
 
             // 2. Add the entries in the ledger pointed by fromPosition
-            LedgerInfo li = ledgerMetaStore.ledgers.get(fromPosition.getLedgerId());
+            LedgerInfo li = ledgerMetaStore.get(fromPosition.getLedgerId()).orElse(null);
             if (li != null) {
                 count += li.getEntries() - (fromPosition.getEntryId() + 1);
                 count += fromIncluded ? 1 : 0;
@@ -3027,7 +3026,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 lastLedger = true;
                 totalEntriesInCurrentLedger = lastConfirmedEntry.getEntryId() + 1;
             } else {
-                totalEntriesInCurrentLedger = ledgerMetaStore.ledgers.get(currentLedgerId).getEntries();
+                totalEntriesInCurrentLedger = ledgerMetaStore.get(currentLedgerId).get().getEntries();
             }
 
             long unreadEntriesInCurrentLedger = totalEntriesInCurrentLedger - currentEntryId;
@@ -3046,7 +3045,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     break;
                 } else {
                     Long lid = ledgerMetaStore.ledgers.ceilingKey(currentLedgerId + 1);
-                    currentLedgerId = lid != null ? lid : (ledgerMetaStore.ledgers.lastKey() + 1);
+                    currentLedgerId = lid != null ? lid : (ledgerMetaStore.lastLedgerId() + 1);
                     currentEntryId = 0;
                 }
             }
@@ -3116,7 +3115,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return position.getEntryId() <= (last.getEntryId() + 1);
         } else {
             // Look in the ledgers map
-            LedgerInfo ls = ledgerMetaStore.ledgers.get(position.getLedgerId());
+            LedgerInfo ls = ledgerMetaStore.get(position.getLedgerId()).orElse(null);
 
             if (ls == null) {
                 if (position.getLedgerId() < last.getLedgerId()) {
@@ -3133,7 +3132,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public boolean ledgerExists(long ledgerId) {
-        return ledgerMetaStore.ledgers.get(ledgerId) != null;
+        return ledgerMetaStore.get(ledgerId).isPresent();
     }
 
     public Long getNextValidLedger(long ledgerId) {
@@ -3171,7 +3170,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return null;
         }
         if (ledgerId > lastConfirmedEntry.getLedgerId()) {
-            checkState(ledgerMetaStore.ledgers.get(ledgerId).getEntries() == 0);
+            checkState(ledgerMetaStore.get(ledgerId).get().getEntries() == 0);
             ledgerId = lastConfirmedEntry.getLedgerId();
         }
         return new PositionImpl(ledgerId, -1);

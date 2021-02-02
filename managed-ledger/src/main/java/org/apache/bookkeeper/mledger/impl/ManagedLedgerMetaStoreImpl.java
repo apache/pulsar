@@ -69,6 +69,31 @@ public class ManagedLedgerMetaStoreImpl implements ManagedLedgerMetaStore {
         return ledgers.put(ledgerId, info);
     }
 
+    public Long lastLedgerId() {
+        return ledgers.lastKey();
+    }
+
+    public boolean isEmpty() {
+        return ledgers.isEmpty();
+    }
+
+    public void remove(Long ledgerId) {
+        ledgers.remove(ledgerId);
+    }
+
+    public int size() {
+        return ledgers.size();
+    }
+
+    public Optional<LedgerInfo> get(Long ledgerId) {
+        final LedgerInfo ledgerInfo = ledgers.get(ledgerId);
+        if (ledgerInfo == null) {
+            return Optional.empty();
+        } else {
+            return Optional.of(ledgerInfo);
+        }
+    }
+
     synchronized CompletableFuture<InitializeResult> initialize(String name, boolean createIfMissing) {
         final CompletableFuture<InitializeResult> initResult = new CompletableFuture<>();
         store.getManagedLedgerInfo(name, createIfMissing,
