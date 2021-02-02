@@ -39,7 +39,7 @@ import org.assertj.core.util.Files;
 @Slf4j
 public class TestZKServer implements AutoCloseable {
 
-    private final ZooKeeperServer zks;
+    protected final ZooKeeperServer zks;
     private final File zkDataDir;
     private final ServerCnxnFactory serverFactory;
 
