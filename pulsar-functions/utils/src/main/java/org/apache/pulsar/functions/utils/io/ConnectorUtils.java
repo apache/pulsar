@@ -179,40 +179,4 @@ public class ConnectorUtils {
             return connectors;
         }
     }
-
-//    public static void test() {
-//        ClassLoader root = sun.net.spi.nameservice.dns.DNSNameService.class.getClassLoader();
-//
-//        NarClassLoader narClassLoader = null;
-//        try {
-//            narClassLoader = NarClassLoader.getFromArchive(
-//                    new File("/Users/jerryp/workspace/incubator-pulsar/connectors/pulsar-io-data-generator.nar"), Collections.emptySet(), root, "/tmp");
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//        log.info("narClassLoader: {} - {}", narClassLoader.getURLs(), narClassLoader.getWorkingDirectory().getAbsoluteFile());
-//        ConfigurationBuilder config = new ConfigurationBuilder()
-//                .setUrls(ClasspathHelper.forPackage("org.apache.pulsar"))
-//                .setScanners(new SubTypesScanner(false));
-//        ClassLoader[] classLoaders = {narClassLoader};
-//
-//        config.setClassLoaders(classLoaders);
-//
-//        org.reflections.Reflections reflections = new org.reflections.Reflections(config);
-//
-//
-//        Set<Class<?>> subTypes = reflections.getSubTypesOf(Object.class);
-//        log.info("subTypes: {}", subTypes);
-//
-//
-//        Class<?> clazz = null;
-//        try {
-//            clazz = narClassLoader.loadClass("org.apache.pulsar.io.datagenerator.DataGeneratorSource");
-//        } catch (ClassNotFoundException e) {
-//            e.printStackTrace();
-//        }
-//
-//        log.info("clazz: {}", clazz);
-//    }
 }
