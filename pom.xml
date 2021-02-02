@@ -1107,7 +1107,7 @@ flexible messaging model and an intuitive client API.</description>
             </property>
             <property>
               <name>listener</name>
-              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.quarantine.QuarantinedTestNGAnnotationTransformer</value>
             </property>
           </properties>
         </configuration>
