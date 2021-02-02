@@ -104,6 +104,8 @@ assignmentWriteMaxRetries: 60
 instanceLivenessCheckFreqMs: 30000
 # Frequency how often worker performs compaction on function-topics
 topicCompactionFrequencySec: 1800
+# should the function context have pulsar admin client exposed? Default is disabled.
+exposeAdminClientEnabled: false
 
 
 ###############################
