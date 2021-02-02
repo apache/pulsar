@@ -19,31 +19,30 @@
 package org.apache.pulsar.sql.presto;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
-import static io.prestosql.spi.type.BigintType.BIGINT;
-import static io.prestosql.spi.type.DateTimeEncoding.packDateTimeWithZone;
-import static io.prestosql.spi.type.DateType.DATE;
-import static io.prestosql.spi.type.IntegerType.INTEGER;
-import static io.prestosql.spi.type.RealType.REAL;
-import static io.prestosql.spi.type.SmallintType.SMALLINT;
-import static io.prestosql.spi.type.TimeType.TIME;
-import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
-import static io.prestosql.spi.type.TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE;
-import static io.prestosql.spi.type.TinyintType.TINYINT;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
+import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
 import io.netty.buffer.ByteBuf;
-import io.prestosql.spi.PrestoException;
+import io.prestosql.decoder.DecoderColumnHandle;
+import io.prestosql.decoder.FieldValueProvider;
+import io.prestosql.spi.block.Block;
+import io.prestosql.spi.connector.ColumnHandle;
 import io.prestosql.spi.connector.RecordCursor;
 import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.VarbinaryType;
-import io.prestosql.spi.type.VarcharType;
 import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -54,14 +53,20 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.sql.presto.PulsarInternalColumn.PartitionColumn;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
+
 
 /**
  * Implementation of a cursor to read records.
@@ -74,10 +79,7 @@ public class PulsarRecordCursor implements RecordCursor {
     private ReadOnlyCursor cursor;
     private SpscArrayQueue<RawMessage> messageQueue;
     private SpscArrayQueue<Entry> entryQueue;
-    private Object currentRecord;
     private RawMessage currentMessage;
-    private Map<String, PulsarInternalColumn> internalColumnMap = PulsarInternalColumn.getInternalFieldsMap();
-    private SchemaHandler schemaHandler;
     private int maxBatchSize;
     private long completedBytes = 0;
     private ReadEntries readEntries;
@@ -97,10 +99,17 @@ public class PulsarRecordCursor implements RecordCursor {
     private int partition = -1;
 
 
+    private PulsarSqlSchemaInfoProvider schemaInfoProvider;
+
+    private FieldValueProvider[] currentRowValues = null;
+
+    PulsarDispatchingRowDecoderFactory decoderFactory;
+
     private static final Logger log = Logger.get(PulsarRecordCursor.class);
 
     public PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit,
-                              PulsarConnectorConfig pulsarConnectorConfig) {
+                              PulsarConnectorConfig pulsarConnectorConfig,
+                              PulsarDispatchingRowDecoderFactory decoderFactory) {
         this.splitSize = pulsarSplit.getSplitSize();
         // Set start time for split
         this.startTime = System.nanoTime();
@@ -126,21 +135,25 @@ public class PulsarRecordCursor implements RecordCursor {
                                 pulsarSplit.getTableName()).getNamespaceObject(), offloadPolicies,
                         pulsarConnectorConfig),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
+        this.decoderFactory = decoderFactory;
     }
 
     // Exposed for testing purposes
     PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
-        pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig,
-        PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker) {
+            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig,
+                       PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker,
+                       PulsarDispatchingRowDecoderFactory decoderFactory) {
         this.splitSize = pulsarSplit.getSplitSize();
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, managedLedgerConfig,
             pulsarConnectorMetricsTracker);
+        this.decoderFactory = decoderFactory;
     }
 
     private void initialize(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
         pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig,
-        PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker) {
+                            PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker) {
         this.columnHandles = columnHandles;
+        this.currentRowValues = new FieldValueProvider[columnHandles.size()];
         this.pulsarSplit = pulsarSplit;
         this.partition = TopicName.getPartitionIndex(pulsarSplit.getTableName());
         this.pulsarConnectorConfig = pulsarConnectorConfig;
@@ -154,11 +167,14 @@ public class PulsarRecordCursor implements RecordCursor {
         this.readOffloaded = pulsarConnectorConfig.getManagedLedgerOffloadDriver() != null;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
 
-        this.schemaHandler = PulsarSchemaHandlers
-                .newPulsarSchemaHandler(this.topicName,
-                        this.pulsarConnectorConfig, pulsarSplit.getSchemaInfo(),
-                        columnHandles, PulsarSqlSchemaInfoProvider.Type.NONE);
+        try {
+            this.schemaInfoProvider = new PulsarSqlSchemaInfoProvider(this.topicName,
+                    pulsarConnectorConfig.getPulsarAdmin());
+        } catch (PulsarClientException e) {
+            log.error(e, "Failed to init  Pulsar SchemaInfo Provider");
+            throw new RuntimeException(e);
 
+        }
         log.info("Initializing split with parameters: %s", pulsarSplit);
 
         try {
@@ -195,6 +211,11 @@ public class PulsarRecordCursor implements RecordCursor {
     public Type getType(int field) {
         checkArgument(field < columnHandles.size(), "Invalid field index");
         return columnHandles.get(field).getType();
+    }
+
+    @VisibleForTesting
+    public void setPulsarSqlSchemaInfoProvider(PulsarSqlSchemaInfoProvider schemaInfoProvider) {
+        this.schemaInfoProvider = schemaInfoProvider;
     }
 
     @VisibleForTesting
@@ -420,17 +441,117 @@ public class PulsarRecordCursor implements RecordCursor {
         //start time for deseralizing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
-        if (this.schemaHandler instanceof KeyValueSchemaHandler) {
-            ByteBuf keyByteBuf = null;
-            if (this.currentMessage.getKeyBytes().isPresent()) {
-                keyByteBuf = this.currentMessage.getKeyBytes().get();
-            }
-            currentRecord = this.schemaHandler.deserialize(keyByteBuf,
-                    this.currentMessage.getData(), this.currentMessage.getSchemaVersion());
-        } else {
-            currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData(),
-                    this.currentMessage.getSchemaVersion());
+        SchemaInfo schemaInfo;
+        try {
+            schemaInfo =  schemaInfoProvider.getSchemaByVersion(this.currentMessage.getSchemaVersion()).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
         }
+
+        Map<ColumnHandle, FieldValueProvider> currentRowValuesMap = new HashMap<>();
+
+        if (schemaInfo.getType().equals(SchemaType.KEY_VALUE)) {
+            ByteBuf keyByteBuf;
+            ByteBuf valueByteBuf;
+
+            KeyValueEncodingType keyValueEncodingType = KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo);
+            if (Objects.equals(keyValueEncodingType, KeyValueEncodingType.INLINE)) {
+                ByteBuf dataPayload = this.currentMessage.getData();
+                int keyLength = dataPayload.readInt();
+                keyByteBuf = dataPayload.readSlice(keyLength);
+                int valueLength = dataPayload.readInt();
+                valueByteBuf = dataPayload.readSlice(valueLength);
+            } else {
+                keyByteBuf = this.currentMessage.getKeyBytes().get();
+                valueByteBuf = this.currentMessage.getData();
+            }
+
+            KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
+            Set<DecoderColumnHandle> keyColumnHandles = columnHandles.stream()
+                    .filter(col -> !col.isInternal())
+                    .filter(col -> PulsarColumnHandle.HandleKeyValueType.KEY
+                            .equals(col.getHandleKeyValueType()))
+                    .collect(toImmutableSet());
+            PulsarRowDecoder keyDecoder = null;
+            if (keyColumnHandles.size() > 0) {
+                keyDecoder = decoderFactory.createRowDecoder(topicName,
+                        kvSchemaInfo.getKey(), keyColumnHandles
+                );
+            }
+
+            Set<DecoderColumnHandle> valueColumnHandles = columnHandles.stream()
+                    .filter(col -> !col.isInternal())
+                    .filter(col -> PulsarColumnHandle.HandleKeyValueType.VALUE
+                            .equals(col.getHandleKeyValueType()))
+                    .collect(toImmutableSet());
+            PulsarRowDecoder valueDecoder = null;
+            if (valueColumnHandles.size() > 0) {
+                valueDecoder = decoderFactory.createRowDecoder(topicName,
+                        kvSchemaInfo.getValue(),
+                        valueColumnHandles);
+            }
+
+            Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedKey;
+            if (keyColumnHandles.size() > 0) {
+                decodedKey = keyDecoder.decodeRow(keyByteBuf);
+                decodedKey.ifPresent(currentRowValuesMap::putAll);
+            }
+            if (valueColumnHandles.size() > 0) {
+                Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue =
+                        valueDecoder.decodeRow(valueByteBuf);
+                decodedValue.ifPresent(currentRowValuesMap::putAll);
+            }
+        } else {
+            PulsarRowDecoder messageDecoder = decoderFactory.createRowDecoder(topicName,
+                    schemaInfo,
+                    columnHandles.stream()
+                            .filter(col -> !col.isInternal())
+                            .filter(col -> PulsarColumnHandle.HandleKeyValueType.NONE
+                                    .equals(col.getHandleKeyValueType()))
+                            .collect(toImmutableSet()));
+            Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue =
+                    messageDecoder.decodeRow(this.currentMessage.getData());
+            decodedValue.ifPresent(currentRowValuesMap::putAll);
+        }
+
+        for (DecoderColumnHandle columnHandle : columnHandles) {
+            if (columnHandle.isInternal()) {
+                if (PulsarInternalColumn.PARTITION.getName().equals(columnHandle.getName())) {
+                    currentRowValuesMap.put(columnHandle, longValueProvider(this.partition));
+                } else if (PulsarInternalColumn.EVENT_TIME.getName().equals(columnHandle.getName())) {
+                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
+                            this.currentMessage.getEventTime(), this.currentMessage.getPublishTime() == 0));
+                } else if (PulsarInternalColumn.PUBLISH_TIME.getName().equals(columnHandle.getName())) {
+                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
+                            this.currentMessage.getPublishTime(), this.currentMessage.getPublishTime() == 0));
+                } else if (PulsarInternalColumn.MESSAGE_ID.getName().equals(columnHandle.getName())) {
+                    currentRowValuesMap.put(columnHandle, bytesValueProvider(
+                            this.currentMessage.getMessageId().toString().getBytes()));
+                } else if (PulsarInternalColumn.SEQUENCE_ID.getName().equals(columnHandle.getName())) {
+                    currentRowValuesMap.put(columnHandle, longValueProvider(this.currentMessage.getSequenceId()));
+                } else if (PulsarInternalColumn.PRODUCER_NAME.getName().equals(columnHandle.getName())) {
+                    currentRowValuesMap.put(columnHandle,
+                            bytesValueProvider(this.currentMessage.getProducerName().getBytes()));
+                } else if (PulsarInternalColumn.KEY.getName().equals(columnHandle.getName())) {
+                    String key = this.currentMessage.getKey().orElse(null);
+                    currentRowValuesMap.put(columnHandle, bytesValueProvider(key == null ? null : key.getBytes()));
+                } else if (PulsarInternalColumn.PROPERTIES.getName().equals(columnHandle.getName())) {
+                    try {
+                        currentRowValuesMap.put(columnHandle, bytesValueProvider(
+                                new ObjectMapper().writeValueAsBytes(this.currentMessage.getProperties())));
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else {
+                    throw new IllegalArgumentException("unknown internal field " + columnHandle.getName());
+                }
+            }
+        }
+        for (int i = 0; i < columnHandles.size(); i++) {
+            ColumnHandle columnHandle = columnHandles.get(i);
+            currentRowValues[i] = currentRowValuesMap.get(columnHandle);
+        }
+
         metricsTracker.incr_NUM_RECORD_DESERIALIZED();
 
         // stats for time spend deserializing
@@ -440,128 +561,41 @@ public class PulsarRecordCursor implements RecordCursor {
     }
 
 
-    @VisibleForTesting
-    Object getRecord(int fieldIndex) {
-        if (this.currentRecord == null) {
-            return null;
-        }
-
-        Object data;
-        PulsarColumnHandle pulsarColumnHandle = this.columnHandles.get(fieldIndex);
-
-        if (pulsarColumnHandle.isInternal()) {
-            String fieldName = this.columnHandles.get(fieldIndex).getName();
-            PulsarInternalColumn pulsarInternalColumn = this.internalColumnMap.get(fieldName);
-            if (pulsarInternalColumn instanceof PartitionColumn) {
-                data = this.partition;
-            } else {
-                data = pulsarInternalColumn.getData(this.currentMessage);
-            }
-        } else {
-            data = this.schemaHandler.extractField(fieldIndex, this.currentRecord);
-        }
-
-        return data;
-    }
-
     @Override
     public boolean getBoolean(int field) {
-        checkFieldType(field, boolean.class);
-        return (boolean) getRecord(field);
+        return getFieldValueProvider(field, boolean.class).getBoolean();
     }
 
     @Override
     public long getLong(int field) {
-        checkFieldType(field, long.class);
-
-        Object record = getRecord(field);
-        Type type = getType(field);
-
-        if (type.equals(BIGINT)) {
-            return ((Number) record).longValue();
-        } else if (type.equals(DATE)) {
-            return ((Number) record).longValue();
-        } else if (type.equals(INTEGER)) {
-            return ((Number) record).intValue();
-        } else if (type.equals(REAL)) {
-            return Float.floatToIntBits(((Number) record).floatValue());
-        } else if (type.equals(SMALLINT)) {
-            return ((Number) record).shortValue();
-        } else if (type.equals(TIME)) {
-            return ((Number) record).longValue();
-        } else if (type.equals(TIMESTAMP)) {
-            if (record instanceof String) {
-                return Long.parseLong((String) record);
-            } else {
-                return ((Number) record).longValue();
-            }
-        } else if (type.equals(TIMESTAMP_WITH_TIME_ZONE)) {
-            return packDateTimeWithZone(((Number) record).longValue(), 0);
-        } else if (type.equals(TINYINT)) {
-            return Byte.parseByte(record.toString());
-        } else {
-            throw new PrestoException(NOT_SUPPORTED, "Unsupported type " + getType(field));
-        }
+        return getFieldValueProvider(field, long.class).getLong();
     }
 
     @Override
     public double getDouble(int field) {
-        checkFieldType(field, double.class);
-        Object record = getRecord(field);
-        return (double) record;
+        return getFieldValueProvider(field, double.class).getDouble();
     }
 
     @Override
     public Slice getSlice(int field) {
-        checkFieldType(field, Slice.class);
-
-        Object record = getRecord(field);
-        Type type = getType(field);
-        if (type == VarcharType.VARCHAR) {
-            return Slices.utf8Slice(record.toString());
-        } else if (type == VarbinaryType.VARBINARY) {
-            return Slices.wrappedBuffer(toBytes(record));
-        } else {
-            throw new PrestoException(NOT_SUPPORTED, "Unsupported type " + type);
-        }
+        return getFieldValueProvider(field, Slice.class).getSlice();
     }
 
-    private byte[] toBytes(Object record) {
-        if (record instanceof ByteBuffer) {
-            ByteBuffer byteBuffer = (ByteBuffer) record;
-            if (byteBuffer.hasArray()) {
-                return byteBuffer.array();
-            }
-            byte[] bytes = new byte[byteBuffer.position()];
-            byteBuffer.flip();
-            byteBuffer.get(bytes);
-            return bytes;
-        } else if (record instanceof ByteBuf) {
-            ByteBuf byteBuf = (ByteBuf) record;
-            if (byteBuf.hasArray()) {
-                return byteBuf.array();
-            }
-            byte[] bytes = new byte[byteBuf.readableBytes()];
-            byteBuf.readBytes(bytes);
-            return bytes;
-        } else {
-            try {
-                return (byte[]) record;
-            } catch (Exception e) {
-                throw new PrestoException(NOT_SUPPORTED, "Unsupported type " + record.getClass().getName());
-            }
-        }
+    private FieldValueProvider getFieldValueProvider(int fieldIndex, Class<?> expectedType) {
+        checkArgument(fieldIndex < columnHandles.size(), "Invalid field index");
+        checkFieldType(fieldIndex, expectedType);
+        return currentRowValues[fieldIndex];
     }
 
     @Override
     public Object getObject(int field) {
-        throw new UnsupportedOperationException();
+        return getFieldValueProvider(field, Block.class).getBlock();
     }
 
     @Override
     public boolean isNull(int field) {
-        Object record = getRecord(field);
-        return record == null;
+        FieldValueProvider provider = currentRowValues[field];
+        return provider == null || provider.isNull();
     }
 
     @Override
@@ -605,8 +639,4 @@ public class PulsarRecordCursor implements RecordCursor {
         checkArgument(actual == expected, "Expected field %s to be type %s but is %s", field, expected, actual);
     }
 
-    @VisibleForTesting
-    SchemaHandler getSchemaHandler() {
-        return this.schemaHandler;
-    }
 }

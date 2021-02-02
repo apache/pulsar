@@ -28,8 +28,10 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -47,6 +49,7 @@ import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.ZooKeeper;
 
 @SuppressWarnings("deprecation")
+@Slf4j
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     private final AtomicReference<ZooKeeperCache> rackawarePolicyZkCache = new AtomicReference<>();
@@ -138,7 +141,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
         bkConf.setGetBookieInfoRetryIntervalSeconds(
                 conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
-
+        Properties allProps = conf.getProperties();
+        allProps.forEach((key, value) -> {
+            String sKey = key.toString();
+            if (sKey.startsWith("bookkeeper_") && value != null) {
+                String bkExtraConfigKey = sKey.substring(11);
+                log.info("Extra BookKeeper client configuration {}, setting {}={}", sKey, bkExtraConfigKey, value);
+                bkConf.setProperty(bkExtraConfigKey, value);
+            }
+        });
         return bkConf;
     }
 
