@@ -347,7 +347,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
                                     .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
                                     .setTimestamp(clock.millis()).build();
-                            ledgerMetaStore.ledgers.put(id, info);
+                            ledgerMetaStore.put(id, info);
                             if (managedLedgerInterceptor != null) {
                                 managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh);
                             }
@@ -446,6 +446,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 lastConfirmedEntry = new PositionImpl(lh.getId(), -1);
                 // bypass empty ledgers, find last ledger with Message if possible.
+                // TODO can abstract to a method?
                 while (lastConfirmedEntry.getEntryId() == -1) {
                     Map.Entry<Long, LedgerInfo> formerLedger = ledgerMetaStore.ledgers
                             .lowerEntry(lastConfirmedEntry.getLedgerId());
@@ -458,7 +459,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
-                ledgerMetaStore.ledgers.put(lh.getId(), info);
+                ledgerMetaStore.put(lh.getId(), info);
 
                 // Save it back to ensure all nodes exist
                 store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, storeLedgersCb);
