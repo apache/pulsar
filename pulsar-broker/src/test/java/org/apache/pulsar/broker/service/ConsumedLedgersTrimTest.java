@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -143,14 +145,8 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         // the lastMessageId is still on the previous ledger
         restartBroker();
         // force load topic
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
-            try {
-                pulsar.getBrokerService().getTopicIfExists(topicName).get(3, TimeUnit.SECONDS).get();
-                return true;
-            } catch (Exception ignored) {
-            }
-            return false;
-        });
+        Awaitility.await().ignoreExceptions().untilAsserted(()
+                -> assertNotNull(pulsar.getBrokerService().getTopicIfExists(topicName).get(3, TimeUnit.SECONDS).get()));
         pulsar.getAdminClient().topics().getStats(topicName);
         MessageId messageIdAfterRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
         LOG.info("lastmessageid " + messageIdAfterRestart);
