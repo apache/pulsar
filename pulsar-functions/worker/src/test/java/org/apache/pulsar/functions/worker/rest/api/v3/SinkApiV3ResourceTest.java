@@ -297,7 +297,7 @@ public class SinkApiV3ResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink package does not have the" +
             " correct format. Pulsar cannot determine if the package is a NAR package" +
-            " or JAR package.Sink classname is not provided and attempts to load it as a NAR package produced the following error.")
+            " or JAR package. Sink classname is not provided and attempts to load it as a NAR package produced the following error.")
     public void testRegisterSinkMissingPackageDetails() {
         try {
             testRegisterSinkMissingArguments(

@@ -406,7 +406,7 @@ public class FunctionCommon {
         if (isEmpty(connectorClassName)) {
             if (narClassLoader == null) {
                 throw new IllegalArgumentException(String.format("%s package does not have the correct format. " +
-                                "Pulsar cannot determine if the package is a NAR package or JAR package." +
+                                "Pulsar cannot determine if the package is a NAR package or JAR package. " +
                                 "%s classname is not provided and attempts to load it as a NAR package produced the following error.",
                         capFirstLetter(componentType), capFirstLetter(componentType)),
                         narClassLoaderException);

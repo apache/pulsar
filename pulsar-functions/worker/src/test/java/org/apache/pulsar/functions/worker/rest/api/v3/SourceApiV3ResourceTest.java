@@ -314,6 +314,29 @@ public class SourceApiV3ResourceTest {
         }
     }
 
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package does not have the" +
+            " correct format. Pulsar cannot determine if the package is a NAR package" +
+            " or JAR package. Source classname is not provided and attempts to load it as a NAR package produced the following error.")
+    public void testRegisterSourceMissingPackageDetailsAndClassname() {
+        try {
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    mockedInputStream,
+                    null,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract source class from archive")
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
         try {
