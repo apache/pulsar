@@ -396,7 +396,6 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
 
     private void testBatchReceive(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce,
                                   int receiverQueueSize, boolean enableAckReceipt) throws Exception {
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).ioThreads(10).build();
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
         if (!batchProduce) {
             producerBuilder.enableBatching(false);
@@ -476,7 +475,6 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                     latch.countDown();
                 }
                 consumer.acknowledgeAsync(messages);
-
                 if (messages.size() < expected) {
                     ForkJoinPool.commonPool().execute(() -> receiveAsync(consumer, expected - messages.size(), latch));
                 } else {
