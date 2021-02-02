@@ -16,30 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.sql.presto;
+package org.apache.pulsar.client.admin.utils;
 
-import io.netty.buffer.ByteBuf;
+import lombok.experimental.UtilityClass;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 
 /**
- * This interface defines the methods to work with schemas.
+ * Helper class for class instantiations and it also contains methods to work with schemas.
  */
-public interface SchemaHandler {
+@SuppressWarnings("unchecked")
+@UtilityClass
+public class DefaultImplementation {
+    private static final Class<PulsarAdminBuilder> ADMIN_CLIENT_BUILDER_IMPL = ReflectionUtils.newClassInstance(
+            "org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl");
 
-    default Object deserialize(ByteBuf payload) {
-        return null;
+    public static PulsarAdminBuilder newAdminClientBuilder() {
+        return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.newInstance());
     }
-
-    // if schemaHandler don't support multi version, we will use method deserialize(ByteBuf payload)
-    default Object deserialize(ByteBuf byteBuf, byte[] schemaVersion) {
-        return deserialize(byteBuf);
-    }
-
-    // if SchemaHandler don't support key value multi version
-    // we will use method deserialize(ByteBuf byteBuf, byte[] schemaVersion)
-    default Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload, byte[] schemaVersion) {
-        return deserialize(dataPayload, schemaVersion);
-    }
-
-    Object extractField(int index, Object currentRecord);
-
 }

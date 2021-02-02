@@ -181,19 +181,24 @@ public class PersistentSubscription implements Subscription {
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
             Dispatcher previousDispatcher = null;
-
+            boolean useStreamingDispatcher = topic.getBrokerService().getPulsar()
+                                                    .getConfiguration().isStreamingDispatch();
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor,
-                            SubType.Exclusive, 0, topic, this);
+                    dispatcher = useStreamingDispatcher ? new PersistentStreamingDispatcherSingleActiveConsumer(cursor,
+                            SubType.Exclusive, 0, topic, this) :
+                            new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0,
+                                    topic, this);
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                    dispatcher = useStreamingDispatcher ? new PersistentStreamingDispatcherMultipleConsumers(topic,
+                            cursor, this) : new PersistentDispatcherMultipleConsumers(topic,
+                            cursor, this);
                 }
                 break;
             case Failover:
@@ -206,8 +211,10 @@ public class PersistentSubscription implements Subscription {
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor,
-                            SubType.Failover, partitionIndex, topic, this);
+                    dispatcher = useStreamingDispatcher ? new PersistentStreamingDispatcherSingleActiveConsumer(cursor,
+                            SubType.Failover, partitionIndex, topic, this) :
+                            new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
+                                    partitionIndex, topic, this);
                 }
                 break;
             case Key_Shared:

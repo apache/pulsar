@@ -135,6 +135,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
+                .ackTimeout(1, TimeUnit.SECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
