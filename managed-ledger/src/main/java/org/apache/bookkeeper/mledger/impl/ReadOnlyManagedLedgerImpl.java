@@ -18,10 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import com.google.common.collect.Range;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-
-import com.google.common.collect.Range;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -57,12 +56,12 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                 state = State.LedgerOpened;
 
                 for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
-                    ledgers.put(ls.getLedgerId(), ls);
+                    ledger2333.put(ls.getLedgerId(), ls);
                 }
 
                 // Last ledger stat may be zeroed, we must update it
-                if (ledgers.size() > 0 && ledgers.lastEntry().getValue().getEntries() == 0) {
-                    long lastLedgerId = ledgers.lastKey();
+                if (ledger2333.size() > 0 && ledger2333.lastEntry().getValue().getEntries() == 0) {
+                    long lastLedgerId = ledger2333.lastKey();
 
                     // Fetch last add confirmed for last ledger
                     bookKeeper.newOpenLedgerOp().withRecovery(false).withLedgerId(lastLedgerId)
@@ -72,7 +71,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                     LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
                                             .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
                                             .setTimestamp(clock.millis()).build();
-                                    ledgers.put(lastLedgerId, info);
+                                    ledger2333.put(lastLedgerId, info);
 
                                     future.complete(createReadOnlyCursor(startPosition));
                                 }).exceptionally(ex -> {
@@ -81,7 +80,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                         // The last ledger was empty, so we cannot read the last add confirmed.
                                         LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
                                                 .setEntries(0).setSize(0).setTimestamp(clock.millis()).build();
-                                        ledgers.put(lastLedgerId, info);
+                                        ledger2333.put(lastLedgerId, info);
                                         future.complete(createReadOnlyCursor(startPosition));
                                     } else {
                                         future.completeExceptionally(new ManagedLedgerException(ex));
@@ -94,7 +93,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                     // The last ledger was empty, so we cannot read the last add confirmed.
                                     LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId).setEntries(0)
                                             .setSize(0).setTimestamp(clock.millis()).build();
-                                    ledgers.put(lastLedgerId, info);
+                                    ledger2333.put(lastLedgerId, info);
                                     future.complete(createReadOnlyCursor(startPosition));
                                 } else {
                                     future.completeExceptionally(new ManagedLedgerException(ex));
@@ -121,16 +120,17 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     private ReadOnlyCursor createReadOnlyCursor(PositionImpl startPosition) {
-        if (ledgers.isEmpty()) {
+        if (ledger2333.isEmpty()) {
             lastConfirmedEntry = PositionImpl.earliest;
-        } else if (ledgers.lastEntry().getValue().getEntries() > 0) {
+        } else if (ledger2333.lastEntry().getValue().getEntries() > 0) {
             // Last ledger has some of the entries
-            lastConfirmedEntry = new PositionImpl(ledgers.lastKey(), ledgers.lastEntry().getValue().getEntries() - 1);
+            lastConfirmedEntry = new PositionImpl(ledger2333.lastKey(),
+                    ledger2333.lastEntry().getValue().getEntries() - 1);
         } else {
             // Last ledger is empty. If there is a previous ledger, position on the last entry of that ledger
-            if (ledgers.size() > 1) {
-                long lastLedgerId = ledgers.lastKey();
-                LedgerInfo li = ledgers.headMap(lastLedgerId, false).lastEntry().getValue();
+            if (ledger2333.size() > 1) {
+                long lastLedgerId = ledger2333.lastKey();
+                LedgerInfo li = ledger2333.headMap(lastLedgerId, false).lastEntry().getValue();
                 lastConfirmedEntry = new PositionImpl(li.getLedgerId(), li.getEntries() - 1);
             } else {
                 lastConfirmedEntry = PositionImpl.earliest;
