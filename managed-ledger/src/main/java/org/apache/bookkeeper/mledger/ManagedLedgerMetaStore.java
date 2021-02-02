@@ -25,15 +25,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 
 public interface ManagedLedgerMetaStore {
     interface NewInfoBuilder {
-        MLDataFormats.ManagedLedgerInfo build(Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> newLedgers);
+        MLDataFormats.ManagedLedgerInfo build(Map<Long, LedgerInfo> newLedgers);
     }
 
     interface LedgerInfoTransformation {
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo transform(MLDataFormats.ManagedLedgerInfo.LedgerInfo oldInfo) throws
+        LedgerInfo transform(LedgerInfo oldInfo) throws
                 ManagedLedgerException;
     }
 
@@ -59,7 +60,7 @@ public interface ManagedLedgerMetaStore {
 
     CallbackMutex getMetadataMutex();
 
-    MLDataFormats.ManagedLedgerInfo.LedgerInfo put(Long ledgerId, MLDataFormats.ManagedLedgerInfo.LedgerInfo info);
+    LedgerInfo put(Long ledgerId, LedgerInfo info);
 
     Long lastLedgerId();
 
@@ -71,7 +72,7 @@ public interface ManagedLedgerMetaStore {
 
     void closeLedger(long ledgerId, long ledgerLength, long entriesCountInLedger, long closeTimeInMillis);
 
-    Optional<MLDataFormats.ManagedLedgerInfo.LedgerInfo> get(Long ledgerId);
+    Optional<LedgerInfo> get(Long ledgerId);
 
     CompletableFuture<InitializeResult> initialize(String name, boolean createIfMissing);
 
