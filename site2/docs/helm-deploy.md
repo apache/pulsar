@@ -350,6 +350,7 @@ helm upgrade --install pulsar apache/pulsar \
     --timeout 10m \
     --set [your configuration options]
 ```
+> For the first deployment, add `--set initialize=true` option to initialize bookie and pulsar cluster meta.
 
 You can also use the `--version <installation version>` option if you want to install a specific version of Pulsar Helm chart.
 
