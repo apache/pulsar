@@ -271,7 +271,8 @@ public class KubernetesRuntime implements Runtime {
                         metricsPort,
                         narExtractionDirectory,
                         functinoInstanceClassPath,
-                        true));
+                        true,
+                        pulsarAdminUrl));
 
         doChecks(instanceConfig.getFunctionDetails(), this.jobName);
     }
