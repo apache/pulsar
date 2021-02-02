@@ -109,12 +109,11 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
                 .authentication(authTls).build());
-        pulsarClient = PulsarClient.builder()
+        replacePulsarClient(PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrlTls())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
-                .authentication(authTls).enableTls(true).enableTlsHostnameVerification(hostnameVerificationEnabled)
-                .build();
+                .authentication(authTls).enableTls(true).enableTlsHostnameVerification(hostnameVerificationEnabled));
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 
