@@ -377,7 +377,7 @@ public class PulsarFunctionE2ETest {
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
-        workerConfig.setConnectorsDirectory(Files.createTempDirectory("test").toFile().getAbsolutePath());
+        workerConfig.setConnectorsDirectory(Files.createTempDirectory("tempconnectorsdir").toFile().getAbsolutePath());
 
         PulsarWorkerService workerService = new PulsarWorkerService();
         workerService.init(workerConfig, null, false);
