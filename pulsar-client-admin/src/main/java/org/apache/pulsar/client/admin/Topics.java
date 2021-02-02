@@ -2717,6 +2717,22 @@ public interface Topics {
      */
     CompletableFuture<Integer> getMaxConsumersAsync(String topic);
 
+    /**
+     * Get the max number of consumer applied for specified topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxConsumers(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the max number of consumer applied for specified topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<Integer> getMaxConsumersAsync(String topic, boolean applied);
 
     /**
      * Set the max number of consumer for specified topic.

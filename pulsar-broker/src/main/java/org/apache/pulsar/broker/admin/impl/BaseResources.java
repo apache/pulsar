@@ -97,13 +97,24 @@ public class BaseResources<T> {
         return cache.readModifyUpdate(path, modifyFunction);
     }
 
-    public void create(String path, T data) throws MetadataStoreException {
-        create(path, t -> data);
+    public void setWithCreate(String path, Function<Optional<T>, T> createFunction) throws MetadataStoreException {
+        try {
+            setWithCreateAsync(path, createFunction).get();
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
+        } catch (Exception e) {
+            throw new MetadataStoreException("Failed to set/create " + path, e);
+        }
     }
 
-    public void create(String path, Function<Optional<T>, T> createFunction) throws MetadataStoreException {
+    public CompletableFuture<Void> setWithCreateAsync(String path, Function<Optional<T>, T> createFunction) {
+        return cache.readModifyUpdateOrCreate(path, createFunction);
+    }
+
+    public void create(String path, T data) throws MetadataStoreException {
         try {
-            createAsync(path, createFunction).get();
+            createAsync(path, data).get();
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
@@ -113,11 +124,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> createAsync(String path, T data) {
-        return createAsync(path, t -> data);
-    }
-
-    public CompletableFuture<Void> createAsync(String path, Function<Optional<T>, T> createFunction) {
-        return cache.readModifyUpdateOrCreate(path, createFunction);
+        return cache.create(path, data);
     }
 
     public void delete(String path) throws MetadataStoreException {
