@@ -339,7 +339,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "batchReceivePolicy")
     public void testAsyncBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize, boolean isEnableAckReceipt) throws Exception {
-        final String topic = "persistent://my-property/my-ns/batch-receiync-" + UUID.randomUUID();
+        final String topic = "persistent://my-property/my-ns/batch-receive-non-partition-async-" + UUID.randomUUID();
         testBatchReceiveAsync(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
@@ -475,11 +475,8 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                     log.info("Get message {} from batch", message.getValue());
                     latch.countDown();
                 }
-                try {
-                    consumer.acknowledge(messages);
-                } catch (PulsarClientException e) {
-                    log.error("Ack message error", e);
-                }
+                consumer.acknowledgeAsync(messages);
+
                 if (messages.size() < expected) {
                     ForkJoinPool.commonPool().execute(() -> receiveAsync(consumer, expected - messages.size(), latch));
                 } else {

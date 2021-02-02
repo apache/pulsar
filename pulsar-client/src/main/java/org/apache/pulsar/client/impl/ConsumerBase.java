@@ -374,9 +374,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         try {
             List<MessageId> messageIds = new ArrayList<>();
             messages.forEach(message -> messageIds.add(message.getMessageId()));
-            CompletableFuture<Void> completableFuture = acknowledgeAsync(messageIds);
-
-            return completableFuture;
+            return acknowledgeAsync(messageIds);
         } catch (NullPointerException npe) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
         }
