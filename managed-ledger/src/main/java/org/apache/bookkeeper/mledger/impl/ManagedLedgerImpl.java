@@ -311,78 +311,66 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         log.info("Opening managed ledger {}", name);
 
         // Fetch the list of existing ledgers in the managed ledger
-        store.getManagedLedgerInfo(name, config.isCreateIfMissing(), new MetaStoreCallback<ManagedLedgerInfo>() {
-            @Override
-            public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
-                ledgersStat = stat;
-                if (mlInfo.hasTerminatedPosition()) {
-                    state = State.Terminated;
-                    lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
-                    log.info("[{}] Recovering managed ledger terminated at {}", name, lastConfirmedEntry);
-                }
-
-                for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
-                    ledgerMetaStore.ledgers.put(ls.getLedgerId(), ls);
-                }
-
-                if (mlInfo.getPropertiesCount() > 0) {
-                    propertiesMap = Maps.newHashMap();
-                    for (int i = 0; i < mlInfo.getPropertiesCount(); i++) {
-                        MLDataFormats.KeyValue property = mlInfo.getProperties(i);
-                        propertiesMap.put(property.getKey(), property.getValue());
-                    }
-                }
-                if (managedLedgerInterceptor != null) {
-                    managedLedgerInterceptor.onManagedLedgerPropertiesInitialize(propertiesMap);
-                }
-
-                // Last ledger stat may be zeroed, we must update it
-                if (ledgerMetaStore.ledgers.size() > 0) {
-                    final long id = ledgerMetaStore.ledgers.lastKey();
-                    OpenCallback opencb = (rc, lh, ctx1) -> {
-                        executor.executeOrdered(name, safeRun(() -> {
-                            mbean.endDataLedgerOpenOp();
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
-                            }
-                            if (rc == BKException.Code.OK) {
-                                LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
-                                        .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
-                                        .setTimestamp(clock.millis()).build();
-                                ledgerMetaStore.ledgers.put(id, info);
-                                if (managedLedgerInterceptor != null) {
-                                    managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh);
-                                }
-                                initializeBookKeeper(callback);
-                            } else if (isNoSuchLedgerExistsException(rc)) {
-                                log.warn("[{}] Ledger not found: {}", name, ledgerMetaStore.ledgers.lastKey());
-                                ledgerMetaStore.ledgers.remove(ledgerMetaStore.ledgers.lastKey());
-                                initializeBookKeeper(callback);
-                            } else {
-                                log.error("[{}] Failed to open ledger {}: {}", name, id, BKException.getMessage(rc));
-                                callback.initializeFailed(createManagedLedgerException(rc));
-                                return;
-                            }
-                        }));
-                    };
-
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Opening ledger {}", name, id);
-                    }
-                    mbean.startDataLedgerOpenOp();
-                    bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null);
+        ledgerMetaStore.initialize(name, config.isCreateIfMissing()).whenComplete((initResult, ex) -> {
+            if (ex != null) {
+                if (ex instanceof MetadataNotFoundException) {
+                    callback.initializeFailed(new ManagedLedgerNotFoundException((MetadataNotFoundException) ex));
                 } else {
-                    initializeBookKeeper(callback);
+                    callback.initializeFailed(new ManagedLedgerException(ex));
                 }
+                return;
             }
 
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                if (e instanceof MetadataNotFoundException) {
-                    callback.initializeFailed(new ManagedLedgerNotFoundException(e));
-                } else {
-                    callback.initializeFailed(new ManagedLedgerException(e));
+            ledgersStat = initResult.getStat();
+            initResult.getTerminatedPosition().ifPresent((terminatedPosition) -> {
+                state = State.Terminated;
+                lastConfirmedEntry = terminatedPosition;
+                log.info("[{}] Recovering managed ledger terminated at {}", name, lastConfirmedEntry);
+            });
+
+            propertiesMap = initResult.getPropertiesMap();
+
+            if (managedLedgerInterceptor != null) {
+                managedLedgerInterceptor.onManagedLedgerPropertiesInitialize(propertiesMap);
+            }
+
+            // Last ledger stat may be zeroed, we must update it
+            if (ledgerMetaStore.ledgers.size() > 0) {
+                final long id = ledgerMetaStore.ledgers.lastKey();
+                OpenCallback opencb = (rc, lh, ctx1) -> {
+                    executor.executeOrdered(name, safeRun(() -> {
+                        mbean.endDataLedgerOpenOp();
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
+                        }
+                        if (rc == BKException.Code.OK) {
+                            LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
+                                    .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
+                                    .setTimestamp(clock.millis()).build();
+                            ledgerMetaStore.ledgers.put(id, info);
+                            if (managedLedgerInterceptor != null) {
+                                managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh);
+                            }
+                            initializeBookKeeper(callback);
+                        } else if (isNoSuchLedgerExistsException(rc)) {
+                            log.warn("[{}] Ledger not found: {}", name, ledgerMetaStore.ledgers.lastKey());
+                            ledgerMetaStore.ledgers.remove(ledgerMetaStore.ledgers.lastKey());
+                            initializeBookKeeper(callback);
+                        } else {
+                            log.error("[{}] Failed to open ledger {}: {}", name, id, BKException.getMessage(rc));
+                            callback.initializeFailed(createManagedLedgerException(rc));
+                            return;
+                        }
+                    }));
+                };
+
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Opening ledger {}", name, id);
                 }
+                mbean.startDataLedgerOpenOp();
+                bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null);
+            } else {
+                initializeBookKeeper(callback);
             }
         });
 
