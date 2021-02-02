@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -868,6 +869,36 @@ public class MockZooKeeper extends ZooKeeper {
             return;
         }
 
+    }
+
+    @Override
+    public void multi(Iterable<org.apache.zookeeper.Op> ops, AsyncCallback.MultiCallback cb, Object ctx) {
+        try {
+            List<OpResult> res = multi(ops);
+            cb.processResult(KeeperException.Code.OK.intValue(), (String)null, ctx, res);
+        } catch (Exception e) {
+            cb.processResult(KeeperException.Code.APIERROR.intValue(), (String)null, ctx, null);
+        }
+    }
+
+    @Override
+    public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
+        List<OpResult> res = new ArrayList<>();
+        for (org.apache.zookeeper.Op op : ops) {
+            switch (op.getType()) {
+                case ZooDefs.OpCode.create:
+                    this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
+                    res.add(new OpResult.CreateResult(op.getPath()));
+                case ZooDefs.OpCode.delete:
+                    this.delete(op.getPath(), -1);
+                    res.add(new OpResult.DeleteResult());
+                case ZooDefs.OpCode.setData:
+                    this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
+                    res.add(new OpResult.SetDataResult(null));
+                default:
+            }
+        }
+        return res;
     }
 
     @Override
