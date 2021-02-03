@@ -13,7 +13,7 @@ You can interact with the admin interface via:
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your Pulsar installation:
 
     ```shell
-      $ bin/pulsar-admin
+     $ bin/pulsar-admin
     ```
 
     For details of `pulsar-admin` tool, see the [Pulsar command-line tools](reference-pulsar-admin.md) doc.
@@ -23,7 +23,7 @@ You can interact with the admin interface via:
 
 ## Admin setup
 
-Each of the three admin interfaces (the {@inject: rest:REST:/} API, the `pulsar-admin` CLI tool, and the [Java admin API](/api/admin)) requires some special setup if you have enabled authentication in your Pulsar instance.
+Each of the three admin interfaces (the `pulsar-admin` CLI tool, the {@inject: rest:REST:/} API, and the [Java admin API](/api/admin)) requires some special setup if you have enabled authentication in your Pulsar instance.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -42,11 +42,11 @@ If you have enabled authentication, you need to provide an auth configuration to
 
 <!--REST API-->
 
-You can find documentation for the REST API exposed by Pulsar brokers in this reference {@inject: rest:document:/}.
+You can find details for the REST API exposed by Pulsar brokers in this {@inject: rest:document:/}.
 
 <!--Java-->
 
-To use the Java admin API, instantiate a {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object, specifying a URL for a Pulsar broker and a {@inject: javadoc:PulsarAdminBuilder:/admin/org/apache/pulsar/client/admin/PulsarAdminBuilder}. Here's a minimal example using `localhost`:
+To use the Java admin API, instantiate a {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object, and specify a URL for a Pulsar broker and a {@inject: javadoc:PulsarAdminBuilder:/admin/org/apache/pulsar/client/admin/PulsarAdminBuilder}. The following is a minimal example using `localhost`:
 
 ```java
 String url = "http://localhost:8080";
