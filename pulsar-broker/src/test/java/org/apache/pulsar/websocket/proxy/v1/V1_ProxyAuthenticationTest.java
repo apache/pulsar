@@ -109,8 +109,12 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         executor.shutdownNow();
 
         super.internalCleanup();
-        service.close();
-        proxyServer.stop();
+        if (service != null) {
+            service.close();
+        }
+        if (proxyServer != null) {
+            proxyServer.stop();
+        }
         log.info("Finished Cleaning Up Test setup");
 
     }

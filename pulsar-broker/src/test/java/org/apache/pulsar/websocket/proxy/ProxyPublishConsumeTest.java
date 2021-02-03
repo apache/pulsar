@@ -105,8 +105,12 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.resetConfig();
         super.internalCleanup();
-        service.close();
-        proxyServer.stop();
+        if (service != null) {
+            service.close();
+        }
+        if (proxyServer != null) {
+            proxyServer.stop();
+        }
         log.info("Finished Cleaning Up Test setup");
     }
 
