@@ -142,7 +142,7 @@ tiered-storage-jcloud-2.5.1.nar
 <tr><th>Optional</th><th>Description</th><th>Example value</th></tr>
 </thead>
 <tbody>
-<tr><td><code>s3ManagedLedgerOffloadRegion</code></td><td>Bucket region</td><td>eu-west-3</td></tr>
+<tr><td><code>s3ManagedLedgerOffloadRegion</code></td><td>Bucket region <br><br><strong>Note</strong>: before specifying a value for this parameter, you need to set the following configurations. Otherwise, you might get an error.<br><br>- Set <a href="https://docs.aws.amazon.com/general/latest/gr/s3.html"><code>s3ManagedLedgerOffloadServiceEndpoint</code></a>.<br><br>Example<br><code>s3ManagedLedgerOffloadServiceEndpoint=https://s3.YOUR_REGION.amazonaws.com</code><br><br>- Grant <code>GetBucketLocation</code> permission to a user.<br><br>For how to grant <code>GetBucketLocation</code> permission to a user, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-buckets">here</a>.</td><td>eu-west-3</td></tr>
 <tr><td><code>s3ManagedLedgerOffloadReadBufferSizeInBytes</code></td><td>Size of block read</td><td>1 MB</td></tr>
 <tr><td><code>s3ManagedLedgerOffloadMaxBlockSizeInBytes</code></td><td>Size of block write</td><td>64 MB</td></tr>
 <tr><td><code>managedLedgerMinLedgerRolloverTimeMinutes</code></td><td>Minimum time between ledger rollover for a topic<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>2</td></tr>

@@ -272,7 +272,7 @@ In this example, using await operator instead of executor function.</p>
 <tbody>
 <tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/en/next/reference-terminology#topic">topic</a> on which the consumer will establish a subscription and listen for messages.</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>subscription</code></td><td style="text-align:left">The subscription name for this consumer.</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">Available options are <code>Exclusive</code>, <code>Shared</code>, and <code>Failover</code>.</td><td style="text-align:left"><code>Exclusive</code></td></tr>
+<tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">Available options are <code>Exclusive</code>, <code>Shared</code>, <code>Key_Shared</code>, and <code>Failover</code>.</td><td style="text-align:left"><code>Exclusive</code></td></tr>
 <tr><td style="text-align:left"><code>subscriptionInitialPosition</code></td><td style="text-align:left">Initial position at which to set cursor when subscribing to a topic at first time.</td><td style="text-align:left"><code>SubscriptionInitialPosition.Latest</code></td></tr>
 <tr><td style="text-align:left"><code>ackTimeoutMs</code></td><td style="text-align:left">Acknowledge timeout in milliseconds.</td><td style="text-align:left">0</td></tr>
 <tr><td style="text-align:left"><code>nAckRedeliverTimeoutMs</code></td><td style="text-align:left">Delay to wait before redelivering messages that failed to be processed.</td><td style="text-align:left">60000</td></tr>

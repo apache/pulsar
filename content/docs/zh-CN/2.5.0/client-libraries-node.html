@@ -263,7 +263,7 @@ consumer.acknowledge(msg);
 <tbody>
 <tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">Consumer 创建订阅并监听消息的目标 Pulsar <a href="/docs/zh-CN/2.5.0/reference-terminology#topic">topic</a>。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>subscription</code></td><td style="text-align:left">Consumer 的订阅名称。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">可以设置为<code>独占</code>、<code>共享</code>或<code>灾备</code>。</td><td style="text-align:left"><code>Exclusive</code></td></tr>
+<tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">Available options are <code>Exclusive</code>, <code>Shared</code>, <code>Key_Shared</code>, and <code>Failover</code>.</td><td style="text-align:left"><code>Exclusive</code></td></tr>
 <tr><td style="text-align:left"><code>ackTimeoutMs</code></td><td style="text-align:left">消息确认的超时时间（以毫秒为单位）。</td><td style="text-align:left">0</td></tr>
 <tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">设置 consumer 接收队列的大小，即在应用程序调用 <code>receive</code> 之前允许堆积的消息数。 A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
 <tr><td style="text-align:left"><code>receiverQueueSizeAcrossPartitions</code></td><td style="text-align:left">Set the max total receiver queue size across partitions. 当接收队列总数超过此值时，将减小每个分区接收队列的大小。</td><td style="text-align:left">50000</td></tr>

@@ -799,6 +799,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--web-service-url</code></td>
+<td>The URL for Pulsar web service</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--retain-ordering</code></td>
 <td>Function consumes and processes messages in order</td>
 <td>null</td>
@@ -7637,6 +7642,23 @@
 <hr>
 <pre class="code-block example"><code class="lang-shell">$ <span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">get-max-consumers</span> <span class="hljs-string">options</span>
 </code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-ap, --applied</code></td>
+<td>Get the applied policy of the topic</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
 <h2 id="-em-set-max-consumers-em-"><em>set-max-consumers</em></h2>
 <p>Set max number of consumers for a topic</p>
 <h3 id="usage">Usage</h3>

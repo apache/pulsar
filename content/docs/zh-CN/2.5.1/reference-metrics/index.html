@@ -131,8 +131,8 @@
 <tr><td>bookkeeper_server_READ_ENTRY_count</td><td>计数器</td><td>The total number of READ_ENTRY requests received at the bookie. <code>success</code> 标签会被用于区分成功与失败。</td></tr>
 <tr><td>bookie_WRITE_BYTES</td><td>计数器</td><td>The total number of bytes written to the bookie.</td></tr>
 <tr><td>bookie_READ_BYTES</td><td>计数器</td><td>The total number of bytes read from the bookie.</td></tr>
-<tr><td>bookkeeper_server_ADD_ENTRY_REQUEST</td><td>直方图</td><td>The histogram of request latency of ADD_ENTRY requests at the bookie. <code>success</code> 标签会被用于区分成功与失败。</td></tr>
-<tr><td>bookkeeper_server_READ_ENTRY_REQUEST</td><td>直方图</td><td>The histogram of request latency of READ_ENTRY requests at the bookie. <code>success</code> 标签会被用于区分成功与失败。</td></tr>
+<tr><td>bookkeeper_server_ADD_ENTRY_REQUEST</td><td>总结</td><td>The summary of request latency of ADD_ENTRY requests at the bookie. <code>success</code> 标签会被用于区分成功与失败。</td></tr>
+<tr><td>bookkeeper_server_READ_ENTRY_REQUEST</td><td>总结</td><td>The summary of request latency of READ_ENTRY requests at the bookie. <code>success</code> 标签会被用于区分成功与失败。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="日志度量值"></a><a href="#日志度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>日志度量值</h3>
@@ -145,8 +145,8 @@
 <tr><td>bookie_journal_JOURNAL_QUEUE_SIZE</td><td>计量表</td><td>日志队列中待处理的请求总数。</td></tr>
 <tr><td>bookie_journal_JOURNAL_FORCE_WRITE_QUEUE_SIZE</td><td>计量表</td><td>在强制写入队列中等待的强制写入 (fsync) 请求总数。</td></tr>
 <tr><td>bookie_journal_JOURNAL_CB_QUEUE_SIZE</td><td>计量表</td><td>回调队列中待处理的回调总数。</td></tr>
-<tr><td>bookie_journal_JOURNAL_ADD_ENTRY</td><td>直方图</td><td>在日志中添加条目的请求延迟的直方图。</td></tr>
-<tr><td>bookie_journal_JOURNAL_SYNC</td><td>直方图</td><td>同步数据到日志磁盘的 fsync 延迟的直方图。</td></tr>
+<tr><td>bookie_journal_JOURNAL_ADD_ENTRY</td><td>总结</td><td>The summary of request latency of adding entries to the journal.</td></tr>
+<tr><td>bookie_journal_JOURNAL_SYNC</td><td>总结</td><td>The summary of fsync latency of syncing data to the journal disk.</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="存储度量值"></a><a href="#存储度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>存储度量值</h3>

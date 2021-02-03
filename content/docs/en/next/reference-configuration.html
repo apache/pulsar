@@ -461,6 +461,7 @@
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="log4j"></a><a href="#log4j" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j</h2>
+<p>You can set the log level and configuration in the  <a href="https://github.com/apache/pulsar/blob/d557e0aa286866363bc6261dec87790c055db1b0/conf/log4j2.yaml#L155">log4j2.yaml</a> file. The following logging configuration parameters are available.</p>
 <table>
 <thead>
 <tr><th>Name</th><th>Default</th></tr>
@@ -581,6 +582,7 @@
 <tr><td>dispatcherMinReadBatchSize</td><td>The minimum number of entries to read from BookKeeper. By default, it is 1 entry. When there is an error occurred on reading entries from bookkeeper, the broker will backoff the batch size to this minimum number.</td><td>1</td></tr>
 <tr><td>dispatcherMaxRoundRobinBatchSize</td><td>The maximum number of entries to dispatch for a shared subscription. By default, it is 20 entries.</td><td>20</td></tr>
 <tr><td>preciseDispatcherFlowControl</td><td>Precise dispathcer flow control according to history message number of each entry.</td><td>false</td></tr>
+<tr><td>streamingDispatch</td><td>Whether to use streaming read dispatcher. It can be useful when there's a huge backlog to drain and instead of read with micro batch we can streamline the read from bookkeeper to make the most of consumer capacity till we hit bookkeeper read limit or consumer process limit, then we can use consumer flow control to tune the speed. This feature is currently in preview and can be changed in subsequent release.</td><td>false</td></tr>
 <tr><td>maxConcurrentLookupRequest</td><td>Maximum number of concurrent lookup request that the broker allows to throttle heavy incoming lookup traffic.</td><td>50000</td></tr>
 <tr><td>maxConcurrentTopicLoadRequest</td><td>Maximum number of concurrent topic loading request that the broker allows to control the number of zk-operations.</td><td>5000</td></tr>
 <tr><td>maxConcurrentNonPersistentMessagePerConnection</td><td>Maximum number of concurrent non-persistent message that can be processed per connection.</td><td>1000</td></tr>
