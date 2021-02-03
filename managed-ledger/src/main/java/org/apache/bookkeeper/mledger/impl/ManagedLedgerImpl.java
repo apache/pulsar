@@ -1117,10 +1117,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     //happy case
                     return;
                 case FAIL_SEGMENT_CLOSED:
-                    log.debug("segment closed");
                     return;
                 case FAIL_BUFFER_FULL:
-                    log.debug("buffer full");
                     break;
             }
         }

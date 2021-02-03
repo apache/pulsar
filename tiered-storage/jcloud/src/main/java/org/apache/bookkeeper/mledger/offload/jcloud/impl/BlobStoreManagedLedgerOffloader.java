@@ -464,6 +464,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         } else if (maxBufferLength <= bufferLength.get()) {
             //buffer length can over fill maxBufferLength a bit with the last entry
             //to prevent insufficient content to build a block
+            log.debug("buffer full max buffer length: {}, buffer length {}", maxBufferLength, bufferLength.get());
             return OfferEntryResult.FAIL_BUFFER_FULL;
         } else {
             final EntryImpl entryImpl = EntryImpl

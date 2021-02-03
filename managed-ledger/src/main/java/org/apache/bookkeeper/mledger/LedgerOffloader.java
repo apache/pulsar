@@ -90,6 +90,9 @@ public interface LedgerOffloader {
     String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
     String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
 
+    /**
+     * Create a new instance with the same configuration as the current one.
+     */
     default LedgerOffloader fork() {
         throw new UnsupportedOperationException(this.getClass().toString() + " fork()");
     }
@@ -206,13 +209,23 @@ public interface LedgerOffloader {
             //ledger based offloading
             return readOffloaded(ledgerId, uuid, offloadDriverMetadata);
         } else {
-            throw new UnsupportedOperationException(this.getClass().toString() + " readOffloaded");
+            final CompletableFuture<ReadHandle> result = new CompletableFuture<>();
+            result.completeExceptionally(
+                    new UnsupportedOperationException(this.getClass().toString() + " readOffloaded. " +
+                            "Ledger is not closed or is in streaming offload mode and the offloader your used"
+                            + "does not support streaming offload"));
+            return result;
         }
     }
 
     default CompletableFuture<Void> deleteOffloaded(UUID uid,
                                                     Map<String, String> offloadDriverMetadata) {
-        throw new UnsupportedOperationException(this.getClass().toString() + " deleteOffloaded");
+        final CompletableFuture<Void> result = new CompletableFuture<>();
+        result.completeExceptionally(
+                new UnsupportedOperationException(this.getClass().toString() + " deleteOffloaded. " +
+                        "Ledger is not closed or is in streaming offload mode and the offloader your used"
+                        + "does not support streaming offload"));
+        return result;
     }
 
     /**

@@ -22,6 +22,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.isStreamingOffloadCompleted;
 import static org.testng.Assert.assertEquals;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -179,8 +180,16 @@ public class StreamingOffloadTest extends MockedBookKeeperTestCase {
             String content = "entry-" + i;
             ledger.addEntry(content.getBytes());
         }
-        Thread.sleep(5000);
+
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            final LedgerOffloader.OffloadHandle before = ledger.getCurrentOffloadHandle();
+            Thread.sleep(5000);
+            final LedgerOffloader.OffloadHandle after = ledger.getCurrentOffloadHandle();
+            Assert.assertSame(before, after);
+        });
+
         final LedgerOffloader.OffloadHandle currentOffloadHandle = ledger.getCurrentOffloadHandle();
+
         currentOffloadHandle.close();
         final LedgerOffloader.OffloadResult offloadResult = currentOffloadHandle.getOffloadResultAsync().get();
         log.info("offloadResult = " + offloadResult);

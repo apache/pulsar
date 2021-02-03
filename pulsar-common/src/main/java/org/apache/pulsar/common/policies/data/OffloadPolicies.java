@@ -201,6 +201,7 @@ public class OffloadPolicies implements Serializable {
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
     @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private OffloadMethod offloadMethod = DEFAULT_OFFLOAD_METHOD;
 
     @Configuration

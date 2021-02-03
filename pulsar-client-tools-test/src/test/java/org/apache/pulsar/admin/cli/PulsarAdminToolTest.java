@@ -267,6 +267,7 @@ public class PulsarAdminToolTest {
         when(admin.lookups()).thenReturn(mockLookup);
 
         CmdNamespaces namespaces = new CmdNamespaces(() -> admin);
+        CmdNamespaces namespaces2 = new CmdNamespaces(() -> admin);
 
         namespaces.run(split("list myprop"));
         verify(mockNamespaces).getNamespaces("myprop");
@@ -566,6 +567,13 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).clearOffloadDeleteLag("myprop/clust/ns1");
 
         namespaces.run(split(
+                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first"));
+        verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
+                OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
+                        "http://test.endpoint", null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
+                        10 * 1024 * 1024L, 10000L, OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST));
+
+        namespaces2.run(split(
                 "set-offload-policies -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first --offloadMethod streaming-based myprop/clust/ns1"));
         final OffloadPolicies expectPolicies = OffloadPolicies.create("aws-s3", "test-region", "test-bucket",
                 "http://test.endpoint", null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
