@@ -43,17 +43,22 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
+import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.TestcontainersConfiguration;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -94,11 +99,20 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     protected final String kafkaContainerName;
 
     public AvroKafkaSourceTest() {
+        super(FunctionRuntimeType.THREAD);
         this.kafkaContainerName = "kafkacontainer";
         this.networkAlias = kafkaContainerName;
         sourceType = SOURCE_TYPE;
         sourceConfig = new HashMap<>();
         this.kafkaTopicName = "kafkasourcetopic";
+    }
+
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
+            String clusterName,
+            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+        specBuilder.numBrokers(1);
+        specBuilder.numFunctionWorkers(1);
+        return specBuilder;
     }
 
     @Test(groups = "source")
@@ -137,7 +151,10 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         sourceConfig.put("sessionTimeoutMs", 10000L);
         sourceConfig.put("heartbeatIntervalMs", 5000L);
         sourceConfig.put("topic", kafkaTopicName);
-        sourceConfig.put("schema.registry.url", schemaRegistryContainer.getUrl());
+        sourceConfig.put("consumerConfigProperties",
+                ImmutableMap.of(
+                "schema.registry.url", getRegistryPublicAddress())
+        );
         return kafkaContainer;
     }
 
@@ -166,11 +183,11 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     public void stopServiceContainer(PulsarCluster cluster) {
-        if (null != kafkaContainer) {
-            cluster.stopService(networkAlias, kafkaContainer);
-        }
         if (null != schemaRegistryContainer) {
             cluster.stopService("schemaregistry", schemaRegistryContainer);
+        }
+        if (null != kafkaContainer) {
+            cluster.stopService(networkAlias, kafkaContainer);
         }
     }
 
@@ -228,8 +245,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
        /* @Cleanup
         Consumer<GenericRecord> consumer = client.newConsumer(Schema.AUTO_CONSUME())
                 .topic(outputTopicName)
-                .subscriptionName("source-tester")
-                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("sourcetester")
                 .subscribe();*/
 
         // prepare the testing environment for source
@@ -364,15 +380,36 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         final AvroMapper avroMapper = new AvroMapper();
         final AvroSchema schema = avroMapper.schemaFor(MyBean.class);
 
-        KafkaProducer<String, GenericData.Record> producer = new KafkaProducer<>(
-                ImmutableMap.of(
-                        "schema.registry.url",schemaRegistryContainer.getUrl(),
-                        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServersOnLocalMachine(),
-                        ProducerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString(),
-                        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class.getName(),
-                        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,  KafkaAvroSerializer.class.getName()
-                )
-        );
+        String schemaDef = schema.getAvroSchema().toString(false);
+        log.info("schema {}", schemaDef);
+
+        String bashFileTemplate = "echo '{\"field\":{\"string\": \"value\"}}' " +
+                "| /usr/bin/kafka-avro-console-producer " +
+                "--broker-list "+kafkaContainerName +":9093 " +
+                "--property 'value.schema=" + schemaDef + "' " +
+                "--property schema.registry.url="+getRegistryPublicAddress() +" " +
+                "--topic "+kafkaTopicName;
+
+            String file = "/home/appuser/produceRecords.sh";
+
+        schemaRegistryContainer.copyFileToContainer(Transferable
+                        .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777),
+                file);
+
+        ExecResult cat = schemaRegistryContainer.execInContainer("cat", file);
+        log.info("cat results: "+cat.getStdout());
+        log.info("cat resulterr"+cat.getStderr());
+
+        ExecResult ls = schemaRegistryContainer.execInContainer("ls", "-la", file);
+        log.info("ls results: "+ls.getStdout());
+        log.info("ls resulterr"+ls.getStderr());
+
+        ExecResult execResult = schemaRegistryContainer.execInContainer("/bin/bash", file);
+
+        log.info("results: "+execResult.getStdout());
+        log.info("resulterr"+execResult.getStderr());
+
+        fail();
         LinkedHashMap<String, MyBean> kvs = new LinkedHashMap<>();
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
@@ -383,12 +420,16 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
             final GenericData.Record genericRecord = recordBuilder.build();
             final ProducerRecord<String, GenericData.Record> producerRecord = new ProducerRecord<>(kafkaTopicName,
                     "customer", genericRecord);
-            producer.send(producerRecord).get();
+//            producer.send(producerRecord).get();
             kvs.put(key, value);
         }
 
         log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
         return kvs;
+    }
+
+    private String getRegistryPublicAddress() {
+        return schemaRegistryContainer.getUrl().replace("localhost", schemaRegistryContainer.getContainerIpAddress());
     }
 
     protected void waitForProcessingSourceMessages(String tenant,

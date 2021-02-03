@@ -52,14 +52,14 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     @BeforeClass
     public void setupFunctionWorkers() {
-        final int numFunctionWorkers = 2;
+        final int numFunctionWorkers = 1;
         log.info("Setting up {} function workers : function runtime type = {}",
             numFunctionWorkers, functionRuntimeType);
         pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numFunctionWorkers);
         log.info("{} function workers has started", numFunctionWorkers);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardownFunctionWorkers() {
         log.info("Tearing down function workers ...");
         pulsarCluster.stopWorkers();
