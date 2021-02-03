@@ -389,7 +389,7 @@
 <tr><td>backlogQuotaCheckEnabled</td><td>Enable the backlog quota check, which enforces a specified action when the quota is reached.</td><td>true</td></tr>
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the backlog quota.</td><td>60</td></tr>
 <tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit.</td><td>10</td></tr>
-<tr><td>ttlDurationDefaultInSeconds</td><td>Default ttl for namespaces if ttl is not already configured at namespace policies.</td><td>0</td></tr>
+<tr><td>ttlDurationDefaultInSeconds</td><td>The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to <code>0</code>, TTL is disabled. By default, TTL is disabled.</td><td>0</td></tr>
 <tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics.</td><td>true</td></tr>
 <tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics, in seconds.</td><td>60</td></tr>
 <tr><td>messageExpiryCheckIntervalInMinutes</td><td>How often to proactively check and purged expired messages.</td><td>5</td></tr>

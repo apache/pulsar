@@ -238,7 +238,7 @@
 <tr><td>brokerClientTlsTrustStorePassword</td><td>TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers</td><td></td></tr>
 <tr><td>brokerClientTlsCiphers</td><td>Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]</td><td></td></tr>
 <tr><td>brokerClientTlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g.  [TLSv1.2, TLSv1.1, TLSv1]</td><td></td></tr>
-<tr><td>ttlDurationDefaultInSeconds</td><td>The default ttl for namespaces if ttl is not configured at namespace policies.</td><td>0</td></tr>
+<tr><td>ttlDurationDefaultInSeconds</td><td>The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to <code>0</code>, TTL is disabled. By default, TTL is disabled.</td><td>0</td></tr>
 <tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code></td><td></td></tr>
 <tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code></td><td></td></tr>
 <tr><td>tokenPublicAlg</td><td>Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (<a href="https://github.com/jwtk/jjwt#signature-algorithms-keys">https://github.com/jwtk/jjwt#signature-algorithms-keys</a>)</td><td>RS256</td></tr>
@@ -444,7 +444,7 @@
 <tr><td>backlogQuotaCheckEnabled</td><td>Enable the backlog quota check, which enforces a specified action when the quota is reached.</td><td>true</td></tr>
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the backlog quota.</td><td>60</td></tr>
 <tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit.</td><td>10</td></tr>
-<tr><td>ttlDurationDefaultInSeconds</td><td>The default ttl for namespaces if ttl is not configured at namespace policies.</td><td>0</td></tr>
+<tr><td>ttlDurationDefaultInSeconds</td><td>The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to <code>0</code>, TTL is disabled. By default, TTL is disabled.</td><td>0</td></tr>
 <tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics.</td><td>true</td></tr>
 <tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics, in seconds.</td><td>60</td></tr>
 <tr><td>messageExpiryCheckIntervalInMinutes</td><td>How often to proactively check and purged expired messages.</td><td>5</td></tr>
