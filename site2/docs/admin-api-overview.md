@@ -8,7 +8,7 @@ The Pulsar admin interface enables you to manage all important entities in a Pul
 
 You can interact with the admin interface via:
 
-- Making HTTP calls against the admin {@inject: rest:REST:/} API provided by Pulsar brokers. For some restful APIs, they might be redirected to the topic owner brokers for serving with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you use `curl`, you should specify `-L` to handle redirections.
+- HTTP calls, which are made against the admin {@inject: rest:REST:/} API provided by Pulsar brokers. For some RESTful APIs, they might be redirected to the owner brokers for serving with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you use `curl` commands, you should specify `-L` to handle redirections.
 - A Java client interface.
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your Pulsar installation:
 
@@ -85,6 +85,6 @@ PulsarAdmin admin = PulsarAdmin.builder()
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## How to define Pulsar resource names when running Pulsar in Kubernetes
-If you run Pulsar Functions or connectors on Kubernetes, you need to follow Kubernetes naming convention to define your Pulsar resource name, whichever admin interface you use.
+If you run Pulsar Functions or connectors on Kubernetes, you need to follow Kubernetes naming convention to define the names of your Pulsar resources, whichever admin interface you use.
 
 Kubernetes requires a name that can be used as a DNS subdomain name as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names). Pulsar supports more legal characters than Kubernetes naming convention. If you create a Pulsar resource name with special characters that is not supported by Kubernetes (for example, including colons in a Pulsar namespace name), you cannot run functions or connectors using Kubernetes runtime.
