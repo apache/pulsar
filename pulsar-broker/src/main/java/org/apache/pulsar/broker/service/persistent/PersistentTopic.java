@@ -17,8 +17,8 @@
  * under the License.
  */
 package org.apache.pulsar.broker.service.persistent;
-
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.isStreamingOffloadCompleted;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
@@ -1726,7 +1726,7 @@ public class PersistentTopic extends AbstractTopic
             info.entries = li.getEntries();
             info.size = li.getSize();
             info.offloaded = li.hasOffloadContext() && (li.getOffloadContext().getComplete()
-                    || ManagedLedgerImpl.isStreamingOffloadCompleted(li));
+                    || isStreamingOffloadCompleted(li));
             if (info.offloaded) {
                 if (li.getOffloadContext().getComplete()) {
                     info.offloadMethod = OffloadMethod.LEDGER_BASED.getStrValue();

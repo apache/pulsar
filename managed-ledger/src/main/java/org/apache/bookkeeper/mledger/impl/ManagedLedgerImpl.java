@@ -21,6 +21,8 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.getLedgersInSegment;
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.isStreamingOffloadCompleted;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.annotations.VisibleForTesting;
@@ -66,7 +68,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import lombok.ToString;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -120,6 +121,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
+import org.apache.bookkeeper.mledger.offload.OffloadUtils.LedgerInSegment;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -498,22 +500,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    public static boolean isStreamingOffloadCompleted(LedgerInfo ledgerInfo) {
-        if (!ledgerInfo.hasEntries()) {
-            //ledger is not closed
-            return false;
-        }
-        if (!ledgerInfo.hasOffloadContext()) {
-            return false;
-        }
-        final List<OffloadSegment> offloadSegmentList = ledgerInfo.getOffloadContext().getOffloadSegmentList();
-        if (offloadSegmentList.isEmpty()) {
-            return false;
-        }
-        final OffloadSegment lastSegment = offloadSegmentList.get(offloadSegmentList.size() - 1);
-        return lastSegment.getComplete() && lastSegment.getEndEntryId() == ledgerInfo.getEntries() - 1;
-    }
-
     private synchronized void startOffload() {
         final OffloadSegmentInfoImpl headSegment = offloadSegments.peek();
         try {
@@ -578,54 +564,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-
-    @ToString
-    public class LedgerInSegment {
-        public long ledgerId;
-        public long beginEntryId;
-        public long endEntryId;
-        public long beginTimestamp;
-
-        public LedgerInSegment(long ledgerId, long beginEntryId, long endEntryId, long beginTimestamp) {
-            this.ledgerId = ledgerId;
-            this.beginEntryId = beginEntryId;
-            this.endEntryId = endEntryId;
-            this.beginTimestamp = beginTimestamp;
-        }
-    }
-
-    private List<LedgerInSegment> getLedgersInSegment(OffloadSegmentInfoImpl segmentInfo) {
-        log.debug("got ledgers in segment: {}", segmentInfo);
-        final LedgerOffloader.OffloadResult offloadResult = segmentInfo.result();
-        if (offloadResult.beginLedger == offloadResult.endLedger && offloadResult.endEntry < offloadResult.beginEntry) {
-            //empty segment
-            return Lists.newLinkedList();
-        }
-        if (offloadResult.beginLedger == offloadResult.endLedger) {
-            return Lists.newArrayList(
-                    new LedgerInSegment(offloadResult.beginLedger, offloadResult.beginEntry, offloadResult.endEntry,
-                            segmentInfo.beginTimestamp));
-        }
-
-        final List<LedgerInSegment> result = Lists.newLinkedList();
-        result.add(new LedgerInSegment(offloadResult.beginLedger, offloadResult.beginEntry,
-                ledgers.get(offloadResult.beginLedger).getEntries() - 1, segmentInfo.beginTimestamp));
-        for (long i = offloadResult.beginLedger + 1; i < offloadResult.endLedger; i++) {
-            final LedgerInfo ledgerI = ledgers.get(i);
-            if (ledgerI != null) {
-                result.add(new LedgerInSegment(i, 0, ledgerI.getEntries() - 1, segmentInfo.beginTimestamp));
-            } else {
-                log.warn("ledger {} does not exists in ledgers, maybe because it is empty", i);
-            }
-        }
-        result.add(new LedgerInSegment(offloadResult.endLedger, 0, offloadResult.endEntry, segmentInfo.beginTimestamp));
-
-        return result;
-    }
-
     private CompletableFuture<Void> updatedMetaForOffloaded(OffloadSegmentInfoImpl segmentInfo) {
         final HashMap<Long, LedgerInfoTransformation> ledgerForTrans = new HashMap<>();
-        for (LedgerInSegment ledgerInSeg : getLedgersInSegment(segmentInfo)) {
+        for (LedgerInSegment ledgerInSeg : getLedgersInSegment(segmentInfo, ledgers)) {
             log.debug("completed ledger in seg: {}", ledgerInSeg);
             ledgerForTrans.put(ledgerInSeg.ledgerId, (ledgerInfo) -> {
 

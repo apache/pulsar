@@ -19,7 +19,7 @@
 
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.isStreamingOffloadCompleted;
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.isStreamingOffloadCompleted;
 import static org.testng.Assert.assertEquals;
 import java.io.IOException;
 import java.time.Duration;

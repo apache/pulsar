@@ -18,18 +18,23 @@
  */
 package org.apache.bookkeeper.mledger.offload;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.stream.Collectors;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.KeyValue;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
@@ -230,4 +235,69 @@ public final class OffloadUtils {
 
         return builder.build();
     }
+
+
+    @ToString
+    static public class LedgerInSegment {
+        public long ledgerId;
+        public long beginEntryId;
+        public long endEntryId;
+        public long beginTimestamp;
+
+        public LedgerInSegment(long ledgerId, long beginEntryId, long endEntryId, long beginTimestamp) {
+            this.ledgerId = ledgerId;
+            this.beginEntryId = beginEntryId;
+            this.endEntryId = endEntryId;
+            this.beginTimestamp = beginTimestamp;
+        }
+    }
+
+    public static boolean isStreamingOffloadCompleted(LedgerInfo ledgerInfo) {
+        if (!ledgerInfo.hasEntries()) {
+            //ledger is not closed
+            return false;
+        }
+        if (!ledgerInfo.hasOffloadContext()) {
+            return false;
+        }
+        final List<OffloadSegment> offloadSegmentList = ledgerInfo.getOffloadContext().getOffloadSegmentList();
+        if (offloadSegmentList.isEmpty()) {
+            return false;
+        }
+        final OffloadSegment lastSegment = offloadSegmentList.get(offloadSegmentList.size() - 1);
+        return lastSegment.getComplete() && lastSegment.getEndEntryId() == ledgerInfo.getEntries() - 1;
+    }
+
+    static public List<LedgerInSegment> getLedgersInSegment(OffloadSegmentInfoImpl segmentInfo,
+                                                            NavigableMap<Long, LedgerInfo> ledgers) {
+        log.debug("got ledgers in segment: {}", segmentInfo);
+        final LedgerOffloader.OffloadResult offloadResult = segmentInfo.result();
+        if (offloadResult.beginLedger == offloadResult.endLedger && offloadResult.endEntry < offloadResult.beginEntry) {
+            //empty segment
+            return Lists.newLinkedList();
+        }
+        if (offloadResult.beginLedger == offloadResult.endLedger) {
+            return Lists.newArrayList(
+                    new LedgerInSegment(offloadResult.beginLedger, offloadResult.beginEntry, offloadResult.endEntry,
+                            segmentInfo.beginTimestamp));
+        }
+
+        final List<OffloadUtils.LedgerInSegment> result = Lists.newLinkedList();
+        result.add(new LedgerInSegment(offloadResult.beginLedger, offloadResult.beginEntry,
+                ledgers.get(offloadResult.beginLedger).getEntries() - 1, segmentInfo.beginTimestamp));
+
+        if (offloadResult.beginLedger + 1 <= offloadResult.endLedger - 1) {
+            for (Map.Entry<Long, LedgerInfo> ledger : ledgers
+                    .subMap(offloadResult.beginLedger + 1, true, offloadResult.endLedger - 1, true).entrySet()) {
+                long i = ledger.getKey();
+                final LedgerInfo ledgerI = ledger.getValue();
+                result.add(new LedgerInSegment(i, 0, ledgerI.getEntries() - 1, segmentInfo.beginTimestamp));
+            }
+        }
+
+        result.add(new LedgerInSegment(offloadResult.endLedger, 0, offloadResult.endEntry, segmentInfo.beginTimestamp));
+
+        return result;
+    }
+
 }
