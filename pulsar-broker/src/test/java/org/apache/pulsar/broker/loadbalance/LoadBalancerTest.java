@@ -38,6 +38,7 @@ import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -86,6 +87,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -179,25 +181,21 @@ public class LoadBalancerTest {
     private void loopUntilLeaderChangesForAllBroker(List<PulsarService> activePulsars, LeaderBroker oldLeader)
             throws InterruptedException {
         int loopCount = 0;
-        boolean settled;
-
-        while (loopCount < MAX_RETRIES) {
-            Thread.sleep(1000);
-            settled = true;
-            // Check if the all active pulsar see a new leader
-            for (PulsarService pulsar : activePulsars) {
-                Optional<LeaderBroker> leader = pulsar.getLeaderElectionService().readCurrentLeader().join();
-                if (leader.isPresent() && leader.get().equals(oldLeader)) {
-                    settled = false;
-                    break;
+        Awaitility.await()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .atMost(MAX_RETRIES, TimeUnit.SECONDS)
+            .until(() -> {
+                boolean settled = true;
+                // Check if the all active pulsar see a new leader
+                for (PulsarService pulsar : activePulsars) {
+                    Optional<LeaderBroker> leader = pulsar.getLeaderElectionService().readCurrentLeader().join();
+                    if (leader.isPresent() && leader.get().equals(oldLeader)) {
+                        settled = false;
+                        break;
+                    }
                 }
-            }
-            if (settled) {
-                break;
-            }
-            ++loopCount;
-        }
-
+                return settled;
+            });
         // Check if maximum retries are already done. If yes, assert.
         Assert.assertNotEquals(loopCount, MAX_RETRIES, "Leader is not changed even after maximum retries.");
     }
