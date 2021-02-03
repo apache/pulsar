@@ -45,9 +45,6 @@ class PulsarSchemaCache<T> {
 
     private IdentityHashMap<org.apache.avro.Schema, CachedSchema<T>> cache = new IdentityHashMap<>();
 
-    public PulsarSchemaCache() {
-    }
-
     public synchronized CachedSchema<T> get(org.apache.avro.Schema avroSchema) {
         if (cache.size() > 100) {
             // very simple auto cleanup
