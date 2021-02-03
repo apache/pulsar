@@ -21,23 +21,28 @@ package org.apache.pulsar.tests.integration.io;
 import com.fasterxml.jackson.dataformat.avro.AvroMapper;
 import com.fasterxml.jackson.dataformat.avro.AvroSchema;
 import com.google.gson.Gson;
-import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.failsafe.Failsafe;
 import net.jodah.failsafe.RetryPolicy;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.io.JsonEncoder;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
@@ -57,7 +62,8 @@ import org.testcontainers.utility.TestcontainersConfiguration;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
@@ -153,7 +159,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         sourceConfig.put("topic", kafkaTopicName);
         sourceConfig.put("consumerConfigProperties",
                 ImmutableMap.of(
-                "schema.registry.url", getRegistryPublicAddress())
+                "schema.registry.url", getRegistryAddressInDockerNetwork())
         );
         return kafkaContainer;
     }
@@ -231,7 +237,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 + functionRuntimeType + "-output-topic-" + randomName(8);
         final String sourceName = "test-source-connector-"
                 + functionRuntimeType + "-name-" + randomName(8);
-        final int numMessages = 20;
+        final int numMessages = 10;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -242,11 +248,11 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
-       /* @Cleanup
+        @Cleanup
         Consumer<GenericRecord> consumer = client.newConsumer(Schema.AUTO_CONSUME())
                 .topic(outputTopicName)
                 .subscriptionName("sourcetester")
-                .subscribe();*/
+                .subscribe();
 
         // prepare the testing environment for source
         prepareSource();
@@ -261,14 +267,14 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         Failsafe.with(statusRetryPolicy).run(() -> getSourceStatus(tenant, namespace, sourceName));
 
         // produce messages
-        Map<String, MyBean> kvs = produceSourceMessages(numMessages);
+        List<MyBean> kvs = produceSourceMessages(numMessages);
 
         // wait for source to process messages
         Failsafe.with(statusRetryPolicy).run(() ->
                 waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages));
 
         // validate the source result
-//       validateSourceResultAvro(consumer, kvs.size());
+       validateSourceResultAvro(consumer, kvs);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
@@ -278,23 +284,23 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     public void validateSourceResultAvro(Consumer<GenericRecord> consumer,
-                                         int number) throws Exception {
+                                         List<MyBean> beans) throws Exception {
         int recordsNumber = 0;
-        Message<GenericRecord> msg = consumer.receive(2, TimeUnit.SECONDS);
-        while(msg != null) {
-            recordsNumber ++;
+        Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
+        while (msg != null) {
             GenericRecord valueRecord = msg.getValue();
             Assert.assertNotNull(valueRecord.getFields());
             Assert.assertTrue(valueRecord.getFields().size() > 0);
             for (Field field : valueRecord.getFields()) {
                 log.info("field {} value {}", field, valueRecord.getField(field));
             }
-
+            assertEquals(beans.get(recordsNumber).field, valueRecord.getField("field"));
             consumer.acknowledge(msg);
-            msg = consumer.receive(1, TimeUnit.SECONDS);
+            recordsNumber++;
+            msg = consumer.receive(10, TimeUnit.SECONDS);
         }
 
-        Assert.assertEquals(recordsNumber, number);
+        Assert.assertEquals(recordsNumber, beans.size());
         log.info("Stop {} server container. topic: {} has {} records.", sourceType, consumer.getTopic(), recordsNumber);
     }
 
@@ -375,26 +381,39 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         private String field;
     }
 
-    public Map<String, MyBean> produceSourceMessages(int numMessages) throws Exception{
-
-        final AvroMapper avroMapper = new AvroMapper();
-        final AvroSchema schema = avroMapper.schemaFor(MyBean.class);
-
-        String schemaDef = schema.getAvroSchema().toString(false);
+    public List<MyBean> produceSourceMessages(int numMessages) throws Exception{
+        org.apache.avro.Schema schema = ReflectData.get().getSchema(MyBean.class);
+        String schemaDef = schema.toString(false);
         log.info("schema {}", schemaDef);
 
-        String bashFileTemplate = "echo '{\"field\":{\"string\": \"value\"}}' " +
+        List<MyBean> written = new ArrayList<>();
+        StringBuilder payload = new StringBuilder();
+        for (int i = 0; i < numMessages; i++) {
+            MyBean bean = new MyBean();
+            bean.setField("value"+i);
+            String serialized = serializeBeanUsingAvro(schema, bean);
+            log.info("serialized {}", serialized);
+            payload.append(serialized);
+            if (i != numMessages -1) {
+                payload.append("\n");
+            }
+            written.add(bean);
+        }
+
+        // write messages to Kafka using kafka-avro-console-producer
+        // we are writing the serialized values to the stdin of kafka-avro-console-producer
+        // the only way to do it with TestContainers is actually to create a bash script
+        // and execute it
+        String bashFileTemplate = "echo '"+payload+"' " +
                 "| /usr/bin/kafka-avro-console-producer " +
                 "--broker-list "+kafkaContainerName +":9093 " +
                 "--property 'value.schema=" + schemaDef + "' " +
-                "--property schema.registry.url="+getRegistryPublicAddress() +" " +
+                "--property schema.registry.url="+ getRegistryAddressInDockerNetwork() +" " +
                 "--topic "+kafkaTopicName;
-
-            String file = "/home/appuser/produceRecords.sh";
+        String file = "/home/appuser/produceRecords.sh";
 
         schemaRegistryContainer.copyFileToContainer(Transferable
-                        .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777),
-                file);
+                        .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777), file);
 
         ExecResult cat = schemaRegistryContainer.execInContainer("cat", file);
         log.info("cat results: "+cat.getStdout());
@@ -408,28 +427,28 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
 
         log.info("results: "+execResult.getStdout());
         log.info("resulterr"+execResult.getStderr());
-
-        fail();
-        LinkedHashMap<String, MyBean> kvs = new LinkedHashMap<>();
-        for (int i = 0; i < numMessages; i++) {
-            String key = "key-" + i;
-            MyBean value = new MyBean();
-            value.setField("value-"+i);
-            GenericRecordBuilder recordBuilder = new GenericRecordBuilder(schema.getAvroSchema());
-            recordBuilder.set("field", value.field);
-            final GenericData.Record genericRecord = recordBuilder.build();
-            final ProducerRecord<String, GenericData.Record> producerRecord = new ProducerRecord<>(kafkaTopicName,
-                    "customer", genericRecord);
-//            producer.send(producerRecord).get();
-            kvs.put(key, value);
-        }
+        assertTrue(execResult.getStdout().contains("Closing the Kafka producer"), execResult.getStdout()+" "+execResult.getStderr());
+        assertTrue(execResult.getStderr().isEmpty(), execResult.getStderr());
 
         log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
-        return kvs;
+        return written;
     }
 
-    private String getRegistryPublicAddress() {
-        return schemaRegistryContainer.getUrl().replace("localhost", schemaRegistryContainer.getContainerIpAddress());
+    private String serializeBeanUsingAvro(org.apache.avro.Schema schema, MyBean bean) throws IOException {
+        DatumWriter<MyBean> userDatumWriter = new ReflectDatumWriter<>(schema);
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        JsonEncoder encoder = EncoderFactory.get().jsonEncoder(schema, stream);
+        userDatumWriter.write(bean, encoder);
+        encoder.flush();
+
+        String serialized = new String(stream.toByteArray(), StandardCharsets.UTF_8);
+        return serialized;
+    }
+
+    private String getRegistryAddressInDockerNetwork() {
+        String res = schemaRegistryContainer.getUrl();
+        log.info("schemaregistry original address {}", res);
+        return "http://schemaregistry:8081";
     }
 
     protected void waitForProcessingSourceMessages(String tenant,
