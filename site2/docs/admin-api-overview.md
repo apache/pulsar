@@ -1,6 +1,6 @@
 ---
 id: admin-api-overview
-title: The Pulsar admin interface
+title: Pulsar admin interface
 sidebar_label: Overview
 ---
 
@@ -12,9 +12,9 @@ You can interact with the admin interface via:
 - A Java client interface.
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your Pulsar installation:
 
-      ```shell
-     $ bin/pulsar-admin
-     ```
+    ```shell
+      $ bin/pulsar-admin
+    ```
 
     For details of `pulsar-admin` tool, see the [Pulsar command-line tools](reference-pulsar-admin.md) doc.
 
@@ -23,7 +23,7 @@ You can interact with the admin interface via:
 
 ## Admin setup
 
-Each of Pulsar's three admin interfaces---the `pulsar-admin` CLI tool, the [Java admin API](/api/admin), and the {@inject: rest:REST:/} API ---requires some special setup if you have enabled authentication in your Pulsar instance.
+Each of the three admin interfaces (the {@inject: rest:REST:/} API, the `pulsar-admin` CLI tool, and the [Java admin API](/api/admin)) requires some special setup if you have enabled authentication in your Pulsar instance.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
