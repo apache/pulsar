@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import com.google.gson.Gson;
+import io.kubernetes.client.custom.Quantity;
+import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.openapi.models.V1Toleration;
 import org.testng.annotations.Test;
 
@@ -73,10 +75,22 @@ public class BasicKubernetesManifestCustomizerTest {
         toleration.setOperator("Equal");
         toleration.setTolerationSeconds(6000L);
         newOpts.setTolerations(Collections.singletonList(toleration));
+        V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();
+        resourceRequirements.putLimitsItem("cpu", new Quantity("20"));
+        resourceRequirements.putLimitsItem("memory", new Quantity("10240"));
+        newOpts.setResourceRequirements(resourceRequirements);
+        newOpts.setNodeSelectorLabels(Collections.singletonMap("disktype", "ssd"));
+        newOpts.setExtraAnnotations(Collections.singletonMap("functiontype", "sink"));
+        newOpts.setExtraLabels(Collections.singletonMap("functiontype", "sink"));
         BasicKubernetesManifestCustomizer.RuntimeOpts mergedOpts = BasicKubernetesManifestCustomizer.mergeRuntimeOpts(
                 customizer.getRuntimeOpts(), newOpts);
 
         assertEquals(mergedOpts.getJobName(), "merged-name");
         assertEquals(mergedOpts.getTolerations().size(), 2);
+        assertEquals(mergedOpts.getExtraAnnotations().size(), 2);
+        assertEquals(mergedOpts.getExtraLabels().size(), 2);
+        assertEquals(mergedOpts.getNodeSelectorLabels().size(), 2);
+        assertEquals(mergedOpts.getResourceRequirements().getLimits().get("cpu").getNumber().intValue(), 20);
+        assertEquals(mergedOpts.getResourceRequirements().getLimits().get("memory").getNumber().intValue(), 10240);
     }
 }
