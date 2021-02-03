@@ -59,7 +59,7 @@
                   <goal>exec</goal>
                 </goals>
                 <configuration>
-                  <skip>${skipBuildPythonClient}</skip>
+                  <skip>true</skip>
                   <workingDirectory>${project.basedir}/target</workingDirectory>
                   <executable>${project.basedir}/../../pulsar-client-cpp/docker/build-wheels.sh</executable>
                   <arguments>
@@ -75,7 +75,7 @@
                   <goal>exec</goal>
                 </goals>
                 <configuration>
-                  <skip>${skipBuildCppClient}</skip>
+                  <skip>true</skip>
                   <workingDirectory>${project.basedir}/target</workingDirectory>
                   <executable>${project.basedir}/../../pulsar-client-cpp/pkg/deb/docker-build-deb.sh</executable>
                 </configuration>
