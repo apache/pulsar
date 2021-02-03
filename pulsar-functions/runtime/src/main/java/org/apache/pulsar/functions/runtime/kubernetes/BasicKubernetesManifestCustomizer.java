@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.models.*;
@@ -57,7 +56,6 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
-    @VisibleForTesting
     @Builder(toBuilder = true)
     static public class RuntimeOpts {
         private String jobNamespace;
