@@ -52,7 +52,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     @BeforeClass
     public void setupFunctionWorkers() {
-        final int numFunctionWorkers = 1;
+        final int numFunctionWorkers = 2;
         log.info("Setting up {} function workers : function runtime type = {}",
             numFunctionWorkers, functionRuntimeType);
         pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numFunctionWorkers);

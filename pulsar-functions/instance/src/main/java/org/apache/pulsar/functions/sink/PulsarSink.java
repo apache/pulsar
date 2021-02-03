@@ -27,9 +27,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
-import org.apache.avro.generic.IndexedRecord;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -187,7 +185,6 @@ public class PulsarSink<T> implements Sink<T> {
         public Function<Throwable, Void> getPublishErrorHandler(SinkRecord<T> record, boolean failSource) {
 
             return throwable -> {
-                log.info("error", throwable);
                 Record<T> srcRecord = record.getSourceRecord();
                 if (failSource) {
                     srcRecord.fail();
@@ -232,7 +229,6 @@ public class PulsarSink<T> implements Sink<T> {
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
-            log.info("schemaToWrite {}", schemaToWrite);
             if (schemaToWrite != null) {
                 return getProducer(record
                         .getDestinationTopic()
@@ -263,10 +259,7 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
             msg.sendAsync()
-                    .thenAccept(messageId -> {
-                        log.info("ack {}", messageId);
-                        record.ack();
-                    })
+                    .thenAccept(messageId -> record.ack())
                     .exceptionally(getPublishErrorHandler(record, true));
         }
     }
@@ -419,7 +412,7 @@ public class PulsarSink<T> implements Sink<T> {
             // while processing messages, we do not have enough information at this point
             // and we cannot create a generic schema that won't be compatible with the
             // schema present on the records
-            log.info("typeClassName is {}, no need to force a schema", this.pulsarSinkConfig.getTypeClassName());
+            log.info("typeClassName is {}, schema will be lazily initialized", this.pulsarSinkConfig.getTypeClassName());
             return new InitSchemaResult(null, true);
         }
         ConsumerConfig consumerConfig = new ConsumerConfig();

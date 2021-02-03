@@ -30,6 +30,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * This is an implementation of GenericRecord that wraps the Avro record
+ * received from Kafka, but it also carries the Pulsar API Schema.
+ */
 @Slf4j
 public class AvroRecordWithPulsarSchema implements GenericRecord {
     private final org.apache.avro.generic.GenericRecord container;

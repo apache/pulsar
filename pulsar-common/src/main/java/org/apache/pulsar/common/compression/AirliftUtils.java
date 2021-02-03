@@ -18,26 +18,20 @@
  */
 package org.apache.pulsar.common.compression;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.nio.ByteBuffer;
 
 /**
  * Utilities.
  */
-@Slf4j
 public abstract class AirliftUtils {
 
     static ByteBuffer ensureAirliftSupported(ByteBuffer encodedNio, int uncompressedLength) {
         if (!encodedNio.isDirect() && !encodedNio.hasArray()) {
-            log.info("here yes");
             // airlift needs a raw ByteArray
             ByteBuffer copy = ByteBuffer.allocate(uncompressedLength);
             copy.put(encodedNio);
             copy.flip();
             encodedNio = copy;
-        } else {
-            log.info("here no");
         }
         return encodedNio;
     }

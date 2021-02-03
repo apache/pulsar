@@ -33,10 +33,10 @@ import java.util.Properties;
 
 /**
  * Simple Kafka Source that just transfers the value part of the kafka records
- * as Strings
+ * as Avro Records, it is integrated with the Schema Registry
  */
 @Connector(
-    name = "kafka",
+    name = "kafka-avro",
     type = IOType.SOURCE,
     help = "The KafkaBytesSource is used for moving messages from Kafka to Pulsar.",
     configClass = KafkaSourceConfig.class
@@ -61,9 +61,7 @@ public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRe
        Object value = record.value();
        if (value instanceof org.apache.avro.generic.GenericRecord) {
             org.apache.avro.generic.GenericRecord container = (org.apache.avro.generic.GenericRecord) value;
-            AvroRecordWithPulsarSchema result = new AvroRecordWithPulsarSchema(container, schemaCache);
-
-            return result;
+            return new AvroRecordWithPulsarSchema(container, schemaCache);
        }
        throw new IllegalArgumentException("cannot convert " + value + " to a GenericRecord");
     }
