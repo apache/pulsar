@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerO
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -60,7 +61,7 @@ public class StreamingOffloadTest extends MockedBookKeeperTestCase {
                     put("offloadMethod", OffloadPolicies.OffloadMethod.STREAMING_BASED.getStrValue());
                 }}
         );
-        System.out.println("offloader.getClass() = " + offloader.getClass());
+        log.info("offloader.getClass() = {}", offloader.getClass());
         int ENTRIES_PER_LEDGER = 10;
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(ENTRIES_PER_LEDGER);
@@ -113,9 +114,9 @@ public class StreamingOffloadTest extends MockedBookKeeperTestCase {
         final LedgerOffloader.OffloadResult offloadResult = currentOffloadHandle.getOffloadResultAsync().get();
         log.info("offloadResult = " + offloadResult);
         log.info("offload method: " + ledger.getOffloadMethod());
-        while (!isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0))) {
-            Thread.sleep(10);
-        }
+
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0))));
         Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0)));
         Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(1)));
 
@@ -184,9 +185,9 @@ public class StreamingOffloadTest extends MockedBookKeeperTestCase {
         final LedgerOffloader.OffloadResult offloadResult = currentOffloadHandle.getOffloadResultAsync().get();
         log.info("offloadResult = " + offloadResult);
         log.info("offload method: " + ledger.getOffloadMethod());
-        while (!isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0))) {
-            Thread.sleep(10);
-        }
+
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0))));
         Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0)));
         Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(1)));
 

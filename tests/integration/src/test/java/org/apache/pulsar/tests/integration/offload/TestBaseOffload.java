@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -36,6 +37,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 
 @Slf4j
@@ -239,9 +241,9 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
             firstLedger = admin.topics().getInternalStats(topic).ledgers.get(0).ledgerId;
 
             // wait up to 30 seconds for offload to occur
-            for (int i = 0; i < 300 && !admin.topics().getInternalStats(topic).ledgers.get(0).offloaded; i++) {
-                Thread.sleep(100);
-            }
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(
+                    () -> Assert.assertTrue(admin.topics().getInternalStats(topic).ledgers.get(0).offloaded)
+            );
 
             Assert.assertTrue(admin.topics().getInternalStats(topic).ledgers.get(0).offloaded);
             Assert.assertEquals(admin.topics().getInternalStats(topic).ledgers.get(0).offloadMethod,

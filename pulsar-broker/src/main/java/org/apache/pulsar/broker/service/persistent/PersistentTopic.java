@@ -1733,6 +1733,8 @@ public class PersistentTopic extends AbstractTopic
                 } else {
                     info.offloadMethod = OffloadMethod.STREAMING_BASED.getStrValue();
                 }
+            } else {
+                info.offloadMethod = OffloadMethod.NONE.getStrValue();
             }
             stats.ledgers.add(info);
             if (futures != null) {

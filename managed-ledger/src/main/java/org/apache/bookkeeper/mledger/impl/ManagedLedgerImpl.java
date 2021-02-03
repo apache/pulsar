@@ -446,10 +446,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void initializeSegments() {
-        Long updatedLedgerId = null;
-        LedgerInfo updatedLedgerInfo = null;
         for (Map.Entry<Long, LedgerInfo> idInfo : ledgers.entrySet()) {
-
             final Long ledgerId = idInfo.getKey();
             LedgerInfo ledgerInfo = idInfo.getValue();
             String driverName = OffloadUtils.getOffloadDriverName(ledgerInfo,
@@ -471,7 +468,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 for (OffloadSegment offloadSegment : ledgerInfo.getOffloadContext().getOffloadSegmentList()) {
                     if (offloadSegment.getComplete()) {
                         if (!offloadSegment.hasEndEntryId()) {
-                            log.error("segment of ledger {} offload completed bug not have end entry id "
+                            log.error("segment of ledger {} offload completed but have not the end entry id "
                                     + "should not happen. {}", ledgerId, ledgerInfo);
                         } else {
                             beginEntry = offloadSegment.getEndEntryId() + 1;
@@ -491,14 +488,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 final OffloadContext context = ledgerInfo.getOffloadContext().toBuilder().clearOffloadSegment()
                         .addAllOffloadSegment(newSegments).build();
                 final LedgerInfo newLedgerInfo = ledgerInfo.toBuilder().setOffloadContext(context).build();
-                updatedLedgerId = idInfo.getKey();
-                updatedLedgerInfo = newLedgerInfo;
+                log.debug("updated ledgerId: {}", idInfo.getKey());
+                //update metadata
+                ledgers.put(idInfo.getKey(), newLedgerInfo);
+
                 offloadSegments.add(new OffloadSegmentInfoImpl(uuid, ledgerId, beginEntry, driverName, driverMetadata));
                 break;
             }
         }
-        log.debug("updated ledgerId: {}", updatedLedgerId);
-        ledgers.put(updatedLedgerId, updatedLedgerInfo);
     }
 
     public static boolean isStreamingOffloadCompleted(LedgerInfo ledgerInfo) {
@@ -587,13 +584,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         public long ledgerId;
         public long beginEntryId;
         public long endEntryId;
-        public long beginTs;
+        public long beginTimestamp;
 
-        public LedgerInSegment(long ledgerId, long beginEntryId, long endEntryId, long beginTs) {
+        public LedgerInSegment(long ledgerId, long beginEntryId, long endEntryId, long beginTimestamp) {
             this.ledgerId = ledgerId;
             this.beginEntryId = beginEntryId;
             this.endEntryId = endEntryId;
-            this.beginTs = beginTs;
+            this.beginTimestamp = beginTimestamp;
         }
     }
 
@@ -638,7 +635,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     final OffloadSegment.Builder newSegmentMeta = OffloadSegment.newBuilder()
                             .setUidMsb(segmentInfo.uuid.getMostSignificantBits())
                             .setUidLsb(segmentInfo.uuid.getLeastSignificantBits())
-                            .setAssignedTimestamp(ledgerInSeg.beginTs)
+                            .setAssignedTimestamp(ledgerInSeg.beginTimestamp)
                             .setOffloadedTimestamp(System.currentTimeMillis())
                             .setComplete(true)
                             .setEndEntryId(ledgerInSeg.endEntryId);
@@ -679,7 +676,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         final OffloadSegment.Builder newSegmentMeta = OffloadSegment.newBuilder()
                                 .setUidMsb(segmentInfo.uuid.getMostSignificantBits())
                                 .setUidLsb(segmentInfo.uuid.getLeastSignificantBits())
-                                .setAssignedTimestamp(ledgerInSeg.beginTs)
+                                .setAssignedTimestamp(ledgerInSeg.beginTimestamp)
                                 .setOffloadedTimestamp(System.currentTimeMillis())
                                 .setComplete(true)
                                 .setEndEntryId(ledgerInSeg.endEntryId);
@@ -1175,6 +1172,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("read entry failed", exception);
                 offloadEntryFillTask.completeExceptionally(exception);
             }
         }, null);
