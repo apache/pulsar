@@ -313,7 +313,7 @@ Example:
 If your company logo is in white color, add another line after the logo link in JSON file:
 `logo_white: true`
 
-3. Commit the changes in your account’s repo and publish the branch.
+3. Commit the changes in your account’s repo, publish the branch and create pull request.
 4. Wait for review. If the PR works, your pull request will be approved and merged by reviewers.
 
 ## Becoming a committer
