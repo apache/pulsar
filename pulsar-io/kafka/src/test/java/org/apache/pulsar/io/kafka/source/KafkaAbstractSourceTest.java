@@ -219,6 +219,7 @@ public class KafkaAbstractSourceTest {
         assertEquals("test", config.getTopic());
         assertEquals(Long.parseLong("10000"), config.getSessionTimeoutMs());
         assertEquals(Boolean.parseBoolean("false"), config.isAutoCommitEnabled());
+        assertEquals("latest", config.getAutoOffsetReset());
         assertNotNull(config.getConsumerConfigProperties());
         Properties props = new Properties();
         props.putAll(config.getConsumerConfigProperties());
