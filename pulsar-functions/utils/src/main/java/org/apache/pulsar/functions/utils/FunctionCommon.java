@@ -384,7 +384,6 @@ public class FunctionCommon {
             File packageFile,
             String narExtractionDirectory) {
         String connectorClassName = className;
-        ClassLoader classLoader;
         ClassLoader jarClassLoader = null;
         ClassLoader narClassLoader = null;
 
@@ -424,7 +423,7 @@ public class FunctionCommon {
 
             try {
                 narClassLoader.loadClass(connectorClassName);
-                classLoader = narClassLoader;
+                return narClassLoader;
             } catch (ClassNotFoundException | NoClassDefFoundError e) {
                 throw new IllegalArgumentException(
                         String.format("%s class %s must be in class path", capFirstLetter(componentType), connectorClassName), e);
@@ -435,14 +434,14 @@ public class FunctionCommon {
             if (jarClassLoader != null) {
                 try {
                     jarClassLoader.loadClass(connectorClassName);
-                    classLoader = jarClassLoader;
+                    return jarClassLoader;
                 } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     // class not found in JAR try loading as a NAR and searching for the class
                     if (narClassLoader != null) {
 
                         try {
                             narClassLoader.loadClass(connectorClassName);
-                            classLoader = narClassLoader;
+                            return narClassLoader;
                         } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                             throw new IllegalArgumentException(
                                     String.format("%s class %s must be in class path",
@@ -457,7 +456,7 @@ public class FunctionCommon {
             } else if (narClassLoader != null) {
                 try {
                     narClassLoader.loadClass(connectorClassName);
-                    classLoader = narClassLoader;
+                    return narClassLoader;
                 } catch (ClassNotFoundException | NoClassDefFoundError e1) {
                     throw new IllegalArgumentException(
                             String.format("%s class %s must be in class path",
@@ -469,17 +468,16 @@ public class FunctionCommon {
                         + " Pulsar cannot determine if the package is a NAR package or JAR package.");
 
                 if (jarClassLoaderException != null) {
-                    errorMsg.append("Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                    errorMsg.append(" Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
                 }
 
                 if (narClassLoaderException != null) {
-                    errorMsg.append("Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
+                    errorMsg.append(" Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
                 }
 
                 throw new IllegalArgumentException(errorMsg.toString());
             }
         }
-        return classLoader;
     }
 
     public static String capFirstLetter(Enum en) {

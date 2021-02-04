@@ -54,7 +54,6 @@ public class ConnectorUtils {
      * Extract the Pulsar IO Source class from a connector archive.
      */
     public static String getIOSourceClass(NarClassLoader narClassLoader) throws IOException {
-        log.info("narClassLoader.getURLs(): {}", Arrays.asList(narClassLoader.getURLs()));
         ConnectorDefinition conf = getConnectorDefinition(narClassLoader);
         if (StringUtils.isEmpty(conf.getSourceClass())) {
             throw new IOException(
@@ -105,10 +104,10 @@ public class ConnectorUtils {
         return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, ConnectorDefinition.class);
     }
 
-    public static List<ConfigFieldDefinition> getConnectorConfigDefinition(ClassLoader narClassLoader,
+    public static List<ConfigFieldDefinition> getConnectorConfigDefinition(ClassLoader classLoader,
                                                                            String configClassName) throws Exception {
         List<ConfigFieldDefinition> retval = new LinkedList<>();
-        Class configClass = narClassLoader.loadClass(configClassName);
+        Class configClass = classLoader.loadClass(configClassName);
         for (Field field : Reflections.getAllFields(configClass)) {
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
                 // We dont want static fields
