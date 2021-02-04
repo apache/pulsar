@@ -142,8 +142,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     // change currentFuture. but we can lock by the read lock, because the currentFuture is not change
                     // any ack operation is allowed.
                     this.lock.readLock().lock();
-                    addListAcknowledgment(messageIds);
-                    return this.currentIndividualAckFuture;
+                    if (messageIds.size() != 0) {
+                        addListAcknowledgment(messageIds);
+                        return this.currentIndividualAckFuture;
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
                 } finally {
                     this.lock.readLock().unlock();
                     if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
