@@ -99,9 +99,14 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
     }
 
     private SchemaInfo loadSchema(BytesSchemaVersion bytesSchemaVersion) throws PulsarAdminException {
-        Thread.currentThread().setContextClassLoader(InjectionManagerFactory.class.getClassLoader());
-        return pulsarAdmin.schemas()
-                .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
+        ClassLoader originalContextLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(InjectionManagerFactory.class.getClassLoader());
+            return pulsarAdmin.schemas()
+                    .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalContextLoader);
+        }
     }
 
 
