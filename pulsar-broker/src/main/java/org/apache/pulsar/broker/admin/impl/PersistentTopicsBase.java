@@ -827,6 +827,25 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected CompletableFuture<DelayedDeliveryPolicies> internalGetDelayedDeliveryPolicies(boolean applied) {
+        TopicPolicies policies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
+        DelayedDeliveryPolicies delayedDeliveryPolicies = null;
+        if (policies.isDelayedDeliveryEnabledSet() && policies.isDelayedDeliveryTickTimeMillisSet()) {
+            delayedDeliveryPolicies = new DelayedDeliveryPolicies(
+                    policies.getDelayedDeliveryTickTimeMillis(),
+                    policies.getDelayedDeliveryEnabled());
+        }
+        if (delayedDeliveryPolicies == null && applied) {
+            delayedDeliveryPolicies = getNamespacePolicies(namespaceName).delayed_delivery_policies;
+            if (delayedDeliveryPolicies == null) {
+                delayedDeliveryPolicies = new DelayedDeliveryPolicies(
+                        pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis(),
+                        pulsar().getConfiguration().isDelayedDeliveryEnabled());
+            }
+        }
+        return CompletableFuture.completedFuture(delayedDeliveryPolicies);
+    }
+
     protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPolicies offloadPolicies) {
         TopicPolicies topicPolicies = null;
         try {
@@ -2521,6 +2540,7 @@ public class PersistentTopicsBase extends AdminResource {
             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Backlog Quota exceeds configured retention quota for topic. "
                             + "Please increase retention quota and retry"));
+            return;
         }
 
         if (backlogQuota != null) {
@@ -2706,9 +2726,18 @@ public class PersistentTopicsBase extends AdminResource {
         return getTopicPolicies(topicName).map(TopicPolicies::getMaxMessageSize);
     }
 
-    protected Optional<Integer> internalGetMaxProducers() {
+    protected CompletableFuture<Integer> internalGetMaxProducers(boolean applied) {
         preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxProducerPerTopic);
+        Integer maxNum = getTopicPolicies(topicName)
+                .map(TopicPolicies::getMaxProducerPerTopic)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer maxProducer = getNamespacePolicies(namespaceName).max_producers_per_topic;
+                        return maxProducer == null ? config().getMaxProducersPerTopic() : maxProducer;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(maxNum);
     }
 
     protected CompletableFuture<Void> internalSetMaxProducers(Integer maxProducers) {
@@ -2772,9 +2801,18 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected Optional<Integer> internalGetMaxConsumers() {
+    protected CompletableFuture<Integer> internalGetMaxConsumers(boolean applied) {
         preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxConsumerPerTopic);
+        Integer maxNum = getTopicPolicies(topicName)
+                .map(TopicPolicies::getMaxConsumerPerTopic)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer maxConsumer = getNamespacePolicies(namespaceName).max_consumers_per_topic;
+                        return maxConsumer == null ? config().getMaxConsumersPerTopic() : maxConsumer;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(maxNum);
     }
 
     protected CompletableFuture<Void> internalSetMaxConsumers(Integer maxConsumers) {

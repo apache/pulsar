@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.function.Supplier;
+
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -33,7 +35,7 @@ import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 public class CmdSchemas extends CmdBase {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public CmdSchemas(PulsarAdmin admin) {
+    public CmdSchemas(Supplier<PulsarAdmin> admin) {
         super("schemas", admin);
         jcommander.addCommand("get", new GetSchema());
         jcommander.addCommand("delete", new DeleteSchema());
@@ -53,9 +55,9 @@ public class CmdSchemas extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             if (version == null) {
-                System.out.println(admin.schemas().getSchemaInfoWithVersion(topic));
+                System.out.println(getAdmin().schemas().getSchemaInfoWithVersion(topic));
             } else {
-                System.out.println(admin.schemas().getSchemaInfo(topic, version));
+                System.out.println(getAdmin().schemas().getSchemaInfo(topic, version));
             }
         }
     }
@@ -68,7 +70,7 @@ public class CmdSchemas extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            admin.schemas().deleteSchema(topic);
+            getAdmin().schemas().deleteSchema(topic);
         }
     }
 
@@ -84,7 +86,7 @@ public class CmdSchemas extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             PostSchemaPayload input = MAPPER.readValue(new File(schemaFileName), PostSchemaPayload.class);
-            admin.schemas().createSchema(topic, input);
+            getAdmin().schemas().createSchema(topic, input);
         }
     }
 
@@ -141,7 +143,7 @@ public class CmdSchemas extends CmdBase {
                 System.out.println(MAPPER.writerWithDefaultPrettyPrinter()
                                          .writeValueAsString(input));
             } else {
-                admin.schemas().createSchema(topic, input);
+                getAdmin().schemas().createSchema(topic, input);
             }
         }
     }

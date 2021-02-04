@@ -147,7 +147,7 @@ public class NarClassLoader extends URLClassLoader {
     public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
                                                 String narExtractionDirectory) throws IOException {
         return  NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
-                                                NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
+                                                narExtractionDirectory);
     }
 
     public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {

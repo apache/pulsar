@@ -112,18 +112,15 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         conf.setDefaultNumberOfNamespaceBundles(1);
-        super.init();
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .build();
-        super.producerBaseSetup();
+        isTcpLookup = true;
+        internalSetup();
+        producerBaseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.internalCleanup();
+        internalCleanup();
     }
 
     /**
@@ -999,15 +996,15 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
             // (5) Modular-load-manager will split the bundle due to max-topic threshold reached
-            Field leaderField = LeaderElectionService.class.getDeclaredField("isLeader");
             Method updateAllMethod = ModularLoadManagerImpl.class.getDeclaredMethod("updateAll");
             updateAllMethod.setAccessible(true);
-            leaderField.setAccessible(true);
-            AtomicBoolean isLeader = (AtomicBoolean) leaderField.get(pulsar2.getLeaderElectionService());
-            isLeader.set(true);
+
+            // broker-2 loadManager is a leader and let it refresh load-report from all the brokers
+            pulsar.getLeaderElectionService().close();
+
             ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) ((ModularLoadManagerWrapper) pulsar2
                     .getLoadManager().get()).getLoadManager();
-            // broker-2 loadManager is a leader and let it refresh load-report from all the brokers
+
             updateAllMethod.invoke(loadManager);
             conf2.setLoadBalancerAutoBundleSplitEnabled(true);
             conf2.setLoadBalancerAutoUnloadSplitBundlesEnabled(true);

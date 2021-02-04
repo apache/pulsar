@@ -112,6 +112,8 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                 .setStorageType(StorageType.TABLE)
                 .build();
             Stopwatch elapsedWatch = Stopwatch.createStarted();
+
+            Exception lastException = null;
             while (elapsedWatch.elapsed(TimeUnit.MINUTES) < 1) {
                 try {
                     result(storageAdminClient.getStream(tableNs, tableName));
@@ -124,12 +126,16 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                     } catch (Exception e) {
                         // there might be two clients conflicting at creating table, so let's retrieve the table again
                         // to make sure the table is created.
+                        lastException = e;
+                        log.warn("Encountered exception when creating namespace {} for state table", tableName, e);
                     }
                     try {
                         result(storageAdminClient.createStream(tableNs, tableName, streamConf));
                     } catch (Exception e) {
                         // there might be two clients conflicting at creating table, so let's retrieve the table again
                         // to make sure the table is created.
+                        lastException = e;
+                        log.warn("Encountered exception when creating table {}/{}", tableNs, tableName, e);
                     }
                 } catch (StreamNotFoundException snfe) {
                     try {
@@ -137,6 +143,8 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                     } catch (Exception e) {
                         // there might be two client conflicting at creating table, so let's retrieve it to make
                         // sure the table is created.
+                        lastException = e;
+                        log.warn("Encountered exception when creating table {}/{}", tableNs, tableName, e);
                     }
                 } catch (ClientException ce) {
                     log.warn("Encountered issue {} on fetching state stable metadata, re-attempting in 100 milliseconds",
@@ -144,6 +152,7 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
             }
+            throw new IOException(String.format("Failed to setup / verify state table for function %s/%s/%s within timeout", tenant, name, name), lastException);
         }
     }
 

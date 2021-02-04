@@ -68,7 +68,7 @@ public interface AuthenticationState {
 
     /**
      * If the authentication state supports refreshing and the credentials are expired,
-     * the auth provider will call this method ot initiate the refresh process.
+     * the auth provider will call this method to initiate the refresh process.
      * <p>
      * The auth state here will return the broker side data that will be used to send
      * a challenge to the client.
@@ -77,6 +77,6 @@ public interface AuthenticationState {
      * @throws AuthenticationException
      */
     default AuthData refreshAuthentication() throws AuthenticationException {
-        return null;
+        return AuthData.REFRESH_AUTH_DATA;
     }
 }
