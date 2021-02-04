@@ -223,6 +223,20 @@ functionRuntimeFactoryConfigs:
 ## This class receives the customRuntimeOptions string and can customize details of how the runtime operates.
 #runtimeCustomizerClassName: "org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer"
 
+## This config will pass to RuntimeCustomizer's initialize function to do initializing.
+#runtimeCustomizerConfig:
+#   extractLabels:
+#       extraLabel: value
+#   extraAnnotations:
+#       extraAnnotation: value
+#   nodeSelectorLabels:
+#       customLabel: value
+#   jobNamespace: namespace
+#   tolerations:
+#   - key: custom-key
+#     value: value
+#     effect: NoSchedule
+
 ## Config admin CLI
 #configAdminCLI:
 
