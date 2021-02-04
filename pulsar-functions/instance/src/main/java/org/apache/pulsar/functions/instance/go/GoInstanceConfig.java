@@ -65,4 +65,6 @@ public class GoInstanceConfig {
 
     private int maxMessageRetries;
     private String deadLetterTopic = "";
+
+    private int metricsPort;
 }

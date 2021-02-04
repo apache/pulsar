@@ -152,7 +152,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |tlsAllowInsecureConnection|  Accept untrusted TLS certificate from client  |false|
 |tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.2```, ```TLSv1.1```, ```TLSv1``` ||
 |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
-|ttlDurationDefaultInSeconds|  The default ttl for namespaces if ttl is not configured at namespace policies.  |0|
+|ttlDurationDefaultInSeconds|  The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`||
 |tokenPublicAlg| Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (https://github.com/jwtk/jjwt#signature-algorithms-keys) |RS256|
@@ -344,7 +344,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |backlogQuotaCheckEnabled|  Enable the backlog quota check, which enforces a specified action when the quota is reached.  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the backlog quota.  |60|
 |backlogQuotaDefaultLimitGB|  The default per-topic backlog quota limit.  |10|
-|ttlDurationDefaultInSeconds|  The default ttl for namespaces if ttl is not configured at namespace policies.  |0|
+|ttlDurationDefaultInSeconds|  The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics, in seconds. |60|
 |messageExpiryCheckIntervalInMinutes| How often to proactively check and purged expired messages. |5|

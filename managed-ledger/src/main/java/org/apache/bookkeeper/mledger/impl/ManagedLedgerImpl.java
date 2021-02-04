@@ -110,6 +110,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
@@ -169,6 +170,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     // Cursors that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursors;
+
+    // Objects that are waiting to be notified when new entries are persisted
+    final ConcurrentLinkedQueue<WaitingEntryCallBack> waitingEntryCallBacks;
 
     // This map is used for concurrent open cursor requests, where the 2nd request will attach a listener to the
     // uninitialized cursor future from the 1st request
@@ -290,6 +294,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.mbean = new ManagedLedgerMBeanImpl(this);
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
+        this.waitingEntryCallBacks = Queues.newConcurrentLinkedQueue();
         this.uninitializedCursors = Maps.newHashMap();
         this.clock = config.getClock();
 
@@ -2109,6 +2114,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    void notifyWaitingEntryCallBacks() {
+        while (true) {
+            final WaitingEntryCallBack cb = waitingEntryCallBacks.poll();
+            if (cb == null) {
+                break;
+            }
+
+            executor.execute(safeRun(cb::entriesAvailable));
+        }
+    }
+
+    public void addWaitingEntryCallBack(WaitingEntryCallBack cb) {
+        this.waitingEntryCallBacks.add(cb);
+    }
+
     private void trimConsumedLedgersInBackground() {
         trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
     }
@@ -3086,7 +3106,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      *            the position to validate
      * @return true if the position is valid, false otherwise
      */
-    boolean isValidPosition(PositionImpl position) {
+    public boolean isValidPosition(PositionImpl position) {
         PositionImpl last = lastConfirmedEntry;
         if (log.isDebugEnabled()) {
             log.debug("IsValid position: {} -- last: {}", position, last);
@@ -3130,7 +3150,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             next = getNextValidPositionInternal(position);
         } catch (NullPointerException e) {
             next = lastConfirmedEntry.getNext();
-            log.error("[{}] Can't find next valid position, fail back to the next position of the last position.", name, e);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Can't find next valid position, fall back to the next position of the last position.", name, e);
+            }
         }
         return next;
     }
@@ -3436,7 +3458,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return createManagedLedgerException(t.getCause());
         } else {
             log.error("Unknown exception for ManagedLedgerException.", t);
-            return new ManagedLedgerException("Unknown exception");
+            return new ManagedLedgerException("Other exception", t);
         }
     }
 

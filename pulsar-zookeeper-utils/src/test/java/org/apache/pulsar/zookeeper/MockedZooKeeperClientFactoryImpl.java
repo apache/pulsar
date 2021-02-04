@@ -33,7 +33,7 @@ import org.apache.zookeeper.data.ACL;
 
 public class MockedZooKeeperClientFactoryImpl implements ZooKeeperClientFactory {
 
-    Queue<MockZooKeeper> createdInstances = new ConcurrentLinkedQueue<>();
+    public Queue<MockZooKeeper> createdInstances = new ConcurrentLinkedQueue<>();
 
     @Override
     public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType, int zkSessionTimeoutMillis) {

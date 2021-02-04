@@ -196,7 +196,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                MessageId startMessageId,
                                                Schema<T> schema,
                                                ConsumerInterceptors<T> interceptors,
-                                               boolean createTopicIfDoesNotExist) {
+                                               boolean createTopicIfDoesNotExist)
+            throws PulsarClientException.InvalidConfigurationException {
         return newConsumerImpl(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
                 startMessageId, schema, interceptors, createTopicIfDoesNotExist, 0);
     }
@@ -212,7 +213,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                Schema<T> schema,
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist,
-                                               long startMessageRollbackDurationInSec) {
+                                               long startMessageRollbackDurationInSec)
+            throws PulsarClientException.InvalidConfigurationException {
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
                     subscribeFuture,
@@ -229,7 +231,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ExecutorService listenerExecutor, int partitionIndex, boolean hasParentConsumer,
             CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId,
             long startMessageRollbackDurationInSec, Schema<T> schema, ConsumerInterceptors<T> interceptors,
-            boolean createTopicIfDoesNotExist) {
+            boolean createTopicIfDoesNotExist) throws PulsarClientException.InvalidConfigurationException {
         super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = conf.getSubscriptionMode();
@@ -316,26 +318,36 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (conf.getDeadLetterPolicy() != null) {
-            possibleSendToDeadLetterTopicMessages = new ConcurrentHashMap<>();
-            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
-                this.deadLetterPolicy = DeadLetterPolicy.builder()
-                        .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
-                        .deadLetterTopic(conf.getDeadLetterPolicy().getDeadLetterTopic())
-                        .build();
-            } else {
-                this.deadLetterPolicy = DeadLetterPolicy.builder()
-                        .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
-                        .deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX, topic, subscription))
-                        .build();
+            // DLQ only supports non-ordered subscriptions, don't enable DLQ on Key_Shared subType since it require message ordering for given key.
+            if (conf.getSubscriptionType() == SubscriptionType.Key_Shared &&
+                    StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
+                throw new PulsarClientException.InvalidConfigurationException("Deadletter topic on Key_Shared " +
+                        "subscription type is not supported.");
             }
 
-            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
-                this.deadLetterPolicy.setRetryLetterTopic(conf.getDeadLetterPolicy().getRetryLetterTopic());
+            if (conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+                possibleSendToDeadLetterTopicMessages = new ConcurrentHashMap<>();
             } else {
-                this.deadLetterPolicy.setRetryLetterTopic(String.format("%s-%s" + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX,
+                possibleSendToDeadLetterTopicMessages = null;
+            }
+            DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder()
+                    .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount());
+
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
+                dlpBuilder.deadLetterTopic(conf.getDeadLetterPolicy().getDeadLetterTopic());
+            } else if (conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+                // Not setting a default DLQ if it's Key_Shared subType.
+                dlpBuilder.deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
                         topic, subscription));
             }
 
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
+                dlpBuilder.retryLetterTopic(conf.getDeadLetterPolicy().getRetryLetterTopic());
+            } else {
+                dlpBuilder.retryLetterTopic(String.format("%s-%s" + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX,
+                        topic, subscription));
+            }
+            this.deadLetterPolicy = dlpBuilder.build();
         } else {
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;
@@ -601,7 +613,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES, String.valueOf(reconsumetimes));
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_DELAY_TIME, String.valueOf(unit.toMillis(delayTime)));
 
-               if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount()) {
+                if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount() && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
                    processPossibleToDLQ((MessageIdImpl)messageId);
                     if (deadLetterProducer == null) {
                         try {
@@ -642,7 +654,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     return doAcknowledge(messageId, ackType, properties, null);
                 }
             } catch (Exception e) {
-                log.error("Send to retry letter topic exception with topic: {}, messageId: {}", deadLetterProducer.getTopic(), messageId, e);
+                log.error("Send to retry letter topic exception with topic: {}, messageId: {}", retryLetterProducer.getTopic(), messageId, e);
                 Set<MessageId> messageIds = new HashSet<>();
                 messageIds.add(messageId);
                 unAckedMessageTracker.remove(messageId);
@@ -1036,7 +1048,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // Enqueue the message so that it can be retrieved when application calls receive()
                 // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
                 // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
-                if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+                if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()
+                && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(), Collections.singletonList(message));
                 }
                 if (peekPendingReceive() != null) {
@@ -1202,7 +1215,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         MessageIdImpl batchMessage = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
                 getPartitionIndex());
         List<MessageImpl<T>> possibleToDeadLetter = null;
-        if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+        // DLQ only supports non-ordered subscriptions, don't enable DLQ on Key_Shared subType since it require message ordering for given key.
+        if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount() && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
             possibleToDeadLetter = new ArrayList<>();
         }
 
@@ -1576,7 +1590,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         checkArgument(messageIds.stream().findFirst().get() instanceof MessageIdImpl);
 
         if (conf.getSubscriptionType() != SubscriptionType.Shared
-                && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+                && deadLetterPolicy != null && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
             return;
