@@ -90,7 +90,7 @@ public class KafkaSourceConfig implements Serializable {
     @FieldDoc(
             defaultValue = "earliest",
             help =
-                    "The default offset offset reset policy.")
+                    "The default offset reset policy.")
     private String autoOffsetReset = "earliest";
     @FieldDoc(
         defaultValue = "org.apache.kafka.common.serialization.ByteArrayDeserializer",

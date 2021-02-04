@@ -128,7 +128,7 @@ Properties:
 | Config property                         | Supported | Notes                                                                         |
 |:----------------------------------------|:----------|:------------------------------------------------------------------------------|
 | `acks`                                  | Ignored   | Durability and quorum writes are configured at the namespace level            |
-| `auto.offset.reset`                     | Yes       | Will have a default value of `latest` if user does not give specific setting. |
+| `auto.offset.reset`                     | Yes       | Will have a default value of `earliest` if user does not give specific setting. |
 | `batch.size`                            | Ignored   |                                                                               |
 | `bootstrap.servers`                     | Yes       |                                 |
 | `buffer.memory`                         | Ignored   |                                                                               |
