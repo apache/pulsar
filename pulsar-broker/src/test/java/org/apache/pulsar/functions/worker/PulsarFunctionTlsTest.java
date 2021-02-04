@@ -111,6 +111,7 @@ public class PulsarFunctionTlsTest {
             config.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
             config.setFunctionsWorkerEnabled(true);
+            config.setTlsEnabled(true);
 
             WorkerConfig workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, null);
             workerConfig.setPulsarFunctionsNamespace("public/functions");
@@ -190,6 +191,8 @@ public class PulsarFunctionTlsTest {
             FunctionConfig functionConfig = createFunctionConfig(jarFilePathUrl, testTenant, "my-ns",
                 functionName, "my.*", "sink-topic-" + i, "sub-" + i);
 
+            log.info(" -------- Start test function : {}", functionName);
+
             pulsarAdmins[i].functions().createFunctionWithUrl(
                 functionConfig, jarFilePathUrl
             );
@@ -198,6 +201,8 @@ public class PulsarFunctionTlsTest {
             assertEquals(config.getTenant(), testTenant);
             assertEquals(config.getNamespace(), "my-ns");
             assertEquals(config.getName(), functionName);
+
+            pulsarAdmins[i].functions().deleteFunction(config.getTenant(), config.getNamespace(), config.getName());
         }
     }
 
