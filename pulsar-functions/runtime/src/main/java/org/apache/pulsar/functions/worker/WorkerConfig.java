@@ -397,7 +397,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Properties properties = new Properties();
 
     public boolean getTlsEnabled() {
-    	return tlsEnabled || workerPortTls != null;
+    	return tlsEnabled && workerPortTls != null;
     }
 
     @FieldContext(
