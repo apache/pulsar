@@ -449,12 +449,13 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public void addComplete(Position pos, Object ctx) {
+    public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         PublishContext publishContext = (PublishContext) ctx;
         PositionImpl position = (PositionImpl) pos;
 
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
+        publishContext.setMetadataFromEntryData(entryData);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         // in order to sync the max position when cursor read entries
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
@@ -1689,6 +1690,7 @@ public class PersistentTopic extends AbstractTopic
         stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
+        stats.offloadedStorageSize = ledger.getOffloadedSize();
         return stats;
     }
 

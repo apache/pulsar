@@ -62,6 +62,9 @@ kubernetesContainerFactory:
   k8Uri:
   # the kubernetes namespace to run the function instances. it is `default`, if this setting is left to be empty
   jobNamespace:
+  # The Kubernetes pod name to run the function instances. It is set to
+  # `pf-<tenant>-<namespace>-<function_name>-<random_uuid(8)>` if this setting is left to be empty
+  jobName: 
   # the docker image to run function instance. by default it is `apachepulsar/pulsar`
   pulsarDockerImageName:
   # the docker image to run function instance according to different configurations provided by users.
@@ -72,9 +75,15 @@ kubernetesContainerFactory:
   #   PYTHON: PYTHON_IMAGE_NAME
   #   GO: GO_IMAGE_NAME
   functionDockerImages:
+  # "The image pull policy for image used to run function instance. By default it is `IfNotPresent`
+  imagePullPolicy: IfNotPresent
   # the root directory of pulsar home directory in `pulsarDockerImageName`. by default it is `/pulsar`.
   # if you are using your own built image in `pulsarDockerImageName`, you need to set this setting accordingly
   pulsarRootDir:
+  # The config admin CLI allows users to customize the configuration of the admin cli tool, such as:
+  # `/bin/pulsar-admin and /bin/pulsarctl`. By default it is `/bin/pulsar-admin`. If you want to use `pulsarctl`
+  # you need to set this setting accordingly
+  configAdminCLI: 
   # this setting only takes effects if `k8Uri` is set to null. if your function worker is running as a k8 pod,
   # setting this to true is let function worker to submit functions to the same k8s cluster as function worker
   # is running. setting this to false if your function worker is not running as a k8 pod.
@@ -85,8 +94,36 @@ kubernetesContainerFactory:
   # setting the pulsar admin url that pulsar function should use to connect to pulsar
   # if it is not set, it will use the pulsar admin url configured in worker service
   pulsarAdminUrl:
+  # The flag indicates to install user code dependencies. (applied to python package)
+  installUserCodeDependencies:
+  # The repository that pulsar functions use to download python dependencies
+  pythonDependencyRepository:
+  # The repository that pulsar functions use to download extra python dependencies
+  pythonExtraDependencyRepository:
   # the custom labels that function worker uses to select the nodes for pods
   customLabels:
+  # The expected metrics collection interval, in seconds
+  expectedMetricsCollectionInterval: 30
+  # Kubernetes Runtime will periodically checkback on
+  # this configMap if defined and if there are any changes
+  # to the kubernetes specific stuff, we apply those changes
+  changeConfigMap:
+  # The namespace for storing change config map
+  changeConfigMapNamespace:
+  # The ratio cpu request and cpu limit to be set for a function/source/sink.
+  # The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio
+  cpuOverCommitRatio: 1.0
+  # The ratio memory request and memory limit to be set for a function/source/sink.
+  # The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio
+  memoryOverCommitRatio: 1.0
+  # The port inside the function pod which is used by the worker to communicate with the pod
+  grpcPort: 9093
+  # The port inside the function pod on which prometheus metrics are exposed
+  metricsPort: 9094
+  # The directory inside the function pod where nar packages will be extracted
+  narExtractionDirectory:
+  # The classpath where function instance files stored
+  functionInstanceClassPath:
   # the directory for dropping extra function dependencies
   # if it is not an absolute path, it is relative to `pulsarRootDir`
   extraFunctionDependenciesDir:

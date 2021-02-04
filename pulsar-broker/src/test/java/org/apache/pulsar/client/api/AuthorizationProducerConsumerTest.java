@@ -197,10 +197,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
-        pulsarClient = PulsarClient.builder()
+        replacePulsarClient(PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
-                .authentication(authentication)
-                .build();
+                .authentication(authentication));
+
         // (1) Create subscription name
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscribe();
@@ -271,10 +271,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         Authentication authentication = new ClientAuthentication(clientRole);
 
-        pulsarClient = PulsarClient.builder()
+        replacePulsarClient(PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
-                .authentication(authentication)
-                .build();
+                .authentication(authentication));
+
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 
