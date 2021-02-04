@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -517,7 +518,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         when(mockClient.eventLoopGroup()).thenReturn(new NioEventLoopGroup());
         try {
             ConsumerImpl consumer = new ConsumerImpl(mockClient, "my-topic", consumerConfig,
-            Executors.newSingleThreadExecutor(), 0, false, new CompletableFuture<>(),
+                    OrderedScheduler.newSchedulerBuilder().numThreads(1).build(), 0,
+                    false, new CompletableFuture<>(),
             MessageId.earliest, 100, Schema.BYTES,
                     new ConsumerInterceptors(Collections.emptyList()), false);
         } catch (Exception exception) {

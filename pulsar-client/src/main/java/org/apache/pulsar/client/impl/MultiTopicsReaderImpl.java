@@ -22,9 +22,9 @@ package org.apache.pulsar.client.impl;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
@@ -46,7 +46,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     private final MultiTopicsConsumerImpl<T> multiTopicsConsumer;
 
     public MultiTopicsReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                                 ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
+                                 OrderedScheduler listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
         String subscription = "multiTopicsReader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
             subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;

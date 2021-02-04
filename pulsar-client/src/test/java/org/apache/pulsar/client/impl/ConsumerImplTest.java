@@ -28,10 +28,9 @@ import static org.mockito.Mockito.verify;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
@@ -45,7 +44,7 @@ import org.testng.annotations.Test;
 public class ConsumerImplTest {
 
 
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final OrderedScheduler executorService = OrderedScheduler.newSchedulerBuilder().numThreads(1).build();
     private ConsumerImpl<byte[]> consumer;
     private ConsumerConfigurationData consumerConf;
 

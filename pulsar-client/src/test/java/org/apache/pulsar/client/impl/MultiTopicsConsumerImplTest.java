@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Sets;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -33,8 +34,6 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createDelayedCompletedFuture;
@@ -60,7 +59,7 @@ public class MultiTopicsConsumerImplTest {
 
         ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
-        ExecutorService listenerExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+        OrderedScheduler listenerExecutor = OrderedScheduler.newSchedulerBuilder().threadFactory(threadFactory).numThreads(1).build();
 
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
@@ -98,7 +97,7 @@ public class MultiTopicsConsumerImplTest {
     }
 
     private MultiTopicsConsumerImpl<byte[]> createMultiTopicsConsumer() {
-        ExecutorService listenerExecutor = mock(ExecutorService.class);
+        OrderedScheduler listenerExecutor = mock(OrderedScheduler.class);
         ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
         consumerConfData.setSubscriptionName("subscriptionName");
         int completionDelayMillis = 100;

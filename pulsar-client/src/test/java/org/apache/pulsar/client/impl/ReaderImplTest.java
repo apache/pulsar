@@ -40,7 +40,8 @@ public class ReaderImplTest {
         ReaderConfigurationData<byte[]> readerConfiguration = new ReaderConfigurationData<>();
         readerConfiguration.setTopicName("topicName");
         CompletableFuture<Consumer<byte[]>> consumerFuture = new CompletableFuture<>();
-        reader = new ReaderImpl<>(mockedClient, readerConfiguration, ClientTestFixtures.createMockedExecutor(), consumerFuture, Schema.BYTES);
+        reader = new ReaderImpl<>(mockedClient, readerConfiguration, ClientTestFixtures.createMockOrderedScheduler(),
+                consumerFuture, Schema.BYTES);
     }
 
     @Test

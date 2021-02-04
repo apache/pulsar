@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
 import io.netty.util.Timer;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.mockito.Mockito;
@@ -74,5 +75,9 @@ class ClientTestFixtures {
 
     public static ExecutorService createMockedExecutor() {
         return mock(ExecutorService.class);
+    }
+
+    public static OrderedScheduler createMockOrderedScheduler() {
+        return mock(OrderedScheduler.class);
     }
 }
