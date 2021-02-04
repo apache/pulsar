@@ -29,17 +29,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
@@ -53,8 +53,8 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.utils.functions.Functions;
+import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.utils.io.Connectors;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.io.File;
@@ -62,10 +62,11 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -278,22 +279,30 @@ public class LocalRunner {
                             .getProtectionDomain().getCodeSource().getLocation().getFile();
                 }
 
-                String builtInSource = isBuiltInSource(userCodeFile);
-                if (builtInSource != null) {
-                    sourceConfig.setArchive(builtInSource);
-                }
                 parallelism = sourceConfig.getParallelism();
 
-                if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
+                ClassLoader builtInSourceClassLoader = isBuiltInSource(userCodeFile);
+                if (builtInSourceClassLoader != null) {
+                    functionDetails = SourceConfigUtils.convert(
+                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(
+                                    sourceConfig, builtInSourceClassLoader, true));
+                } else if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file, narExtractionDirectory, true));
-
+                    ClassLoader classLoader = FunctionCommon.getClassLoaderFromPackage(
+                            Function.FunctionDetails.ComponentType.SOURCE,
+                            sourceConfig.getClassName(), file, narExtractionDirectory);
+                    functionDetails = SourceConfigUtils.convert(
+                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(sourceConfig, classLoader, true));
                 } else {
                     File file = new File(userCodeFile);
                     if (!file.exists()) {
                         throw new RuntimeException("Source archive (" + userCodeFile + ") does not exist");
                     }
-                    functionDetails = SourceConfigUtils.convert(sourceConfig, SourceConfigUtils.validate(sourceConfig, null, file, narExtractionDirectory, true));
+                    ClassLoader classLoader = FunctionCommon.getClassLoaderFromPackage(
+                            Function.FunctionDetails.ComponentType.SOURCE,
+                            sourceConfig.getClassName(), file, narExtractionDirectory);
+                    functionDetails = SourceConfigUtils.convert(
+                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(sourceConfig, classLoader, true));
                 }
             } else if (sinkConfig != null) {
                 inferMissingArguments(sinkConfig);
@@ -306,23 +315,36 @@ public class LocalRunner {
                             .getProtectionDomain().getCodeSource().getLocation().getFile();
                 }
 
-                if (userCodeFile != null) {
-                    String builtInSink = isBuiltInSink(userCodeFile);
-                    if (builtInSink != null) {
-                        sinkConfig.setArchive(builtInSink);
-                    }
+                if (userCodeFile == null) {
+                    userCodeFile = Thread.currentThread().getContextClassLoader()
+                            .loadClass(LocalRunner.class.getName())
+                            .getProtectionDomain().getCodeSource().getLocation().getFile();
                 }
+
                 parallelism = sinkConfig.getParallelism();
 
-                if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
+                ClassLoader builtInSinkClassLoader = isBuiltInSink(userCodeFile);
+                if (builtInSinkClassLoader != null) {
+                    functionDetails = SinkConfigUtils.convert(
+                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(
+                                    sinkConfig, builtInSinkClassLoader, true));
+                } else if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, narExtractionDirectory, true));
+                    ClassLoader classLoader = FunctionCommon.getClassLoaderFromPackage(
+                            Function.FunctionDetails.ComponentType.SINK,
+                            sinkConfig.getClassName(), file, narExtractionDirectory);
+                    functionDetails = SinkConfigUtils.convert(
+                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, classLoader, true));
                 } else {
                     File file = new File(userCodeFile);
                     if (!file.exists()) {
                         throw new RuntimeException("Sink archive does not exist");
                     }
-                    functionDetails = SinkConfigUtils.convert(sinkConfig, SinkConfigUtils.validate(sinkConfig, null, file, narExtractionDirectory,  true));
+                    ClassLoader classLoader = FunctionCommon.getClassLoaderFromPackage(
+                            Function.FunctionDetails.ComponentType.SINK,
+                            sinkConfig.getClassName(), file, narExtractionDirectory);
+                    functionDetails = SinkConfigUtils.convert(
+                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, classLoader,  true));
                 }
             } else {
                 throw new IllegalArgumentException("Must specify Function, Source or Sink config");
@@ -495,33 +517,35 @@ public class LocalRunner {
         }
     }
 
-    private String isBuiltInSource(String sourceType) throws IOException {
-        // Validate the connector source type from the locally available connectors
-        Connectors connectors = getConnectors();
+    private ClassLoader isBuiltInSource(String sourceType) throws IOException {
+        // Validate the connector type from the locally available connectors
+        TreeMap<String, Connector> connectors = getConnectors();
 
         String source = sourceType.replaceFirst("^builtin://", "");
-        if (connectors.getSources().containsKey(source)) {
-            // Source type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
-            return connectors.getSources().get(source).toString();
+        Connector connector = connectors.get(source);
+        if (connector != null && connector.getConnectorDefinition().getSourceClass() != null) {
+            // Source type is a valid built-in connector type.
+            return connector.getClassLoader();
         } else {
             return null;
         }
     }
 
-    private String isBuiltInSink(String sinkType) throws IOException {
-        // Validate the connector source type from the locally available connectors
-        Connectors connectors = getConnectors();
+    private ClassLoader isBuiltInSink(String sinkType) throws IOException {
+        // Validate the connector type from the locally available connectors
+        TreeMap<String, Connector> connectors = getConnectors();
 
         String sink = sinkType.replaceFirst("^builtin://", "");
-        if (connectors.getSinks().containsKey(sink)) {
-            // Source type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
-            return connectors.getSinks().get(sink).toString();
+        Connector connector = connectors.get(sink);
+        if (connector != null && connector.getConnectorDefinition().getSinkClass() != null) {
+            // Sink type is a valid built-in connector type
+            return connector.getClassLoader();
         } else {
             return null;
         }
     }
 
-    private Connectors getConnectors() throws IOException {
+    private TreeMap<String, Connector> getConnectors() throws IOException {
         // Validate the connector source type from the locally available connectors
         String pulsarHome = System.getenv("PULSAR_HOME");
         if (pulsarHome == null) {

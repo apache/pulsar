@@ -858,7 +858,7 @@ public class SourceApiV3ResourceTest {
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -934,7 +934,7 @@ public class SourceApiV3ResourceTest {
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(File.class), any());
+        FunctionCommon.extractNarClassLoader(any(File.class), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -1028,7 +1028,7 @@ public class SourceApiV3ResourceTest {
         PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
