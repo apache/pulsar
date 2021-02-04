@@ -31,14 +31,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 
 @Slf4j
 public class ExecutorProvider {
     private final int numThreads;
     private final List<ExecutorService> executors;
     private final AtomicInteger currentThread = new AtomicInteger(0);
-    private OrderedExecutor orderedExecutor = null;
+    private OrderedScheduler orderedScheduler = null;
 
     public ExecutorProvider(int numThreads, ThreadFactory threadFactory) {
         checkArgument(numThreads > 0);
@@ -54,15 +54,15 @@ public class ExecutorProvider {
         return executors.get((currentThread.getAndIncrement() & Integer.MAX_VALUE) % numThreads);
     }
 
-    public synchronized OrderedExecutor getOrderedExecutor() {
-        if (this.orderedExecutor == null) {
-            this.orderedExecutor = OrderedExecutor.newBuilder()
+    public synchronized OrderedScheduler getOrderedScheduler() {
+        if (this.orderedScheduler == null) {
+            this.orderedScheduler = OrderedScheduler.newSchedulerBuilder()
                     .threadFactory(new DefaultThreadFactory("pulsar-client-ordered-listener",
                             Thread.currentThread().isDaemon()))
                     .numThreads(numThreads)
                     .build();
         }
-        return this.orderedExecutor;
+        return this.orderedScheduler;
     }
 
     public void shutdownNow() {

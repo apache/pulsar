@@ -38,7 +38,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import io.netty.util.Timeout;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -70,7 +70,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
     protected final ConsumerEventListener consumerEventListener;
-    protected final ExecutorService listenerExecutor;
+    protected final OrderedScheduler listenerExecutor;
     final BlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
@@ -84,7 +84,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
     protected final Lock reentrantLock = new ReentrantLock();
-    private OrderedExecutor orderedExecutor = null;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorService listenerExecutor,
@@ -100,8 +99,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         // Always use growable queue since items can exceed the advertised size
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
         this.unAckedChunkedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
-
-        this.listenerExecutor = listenerExecutor;
+        this.listenerExecutor = client.externalExecutorProvider().getOrderedScheduler();
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
         this.interceptors = interceptors;
@@ -135,10 +133,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         if (batchReceivePolicy.getTimeoutMs() > 0) {
             batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask, batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
-        }
-
-        if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
-            orderedExecutor = client.externalExecutorProvider().getOrderedExecutor();
         }
     }
 
@@ -237,7 +231,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void completePendingReceive(CompletableFuture<Message<T>> receivedFuture, Message<T> message) {
-        listenerExecutor.execute(() -> {
+        listenerExecutor.executeOrdered(this, () -> {
             if (!receivedFuture.complete(message)) {
                 log.warn("Race condition detected. receive future was already completed (cancelled={}) and message was dropped. message={}",
                         receivedFuture.isCancelled(), message);
@@ -857,11 +851,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 msg = internalReceive(0, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     final Message<T> finalMsg = msg;
-                    if (SubscriptionType.Key_Shared == conf.getSubscriptionType() && orderedExecutor != null) {
+                    if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
                         int keyHash = Murmur3_32Hash.getInstance().makeHash(peekMessageKey(finalMsg));
-                        orderedExecutor.executeOrdered( keyHash, () -> callMessageListener(finalMsg));
+                        listenerExecutor.executeOrdered(keyHash, () -> callMessageListener(finalMsg));
                     } else {
-                        listenerExecutor.execute(() -> callMessageListener(finalMsg));
+                        listenerExecutor.executeOrdered(this, () -> callMessageListener(finalMsg));
                     }
                 }
             } catch (PulsarClientException e) {
