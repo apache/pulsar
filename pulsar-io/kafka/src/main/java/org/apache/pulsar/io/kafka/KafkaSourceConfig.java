@@ -88,6 +88,11 @@ public class KafkaSourceConfig implements Serializable {
             "The deserializer class for Kafka consumer to deserialize keys.")
     private String keyDeserializationClass = "org.apache.kafka.common.serialization.StringDeserializer";
     @FieldDoc(
+            defaultValue = "earliest",
+            help =
+                    "The default offset offset reset policy.")
+    private String autoOffsetReset = "earliest";
+    @FieldDoc(
         defaultValue = "org.apache.kafka.common.serialization.ByteArrayDeserializer",
         help =
             "The deserializer class for Kafka consumer to deserialize values. You typically shouldn't care this. "

@@ -203,6 +203,9 @@ public class KafkaAbstractSourceTest {
         config.put("heartbeatIntervalMs", 20000);
         expectThrows(IllegalArgumentException.class, "Unable to instantiate Kafka consumer", openAndClose);
         config.put("heartbeatIntervalMs", 5000);
+        config.put("autoOffsetReset", "some-value");
+        expectThrows(IllegalArgumentException.class, "Unable to instantiate Kafka consumer", openAndClose);
+        config.put("autoOffsetReset", "earliest");
         source.open(config, ctx);
         source.close();
     }
