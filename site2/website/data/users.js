@@ -98,7 +98,7 @@ module.exports = [
     {
         name: 'EMQ',
         url: 'https://www.emqx.io/',
-        logo: 'https://www.emqx.io/static/img/logo.svg'
+        logo: 'https://www.emqx.io/static/img/logo.svg',
         logo_white: true
     },
     {
