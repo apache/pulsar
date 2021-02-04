@@ -1388,11 +1388,6 @@ public class PulsarService implements AutoCloseable {
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
             brokerConfig.getAdvertisedAddress());
         workerConfig.setWorkerHostname(hostname);
-        workerConfig.setWorkerId(
-            "c-" + brokerConfig.getClusterName()
-                + "-fw-" + hostname
-                + "-" + (workerConfig.getTlsEnabled()
-                    ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         // inherit broker authorization setting
         workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
         workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
@@ -1403,6 +1398,7 @@ public class PulsarService implements AutoCloseable {
         workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
         workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
+        workerConfig.setTlsEnabled(brokerConfig.isTlsEnabled());
         workerConfig.setTlsEnableHostnameVerification(false);
         workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
 
@@ -1418,6 +1414,12 @@ public class PulsarService implements AutoCloseable {
             workerConfig.setFunctionsWorkerServiceNarPackage(
                 brokerConfig.getFunctionsWorkerServiceNarPackage());
         }
+
+        workerConfig.setWorkerId(
+                "c-" + brokerConfig.getClusterName()
+                        + "-fw-" + hostname
+                        + "-" + (workerConfig.getTlsEnabled()
+                        ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
     }
 }
