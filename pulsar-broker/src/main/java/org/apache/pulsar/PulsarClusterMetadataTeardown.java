@@ -30,7 +30,6 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -47,7 +46,7 @@ import org.slf4j.LoggerFactory;
 public class PulsarClusterMetadataTeardown {
 
     private static class Arguments {
-        @Parameter(names = { "-zk",
+        @Parameter(names = {"-zk",
                 "--zookeeper"}, description = "Local ZooKeeper quorum connection string", required = true)
         private String zookeeper;
 
@@ -56,36 +55,30 @@ public class PulsarClusterMetadataTeardown {
         }, description = "Local zookeeper session timeout ms")
         private int zkSessionTimeoutMillis = 30000;
 
-        @Parameter(names = { "-c", "--cluster" }, description = "Cluster name")
+        @Parameter(names = {"-c", "--cluster"}, description = "Cluster name")
         private String cluster;
 
-        @Parameter(names = { "-cs", "--configuration-store" }, description = "Configuration Store connection string")
+        @Parameter(names = {"-cs", "--configuration-store"}, description = "Configuration Store connection string")
         private String configurationStore;
 
-        // Hide and marked as deprecated this flag because we use the new name '--existing-bk-metadata-service-uri' to
-        // pass the service url. For compatibility of the command, we should keep both to avoid the exceptions.
-        @Deprecated
         @Parameter(names = {
                 "--bookkeeper-metadata-service-uri"},
                 description = "The metadata service URI of the existing BookKeeper cluster that you used",
                 hidden = true)
         private String bkMetadataServiceUri;
 
-        @Parameter(names = {
-                "--existing-bk-metadata-service-uri"},
-                description = "The metadata service URI of the existing BookKeeper cluster that you used")
-        private String existingBkMetadataServiceUri;
-
-        @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
     }
 
     public static String[] localZkNodes = {
-            // --zookeeper's zookeeper path, "ledgers" not exist when use --existing-bk-metadata-service-uri
-            "bookies", "managed-ledgers", "namespace", "stream", "ledgers",
-            // --configuration-store's zookeeper path
-             "admin", "pulsar",
-            // other path
+            // --zookeeper's zookeeper node,
+            "bookies", "managed-ledgers", "namespace", "stream",
+            // --configuration-store's zookeeper node
+            // "admin", "pulsar",
+            // --bookkeeper-metadata-service-uri node
+            // "ledgers",
+            // other node
             "counters", "loadbalance", "schemas"};
 
 
@@ -104,12 +97,8 @@ public class PulsarClusterMetadataTeardown {
             throw e;
         }
 
-        if (arguments.bkMetadataServiceUri != null || arguments.existingBkMetadataServiceUri != null) {
-            String uri = arguments.existingBkMetadataServiceUri;
-            if (uri == null){
-                uri = arguments.bkMetadataServiceUri;
-            }
-            BookKeeper bookKeeper = new BookKeeper(new ClientConfiguration().setMetadataServiceUri(uri));
+        if (arguments.bkMetadataServiceUri != null) {
+            BookKeeper bookKeeper = new BookKeeper(new ClientConfiguration().setMetadataServiceUri(arguments.bkMetadataServiceUri));
             ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
             ManagedLedgerFactory managedLedgerFactory = new ManagedLedgerFactoryImpl(bookKeeper, localZk);
 

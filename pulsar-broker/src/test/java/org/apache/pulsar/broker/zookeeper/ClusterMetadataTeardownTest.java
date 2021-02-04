@@ -64,9 +64,6 @@ public class ClusterMetadataTeardownTest {
         // expected not exist
         assertNull(initZk.exists("/managed-ledgers", false));
 
-        // "/zookeeper" only
-        assertEquals(1, initZk.getChildren("/", false).size());
-
     }
 
 
@@ -98,9 +95,6 @@ public class ClusterMetadataTeardownTest {
         // expected not exist
         assertNull(initZk.exists("/managed-ledgers", false));
 
-        // "/zookeeper" only
-        assertEquals(1, initZk.getChildren("/", false).size());
-
     }
 
 
@@ -113,7 +107,7 @@ public class ClusterMetadataTeardownTest {
 
         // init
         String[] initArgs = {"--cluster", "testSetupWithBkMetadata-cluster", "--zookeeper", localZkConnection,
-                "--configuration-store", csZkConnection, "--existing-bk-metadata-service-uri",
+                "--configuration-store", csZkConnection, "--bookkeeper-metadata-service-uri",
                 "zk+null://" + bookieZkConnection + chroot, "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443", "--broker-service-url", "pulsar://127.0.0.1:6650",
                 "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"};
@@ -121,7 +115,7 @@ public class ClusterMetadataTeardownTest {
         PulsarClusterMetadataSetup.main(initArgs);
 
         String[] teardownArgs = {"--cluster", "testSetupWithBkMetadata-cluster", "--zookeeper", localZkConnection,
-                "--configuration-store", localZkConnection, "--existing-bk-metadata-service-uri",
+                "--configuration-store", localZkConnection, "--bookkeeper-metadata-service-uri",
                 "zk+null://" + bookieZkConnection + chroot};
 
         ZooKeeper localZk = PulsarClusterMetadataTeardown.initZk(localZkConnection, 600000);
@@ -140,9 +134,6 @@ public class ClusterMetadataTeardownTest {
 
         // localZk expected not exist
         assertNull(localZk.exists("/managed-ledgers", false));
-
-        // localZk "/zookeeper" only
-        assertEquals(1, localZk.getChildren("/", false).size());
 
         // bookieZk expected exist
         assertNotNull(bookieZk.exists(chroot, false));
