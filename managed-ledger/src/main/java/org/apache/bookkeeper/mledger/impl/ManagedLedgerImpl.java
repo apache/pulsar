@@ -672,6 +672,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete(Void v, Stat stat) {
                 ledgersStat = stat;
                 initializeCursors(callback);
+                initializeStreamingOffloader();
             }
 
             @Override
@@ -716,7 +717,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
                 ledgers.put(lh.getId(), info);
-                initializeStreamingOffloader();
                 // Save it back to ensure all nodes exist
                 store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, storeLedgersCb);
             }));
