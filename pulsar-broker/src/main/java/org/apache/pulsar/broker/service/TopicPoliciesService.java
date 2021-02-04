@@ -34,7 +34,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 public interface TopicPoliciesService {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
-    Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> LISTENERS = new ConcurrentHashMap<>();
 
     /**
      * Update policies for a topic async.
