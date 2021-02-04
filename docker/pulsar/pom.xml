@@ -93,7 +93,7 @@
                   <goal>run</goal>
                 </goals>
                 <configuration>
-                  <skip>${skipCopyPythonClients}</skip>
+                  <skip>true</skip>
                   <target>
                     <echo>copy python wheel file</echo>
                     <mkdir dir="${basedir}/target/python-client"/>
@@ -108,7 +108,7 @@
                   <goal>run</goal>
                 </goals>
                 <configuration>
-                  <skip>${skipCopyCppClient}</skip>
+                  <skip>true</skip>
                   <target>
                     <echo>copy cpp client deb file</echo>
                     <mkdir dir="${basedir}/target/cpp-client"/>
