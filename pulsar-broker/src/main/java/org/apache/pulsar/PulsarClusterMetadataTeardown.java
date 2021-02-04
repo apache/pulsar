@@ -63,8 +63,7 @@ public class PulsarClusterMetadataTeardown {
 
         @Parameter(names = {
                 "--bookkeeper-metadata-service-uri"},
-                description = "The metadata service URI of the existing BookKeeper cluster that you used",
-                hidden = true)
+                description = "The metadata service URI of the existing BookKeeper cluster that you used")
         private String bkMetadataServiceUri;
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
