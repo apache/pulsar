@@ -52,6 +52,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
 /**
@@ -168,10 +169,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.configAdminCLI = "/bin/pulsar-admin";
         }
-        this.downloadDirectory = this.pulsarRootDir; // for backward comp
-        if (!isEmpty(workerConfig.getDownloadDirectory())) {
-            this.downloadDirectory = workerConfig.getDownloadDirectory();
-        }
+        this.downloadDirectory = isNotEmpty(workerConfig.getDownloadDirectory()) ?
+                workerConfig.getDownloadDirectory() : this.pulsarRootDir; // for backward comp
         if (!Paths.get(this.downloadDirectory).isAbsolute()) {
             this.downloadDirectory = this.pulsarRootDir + "/" + this.downloadDirectory;
         }
