@@ -224,7 +224,7 @@ For individual topics, you can trigger GCS offloader manually using one of the f
 
     > #### Tip
     >
-    > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here]((reference-pulsar-admin.md#offload). 
+    > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
 
 - This example checks the GCS offloader status using pulsar-admin with the command `pulsar-admin topics offload-status options`.
 
