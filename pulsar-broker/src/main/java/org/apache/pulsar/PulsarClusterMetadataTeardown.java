@@ -81,7 +81,13 @@ public class PulsarClusterMetadataTeardown {
     }
 
     public static String[] localZkNodes = {
-            "bookies", "admin", "ledgers", "managed-ledgers", "namespace", "pulsar", "stream" };
+            // --zookeeper's zookeeper path, "ledgers" not exist when use --existing-bk-metadata-service-uri
+            "bookies", "managed-ledgers", "namespace", "stream", "ledgers",
+            // --configuration-store's zookeeper path
+             "admin", "pulsar",
+            // other path
+            "counters", "loadbalance", "schemas"};
+
 
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
@@ -117,10 +123,6 @@ public class PulsarClusterMetadataTeardown {
         ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
 
         for (String localZkNode : localZkNodes) {
-            // when use --existing-bk-metadata-service-uri doesn't contain "/ledgers"
-            if (arguments.existingBkMetadataServiceUri != null && StringUtils.equals("ledgers", localZkNode)) {
-                continue;
-            }
             deleteZkNodeRecursively(localZk, "/" + localZkNode);
         }
 
