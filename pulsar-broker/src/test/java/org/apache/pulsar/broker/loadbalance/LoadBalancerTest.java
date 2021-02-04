@@ -186,10 +186,11 @@ public class LoadBalancerTest {
             .atMost(MAX_RETRIES, TimeUnit.SECONDS)
             .until(() -> {
                 boolean settled = true;
-                // Check if the all active pulsar see a new leader
+                // Check if the all active pulsar see a new leader.
                 for (PulsarService pulsar : activePulsars) {
                     Optional<LeaderBroker> leader = pulsar.getLeaderElectionService().readCurrentLeader().join();
-                    if (leader.isPresent() && leader.get().equals(oldLeader)) {
+                    // Check leader a pulsar see is not empty and not the old leader.
+                    if (!leader.isPresent() || leader.get().equals(oldLeader)) {
                         settled = false;
                         break;
                     }
@@ -746,7 +747,7 @@ public class LoadBalancerTest {
             // Do leader election by killing the leader broker
             leaderPulsar.close();
             loopUntilLeaderChangesForAllBroker(followerPulsar, oldLeader);
-            LeaderBroker newLeader = followerPulsar.get(0).getLeaderElectionService().getCurrentLeader().get();
+            LeaderBroker newLeader = followerPulsar.get(0).getLeaderElectionService().readCurrentLeader().join().get();
             log.info("New leader is : {}", newLeader.getServiceUrl());
             Assert.assertNotEquals(newLeader, oldLeader);
         }
