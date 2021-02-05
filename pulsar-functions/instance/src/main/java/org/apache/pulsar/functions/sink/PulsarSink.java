@@ -407,14 +407,6 @@ public class PulsarSink<T> implements Sink<T> {
             log.info("typeClassName is {}, no need to force a schema", this.pulsarSinkConfig.getTypeClassName());
             return new InitSchemaResult(null, false);
         }
-        if (GenericRecord.class.equals(typeArg)) {
-            // if we are receiving GenericRecord records the schema will be created
-            // while processing messages, we do not have enough information at this point
-            // and we cannot create a generic schema that won't be compatible with the
-            // schema present on the records
-            log.info("typeClassName is {}, schema will be lazily initialized", this.pulsarSinkConfig.getTypeClassName());
-            return new InitSchemaResult(null, true);
-        }
         ConsumerConfig consumerConfig = new ConsumerConfig();
         consumerConfig.setSchemaProperties(pulsarSinkConfig.getSchemaProperties());
         if (!StringUtils.isEmpty(pulsarSinkConfig.getSchemaType())) {
