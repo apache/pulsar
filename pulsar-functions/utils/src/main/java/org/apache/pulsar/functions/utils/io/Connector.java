@@ -18,22 +18,20 @@
  */
 package org.apache.pulsar.functions.utils.io;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
+import lombok.Builder;
 import lombok.Data;
-
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 
+import java.nio.file.Path;
+import java.util.List;
+
+@Builder
 @Data
-public class Connectors {
-    final List<ConnectorDefinition> connectors = new ArrayList<>();
-    final Map<String, Path> sources = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sourceConfigDefinitions = new TreeMap<>();
-    final Map<String, Path> sinks = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sinkConfigDefinitions = new TreeMap<>();
+public class Connector {
+    private Path archivePath;
+    private List<ConfigFieldDefinition> sourceConfigFieldDefinitions;
+    private List<ConfigFieldDefinition> sinkConfigFieldDefinitions;
+    private ClassLoader classLoader;
+    private ConnectorDefinition connectorDefinition;
 }
