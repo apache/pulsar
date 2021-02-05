@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -95,6 +96,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -291,7 +293,9 @@ public class PersistentTopic extends AbstractTopic
 
         checkReplicatedSubscriptionControllerState();
 
-        if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+        if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && !checkTopicIsEventsNames(topic)
+                && !topic.contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
@@ -1077,6 +1081,7 @@ public class PersistentTopic extends AbstractTopic
 
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
+        futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
@@ -2527,6 +2532,19 @@ public class PersistentTopic extends AbstractTopic
                     , -1, -1);
             decrementPendingWriteOpsAndCheck();
             return;
+        }
+
+        // need to check transaction buffer ready before before check the message deduplication
+        if (transactionBuffer instanceof TopicTransactionBuffer) {
+            if (!((TopicTransactionBuffer) transactionBuffer).checkIfReady()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}]Transaction buffer not recover complete!", topic);
+                }
+                publishContext.completed(new BrokerServiceException
+                        .ServiceUnitNotReadyException("[{" + topic + "}]Transaction buffer not "
+                        + "recover complete!"), -1, -1);
+                return;
+            }
         }
 
         MessageDeduplication.MessageDupStatus status =

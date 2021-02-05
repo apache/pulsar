@@ -16,31 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.events;
+package org.apache.pulsar.broker.transaction.buffer.impl;
 
-/**
- * System topic name for the event type.
- */
-public class EventsTopicNames {
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.transaction.buffer.proto.Transactionbuffer.TransactionBufferSnapshot;
 
-
-    /**
-     * Local topic name for the namespace events.
-     */
-    public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
+public interface TopicTransactionBufferRecoverCallBack {
 
     /**
-     * Local topic name for the namespace events.
+     * Topic transaction buffer recover complete.
      */
-    public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
+    void replayComplete();
 
-    public static boolean checkTopicIsEventsNames(String topicName) {
-        if (topicName.endsWith(NAMESPACE_EVENTS_LOCAL_NAME)) {
-            return true;
-        } else if (topicName.endsWith(TRANSACTION_BUFFER_SNAPSHOT)) {
-            return true;
-        } else {
-            return false;
-        }
-    }
+    /**
+     * Handle transactionBufferSnapshot.
+     *
+     * @param snapshot the transaction buffer snapshot
+     */
+    void handleSnapshot(TransactionBufferSnapshot snapshot);
+
+    /**
+     * Handle transaction entry.
+     *
+     * @param entry the transaction message entry
+     */
+    void handleTxnEntry(Entry entry);
 }

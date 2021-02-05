@@ -218,6 +218,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of threads to use for pulsar broker service."
+                    + " The executor in thread pool will do transaction recover"
+    )
+    private int numTransactionExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 
@@ -1919,6 +1926,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String transactionBufferProviderClassName =
             "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Transaction buffer take snapshot interval number"
+    )
+    private int transactionBufferTakeSnapshotIntervalNumber = 1000;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Transaction buffer take snapshot interval time"
+    )
+    private int transactionBufferTakeSnapshotIntervalTime = 5000;
 
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(

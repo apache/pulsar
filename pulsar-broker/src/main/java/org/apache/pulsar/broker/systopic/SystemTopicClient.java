@@ -25,13 +25,12 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.events.EventsTopicNames;
-import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 
 /**
  * Pulsar system topic.
  */
-public interface SystemTopicClient {
+public interface SystemTopicClient<T> {
 
     /**
      * Get topic name of the system topic.
@@ -43,23 +42,23 @@ public interface SystemTopicClient {
      * Create a reader for the system topic.
      * @return a new reader for the system topic
      */
-    Reader newReader() throws PulsarClientException;
+    Reader<T> newReader() throws PulsarClientException;
 
     /**
      * Create a reader for the system topic asynchronously.
      */
-    CompletableFuture<Reader> newReaderAsync();
+    CompletableFuture<Reader<T>> newReaderAsync();
 
     /**
      * Create a writer for the system topic.
      * @return writer for the system topic
      */
-    Writer newWriter() throws PulsarClientException;
+    Writer<T> newWriter() throws PulsarClientException;
 
     /**
      * Create a writer for the system topic asynchronously.
      */
-    CompletableFuture<Writer> newWriterAsync();
+    CompletableFuture<Writer<T>> newWriterAsync();
 
     /**
      * Close the system topic.
@@ -75,34 +74,34 @@ public interface SystemTopicClient {
     /**
      * Get all writers of the system topic.
      *
-     * @return writer list
+     * @return {@link java.util.Set} the set of writers
      */
-    List<Writer> getWriters();
+    List<Writer<T>> getWriters();
 
     /**
      * Get all readers of the system topic.
-     * @return reader list
+     * @return {@link java.util.Set} the set of readers
      */
-    List<Reader> getReaders();
+    List<Reader<T>> getReaders();
 
     /**
      * Writer for system topic.
      */
-    interface Writer {
+    interface Writer<T> {
         /**
          * Write event to the system topic.
-         * @param event pulsar event
+         * @param t pulsar event
          * @return message id
          * @throws PulsarClientException exception while write event cause
          */
-        MessageId write(PulsarEvent event) throws PulsarClientException;
+        MessageId write(T t) throws PulsarClientException;
 
         /**
          * Async write event to the system topic.
-         * @param event pulsar event
+         * @param t pulsar event
          * @return message id future
          */
-        CompletableFuture<MessageId> writeAsync(PulsarEvent event);
+        CompletableFuture<MessageId> writeAsync(T t);
 
         /**
          * Close the system topic writer.
@@ -118,26 +117,26 @@ public interface SystemTopicClient {
          * Get the system topic of the writer.
          * @return system topic
          */
-        SystemTopicClient getSystemTopicClient();
+        SystemTopicClient<T> getSystemTopicClient();
 
     }
 
     /**
      * Reader for system topic.
      */
-    interface Reader {
+    interface Reader<T> {
 
         /**
          * Read event from system topic.
          * @return pulsar event
          */
-        Message<PulsarEvent> readNext() throws PulsarClientException;
+        Message<T> readNext() throws PulsarClientException;
 
         /**
          * Async read event from system topic.
          * @return pulsar event future
          */
-        CompletableFuture<Message<PulsarEvent>> readNextAsync();
+        CompletableFuture<Message<T>> readNextAsync();
 
         /**
          * Check has more events available for the reader.
@@ -165,7 +164,7 @@ public interface SystemTopicClient {
          * Get the system topic of the reader.
          * @return system topic
          */
-        SystemTopicClient getSystemTopic();
+        SystemTopicClient<T> getSystemTopic();
     }
 
     static boolean isSystemTopic(TopicName topicName) {
