@@ -21,6 +21,11 @@ package org.apache.pulsar.broker.service;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
@@ -40,11 +45,6 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * Cached topic policies service will cache the system topic reader and the topic policies
  *
@@ -62,6 +62,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private final Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader>> readerCaches = new ConcurrentHashMap<>();
 
     private final Map<NamespaceName, Boolean> policyCacheInitMap = new ConcurrentHashMap<>();
+
+    private final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
 
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
@@ -123,7 +125,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return;
         }
         TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
-        TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
+        TopicName topicName = TopicName.get(event.getDomain(), event.getTenant(),
+                event.getNamespace(), event.getTopic());
         if (listeners.get(topicName) != null) {
             TopicPolicies policies = event.getPolicies();
             for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
