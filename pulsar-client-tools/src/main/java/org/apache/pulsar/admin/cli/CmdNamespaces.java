@@ -1414,6 +1414,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove maxUnackedMessagesPerSubscription for a namespace")
+    private class RemoveMaxUnackedMessagesPerSubscription extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get compactionThreshold for a namespace")
     private class GetCompactionThreshold extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -2025,8 +2037,13 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
         jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
+
         jcommander.addCommand("get-max-unacked-messages-per-subscription", new GetMaxUnackedMessagesPerSubscription());
         jcommander.addCommand("set-max-unacked-messages-per-subscription", new SetMaxUnackedMessagesPerSubscription());
+        jcommander.addCommand("remove-max-unacked-messages-per-subscription",
+                new RemoveMaxUnackedMessagesPerSubscription());
+
+
         jcommander.addCommand("get-max-unacked-messages-per-consumer", new GetMaxUnackedMessagesPerConsumer());
         jcommander.addCommand("set-max-unacked-messages-per-consumer", new SetMaxUnackedMessagesPerConsumer());
 

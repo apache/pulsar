@@ -200,6 +200,32 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName));
     }
 
+    @Test
+    public void testMaxUnackedMessagesOnSubApplied() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        waitCacheInit(topicName);
+        assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace));
+        assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName));
+        assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName, true)
+                , Integer.valueOf(conf.getMaxUnackedMessagesPerSubscription()));
+
+        admin.namespaces().setMaxUnackedMessagesPerSubscription(myNamespace, 10);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace), Integer.valueOf(10)));
+
+        admin.topics().setMaxUnackedMessagesOnSubscription(topicName, 20);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName), Integer.valueOf(20)));
+
+        admin.topics().removeMaxUnackedMessagesOnSubscription(topicName);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace), Integer.valueOf(10)));
+
+        admin.namespaces().removeMaxUnackedMessagesPerSubscription(myNamespace);
+        assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName, true)
+                , Integer.valueOf(conf.getMaxUnackedMessagesPerSubscription()));
+    }
+
     @Test(timeOut = 30000)
     public void testMaxUnackedMessagesOnConsumer() throws Exception {
         final String topicName = testTopic + System.currentTimeMillis();

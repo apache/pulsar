@@ -23,9 +23,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.*;
 
@@ -61,8 +64,13 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
     public void testMaxUnackedMessagesOnSubscription() throws Exception {
         admin.namespaces().createNamespace("max-unacked-messages/default-on-subscription");
         String namespace = "max-unacked-messages/default-on-subscription";
-        assertEquals(200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
+        assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
         admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2*200000);
-        assertEquals(2*200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertEquals(2*200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace).intValue()));
+
+        admin.namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace)));
     }
 }

@@ -1950,6 +1950,21 @@ public interface Topics {
     CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic);
 
     /**
+     * get max unacked messages on subscription of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnSubscription(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic, boolean applied);
+
+    /**
      * set max unacked messages on subscription of a topic.
      * @param topic
      * @param maxNum

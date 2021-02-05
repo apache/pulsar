@@ -304,17 +304,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        internalSetOffloadPolicies(offloadPolicies).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set offloadPolicies", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set offloadPolicies", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetOffloadPolicies(offloadPolicies).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set offloadPolicies"));
     }
 
     @DELETE
@@ -368,17 +359,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        internalSetMaxUnackedMessagesOnConsumer(maxUnackedNum).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set MaxUnackedMessagesOnConsumer", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set MaxUnackedMessagesOnConsumer", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetMaxUnackedMessagesOnConsumer(maxUnackedNum).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set MaxUnackedMessagesOnConsumer"));
     }
 
     @GET
@@ -419,17 +401,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        internalSetDeduplicationSnapshotInterval(interval).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set deduplicationSnapshotInterval", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set deduplicationSnapshotInterval", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetDeduplicationSnapshotInterval(interval).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set deduplicationSnapshotInterval"));
     }
 
     @DELETE
@@ -486,17 +459,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                          @PathParam("topic") @Encoded String encodedTopic,
                                          @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetInactiveTopicPolicies(applied).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed get InactiveTopicPolicies", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed get InactiveTopicPolicies", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(res);
-            }
-        });
+        internalGetInactiveTopicPolicies(applied).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed get InactiveTopicPolicies"));
     }
 
     @POST
@@ -517,17 +481,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        internalSetInactiveTopicPolicies(inactiveTopicPolicies).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set InactiveTopicPolicies", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set InactiveTopicPolicies", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetInactiveTopicPolicies(inactiveTopicPolicies).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set InactiveTopicPolicies"));
     }
 
     @DELETE
@@ -552,14 +507,11 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getMaxUnackedMessagesOnSubscription(@Suspended final AsyncResponse asyncResponse,
                                                     @PathParam("tenant") String tenant,
                                                     @PathParam("namespace") String namespace,
-                                                    @PathParam("topic") @Encoded String encodedTopic) {
+                                                    @PathParam("topic") @Encoded String encodedTopic,
+                                                    @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
-        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-        if (topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
-            asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnSubscription());
-        } else {
-            asyncResponse.resume(Response.noContent().build());
-        }
+        internalGetMaxUnackedMessagesOnSubscription(applied).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed get maxUnackedMessagesOnSubscription"));
     }
 
     @POST
@@ -581,17 +533,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set MaxUnackedMessagesOnSubscription", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set MaxUnackedMessagesOnSubscription", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set MaxUnackedMessagesOnSubscription"));
     }
 
 

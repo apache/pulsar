@@ -507,6 +507,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-max-unacked-messages-per-subscription myprop/clust/ns1 -c 3"));
         verify(mockNamespaces).setMaxUnackedMessagesPerSubscription("myprop/clust/ns1", 3);
 
+        namespaces.run(split("remove-max-unacked-messages-per-subscription myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxUnackedMessagesPerSubscription("myprop/clust/ns1");
+
         namespaces.run(split("get-max-unacked-messages-per-consumer myprop/clust/ns1"));
         verify(mockNamespaces).getMaxUnackedMessagesPerConsumer("myprop/clust/ns1");
 
@@ -828,9 +831,9 @@ public class PulsarAdminToolTest {
         verify(mockTopics, times(2)).setMaxUnackedMessagesOnConsumer("persistent://myprop/clust/ns1/ds1", 999);
 
         cmdTopics.run(split("get-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("get-max-unacked-messages-per-subscription persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics, times(2)).getMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics, times(2)).getMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", false);
         cmdTopics.run(split("remove-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("remove-max-unacked-messages-per-subscription persistent://myprop/clust/ns1/ds1"));
@@ -913,6 +916,9 @@ public class PulsarAdminToolTest {
 
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(() -> admin);
+
+        cmdTopics.run(split("get-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", true);
         cmdTopics.run(split("reset-cursor persistent://myprop/clust/ns1/ds2 -s sub1 -m 1:1 -e"));
         verify(mockTopics).resetCursor(eq("persistent://myprop/clust/ns1/ds2"), eq("sub1")
                 , eq(new MessageIdImpl(1, 1, -1)), eq(true));
