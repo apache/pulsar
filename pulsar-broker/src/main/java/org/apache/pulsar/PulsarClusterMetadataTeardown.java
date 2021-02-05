@@ -55,7 +55,7 @@ public class PulsarClusterMetadataTeardown {
         }, description = "Local zookeeper session timeout ms")
         private int zkSessionTimeoutMillis = 30000;
 
-        @Parameter(names = { "-c", "--cluster" }, description = "Cluster name")
+        @Parameter(names = { "-c", "-cluster", "--cluster" }, description = "Cluster name")
         private String cluster;
 
         @Parameter(names = { "-cs", "--configuration-store" }, description = "Configuration Store connection string")
