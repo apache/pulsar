@@ -195,7 +195,6 @@ public class TopicSchema {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
         String schemaTypeOrClassName = conf.getSchemaType();
-        log.info("newSchemaInstance {} {} {} {} {}", topic, clazz, input, classLoader, schemaTypeOrClassName);
         if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)) {
             // No preferred schema was provided, auto-discover schema or fallback to defaults
             if (!input && clazz.equals(GenericRecord.class)) {
