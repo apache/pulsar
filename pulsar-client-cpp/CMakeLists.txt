@@ -153,11 +153,20 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-if (MSVC)
-  find_package(Boost REQUIRED COMPONENTS program_options regex date_time)
-else()
-  find_package(Boost REQUIRED COMPONENTS program_options regex)
+
+find_package(Boost)
+set(BOOST_COMPONENTS program_options regex)
+
+if (Boost_VERSION_MAJOR==1 && Boost_VERSION_MINOR<69)
+    # Boost System does not require linking since 1.69
+    set(BOOST_COMPONENTS ${BOOST_COMPONENTS} system)
 endif()
+
+if (MSVC)
+  set(BOOST_COMPONENTS ${BOOST_COMPONENTS} date_time)
+endif()
+
+find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 
 if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)
@@ -252,6 +261,7 @@ include_directories(
 set(COMMON_LIBS
   ${COMMON_LIBS}
   ${Boost_REGEX_LIBRARY}
+  ${Boost_SYSTEM_LIBRARY}
   ${CURL_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARIES}
