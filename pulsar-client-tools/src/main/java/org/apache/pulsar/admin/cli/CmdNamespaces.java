@@ -1422,7 +1422,7 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
+            getAdmin().namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
         }
     }
 
