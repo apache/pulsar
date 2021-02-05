@@ -299,22 +299,25 @@ Follow the [README](https://github.com/apache/pulsar/tree/master/site2) for maki
 The Apache Pulsar Community welcomes all users to update their company logos on Pulsar website. If your team or organization has adopted Pulsar in production, you can update your company logos on [Pulsar website](https://pulsar.apache.org/en/powered-by/).
 
 To update your company logo, follow these steps:
-1. Open [link](https://github.com/apache/pulsar/blob/master/site2/website/data/users.js) in your browser, click “edit” to fork Pulsar repo, create a new branch and edit this file.
+1. Open [link](https://github.com/apache/pulsar/blob/master/site2/website/data/users.js) in your browser, then click the **Edit** icon to fork Pulsar repo, create a new branch and edit this file.
 2. Add your company’s information at the end of file. 
 
 Example:
-`
-    {
-        name: 'StreamNative',
-        url: 'https://streamnative.io/',
-        logo: 'https://streamnative.io/static/images/streamnative-logo-white-bakground.png',
-    }
-`
-If your company logo is in white color, add another line after the logo link in JSON file:
-`logo_white: true`
+```
+	`
+	    {
+	        name: 'StreamNative',
+ 	       url: 'https://streamnative.io/',
+ 	       logo: 'https://streamnative.io/static/images/streamnative-logo-white-bakground.png',
+	       logo_white: true
+	    }
+	`
+```	
+>Note
+></br>The `logo_white` parameter is set to true only when your company logo uses a white background.
 
-3. Commit your updates, create a PR, and then publish the PR to the master repository.
-4. Wait for review. If the PR works, your pull request will be approved and merged by reviewers.
+3. Commit the changes in your account’s repo, publish the branch and create pull request.
+4. Update comments, if any.  If no more comment, your pull request will be approved and merged by reviewers.
 
 ## Becoming a committer
 
