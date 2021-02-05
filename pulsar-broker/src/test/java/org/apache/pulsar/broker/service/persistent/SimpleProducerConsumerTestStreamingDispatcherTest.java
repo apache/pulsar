@@ -16,24 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils.io;
+package org.apache.pulsar.broker.service.persistent;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
+import org.apache.pulsar.client.api.SimpleProducerConsumerTest;
+import org.testng.annotations.BeforeMethod;
 
-import lombok.Data;
-
-import org.apache.pulsar.common.io.ConfigFieldDefinition;
-import org.apache.pulsar.common.io.ConnectorDefinition;
-
-@Data
-public class Connectors {
-    final List<ConnectorDefinition> connectors = new ArrayList<>();
-    final Map<String, Path> sources = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sourceConfigDefinitions = new TreeMap<>();
-    final Map<String, Path> sinks = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sinkConfigDefinitions = new TreeMap<>();
+/**
+ * SimpleProducerConsumerTest with {@link StreamingDispatcher}
+ */
+public class SimpleProducerConsumerTestStreamingDispatcherTest extends SimpleProducerConsumerTest {
+    @BeforeMethod
+    @Override
+    protected void setup() throws Exception {
+        super.setup();
+        conf.setStreamingDispatch(true);
+    }
 }

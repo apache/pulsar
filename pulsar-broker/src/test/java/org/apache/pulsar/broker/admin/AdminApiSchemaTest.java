@@ -26,6 +26,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
+import static java.lang.String.format;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,22 +64,28 @@ import org.testng.annotations.Test;
 @Slf4j
 public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
+    final String cluster = "test";
     @BeforeMethod
     @Override
     public void setup() throws Exception {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
+        admin.clusters().createCluster(cluster, new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("schematest", tenantInfo);
         admin.namespaces().createNamespace("schematest/test", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("schematest/"+cluster+"/test", Sets.newHashSet("test"));
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    enum ApiVersion{
+        V1, V2;
     }
 
     public static class Foo {
@@ -136,6 +143,11 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         };
     }
 
+    @DataProvider(name = "version")
+    public Object[][] versions() {
+        return new Object[][] { { ApiVersion.V1 }, { ApiVersion.V2 } };
+    }
+    
     @Test(dataProvider = "schemas")
     public void testSchemaInfoApi(Schema<?> schema) throws Exception {
         testSchemaInfoApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
@@ -164,10 +176,11 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
-    public void testPostSchemaCompatibilityStrategy() throws PulsarAdminException {
-        String namespace = "schematest/test";
-        String topicName = namespace + "/testStrategyChange";
+    @Test(dataProvider = "version")
+    public void testPostSchemaCompatibilityStrategy(ApiVersion version) throws PulsarAdminException {
+        String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
+                "test");
+        String topicName = "persistent://"+namespace + "/testStrategyChange";
         SchemaInfo fooSchemaInfo = Schema.AVRO(SchemaDefinition.builder()
                 .withAlwaysAllowNull(false)
                 .withPojo(Foo.class).build())
@@ -218,9 +231,11 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
-    public void createKeyValueSchema() throws Exception {
-        String topicName = "schematest/test/test-key-value-schema";
+    @Test(dataProvider = "version")
+    public void createKeyValueSchema(ApiVersion version) throws Exception {
+        String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
+                "test");
+        String topicName = "persistent://"+namespace + "/test-key-value-schema";
         Schema keyValueSchema = Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class));
         admin.schemas().createSchema(topicName,
                 keyValueSchema.getSchemaInfo());

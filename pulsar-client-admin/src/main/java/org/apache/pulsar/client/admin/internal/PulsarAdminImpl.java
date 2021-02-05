@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin;
+package org.apache.pulsar.client.admin.internal;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
@@ -28,25 +27,27 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.admin.internal.BookiesImpl;
-import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
-import org.apache.pulsar.client.admin.internal.BrokersImpl;
-import org.apache.pulsar.client.admin.internal.ClustersImpl;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
-import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
-import org.apache.pulsar.client.admin.internal.LookupImpl;
-import org.apache.pulsar.client.admin.internal.NamespacesImpl;
-import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
-import org.apache.pulsar.client.admin.internal.PackagesImpl;
-import org.apache.pulsar.client.admin.internal.ProxyStatsImpl;
-import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
-import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
-import org.apache.pulsar.client.admin.internal.SchemasImpl;
-import org.apache.pulsar.client.admin.internal.SinksImpl;
-import org.apache.pulsar.client.admin.internal.SourcesImpl;
-import org.apache.pulsar.client.admin.internal.TenantsImpl;
-import org.apache.pulsar.client.admin.internal.TopicsImpl;
-import org.apache.pulsar.client.admin.internal.WorkerImpl;
+import org.apache.pulsar.client.admin.Bookies;
+import org.apache.pulsar.client.admin.BrokerStats;
+import org.apache.pulsar.client.admin.Brokers;
+import org.apache.pulsar.client.admin.Clusters;
+import org.apache.pulsar.client.admin.Functions;
+import org.apache.pulsar.client.admin.Lookup;
+import org.apache.pulsar.client.admin.Namespaces;
+import org.apache.pulsar.client.admin.NonPersistentTopics;
+import org.apache.pulsar.client.admin.Packages;
+import org.apache.pulsar.client.admin.Properties;
+import org.apache.pulsar.client.admin.ProxyStats;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.ResourceQuotas;
+import org.apache.pulsar.client.admin.Schemas;
+import org.apache.pulsar.client.admin.Sink;
+import org.apache.pulsar.client.admin.Sinks;
+import org.apache.pulsar.client.admin.Source;
+import org.apache.pulsar.client.admin.Sources;
+import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.Worker;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnectorProvider;
 import org.apache.pulsar.client.api.Authentication;
@@ -67,7 +68,7 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
  * Pulsar client admin API client.
  */
 @SuppressWarnings("deprecation")
-public class PulsarAdmin implements Closeable {
+public class PulsarAdminImpl implements PulsarAdmin {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarAdmin.class);
 
     public static final int DEFAULT_CONNECT_TIMEOUT_SECONDS = 60;
@@ -124,21 +125,13 @@ public class PulsarAdmin implements Closeable {
         }
     }
 
-    /**
-     * Creates a builder to construct an instance of {@link PulsarAdmin}.
-     */
-    public static PulsarAdminBuilder builder() {
-        return new PulsarAdminBuilderImpl();
-    }
-
-
-    public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
+    public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
         this(serviceUrl, clientConfigData, DEFAULT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS,
                 DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS, DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS,
                 DEFAULT_CERT_REFRESH_SECONDS, TimeUnit.SECONDS, null);
     }
 
-    public PulsarAdmin(String serviceUrl,
+    public PulsarAdminImpl(String serviceUrl,
                        ClientConfigurationData clientConfigData,
                        int connectTimeout,
                        TimeUnit connectTimeoutUnit,
@@ -164,7 +157,7 @@ public class PulsarAdmin implements Closeable {
             auth.start();
         }
 
-        if (StringUtils.isBlank(clientConfigData.getServiceUrl())) {
+        if (clientConfigData != null && StringUtils.isBlank(clientConfigData.getServiceUrl())) {
             clientConfigData.setServiceUrl(serviceUrl);
         }
 
@@ -243,7 +236,7 @@ public class PulsarAdmin implements Closeable {
      * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
     @Deprecated
-    public PulsarAdmin(URL serviceUrl, Authentication auth) throws PulsarClientException {
+    public PulsarAdminImpl(URL serviceUrl, Authentication auth) throws PulsarClientException {
         this(serviceUrl.toString(), getConfigData(auth));
     }
 
@@ -267,7 +260,7 @@ public class PulsarAdmin implements Closeable {
      * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
     @Deprecated
-    public PulsarAdmin(URL serviceUrl, String authPluginClassName, String authParamsString)
+    public PulsarAdminImpl(URL serviceUrl, String authPluginClassName, String authParamsString)
             throws PulsarClientException {
         this(serviceUrl, AuthenticationFactory.create(authPluginClassName, authParamsString));
     }
@@ -286,7 +279,7 @@ public class PulsarAdmin implements Closeable {
      * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
     @Deprecated
-    public PulsarAdmin(URL serviceUrl, String authPluginClassName, Map<String, String> authParams)
+    public PulsarAdminImpl(URL serviceUrl, String authPluginClassName, Map<String, String> authParams)
             throws PulsarClientException {
         this(serviceUrl, AuthenticationFactory.create(authPluginClassName, authParams));
     }
@@ -400,11 +393,11 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-    * @return the Worker stats
-    */
-   public Worker worker() {
-       return worker;
-   }
+     * @return the Worker stats
+     */
+    public Worker worker() {
+        return worker;
+    }
 
     /**
      * @return the broker statics
