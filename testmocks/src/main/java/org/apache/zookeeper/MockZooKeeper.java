@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
@@ -67,7 +68,9 @@ public class MockZooKeeper extends ZooKeeper {
     private int readOpDelayMs;
 
     private ReentrantLock mutex;
-    
+
+    private AtomicLong sequentialIdGenerator;
+
     //see details of Objenesis caching - http://objenesis.org/details.html
     //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
     private static final Objenesis objenesis = new ObjenesisStd();
@@ -106,6 +109,7 @@ public class MockZooKeeper extends ZooKeeper {
             zk.init(executor);
             zk.readOpDelayMs = readOpDelayMs;
             zk.mutex = new ReentrantLock();
+            zk.sequentialIdGenerator =  new AtomicLong();
             return zk;
         } catch (RuntimeException e) {
             throw e;
@@ -121,6 +125,7 @@ public class MockZooKeeper extends ZooKeeper {
             zk.init(executor);
             zk.readOpDelayMs = readOpDelayMs;
             zk.mutex = new ReentrantLock();
+            zk.sequentialIdGenerator =  new AtomicLong();
             return zk;
         } catch (RuntimeException e) {
             throw e;
@@ -246,6 +251,13 @@ public class MockZooKeeper extends ZooKeeper {
                 toNotifyParent.addAll(watchers.get(parent));
             }
 
+            final String name;
+            if (createMode != null && createMode.isSequential()) {
+                name = path + Long.toString(sequentialIdGenerator.getAndIncrement());
+            } else {
+                name = path;
+            }
+
             Optional<KeeperException.Code> failure = programmedFailure(Op.CREATE, path);
             if (failure.isPresent()) {
                 mutex.unlock();
@@ -260,16 +272,16 @@ public class MockZooKeeper extends ZooKeeper {
                 mutex.unlock();
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
             } else {
-                tree.put(path, Pair.of(data, 0));
-                watchers.removeAll(path);
+                tree.put(name, Pair.of(data, 0));
+                watchers.removeAll(name);
                 mutex.unlock();
-                cb.processResult(0, path, ctx, null);
+                cb.processResult(0, path, ctx, name);
 
                 toNotifyCreate.forEach(
                         watcher -> watcher.process(
                                 new WatchedEvent(EventType.NodeCreated,
                                                  KeeperState.SyncConnected,
-                                                 path)));
+                                                 name)));
                 toNotifyParent.forEach(
                         watcher -> watcher.process(
                                 new WatchedEvent(EventType.NodeChildrenChanged,
