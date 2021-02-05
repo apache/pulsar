@@ -2894,7 +2894,7 @@
 </tr>
 <tr>
 <td><code>--secondary-group, -sg</code></td>
-<td>Bookie-affinity secondary-group (comma separated) name where namespace messages should be written</td>
+<td>Bookie-affinity secondary-group (comma separated) name where namespace messages should be written. If you want to verify whether there are enough bookies in groups, use <code>--secondary-group</code> flag. Messages in this namespace are stored in secondary groups. If a group does not contain enough bookies, a topic cannot be created.</td>
 <td>null</td>
 </tr>
 </tbody>
@@ -3955,7 +3955,7 @@
 </tr>
 <tr>
 <td><code>--primary</code></td>
-<td>comma separated  primary-broker-regex list</td>
+<td>comma separated  primary-broker-regex list. In Pulsar, when namespaces (more specifically, namespace bundles) are assigned dynamically to brokers, the namespace isolation policy limits the set of brokers that can be used for assignment. Before topics are assigned to brokers, you can set the namespace isolation policy with a primary or a secondary regex to select desired brokers. If no broker matches the specified regex, you cannot create a topic. If there are not enough primary brokers, topics are assigned to secondary brokers. If there are not enough secondary brokers, topics are assigned to other brokers which do not have any isolation policies.</td>
 <td>null</td>
 </tr>
 <tr>

@@ -203,9 +203,6 @@
 <span class="hljs-comment">
 # Point to local ZK quorum</span>
 <span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181</span>
-<span class="hljs-comment">
-# Change the ledger manager type</span>
-<span class="hljs-attr">ledgerManagerType</span>=<span class="hljs-string">hierarchical</span>
 </code></pre>
 <p>如果需要更改 Bookeeper 在 Zookeeper 中的目录路径，需要使用<code>zkLedgersRootPath=/MY-PREFIX/ledgers</code>，而不是<code>zkServers=localhost:2181/MY-PREFIX</code>。</p>
 <blockquote>
