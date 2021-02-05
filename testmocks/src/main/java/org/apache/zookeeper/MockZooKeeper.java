@@ -148,6 +148,11 @@ public class MockZooKeeper extends ZooKeeper {
         failures = new CopyOnWriteArrayList<>();
     }
 
+    @Override
+    public int getSessionTimeout() {
+        return 30_000;
+    }
+
     private MockZooKeeper(String quorum) throws Exception {
         // This constructor is never called
         super(quorum, 1, event -> {});
