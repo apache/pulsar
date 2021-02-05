@@ -431,6 +431,11 @@ public class NonPersistentSubscription implements Subscription {
         // No-op
     }
 
+    @Override
+    public void expireMessages(Position position) {
+        // No-op
+    }
+
     public NonPersistentSubscriptionStats getStats() {
         NonPersistentSubscriptionStats subStats = new NonPersistentSubscriptionStats();
 
