@@ -314,7 +314,7 @@ Example:
 	`
 ```	
 >Note
-></br>The `logo_white` parameter is set to true only when your company logo uses a white background.
+></br>The `logo_white` parameter is set to true only when your company logo is in white color. Otherwise, you only need to add `name`, `url` and `logo`.
 
 3. Commit the changes in your account’s repo, publish the branch and create pull request.
 4. Update comments, if any.  If no more comment, your pull request will be approved and merged by reviewers.
