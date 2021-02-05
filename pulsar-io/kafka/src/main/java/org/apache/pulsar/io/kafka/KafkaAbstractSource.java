@@ -128,9 +128,7 @@ public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
                 for (ConsumerRecord<String, KV> consumerRecord : consumerRecords) {
-                    LOG.info("Record received from kafka, key: {}. value: {}", consumerRecord.key(), consumerRecord.value());
                     KafkaRecord<V> record = new KafkaRecord<>(consumerRecord, extractValue(consumerRecord));
-                    LOG.info("consume {} {}", record, record.getValue());
                     consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;
