@@ -19,7 +19,12 @@
 
 package org.apache.pulsar.functions.runtime.thread;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import io.prometheus.client.CollectorRegistry;
@@ -28,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -36,6 +42,8 @@ import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
+import org.apache.pulsar.functions.utils.io.Connector;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 
 /**
  * A function container implemented using java thread.
@@ -60,6 +68,8 @@ public class ThreadRuntime implements Runtime {
     private SecretsProvider secretsProvider;
     private CollectorRegistry collectorRegistry;
     private String narExtractionDirectory;
+    private final Optional<ConnectorsManager> connectorsManager;
+
     ThreadRuntime(InstanceConfig instanceConfig,
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
@@ -69,7 +79,8 @@ public class ThreadRuntime implements Runtime {
                   String stateStorageServiceUrl,
                   SecretsProvider secretsProvider,
                   CollectorRegistry collectorRegistry,
-                  String narExtractionDirectory) {
+                  String narExtractionDirectory,
+                  Optional<ConnectorsManager> connectorsManager) {
         this.instanceConfig = instanceConfig;
         if (instanceConfig.getFunctionDetails().getRuntime() != Function.FunctionDetails.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
@@ -84,34 +95,82 @@ public class ThreadRuntime implements Runtime {
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
         this.narExtractionDirectory = narExtractionDirectory;
-        this.javaInstanceRunnable = new JavaInstanceRunnable(
-                instanceConfig,
-                fnCache,
-                jarFile,
-                pulsarClient,
-                pulsarAdmin,
-                stateStorageServiceUrl,
-                secretsProvider,
-                collectorRegistry,
-                narExtractionDirectory);
+        this.connectorsManager = connectorsManager;
+    }
+
+    private static ClassLoader getFunctionClassLoader(InstanceConfig instanceConfig,
+                                                      String jarFile,
+                                                      String narExtractionDirectory,
+                                                      FunctionCacheManager fnCache,
+                                                      Optional<ConnectorsManager> connectorsManager) throws Exception {
+
+        if (FunctionCommon.isFunctionCodeBuiltin(instanceConfig.getFunctionDetails())
+                && connectorsManager.isPresent()) {
+            switch (InstanceUtils.calculateSubjectType(instanceConfig.getFunctionDetails())) {
+                case SOURCE:
+                    return connectorsManager.get().getConnector(
+                            instanceConfig.getFunctionDetails().getSource().getBuiltin()).getClassLoader();
+                case SINK:
+                    return connectorsManager.get().getConnector(
+                            instanceConfig.getFunctionDetails().getSink().getBuiltin()).getClassLoader();
+                default:
+                    return loadJars(jarFile, instanceConfig, narExtractionDirectory, fnCache);
+            }
+        } else {
+            return loadJars(jarFile, instanceConfig, narExtractionDirectory, fnCache);
+        }
+    }
+
+    private static ClassLoader loadJars(String jarFile,
+                                 InstanceConfig instanceConfig,
+                                 String narExtractionDirectory,
+                                 FunctionCacheManager fnCache) throws Exception {
+        ClassLoader fnClassLoader;
+        try {
+            log.info("Load JAR: {}", jarFile);
+            // Let's first try to treat it as a nar archive
+            fnCache.registerFunctionInstanceWithArchive(
+                    instanceConfig.getFunctionId(),
+                    instanceConfig.getInstanceName(),
+                    jarFile, narExtractionDirectory);
+        } catch (FileNotFoundException e) {
+            // create the function class loader
+            fnCache.registerFunctionInstance(
+                    instanceConfig.getFunctionId(),
+                    instanceConfig.getInstanceName(),
+                    Arrays.asList(jarFile),
+                    Collections.emptyList());
+        }
+
+        log.info("Initialize function class loader for function {} at function cache manager, functionClassLoader: {}",
+                instanceConfig.getFunctionDetails().getName(), fnCache.getClassLoader(instanceConfig.getFunctionId()));
+
+        fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
+        if (null == fnClassLoader) {
+            throw new Exception("No function class loader available.");
+        }
+
+        return fnClassLoader;
     }
 
     /**
      * The core logic that initialize the thread container and executes the function.
      */
     @Override
-    public void start() {
+    public void start() throws Exception {
+
+        // extract class loader for function
+        ClassLoader functionClassLoader = getFunctionClassLoader(instanceConfig, jarFile, narExtractionDirectory, fnCache, connectorsManager);
+
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
                 instanceConfig,
-                fnCache,
-                jarFile,
                 pulsarClient,
                 pulsarAdmin,
                 stateStorageServiceUrl,
                 secretsProvider,
                 collectorRegistry,
-                narExtractionDirectory);
+                functionClassLoader);
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",
@@ -145,6 +204,12 @@ public class ThreadRuntime implements Runtime {
             }
             // make sure JavaInstanceRunnable is closed
             this.javaInstanceRunnable.close();
+
+            // once the thread quits, clean up the instance
+            fnCache.unregisterFunctionInstance(
+                    instanceConfig.getFunctionId(),
+                    instanceConfig.getInstanceName());
+            log.info("Unloading JAR files for function {}", instanceConfig);
         }
     }
 
