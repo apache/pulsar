@@ -33,8 +33,15 @@ public interface RawReader {
 
     static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription) {
         CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
-        RawReader r = new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future);
-        return future.thenCompose((consumer) -> r.seekAsync(MessageId.earliest)).thenApply((ignore) -> r);
+        RawReader r = null;
+        try {
+            r = new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future);
+        } catch (PulsarClientException.InvalidConfigurationException e) {
+            // Shouldn't happen, as exception was thrown if DLQ enabled for Key_Shared sub type, RawReader use
+            // Exclusive sub type so should be fine.
+        }
+        RawReader finalR = r;
+        return future.thenCompose((consumer) -> finalR.seekAsync(MessageId.earliest)).thenApply((ignore) -> finalR);
     }
 
     /**

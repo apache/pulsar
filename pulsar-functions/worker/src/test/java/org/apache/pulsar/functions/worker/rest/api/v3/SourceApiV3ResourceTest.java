@@ -314,6 +314,29 @@ public class SourceApiV3ResourceTest {
         }
     }
 
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package does not have the" +
+            " correct format. Pulsar cannot determine if the package is a NAR package" +
+            " or JAR package. Source classname is not provided and attempts to load it as a NAR package produced the following error.")
+    public void testRegisterSourceMissingPackageDetailsAndClassname() {
+        try {
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    mockedInputStream,
+                    null,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract source class from archive")
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
         try {
@@ -854,11 +877,13 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -930,11 +955,13 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(File.class), any());
+        FunctionCommon.extractNarClassLoader(any(File.class), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -1026,9 +1053,10 @@ public class SourceApiV3ResourceTest {
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
         PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);

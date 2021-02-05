@@ -1800,5 +1800,14 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testClearBacklogForTheSubscriptionThatNoConsumers() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/clear_backlog_no_consumers" + UUID.randomUUID().toString();
+        final String sub = "my-sub";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, sub, MessageId.earliest);
+        admin.topics().skipAllMessages(topic, sub);
+    }
+
 
 }
