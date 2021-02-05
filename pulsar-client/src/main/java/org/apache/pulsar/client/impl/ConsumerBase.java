@@ -22,7 +22,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
+
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -369,8 +372,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages) {
         try {
-            messages.forEach(this::acknowledgeAsync);
-            return CompletableFuture.completedFuture(null);
+            List<MessageId> messageIds = new ArrayList<>();
+            messages.forEach(message -> messageIds.add(message.getMessageId()));
+            return acknowledgeAsync(messageIds);
         } catch (NullPointerException npe) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
         }
