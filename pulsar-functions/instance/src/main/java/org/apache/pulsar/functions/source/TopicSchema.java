@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
@@ -194,8 +195,12 @@ public class TopicSchema {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
         String schemaTypeOrClassName = conf.getSchemaType();
+        log.info("newSchemaInstance {} {} {} {} {}", topic, clazz, input, classLoader, schemaTypeOrClassName);
         if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)) {
             // No preferred schema was provided, auto-discover schema or fallback to defaults
+            if (!input && clazz.equals(GenericRecord.class)) {
+                return new AutoProduceBytesSchema();
+            }
             return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz));
         }
 
