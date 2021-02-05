@@ -154,9 +154,9 @@ else()
 endif (LINK_STATIC)
 
 if (MSVC)
-  find_package(Boost REQUIRED COMPONENTS program_options regex system date_time)
+  find_package(Boost REQUIRED COMPONENTS program_options regex date_time)
 else()
-  find_package(Boost REQUIRED COMPONENTS program_options regex system)
+  find_package(Boost REQUIRED COMPONENTS program_options regex)
 endif()
 
 if (BUILD_PYTHON_WRAPPER)
@@ -252,7 +252,6 @@ include_directories(
 set(COMMON_LIBS
   ${COMMON_LIBS}
   ${Boost_REGEX_LIBRARY}
-  ${Boost_SYSTEM_LIBRARY}
   ${CURL_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARIES}
