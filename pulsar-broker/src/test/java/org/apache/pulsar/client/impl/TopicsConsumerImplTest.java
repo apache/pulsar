@@ -42,6 +42,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -1168,6 +1169,50 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 Assert.assertTrue(ex instanceof PulsarClientException.TimeoutException);
             }
         }
+    }
+
+    @Test(timeOut = testTimeout)
+    public void testPartitionsUpdatesForMultipleTopics() throws Exception {
+        final String topicName0 = "persistent://public/default/testPartitionsUpdatesForMultipleTopics-0";
+        final String subName = "my-sub";
+        admin.topics().createPartitionedTopic(topicName0, 2);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName0).partitions, 2);
+
+        PatternMultiTopicsConsumerImpl<String> consumer = (PatternMultiTopicsConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern("persistent://public/default/test.*")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscriptionName(subName)
+                .subscribe();
+
+        Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 2);
+        Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 2);
+
+        admin.topics().updatePartitionedTopic(topicName0, 5);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 5);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 5);
+        });
+
+        final String topicName1 = "persistent://public/default/testPartitionsUpdatesForMultipleTopics-1";
+        admin.topics().createPartitionedTopic(topicName1, 3);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName1).partitions, 3);
+
+        consumer.getRecheckPatternTimeout().task().run(consumer.getRecheckPatternTimeout());
+
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 8);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 8);
+        });
+
+        admin.topics().updatePartitionedTopic(topicName1, 5);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 10);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 10);
+        });
     }
 
 }
