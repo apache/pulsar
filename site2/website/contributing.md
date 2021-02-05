@@ -298,7 +298,7 @@ Follow the [README](https://github.com/apache/pulsar/tree/master/site2) for maki
 #### Updating user logo
 The Apache Pulsar Community welcomes all users to update their company logos on Pulsar website. If your team or organization has adopted Pulsar in production, you can update your company logos on [Pulsar website](https://pulsar.apache.org/en/powered-by/).
 
-It only takes 4 steps to update your company logo:
+To update your company logo, follow these steps:
 1. Open [link](https://github.com/apache/pulsar/blob/master/site2/website/data/users.js) in your browser, click “edit” to fork Pulsar repo, create a new branch and edit this file.
 2. Add your company’s information at the end of file. 
 
