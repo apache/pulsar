@@ -316,12 +316,14 @@ func (stat *StatWithLabelValues) reset() {
 
 func NewMetricsServicer(goInstance *goInstance) *MetricsServicer {
 	serveMux := http.NewServeMux()
-	serveMux.Handle("/metrics", promhttp.HandlerFor(
+	pHandler := promhttp.HandlerFor(
 		reg,
 		promhttp.HandlerOpts{
 			EnableOpenMetrics: true,
 		},
-	))
+	)
+	serveMux.Handle("/", pHandler)
+	serveMux.Handle("/metrics", pHandler)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", goInstance.context.GetMetricsPort()),
 		Handler: serveMux,
