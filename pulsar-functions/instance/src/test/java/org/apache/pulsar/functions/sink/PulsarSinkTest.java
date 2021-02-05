@@ -51,7 +51,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
@@ -171,30 +170,8 @@ public class PulsarSinkTest {
         PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
 
         try {
-            PulsarSink.InitSchemaResult initSchemaResult = pulsarSink.initializeSchema();
-            Schema schema = initSchemaResult.schema;
+            Schema schema = pulsarSink.initializeSchema();
             assertNull(schema);
-            // void type do not require the sink runtime to be created
-            assertTrue(!initSchemaResult.requireSink);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            assertNull(ex);
-            fail();
-        }
-    }
-
-    @Test
-    public void testGenericRecordOutputClasses() throws Exception {
-        PulsarSinkConfig pulsarConfig = getPulsarConfigs();
-        pulsarConfig.setTypeClassName(GenericRecord.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
-
-        try {
-            PulsarSink.InitSchemaResult initSchemaResult = pulsarSink.initializeSchema();
-            Schema schema = initSchemaResult.schema;
-            assertNull(schema);
-            // GenericRecord still requires the sink runtime to be created
-            assertTrue(initSchemaResult.requireSink);
         } catch (Exception ex) {
             ex.printStackTrace();
             assertNull(ex);

@@ -192,16 +192,16 @@ public class TopicSchema {
 
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input, ClassLoader classLoader) {
-        log.info("newSchemaInstance {} {} {} {}", topic, clazz, input, classLoader);
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
         String schemaTypeOrClassName = conf.getSchemaType();
+        log.info("newSchemaInstance {} {} {} {} {}", topic, clazz, input, classLoader, schemaTypeOrClassName);
         if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)) {
             // No preferred schema was provided, auto-discover schema or fallback to defaults
+            if (!input && clazz.equals(GenericRecord.class)) {
+                return new AutoProduceBytesSchema();
+            }
             return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz));
-        }
-        if (input && clazz.equals(GenericRecord.class)) {
-            return new AutoProduceBytesSchema();
         }
 
         SchemaType schemaType = null;
