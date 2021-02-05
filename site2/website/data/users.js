@@ -98,7 +98,7 @@ module.exports = [
     {
         name: 'EMQ',
         url: 'https://www.emqx.io/',
-        logo: 'https://www.emqx.io/static/img/logo.svg'
+        logo: 'https://www.emqx.io/static/img/logo.svg',
         logo_white: true
     },
     {
@@ -287,10 +287,10 @@ module.exports = [
         logo_white: true
     },
     {
-        name: 'Kesque',
-        url: 'https://kesque.com',
-        logo: 'https://static.kafkaesque.io/wp-content/uploads/2020/06/kesque_logo.svg',
-        logo_white: true
+        name: 'DataStax',
+        url: 'https://datastax.com',
+        logo: 'https://www.datastax.com/sites/default/files/inline-images/datastax-logotype-negative.png',
+        logo_white: false
     },
     {
         name: 'KAISA',
