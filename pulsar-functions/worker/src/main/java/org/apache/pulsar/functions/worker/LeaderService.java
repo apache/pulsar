@@ -62,7 +62,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 "%s:%s:%d",
                 workerConfig.getWorkerId(),
                 workerConfig.getWorkerHostname(),
-                workerConfig.getWorkerPort()
+                workerConfig.getTlsEnabled() ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()
         );
 
     }

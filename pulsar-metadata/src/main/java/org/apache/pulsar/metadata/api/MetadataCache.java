@@ -130,4 +130,11 @@ public interface MetadataCache<T> {
      *             if the object is not present in the metadata store.
      */
     CompletableFuture<Void> delete(String path);
+
+    /**
+     * Force the invalidation of an object in the metadata cache.
+     *
+     * @param path the path of the object in the metadata store
+     */
+    void invalidate(String path);
 }
