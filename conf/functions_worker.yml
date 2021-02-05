@@ -133,6 +133,12 @@ functionRuntimeFactoryConfigs:
 #functionRuntimeFactoryConfigs:
 #  # thread group name
 #  threadGroupName: "Thread Function Container Group"
+## Set the pulsar client memory limit
+#pulsarClientMemoryLimit
+#    # the max memory in bytes the pulsar client can use
+#    absoluteValue:
+#    # the max memory the pulsar client can use as a percentage of max direct memory set for JVM
+#    percentOfMaxDirectMemory:
 
 #### Kubernetes Runtime ####
 # Pulsar function are deployed to Kubernetes
