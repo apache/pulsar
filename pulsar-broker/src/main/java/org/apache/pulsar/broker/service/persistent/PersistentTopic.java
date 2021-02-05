@@ -2600,7 +2600,7 @@ public class PersistentTopic extends AbstractTopic
         return delayedDeliveryEnabled;
     }
 
-    public int getMaxUnackedMessagesOnSubscriptionApplied() {
+    public int getMaxUnackedMessagesOnSubscription() {
         return maxUnackedMessagesOnSubscriptionApplied;
     }
 

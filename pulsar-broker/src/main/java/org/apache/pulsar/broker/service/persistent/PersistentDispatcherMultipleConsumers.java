@@ -276,7 +276,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
-                        totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscriptionApplied());
+                        totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
@@ -713,7 +713,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void addUnAckedMessages(int numberOfMessages) {
-        int maxUnackedMessages = topic.getMaxUnackedMessagesOnSubscriptionApplied();
+        int maxUnackedMessages = topic.getMaxUnackedMessagesOnSubscription();
         // don't block dispatching if maxUnackedMessages = 0
         if (maxUnackedMessages <= 0 && blockedDispatcherOnUnackedMsgs == TRUE
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {

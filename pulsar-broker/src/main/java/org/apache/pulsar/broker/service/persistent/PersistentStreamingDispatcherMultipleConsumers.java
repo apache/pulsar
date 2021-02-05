@@ -169,7 +169,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
-                        totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscriptionApplied());
+                        totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,

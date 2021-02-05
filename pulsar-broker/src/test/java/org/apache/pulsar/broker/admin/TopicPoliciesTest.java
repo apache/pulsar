@@ -1432,7 +1432,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 -> assertNotNull(admin.topics().getMaxUnackedMessagesOnSubscription(topic)));
         //check the value applied
         PersistentTopic persistentTopic = (PersistentTopic)pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        assertEquals(persistentTopic.getMaxUnackedMessagesOnSubscriptionApplied(), maxUnackedMsgOnTopic);
+        assertEquals(persistentTopic.getMaxUnackedMessagesOnSubscription(), maxUnackedMsgOnTopic);
         messages = getMsgReceived(consumer1, Integer.MAX_VALUE);
         assertEquals(messages.size(), maxUnackedMsgOnTopic);
         ackMessages(consumer1, messages);
