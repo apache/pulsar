@@ -310,7 +310,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--messageTTL", "-ttl" }, description = "Message TTL in seconds", required = true)
+        @Parameter(names = { "--messageTTL", "-ttl" }, description = "Message TTL in seconds. When the value is set to `0`, TTL is disabled.", required = true)
         private int messageTTL;
 
         @Override
