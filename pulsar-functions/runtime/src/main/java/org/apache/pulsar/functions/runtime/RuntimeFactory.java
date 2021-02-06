@@ -42,7 +42,6 @@ public interface RuntimeFactory extends AutoCloseable {
                     Optional<FunctionAuthProvider> authProvider,
                     Optional<RuntimeCustomizer> runtimeCustomizer) throws Exception;
 
-
     /**
      * Create a function container to execute a java instance.
      *
