@@ -17,7 +17,7 @@
 # under the License.
 #
 
-cmake_minimum_required(VERSION 3.4) 
+cmake_minimum_required(VERSION 3.4)
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
@@ -155,7 +155,7 @@ endif (LINK_STATIC)
 
 
 find_package(Boost)
-set(BOOST_COMPONENTS program_options regex)
+set(BOOST_COMPONENTS program_options)
 
 if (NOT Boost_VERSION_MAJOR OR
         (Boost_VERSION_MAJOR EQUAL 1 AND Boost_VERSION_MINOR LESS 69)
@@ -166,6 +166,15 @@ endif()
 
 if (MSVC)
   set(BOOST_COMPONENTS ${BOOST_COMPONENTS} date_time)
+endif()
+
+if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
+    # GCC 4.8.2 implementation of std::regex is buggy
+    set(BOOST_COMPONENTS ${BOOST_COMPONENTS} regex)
+    set(CMAKE_CXX_FLAGS " -DPULSAR_USE_BOOST_REGEX")
+    MESSAGE(STATUS "Using Boost::Regex")
+else()
+    MESSAGE(STATUS "Using std::regex")
 endif()
 
 find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
@@ -286,7 +295,7 @@ if (NOT MSVC)
     )
 else()
     set(COMMON_LIBS
-    ${COMMON_LIBS} 
+    ${COMMON_LIBS}
     wldap32.lib
     Normaliz.lib)
 endif()
