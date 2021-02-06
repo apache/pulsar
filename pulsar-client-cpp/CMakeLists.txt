@@ -157,7 +157,9 @@ endif (LINK_STATIC)
 find_package(Boost)
 set(BOOST_COMPONENTS program_options regex)
 
-if (Boost_VERSION_MAJOR EQUAL 1 AND Boost_VERSION_MINOR LESS 69)
+if (NOT Boost_VERSION_MAJOR OR
+        (Boost_VERSION_MAJOR EQUAL 1 AND Boost_VERSION_MINOR LESS 69)
+        )
     # Boost System does not require linking since 1.69
     set(BOOST_COMPONENTS ${BOOST_COMPONENTS} system)
 endif()
