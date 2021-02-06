@@ -35,13 +35,9 @@ RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 COPY conf/nginx-app.conf /etc/nginx/sites-available/default
 COPY conf/supervisor-app.conf /etc/supervisor/conf.d/
 
-# Create the pulsar group and user to make docker container run as a non root user by default
-RUN groupadd -g 10001 pulsar
-RUN adduser -u 10000  --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
-
 # Copy web-app sources
 RUN mkdir /pulsar
-COPY --chown=pulsar:pulsar . /pulsar/
+COPY . /pulsar/
 
 # Python dependencies
 RUN pip install -r /pulsar/requirements.txt
@@ -51,11 +47,8 @@ RUN pip install -r /pulsar/requirements.txt
 # Django test web server
 RUN cd /pulsar/django && ./manage.py collectstatic --no-input
 
-RUN mkdir /data && chown pulsar:pulsar /data
+RUN mkdir /data
 
 EXPOSE 80
-
-# Use the pulsar user to default the container to run as a nonroot user
-USER pulsar
 
 CMD ["/pulsar/start.sh"]

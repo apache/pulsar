@@ -25,7 +25,19 @@ ARG PULSAR_OFFLOADER_TARBALL
 ADD ${PULSAR_IO_DIR} /connectors
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
+RUN chmod -R g=u /connectors /offloaders
 
 FROM apachepulsar/pulsar:latest
-COPY --from=pulsar-all --chown=pulsar:pulsar /connectors /pulsar/connectors
-COPY --from=pulsar-all --chown=pulsar:pulsar /offloaders /pulsar/offloaders
+
+# Need permission to create directories and update file permiassions
+USER root
+
+RUN mkdir /pulsar/connectors /pulsar/offloaders && \
+    chown pulsar:root /pulsar/connectors /pulsar/offloaders && \
+    chmod g=u /pulsar/connectors /pulsar/offloaders
+
+# Return to pulsar (non root) user
+USER pulsar
+
+COPY --from=pulsar-all --chown=pulsar:0 /connectors /pulsar/connectors
+COPY --from=pulsar-all --chown=pulsar:0 /offloaders /pulsar/offloaders
