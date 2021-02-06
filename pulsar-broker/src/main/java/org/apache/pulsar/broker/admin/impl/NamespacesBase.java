@@ -94,6 +94,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.zookeeper.KeeperException;
@@ -141,8 +142,8 @@ public abstract class NamespacesBase extends AdminResource {
             }
             namespaceResources().create(path(POLICIES, namespaceName.toString()), policies);
             log.info("[{}] Created namespace {}", clientAppId(), namespaceName);
-        } catch (NotFoundException e) {
-            log.error("[{}] namespace already exists {}", clientAppId(), namespaceName, e);
+        } catch (AlreadyExistsException e) {
+            log.warn("[{}] Failed to create namespace {} - already exists", clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Namespace already exists");
         } catch (Exception e) {
             log.error("[{}] Failed to create namespace {}", clientAppId(), namespaceName, e);

@@ -250,35 +250,4 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
             return new MyClass(v.a, v.b + 1);
         }).join();
     }
-
-    /**
-     * This test validates that metadata-cache can handle BadVersion failure if other cache/metadata-source updates the
-     * data with different version.
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void readModifyUpdateBadVersionRetry() throws Exception {
-        String url = zks.getConnectionString();
-        @Cleanup
-        MetadataStore sourceStore1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
-        MetadataStore sourceStore2 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
-
-        MetadataCache<MyClass> objCache1 = sourceStore1.getMetadataCache(MyClass.class);
-        MetadataCache<MyClass> objCache2 = sourceStore2.getMetadataCache(MyClass.class);
-
-        String key1 = newKey();
-
-        MyClass value1 = new MyClass("a", 1);
-        objCache1.create(key1, value1).join();
-        objCache1.get(key1).join();
-
-        objCache2.readModifyUpdate(key1, v -> {
-            return new MyClass(v.a, v.b + 1);
-        }).join();
-
-        objCache1.readModifyUpdate(key1, v -> {
-            return new MyClass(v.a, v.b + 1);
-        }).join();
-    }
 }

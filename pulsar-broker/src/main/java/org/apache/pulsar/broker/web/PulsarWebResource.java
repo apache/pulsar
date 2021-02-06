@@ -1033,18 +1033,18 @@ public abstract class PulsarWebResource {
      * @param property the property name
      * @return the list of namespaces
      */
-    protected List<String> getListOfNamespaces(String property) throws Exception {
+    protected List<String> getListOfNamespaces(String tenant) throws Exception {
         List<String> namespaces = Lists.newArrayList();
 
-        if (!tenantResources().exists(path(POLICIES, property))) {
-            throw new RestException(Status.NOT_FOUND, property + " doesn't exist");
+        if (!tenantResources().exists(path(POLICIES, tenant))) {
+            throw new RestException(Status.NOT_FOUND, tenant + " doesn't exist");
         }
         // this will return a cluster in v1 and a namespace in v2
-        for (String clusterOrNamespace : tenantResources().getChildren(path(POLICIES, property))) {
+        for (String clusterOrNamespace : tenantResources().getChildren(path(POLICIES, tenant))) {
             // Then get the list of namespaces
-            final List<String> children = tenantResources().getChildren(path(POLICIES, property, clusterOrNamespace));
+            final List<String> children = tenantResources().getChildren(path(POLICIES, tenant, clusterOrNamespace));
             if (children == null || children.isEmpty()) {
-                String namespace = NamespaceName.get(property, clusterOrNamespace).toString();
+                String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
                 // if the length is 0 then this is probably a leftover cluster from namespace created
                 // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
                 try {
@@ -1057,7 +1057,7 @@ public abstract class PulsarWebResource {
 
             } else {
                 children.forEach(ns -> {
-                    namespaces.add(NamespaceName.get(property, clusterOrNamespace, ns).toString());
+                    namespaces.add(NamespaceName.get(tenant, clusterOrNamespace, ns).toString());
                 });
             }
         }
