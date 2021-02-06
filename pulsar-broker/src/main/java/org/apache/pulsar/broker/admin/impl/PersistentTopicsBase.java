@@ -846,6 +846,17 @@ public class PersistentTopicsBase extends AdminResource {
         return CompletableFuture.completedFuture(delayedDeliveryPolicies);
     }
 
+    protected CompletableFuture<OffloadPolicies> internalGetOffloadPolicies(boolean applied) {
+        OffloadPolicies offloadPolicies =
+                getTopicPolicies(topicName).map(TopicPolicies::getOffloadPolicies).orElse(null);
+        if (applied) {
+            OffloadPolicies namespacePolicy = getNamespacePolicies(namespaceName).offload_policies;
+            offloadPolicies = OffloadPolicies.mergeConfiguration(offloadPolicies
+                    , namespacePolicy, pulsar().getConfiguration().getProperties());
+        }
+        return CompletableFuture.completedFuture(offloadPolicies);
+    }
+
     protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPolicies offloadPolicies) {
         TopicPolicies topicPolicies = null;
         try {
