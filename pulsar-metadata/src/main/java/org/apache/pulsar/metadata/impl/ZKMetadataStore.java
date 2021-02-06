@@ -34,6 +34,7 @@ import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -213,7 +214,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                                     future.complete(new Stat(name, 0, 0, 0));
                                 } else if (code == Code.NODEEXISTS) {
                                     // We're emulating a request to create node, so the version is invalid
-                                    future.completeExceptionally(getException(Code.BADVERSION, path));
+                                    future.completeExceptionally(getException(Code.NODEEXISTS, path));
                                 } else {
                                     future.completeExceptionally(getException(code, path));
                                 }
@@ -296,6 +297,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             return new BadVersionException(ex);
         case NONODE:
             return new NotFoundException(ex);
+        case NODEEXISTS:
+            return new AlreadyExistsException(ex);
         default:
             return new MetadataStoreException(ex);
         }

@@ -33,6 +33,7 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -130,7 +131,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             Value newValue = new Value(0, data, now, now);
             Value existingValue = map.putIfAbsent(path, newValue);
             if (existingValue != null) {
-                return FutureUtils.exception(new BadVersionException(""));
+                return FutureUtils.exception(new AlreadyExistsException(""));
             } else {
                 receivedNotification(new Notification(NotificationType.Created, path));
                 String parent = parent(path);
