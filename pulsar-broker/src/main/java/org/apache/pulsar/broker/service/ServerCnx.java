@@ -690,7 +690,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 remoteAddress,
                 service.isAuthenticationEnabled(),
                 connect.hasOriginalPrincipal(),
-                connect.getOriginalPrincipal());
+                connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null);
         }
 
         String clientVersion = connect.getClientVersion();
@@ -1326,8 +1326,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("[{}] Received send message request. producer: {}:{} {}:{} size: {},"
                             + " partition key is: {}, ordering key is {}",
                     remoteAddress, send.getProducerId(), send.getSequenceId(), msgMetadata.getProducerName(),
-                    msgMetadata.getSequenceId(), headersAndPayload.readableBytes(), msgMetadata.getPartitionKey(),
-                    msgMetadata.getOrderingKey());
+                    msgMetadata.getSequenceId(), headersAndPayload.readableBytes(),
+                    msgMetadata.hasPartitionKey() ? msgMetadata.getPartitionKey() : null,
+                    msgMetadata.hasOrderingKey() ? msgMetadata.getOrderingKey() : null);
         }
     }
 
