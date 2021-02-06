@@ -275,6 +275,8 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.NODEEXISTS.intValue(), path, ctx, null);
             } else if (!parent.isEmpty() && !tree.containsKey(parent)) {
                 mutex.unlock();
+                toNotifyParent.forEach(watcher -> watcher
+                        .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected, parent)));
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
             } else {
                 tree.put(name, Pair.of(data, 0));
