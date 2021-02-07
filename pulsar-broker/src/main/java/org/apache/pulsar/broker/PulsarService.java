@@ -32,6 +32,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -63,6 +64,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
+import org.apache.bookkeeper.net.DNS;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -1224,7 +1226,23 @@ public class PulsarService implements AutoCloseable {
      * @return Hostname or IP address the service advertises to the outside world.
      */
     public static String advertisedAddress(ServiceConfiguration config) {
-        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+        String advertisedAddress = null;
+        if (!isBlank(config.getAdvertisedAddress())) {
+            advertisedAddress = config.getAdvertisedAddress();
+        } else {
+            String iface = config.getListeningInterface();
+            if (!isBlank(iface)) {
+                try {
+                    advertisedAddress = DNS.getDefaultIP(iface);
+                } catch (UnknownHostException e) {
+                    LOG.error("GetAdvertisedAddressIP Fail: {}", iface);
+                }
+            } else {
+                advertisedAddress =
+                        ServiceConfigurationUtils.unsafeLocalhostResolve();
+            }
+        }
+        return advertisedAddress;
     }
 
     private String brokerUrl(ServiceConfiguration config) {
