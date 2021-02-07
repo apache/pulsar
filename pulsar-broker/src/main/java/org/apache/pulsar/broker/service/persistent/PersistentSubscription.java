@@ -906,7 +906,6 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public void expireMessages(Position position) {
-        System.out.println("**************");
         expiryMonitor.expireMessages(position);
     }
 

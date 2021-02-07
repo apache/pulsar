@@ -96,8 +96,6 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     }
 
     public void expireMessages(Position messagePosition) {
-        System.out.println("!!!!!");
-        System.out.println(expirationCheckInProgress);
         // If it's beyond last position of this topic, do nothing.
         if (((PositionImpl) subscription.getTopic().getLastPosition()).compareTo((PositionImpl) messagePosition) < 0) {
             return;
@@ -175,7 +173,6 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
             }
             updateRates();
         }
-        System.out.println("$$$$$$$");
         expirationCheckInProgress = FALSE;
     }
 
