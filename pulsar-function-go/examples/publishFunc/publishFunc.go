@@ -36,16 +36,10 @@ func PublishFunc(ctx context.Context, in []byte) error {
 
 	publishTopic := "publish-topic"
 	output := append(in, 110)
-
-	producer := fctx.NewOutputMessage(publishTopic)
-	msgID, err := producer.Send(ctx, &pulsar.ProducerMessage{
+	log.Printf("publishing to additional topic %s", publishTopic)
+	fctx.Publish(publishTopic, &pulsar.ProducerMessage{
 		Payload: output,
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Printf("The output message ID is: %+v", msgID)
 	return nil
 }
 

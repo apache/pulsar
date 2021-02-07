@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 )
 
 // FunctionContext provides contextual information to the executing function.
@@ -32,11 +33,13 @@ import (
 // message, what are our operating constraints, etc can be accessed by the
 // executing function
 type FunctionContext struct {
-	instanceConf  *instanceConf
-	userConfigs   map[string]interface{}
-	logAppender   *LogAppender
-	outputMessage func(topic string) pulsar.Producer
-	record        pulsar.Message
+	instanceConf   *instanceConf
+	userConfigs    map[string]interface{}
+	logAppender    *LogAppender
+	outputMessage  func(topic string) pulsar.Producer
+	Publish        func(topic string, payload []byte)
+	PublishMessage func(topic string, message pulsar.ProducerMessage)
+	record         pulsar.Message
 }
 
 // NewFuncContext returns a new Function context
@@ -153,8 +156,9 @@ func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 }
 
 // NewOutputMessage send message to the topic @param topicName: The name of the
-// topic for output message
+// topic for output message (DEPRECATED)
 func (c *FunctionContext) NewOutputMessage(topicName string) pulsar.Producer {
+	log.Warn("NewOutputMessage is deprecated, please use Publish() or PublishMsg()")
 	return c.outputMessage(topicName)
 }
 

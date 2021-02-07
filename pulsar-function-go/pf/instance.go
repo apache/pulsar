@@ -75,6 +75,29 @@ func newGoInstance() *goInstance {
 		return producer
 	}
 
+	contextPublish := func(topic string, message pulsar.ProducerMessage) {
+		producer, err := goInstance.getProducer(topic)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ctx := context.Background()
+		producer.SendAsync(ctx, &message, func(_ pulsar.MessageID, _ *pulsar.ProducerMessage, err error) {
+			if err != nil {
+				goInstance.stats.incrTotalSysExceptions(err)
+				log.Fatal(err)
+			}
+		})
+	}
+
+	goInstance.context.PublishMessage = contextPublish
+
+	goInstance.context.Publish = func(topic string, payload []byte) {
+		asyncMsg := pulsar.ProducerMessage{
+			Payload: payload,
+		}
+		contextPublish(topic, asyncMsg)
+	}
+
 	goInstance.lastHealthCheckTs = now.UnixNano()
 	goInstance.properties = make(map[string]string)
 	goInstance.stats = NewStatWithLabelValues(goInstance.getMetricsLabels()...)
