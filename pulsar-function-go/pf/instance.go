@@ -23,6 +23,7 @@ import (
 	"context"
 	"math"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -37,6 +38,7 @@ import (
 type goInstance struct {
 	function          function
 	context           *FunctionContext
+	producerRegistry  sync.Map
 	producer          pulsar.Producer
 	consumers         map[string]pulsar.Consumer
 	client            pulsar.Client
@@ -219,39 +221,42 @@ func (gi *goInstance) setupProducer() error {
 }
 
 func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
-	properties := getProperties(getDefaultSubscriptionName(
-		gi.context.instanceConf.funcDetails.Tenant,
-		gi.context.instanceConf.funcDetails.Namespace,
-		gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
+	p, ok := gi.producerRegistry.Load(topicName)
+	if !ok {
+		properties := getProperties(getDefaultSubscriptionName(
+			gi.context.instanceConf.funcDetails.Tenant,
+			gi.context.instanceConf.funcDetails.Namespace,
+			gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
 
-	batchBuilderType := pulsar.DefaultBatchBuilder
+		batchBuilderType := pulsar.DefaultBatchBuilder
 
-	if gi.context.instanceConf.funcDetails.Sink.ProducerSpec != nil {
-		batchBuilder := gi.context.instanceConf.funcDetails.Sink.ProducerSpec.BatchBuilder
-		if batchBuilder != "" {
-			if batchBuilder == "KEY_BASED" {
-				batchBuilderType = pulsar.KeyBasedBatchBuilder
+		if gi.context.instanceConf.funcDetails.Sink.ProducerSpec != nil {
+			batchBuilder := gi.context.instanceConf.funcDetails.Sink.ProducerSpec.BatchBuilder
+			if batchBuilder != "" {
+				if batchBuilder == "KEY_BASED" {
+					batchBuilderType = pulsar.KeyBasedBatchBuilder
+				}
 			}
 		}
-	}
 
-	producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
-		Topic:                   topicName,
-		Properties:              properties,
-		CompressionType:         pulsar.LZ4,
-		BatchingMaxPublishDelay: time.Millisecond * 10,
-		BatcherBuilderType:      batchBuilderType,
-		SendTimeout:             0,
-		// Set send timeout to be infinity to prevent potential deadlock with consumer
-		// that might happen when consumer is blocked due to unacked messages
-	})
-	if err != nil {
-		gi.stats.incrTotalSysExceptions(err)
-		log.Errorf("create producer error:%s", err.Error())
-		return nil, err
+		producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
+			Topic:                   topicName,
+			Properties:              properties,
+			CompressionType:         pulsar.LZ4,
+			BatchingMaxPublishDelay: time.Millisecond * 10,
+			BatcherBuilderType:      batchBuilderType,
+			SendTimeout:             0,
+			// Set send timeout to be infinity to prevent potential deadlock with consumer
+			// that might happen when consumer is blocked due to unacked messages
+		})
+		if err != nil {
+			gi.stats.incrTotalSysExceptions(err)
+			log.Errorf("create producer error:%s", err.Error())
+			return nil, err
+		}
+		p, _ = gi.producerRegistry.LoadOrStore(topicName, producer)
 	}
-
-	return producer, err
+	return p.(pulsar.Producer), nil
 }
 
 func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
@@ -320,7 +325,6 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 					Type:             subscriptionType,
 					MessageChannel:   channel,
 				})
-
 			}
 		}
 
@@ -398,9 +402,9 @@ func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
 func (gi *goInstance) setupLogHandler() error {
 	if gi.context.instanceConf.funcDetails.GetLogTopic() != "" {
 		gi.context.logAppender = NewLogAppender(
-			gi.client, //pulsar client
-			gi.context.instanceConf.funcDetails.GetLogTopic(), //log topic
-			getDefaultSubscriptionName(gi.context.instanceConf.funcDetails.Tenant, //fqn
+			gi.client, // pulsar client
+			gi.context.instanceConf.funcDetails.GetLogTopic(), // log topic
+			getDefaultSubscriptionName(gi.context.instanceConf.funcDetails.Tenant, // fqn
 				gi.context.instanceConf.funcDetails.Namespace,
 				gi.context.instanceConf.funcDetails.Name),
 		)
@@ -503,7 +507,7 @@ func (gi *goInstance) getMetrics() *pb.MetricsData {
 	totalProcessedSuccessfully1min := gi.getTotalProcessedSuccessfully1min()
 	totalUserExceptions1min := gi.getTotalUserExceptions1min()
 	totalSysExceptions1min := gi.getTotalSysExceptions1min()
-	//avg_process_latency_ms_1min := gi.get_avg_process_latency_1min()
+	// avg_process_latency_ms_1min := gi.get_avg_process_latency_1min()
 
 	metricsData := pb.MetricsData{}
 	// total metrics
