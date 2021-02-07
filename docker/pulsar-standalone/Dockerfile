@@ -26,7 +26,7 @@ FROM apachepulsar/pulsar-dashboard:latest as dashboard
 # Restart from
 FROM openjdk:8-jdk
 
-# Helps to ensure these directories persist between container restarts
+# Help to make these directories persist between container restarts
 VOLUME  ["/pulsar/conf", "/pulsar/data"]
 
 # Note that the libpq-dev package is needed here in order to install

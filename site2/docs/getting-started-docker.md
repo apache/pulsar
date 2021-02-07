@@ -27,10 +27,9 @@ and follow the instructions for your OS.
 A few things to note about this command:
  * The data, metadata, and configuration are persisted on Docker volumes in order to not start "fresh" every 
 time the container is restarted. For details on the volumes you can use `docker volume inspect <sourcename>`
- * The pulsar docker image runs as user 10000 and group 10001, by default. In order for bookkeeper to
- work, the bookkeeper process must be able to write to the `/pulsar/data` and `/pulsar/conf` directories. In order to
- write to those directories from inside the container, the mounted host volumes (`pulsardata` and `pulsarconf` in this example)
- must be owned by user id 10000 and group id 10001 on the host. Otherwise, the bookies will fail due to insufficient
+ * The pulsar docker image runs as user 10000 and group 10001, by default. In order for the pulsar and bookkeeper to
+ access the mounted volumes, the host volumes (`pulsardata` and `pulsarconf` in this example)
+ must give user 10000 or group 10001 read and write permission. Otherwise, the process will fail due to insufficient
  permissions.
  * For Docker on Windows make sure to configure it to use Linux containers
 
