@@ -2075,8 +2075,18 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public RetentionPolicies getRetention(String topic) throws PulsarAdminException {
+        return getRetention(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<RetentionPolicies> getRetentionAsync(String topic) {
+        return getRetentionAsync(topic, false);
+    }
+
+    @Override
+    public RetentionPolicies getRetention(String topic, boolean applied) throws PulsarAdminException {
         try {
-            return getRetentionAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getRetentionAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -2088,9 +2098,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<RetentionPolicies> getRetentionAsync(String topic) {
+    public CompletableFuture<RetentionPolicies> getRetentionAsync(String topic, boolean applied) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "retention");
+        path = path.queryParam("applied", applied);
         final CompletableFuture<RetentionPolicies> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<RetentionPolicies>() {

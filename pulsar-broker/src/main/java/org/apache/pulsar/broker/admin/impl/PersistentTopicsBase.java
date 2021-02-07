@@ -2637,15 +2637,19 @@ public class PersistentTopicsBase extends AdminResource {
         internalSetBacklogQuota(asyncResponse, backlogQuotaType, null);
     }
 
-    protected void internalGetRetention(AsyncResponse asyncResponse){
+    protected void internalGetRetention(AsyncResponse asyncResponse, boolean applied){
         preValidation();
-        Optional<RetentionPolicies> retention = getTopicPolicies(topicName)
-                .map(TopicPolicies::getRetentionPolicies);
-        if (!retention.isPresent()) {
-            asyncResponse.resume(Response.noContent().build());
-        } else {
-            asyncResponse.resume(retention.get());
-        }
+        RetentionPolicies retentionPolicies = getTopicPolicies(topicName)
+                .map(TopicPolicies::getRetentionPolicies).orElseGet(() -> {
+                    if (applied) {
+                        RetentionPolicies policies = getNamespacePolicies(namespaceName).retention_policies;
+                        return policies == null ? new RetentionPolicies(
+                                config().getDefaultRetentionTimeInMinutes(), config().getDefaultRetentionSizeInMB())
+                                : policies;
+                    }
+                    return null;
+                });
+        asyncResponse.resume(retentionPolicies == null ? Response.noContent().build() : retentionPolicies);
     }
 
     protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention) {
