@@ -1922,6 +1922,21 @@ public interface Topics {
     CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic);
 
     /**
+     * get applied offload policies of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    OffloadPolicies getOffloadPolicies(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * get applied offload policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic, boolean applied);
+
+    /**
      * set offload policies of a topic.
      * @param topic
      * @param offloadPolicies

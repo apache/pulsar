@@ -798,7 +798,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics, times(2)).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("remove-offload-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
@@ -934,6 +934,8 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1", true);
 
+        cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1", true);
 
         cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1", true);

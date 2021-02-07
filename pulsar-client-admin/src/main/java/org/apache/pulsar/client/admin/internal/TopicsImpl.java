@@ -1858,8 +1858,18 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public OffloadPolicies getOffloadPolicies(String topic) throws PulsarAdminException {
+        return getOffloadPolicies(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic) {
+        return getOffloadPoliciesAsync(topic, false);
+    }
+
+    @Override
+    public OffloadPolicies getOffloadPolicies(String topic, boolean applied) throws PulsarAdminException {
         try {
-            return getOffloadPoliciesAsync(topic).
+            return getOffloadPoliciesAsync(topic, applied).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -1872,9 +1882,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic) {
+    public CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic, boolean applied) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
+        path = path.queryParam("applied", applied);
         final CompletableFuture<OffloadPolicies> future = new CompletableFuture<>();
         asyncGetRequest(path, new InvocationCallback<OffloadPolicies>() {
             @Override
