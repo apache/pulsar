@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.systopic.SystemTopicClient.Reader;
 import org.apache.pulsar.broker.systopic.SystemTopicClient.Writer;
 import org.apache.pulsar.broker.systopic.TransactionBufferSystemTopicClient;
-import org.apache.pulsar.broker.transaction.buffer.proto.Transactionbuffer.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.common.naming.TopicName;
 
 public interface TransactionBufferSnapshotService {

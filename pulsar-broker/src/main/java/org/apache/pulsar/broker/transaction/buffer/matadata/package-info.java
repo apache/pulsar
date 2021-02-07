@@ -16,29 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.impl;
-
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
-
-public interface TopicTransactionBufferRecoverCallBack {
-
-    /**
-     * Topic transaction buffer recover complete.
-     */
-    void replayComplete();
-
-    /**
-     * Handle transactionBufferSnapshot.
-     *
-     * @param snapshot the transaction buffer snapshot
-     */
-    void handleSnapshot(TransactionBufferSnapshot snapshot);
-
-    /**
-     * Handle transaction entry.
-     *
-     * @param entry the transaction message entry
-     */
-    void handleTxnEntry(Entry entry);
-}
+/**
+ * The transaction buffer snapshot metadata.
+ */
+package org.apache.pulsar.broker.transaction.buffer.matadata;

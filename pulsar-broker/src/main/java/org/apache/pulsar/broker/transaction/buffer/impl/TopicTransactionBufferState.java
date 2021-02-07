@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 
 /**
  * The implement of topic transaction buffer state.

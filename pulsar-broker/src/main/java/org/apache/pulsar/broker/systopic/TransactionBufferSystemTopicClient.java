@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
-import org.apache.pulsar.broker.transaction.buffer.proto.Transactionbuffer.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -44,8 +44,7 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
 
     @Override
     protected CompletableFuture<Writer<TransactionBufferSnapshot>> newWriterAsyncInternal() {
-
-        return client.newProducer(Schema.PROTOBUF(TransactionBufferSnapshot.class))
+        return client.newProducer(Schema.AVRO(TransactionBufferSnapshot.class))
                 .topic(topicName.toString())
                 .createAsync().thenCompose(producer -> {
                     if (log.isDebugEnabled()) {
@@ -58,7 +57,7 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
 
     @Override
     protected CompletableFuture<Reader<TransactionBufferSnapshot>> newReaderAsyncInternal() {
-        return client.newReader(Schema.PROTOBUF(TransactionBufferSnapshot.class))
+        return client.newReader(Schema.AVRO(TransactionBufferSnapshot.class))
                 .topic(topicName.toString())
                 .startMessageId(MessageId.latest)
                 .readCompacted(true)

@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -41,8 +42,8 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
-import org.apache.pulsar.broker.transaction.buffer.proto.Transactionbuffer.AbortTxnMetadata;
-import org.apache.pulsar.broker.transaction.buffer.proto.Transactionbuffer.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.AbortTxnMetadata;
+import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -106,11 +107,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void handleSnapshot(TransactionBufferSnapshot snapshot) {
                         maxReadPosition = PositionImpl.get(snapshot.getMaxReadPositionLedgerId(),
                                 snapshot.getMaxReadPositionEntryId());
-                        snapshot.getAbortTxnMetadataList().forEach(abortTxnMetadata ->
-                                aborts.put(new TxnID(abortTxnMetadata.getTxnidMostBits(),
-                                        abortTxnMetadata.getTxnidLeastBits()),
-                                        PositionImpl.get(abortTxnMetadata.getLedgerId(),
-                                                abortTxnMetadata.getEntryId())));
+                        if (snapshot.getAborts() != null) {
+                            snapshot.getAborts().forEach(abortTxnMetadata ->
+                                    aborts.put(new TxnID(abortTxnMetadata.getTxnIdMostBits(),
+                                                    abortTxnMetadata.getTxnIdLeastBits()),
+                                            PositionImpl.get(abortTxnMetadata.getLedgerId(),
+                                                    abortTxnMetadata.getEntryId())));
+                        }
                     }
 
                     @Override
@@ -132,7 +135,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             }
                         }
                     }
-                }, this.topic));
+                }, this.topic, this));
     }
 
     @Override
@@ -200,7 +203,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 synchronized (TopicTransactionBuffer.this) {
                     updateMaxReadPosition(txnID);
                     handleLowWaterMark(txnID, lowWaterMark);
-                    takeSnapshotBuyChangeTimes();
+                    takeSnapshotByChangeTimes();
                 }
                 completableFuture.complete(null);
             }
@@ -239,7 +242,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     updateMaxReadPosition(txnID);
                     handleLowWaterMark(txnID, lowWaterMark);
                     changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
-                    takeSnapshotBuyChangeTimes();
+                    takeSnapshotByChangeTimes();
                 }
                 completableFuture.complete(null);
             }
@@ -277,7 +280,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
-    private synchronized void takeSnapshotBuyChangeTimes() {
+    private synchronized void takeSnapshotByChangeTimes() {
         if (changeMaxReadPositionAndAddAbortTimes.get() >= takeSnapshotIntervalNumber) {
             takeSnapshot();
         }
@@ -294,19 +297,21 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private void takeSnapshot() {
         changeMaxReadPositionAndAddAbortTimes.set(0);
         takeSnapshotWriter.thenAccept(writer -> {
-            TransactionBufferSnapshot.Builder snapshotBuilder = TransactionBufferSnapshot.newBuilder();
-            snapshotBuilder.setTopicName(topic.getName());
-            snapshotBuilder.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
-            snapshotBuilder.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
+            TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
+            snapshot.setTopicName(topic.getName());
+            snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
+            snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
+            List<AbortTxnMetadata> list = new ArrayList<>();
             aborts.forEach((k, v) -> {
-                AbortTxnMetadata.Builder builder = AbortTxnMetadata.newBuilder();
-                builder.setTxnidMostBits(k.getMostSigBits());
-                builder.setTxnidLeastBits(k.getLeastSigBits());
-                builder.setLedgerId(v.getLedgerId());
-                builder.setEntryId(v.getEntryId());
-                snapshotBuilder.addAbortTxnMetadata(builder.build());
+                AbortTxnMetadata abortTxnMetadata = new AbortTxnMetadata();
+                abortTxnMetadata.setTxnIdMostBits(k.getMostSigBits());
+                abortTxnMetadata.setTxnIdLeastBits(k.getLeastSigBits());
+                abortTxnMetadata.setLedgerId(v.getLedgerId());
+                abortTxnMetadata.setEntryId(v.getEntryId());
+                list.add(abortTxnMetadata);
             });
-            writer.writeAsync(snapshotBuilder.build()).thenAccept((messageId) -> {
+            snapshot.setAborts(list);
+            writer.writeAsync(snapshot).thenAccept((messageId) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}]Transaction buffer take snapshot success! "
                             + "messageId : {}", topic.getName(), messageId);
@@ -398,15 +403,20 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         public static final String SUBSCRIPTION_NAME = "transaction-buffer-sub";
 
-        private TopicTransactionBufferRecover(TopicTransactionBufferRecoverCallBack callBack, PersistentTopic topic) {
+        private final TopicTransactionBuffer topicTransactionBuffer;
+
+        private TopicTransactionBufferRecover(TopicTransactionBufferRecoverCallBack callBack, PersistentTopic topic,
+                                              TopicTransactionBuffer transactionBuffer) {
             this.topic = topic;
             this.callBack = callBack;
             this.entryQueue = new SpscArrayQueue<>(2000);
+            this.topicTransactionBuffer = transactionBuffer;
         }
 
         @SneakyThrows
         @Override
         public void run() {
+            this.topicTransactionBuffer.changeToInitializingState();
             topic.getBrokerService().getPulsar().getTransactionBufferSnapshotService()
                     .createReader(TopicName.get(topic.getName())).thenAcceptAsync(reader -> {
                 try {

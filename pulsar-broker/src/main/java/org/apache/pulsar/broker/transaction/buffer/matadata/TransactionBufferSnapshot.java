@@ -16,22 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto2";
+package org.apache.pulsar.broker.transaction.buffer.matadata;
 
-package pulsar.schema;
-option java_package = "org.apache.pulsar.broker.transaction.buffer.proto";
-option optimize_for = SPEED;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-message AbortTxnMetadata {
-    optional uint64 txnid_least_bits = 1;
-    optional uint64 txnid_most_bits = 2;
-    required uint64 ledgerId = 3;
-    required uint64 entryId  = 4;
-}
-
-message TransactionBufferSnapshot {
-    optional string topic_name = 1;
-    optional uint64 max_read_position_ledgerId = 2;
-    optional uint64 max_read_position_entryId = 3;
-    repeated AbortTxnMetadata abort_txn_metadata = 4;
+/**
+ * Transaction buffer snapshot metadata.
+ */
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
+public class TransactionBufferSnapshot {
+    private String topicName;
+    private long maxReadPositionLedgerId;
+    private long maxReadPositionEntryId;
+    private List<AbortTxnMetadata> aborts;
 }

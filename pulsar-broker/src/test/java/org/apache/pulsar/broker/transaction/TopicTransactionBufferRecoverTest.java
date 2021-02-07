@@ -28,12 +28,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
-import org.apache.pulsar.broker.transaction.buffer.proto.Transactionbuffer;
+import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -251,17 +250,17 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 .withTransactionTimeout(30, TimeUnit.SECONDS)
                 .build().get();
 
-        ReaderBuilder<Transactionbuffer.TransactionBufferSnapshot> readerBuilder = pulsarClient
-                .newReader(Schema.PROTOBUF(Transactionbuffer.TransactionBufferSnapshot.class))
+        ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
+                .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
                 .startMessageId(MessageId.earliest)
                 .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-        Reader<Transactionbuffer.TransactionBufferSnapshot> reader = readerBuilder.create();
+        Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
 
         MessageId messageId1 = producer.newMessage(tnx1).value("test").send();
         tnx1.commit().get();
         // wait timeout take snapshot
 
-        Transactionbuffer.TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
+        TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
         assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId1).getEntryId() + 1);
         assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
         assertFalse(reader.hasMessageAvailable());
@@ -273,10 +272,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         MessageId messageId3 = producer.newMessage(tnx3).value("test").send();
         tnx3.commit().get();
 
-        Transactionbuffer.TransactionBufferSnapshot snapshot = reader.readNext().getValue();
+        TransactionBufferSnapshot snapshot = reader.readNext().getValue();
         assertEquals(snapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId3).getEntryId() + 1);
         assertEquals(snapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId3).getLedgerId());
-        assertEquals(snapshot.getAbortTxnMetadataCount(), 0);
+        assertEquals(snapshot.getAborts().size(), 0);
         assertFalse(reader.hasMessageAvailable());
 
         MessageId messageId4 = producer.newMessage(abortTxn).value("test").send();
@@ -285,10 +284,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         transactionBufferSnapshot = reader.readNext().getValue();
         assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId4).getEntryId() + 1);
         assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId4).getLedgerId());
-        assertEquals(transactionBufferSnapshot.getAbortTxnMetadataCount(), 1);
-        assertEquals(transactionBufferSnapshot.getAbortTxnMetadataList().get(0).getTxnidLeastBits(),
+        assertEquals(transactionBufferSnapshot.getAborts().size(), 1);
+        assertEquals(transactionBufferSnapshot.getAborts().get(0).getTxnIdLeastBits(),
                 ((TransactionImpl) abortTxn).getTxnIdLeastBits());
-        assertEquals(transactionBufferSnapshot.getAbortTxnMetadataList().get(0).getTxnidMostBits(),
+        assertEquals(transactionBufferSnapshot.getAborts().get(0).getTxnIdMostBits(),
                 ((TransactionImpl) abortTxn).getTxnIdMostBits());
         assertFalse(reader.hasMessageAvailable());
         reader.close();
