@@ -83,6 +83,11 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
+        return completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
                                                    SchemaCompatibilityStrategy strategy) {
         return completedFuture(false);
