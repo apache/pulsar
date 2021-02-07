@@ -35,6 +35,7 @@ import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 
 public class PulsarAdminTool {
 
@@ -54,7 +55,7 @@ public class PulsarAdminTool {
 
     @Parameter(names = { "--request-timeout" }, description = "Request time out in seconds for "
             + "the pulsar admin client for any request")
-    int requestTimeout = PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS;
+    int requestTimeout = PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS;
 
     @Parameter(
         names = { "--auth-params" },

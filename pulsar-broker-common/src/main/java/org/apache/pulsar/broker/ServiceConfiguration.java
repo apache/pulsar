@@ -686,6 +686,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean preciseDispatcherFlowControl = false;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed " +
+                "in subsequent release."
+    )
+    private boolean streamingDispatch = false;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
         doc = "Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic")
@@ -1070,6 +1077,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " and resolving its metadata service location"
     )
     private String bookkeeperMetadataServiceUri;
+
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Authentication plugin to use when connecting to bookies"
@@ -1339,6 +1347,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "if allowAutoTopicCreationType is partitioned."
     )
     private int defaultNumPartitions = 1;
+    @FieldContext(
+        category = CATEGORY_STORAGE_ML,
+        doc = "The class of the managed ledger storage"
+    )
+    private String managedLedgerStorageClassName = "org.apache.pulsar.broker.ManagedLedgerClientFactory";
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger tasks dispatching"

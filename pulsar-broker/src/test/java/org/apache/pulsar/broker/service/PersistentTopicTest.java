@@ -141,7 +141,7 @@ import io.netty.buffer.Unpooled;
 /**
  */
 public class PersistentTopicTest extends MockedBookKeeperTestCase {
-    private PulsarService pulsar;
+    protected PulsarService pulsar;
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
@@ -1199,7 +1199,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @SuppressWarnings("unchecked")
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
-        cursorMock = mock(ManagedCursor.class);
+        cursorMock = mock(ManagedCursorImpl.class);
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();

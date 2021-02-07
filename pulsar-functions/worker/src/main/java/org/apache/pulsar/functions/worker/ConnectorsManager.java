@@ -18,44 +18,56 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.io.ConfigFieldDefinition;
+import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.functions.utils.io.Connector;
+import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
-import org.apache.pulsar.common.io.ConfigFieldDefinition;
-import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.utils.io.Connectors;
-
+@Slf4j
 public class ConnectorsManager {
 
-    private Connectors connectors;
+    private volatile TreeMap<String, Connector> connectors;
 
     public ConnectorsManager(WorkerConfig workerConfig) throws IOException {
         this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 
+    public Connector getConnector(String connectorType) {
+        return connectors.get(connectorType);
+    }
+
+    public ConnectorDefinition getConnectorDefinition(String connectorType) {
+        return connectors.get(connectorType).getConnectorDefinition();
+    }
+
     public List<ConnectorDefinition> getConnectors() {
-        return connectors.getConnectors();
+        return connectors.values().stream().map(connector -> connector.getConnectorDefinition()).collect(Collectors.toList());
     }
 
     public Path getSourceArchive(String sourceType) {
-        return connectors.getSources().get(sourceType);
+        return connectors.get(sourceType).getArchivePath();
     }
 
     public List<ConfigFieldDefinition> getSourceConfigDefinition(String sourceType) {
-        return connectors.getSourceConfigDefinitions().get(sourceType);
+        return connectors.get(sourceType).getSourceConfigFieldDefinitions();
     }
 
     public List<ConfigFieldDefinition> getSinkConfigDefinition(String sinkType) {
-        return connectors.getSinkConfigDefinitions().get(sinkType);
+        return connectors.get(sinkType).getSinkConfigFieldDefinitions();
     }
 
     public Path getSinkArchive(String sinkType) {
-        return connectors.getSinks().get(sinkType);
+        return connectors.get(sinkType).getArchivePath();
     }
 
     public void reloadConnectors(WorkerConfig workerConfig) throws IOException {
-        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
+        connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 }

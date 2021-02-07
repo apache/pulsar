@@ -134,10 +134,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         clusters = spy(new Clusters());
         clusters.setPulsar(pulsar);
-        /*doReturn(mockZooKeeperGlobal).when(clusters).globalZk();
-        doReturn(configurationCache.clustersCache()).when(clusters).clustersCache();
-        doReturn(configurationCache.clustersListCache()).when(clusters).clustersListCache();
-        doReturn(configurationCache.namespaceIsolationPoliciesCache()).when(clusters).namespaceIsolationPoliciesCache();*/
         doReturn("test").when(clusters).clientAppId();
         doNothing().when(clusters).validateSuperUserAccess();
 
@@ -160,11 +156,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(namespaces).validateAdminAccessForTenant("new-property");
 
         brokers = spy(new Brokers());
-        brokers.setServletContext(new MockServletContext());
         brokers.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(brokers).globalZk();
-        doReturn(mockZooKeeper).when(brokers).localZk();
-        doReturn(configurationCache.clustersListCache()).when(brokers).clustersListCache();
         doReturn("test").when(brokers).clientAppId();
         doNothing().when(brokers).validateSuperUserAccess();
 
