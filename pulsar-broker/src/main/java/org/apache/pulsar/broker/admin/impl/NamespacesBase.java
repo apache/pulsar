@@ -2538,6 +2538,9 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void validateRetentionPolicies(RetentionPolicies retention) {
+        if (retention == null) {
+            return;
+        }
         checkArgument(retention.getRetentionSizeInMB() >= -1,
                 "Invalid retention policy: size limit must be >= -1");
         checkArgument(retention.getRetentionTimeInMinutes() >= -1,
