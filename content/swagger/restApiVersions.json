@@ -129,17 +129,17 @@
     ],
     "2.5.2": [
         {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
+            ]
+        },
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
             ]
         }
     ],
