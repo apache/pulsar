@@ -3115,7 +3115,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testBatchIndexesDeletionPersistAndRecover() throws ManagedLedgerException, InterruptedException {
-        ManagedLedger ledger = factory.open("test_batch_indexes_deletion_persistent");
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        // Make sure the cursor metadata updated by the cursor ledger ID.
+        managedLedgerConfig.setMaxUnackedRangesToPersistInZk(-1);
+        ManagedLedger ledger = factory.open("test_batch_indexes_deletion_persistent", managedLedgerConfig);
         ManagedCursor cursor = ledger.openCursor("c1");
 
         final int totalEntries = 100;
@@ -3125,6 +3128,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             positions[i] = ledger.addEntry(("entry-" + i).getBytes(Encoding));
         }
         assertEquals(cursor.getNumberOfEntries(), totalEntries);
+        deleteBatchIndex(cursor, positions[6], 10, Lists.newArrayList(IntRange.newBuilder().setStart(1).setEnd(3).build()));
         deleteBatchIndex(cursor, positions[5], 10, Lists.newArrayList(IntRange.newBuilder().setStart(3).setEnd(6).build()));
         deleteBatchIndex(cursor, positions[0], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
         deleteBatchIndex(cursor, positions[1], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
@@ -3132,8 +3136,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         deleteBatchIndex(cursor, positions[3], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
         deleteBatchIndex(cursor, positions[4], 10, Lists.newArrayList(IntRange.newBuilder().setStart(0).setEnd(9).build()));
 
-        ledger = factory.open("test_batch_indexes_deletion_persistent");
+        cursor.close();
+        ledger.close();
+        ledger = factory.open("test_batch_indexes_deletion_persistent", managedLedgerConfig);
         cursor = ledger.openCursor("c1");
+
         List<IntRange> deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[5]), 10);
         Assert.assertEquals(deletedIndexes.size(), 1);
         Assert.assertEquals(deletedIndexes.get(0).getStart(), 3);
@@ -3143,6 +3150,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[5]), 10);
         Assert.assertNull(deletedIndexes);
         Assert.assertEquals(cursor.getMarkDeletedPosition(), positions[5]);
+
+        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[6]), 10);
+        Assert.assertEquals(deletedIndexes.size(), 1);
+        Assert.assertEquals(deletedIndexes.get(0).getStart(), 1);
+        Assert.assertEquals(deletedIndexes.get(0).getEnd(), 3);
     }
 
     private void deleteBatchIndex(ManagedCursor cursor, Position position, int batchSize,

@@ -2467,6 +2467,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             for (long l : array) {
                 deleteSet.add(l);
             }
+            batchDeletedIndexInfoBuilder.clearDeleteSet();
             batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
             result.add(batchDeletedIndexInfoBuilder.build());
         }
