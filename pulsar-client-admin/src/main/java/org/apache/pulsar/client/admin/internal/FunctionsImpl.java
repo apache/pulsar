@@ -836,7 +836,9 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         try {
             File file = new File(destinationPath);
             if (!file.exists()) {
-                file.getParentFile().mkdirs();
+                if (file.getParentFile() != null && !file.getParentFile().exists()) {
+                    file.getParentFile().mkdirs();
+                }
                 file.createNewFile();
             }
             FileChannel os = new FileOutputStream(new File(destinationPath)).getChannel();
