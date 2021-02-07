@@ -205,11 +205,11 @@ public class ThreadRuntime implements Runtime {
             // make sure JavaInstanceRunnable is closed
             this.javaInstanceRunnable.close();
 
+            log.info("Unloading JAR files for function {}", instanceConfig);
             // once the thread quits, clean up the instance
             fnCache.unregisterFunctionInstance(
                     instanceConfig.getFunctionId(),
                     instanceConfig.getInstanceName());
-            log.info("Unloading JAR files for function {}", instanceConfig);
         }
     }
 
