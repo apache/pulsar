@@ -308,7 +308,6 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
 
-
         if (existingSinkConfig.equals(mergedConfig) && isBlank(sinkPkgUrl) && uploadedInputStream == null) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, sinkName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
@@ -708,28 +707,36 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                                                                  final String namespace,
                                                                  final String sinkName,
                                                                  final SinkConfig sinkConfig,
-                                                                 final File componentPackageFile) throws IOException {
+                                                                 final File sinkPackageFile) throws IOException {
 
-        Path archivePath = null;
         // The rest end points take precedence over whatever is there in sinkConfig
         sinkConfig.setTenant(tenant);
         sinkConfig.setNamespace(namespace);
         sinkConfig.setName(sinkName);
         org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+
+        ClassLoader classLoader = null;
+        // check if sink is builtin and extract classloader
         if (!StringUtils.isEmpty(sinkConfig.getArchive())) {
-            String builtinArchive = sinkConfig.getArchive();
-            if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
-                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
-            }
-            try {
-                archivePath = this.worker().getConnectorsManager().getSinkArchive(builtinArchive);
-            } catch (Exception e) {
-                throw new IllegalArgumentException(String.format("No Sink archive %s found", archivePath));
+            String archive = sinkConfig.getArchive();
+            if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+                archive = archive.replaceFirst("^builtin://", "");
+                classLoader = this.worker().getConnectorsManager().getConnector(archive).getClassLoader();
             }
         }
-        SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validate(sinkConfig, archivePath,
-                componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory(),
-                worker().getWorkerConfig().getValidateConnectorConfig());
+
+        // if sink is not builtin, attempt to extract classloader from package file if it exists
+        if (classLoader == null && sinkPackageFile != null) {
+            classLoader = getClassLoaderFromPackage(sinkConfig.getClassName(),
+                    sinkPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+        }
+
+        if (classLoader == null) {
+            throw new IllegalArgumentException("Sink package is not provided");
+        }
+
+        SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validateAndExtractDetails(
+                sinkConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
         return SinkConfigUtils.convert(sinkConfig, sinkDetails);
     }
 

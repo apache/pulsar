@@ -620,6 +620,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         int receivedMsgCount = 0;
         for (int i = 0; i < totalProducedMsgs; i++) {
             Message<?> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
+            assertTrue(msg != null);
             if (!unackMessages.contains(i)) {
                 consumer.acknowledge(msg);
             }

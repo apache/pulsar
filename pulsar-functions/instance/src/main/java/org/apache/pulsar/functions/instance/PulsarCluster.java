@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.instance;
 
 import lombok.Getter;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -37,6 +38,9 @@ public class PulsarCluster {
     private PulsarClient client;
 
     @Getter
+    private PulsarAdmin adminClient;
+
+    @Getter
     private final TopicSchema topicSchema;
 
     @Getter
@@ -48,8 +52,9 @@ public class PulsarCluster {
     @Getter
     private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
 
-    public PulsarCluster(PulsarClient client, ProducerSpec producerSpec) {
+    public PulsarCluster(PulsarClient client, PulsarAdmin adminClient, ProducerSpec producerSpec) {
         this.client = client;
+        this.adminClient = adminClient;
         this.topicSchema = new TopicSchema(client);
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
