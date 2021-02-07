@@ -52,9 +52,13 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
     public synchronized SslContext update()
             throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
         if (authData != null && authData.hasDataForTls()) {
-            this.sslNettyContext = SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
-                    this.tlsTrustCertsFilePath.getFileName(), (X509Certificate[]) authData.getTlsCertificates(),
-                    authData.getTlsPrivateKey());
+            this.sslNettyContext = authData.getTlsTrustStoreStream() == null
+                    ? SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
+                            tlsTrustCertsFilePath.getFileName(), (X509Certificate[]) authData.getTlsCertificates(),
+                            authData.getTlsPrivateKey())
+                    : SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
+                            authData.getTlsTrustStoreStream(), (X509Certificate[]) authData.getTlsCertificates(),
+                            authData.getTlsPrivateKey());
         } else {
             this.sslNettyContext = SecurityUtility.createNettySslContextForClient(this.tlsAllowInsecureConnection,
                     this.tlsTrustCertsFilePath.getFileName());

@@ -21,10 +21,13 @@ package org.apache.pulsar.broker.namespace;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
-
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
@@ -42,16 +45,9 @@ import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-
 /**
- * This class encapsulate some utility functions for <code>ServiceUnit</code> related <code>ZooKeeper</code> operations
- *
- *
+ * This class encapsulate some utility functions for
+ * <code>ServiceUnit</code> related <code>ZooKeeper</code> operations.
  */
 public final class ServiceUnitZkUtils {
 
@@ -62,16 +58,16 @@ public final class ServiceUnitZkUtils {
     private static final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
     /**
-     * <code>ZooKeeper</code> root path for namespace ownership info
+     * <code>ZooKeeper</code> root path for namespace ownership info.
      */
     public static final String OWNER_INFO_ROOT = LocalZooKeeperCacheService.OWNER_INFO_ROOT;
 
-    public static final String path(NamespaceBundle suname) {
+    public static String path(NamespaceBundle suname) {
         // The ephemeral node path for new namespaces should always have bundle name appended
         return OWNER_INFO_ROOT + "/" + suname.toString();
     }
 
-    public static final NamespaceBundle suBundleFromPath(String path, NamespaceBundleFactory factory) {
+    public static NamespaceBundle suBundleFromPath(String path, NamespaceBundleFactory factory) {
         String[] parts = path.split("/");
         checkArgument(parts.length > 2);
         checkArgument(parts[1].equals("namespace"));
@@ -104,7 +100,7 @@ public final class ServiceUnitZkUtils {
      *
      * @throws PulsarServerException
      */
-    public static final void initZK(ZooKeeper zkc, String selfBrokerUrl) {
+    public static void initZK(ZooKeeper zkc, String selfBrokerUrl) {
         // initialize the zk client with values
         try {
             // check and create /namespace path
@@ -122,7 +118,7 @@ public final class ServiceUnitZkUtils {
      *
      * @throws Exception
      */
-    private static final void cleanupNamespaceNodes(ZooKeeper zkc, String root, String selfBrokerUrl) throws Exception {
+    private static void cleanupNamespaceNodes(ZooKeeper zkc, String root, String selfBrokerUrl) throws Exception {
         // we don't need a watch here since we are only cleaning up the stale ephemeral nodes from previous session
         try {
             for (String node : zkc.getChildren(root, false)) {
@@ -148,7 +144,7 @@ public final class ServiceUnitZkUtils {
      *
      * @throws Exception
      */
-    private static final void cleanupSingleNamespaceNode(ZooKeeper zkc, String path, String selfBrokerUrl)
+    private static void cleanupSingleNamespaceNode(ZooKeeper zkc, String path, String selfBrokerUrl)
             throws Exception {
         String brokerUrl = null;
         try {
@@ -178,8 +174,8 @@ public final class ServiceUnitZkUtils {
      *
      * @param zkc
      *            the <code>ZooKeeper</code> connected session object
-     * @param nsname
-     *            the name space name
+     * @param path
+     *            the namespace path
      * @param value
      *            the broker url that serves the name space.
      * @return
@@ -189,8 +185,8 @@ public final class ServiceUnitZkUtils {
      * @throws JsonMappingException
      * @throws JsonGenerationException
      */
-    public static final NamespaceEphemeralData acquireNameSpace(ZooKeeper zkc, String path,
-            NamespaceEphemeralData value)
+    public static NamespaceEphemeralData acquireNameSpace(ZooKeeper zkc, String path,
+                                                          NamespaceEphemeralData value)
             throws KeeperException, InterruptedException, JsonGenerationException, JsonMappingException, IOException {
 
         // the znode data to be written
@@ -201,7 +197,7 @@ public final class ServiceUnitZkUtils {
         return value;
     }
 
-    public static final BundlesData createBundlesIfAbsent(ZooKeeper zkc, String path, BundlesData initialBundles)
+    public static BundlesData createBundlesIfAbsent(ZooKeeper zkc, String path, BundlesData initialBundles)
             throws JsonGenerationException, JsonMappingException, IOException, KeeperException, InterruptedException {
         String data = jsonMapper.writeValueAsString(initialBundles);
 
@@ -219,16 +215,17 @@ public final class ServiceUnitZkUtils {
             // if path contains multiple levels after the root, create the intermediate nodes first
             String[] parts = path.split("/");
             if (parts.length > 3) {
-                String int_path = path.substring(0, path.lastIndexOf("/"));
-                if (zkc.exists(int_path, false) == null) {
+                String intPath = path.substring(0, path.lastIndexOf("/"));
+                if (zkc.exists(intPath, false) == null) {
                     // create the intermediate nodes
                     try {
-                        ZkUtils.createFullPathOptimistic(zkc, int_path, new byte[0], Ids.OPEN_ACL_UNSAFE,
+                        ZkUtils.createFullPathOptimistic(zkc, intPath, new byte[0], Ids.OPEN_ACL_UNSAFE,
                                 CreateMode.PERSISTENT);
                     } catch (KeeperException.NodeExistsException nee) {
                         LOG.debug(
-                                "Other broker preempted the full intermediate path [{}] already. Continue for acquiring the leaf ephemeral node.",
-                                int_path);
+                                "Other broker preempted the full intermediate path [{}] already."
+                                        + " Continue for acquiring the leaf ephemeral node.",
+                                intPath);
                     }
                 }
                 checkNotNull(LocalZooKeeperConnectionService.createIfAbsent(zkc, path, data, mode));

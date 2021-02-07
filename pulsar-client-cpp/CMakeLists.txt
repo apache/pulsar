@@ -73,6 +73,8 @@ endif(NOT LOG_CATEGORY_NAME)
 
 add_definitions(-DLOG_CATEGORY_NAME=${LOG_CATEGORY_NAME} -DBUILDING_PULSAR -DBOOST_ALL_NO_LIB -DBOOST_ALLOW_DEPRECATED_HEADERS)
 
+set(OPENSSL_ROOT_DIR /usr/lib64/)
+
 ### This part is to find and keep SSL dynamic libs in RECORD_OPENSSL_SSL_LIBRARY and RECORD_OPENSSL_CRYPTO_LIBRARY
 ### After find the libs, will unset related cache, and will not affact another same call to find_package.
 if (APPLE)
@@ -80,7 +82,6 @@ if (APPLE)
     set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
 endif ()
 
-set(OPENSSL_ROOT_DIR /usr/lib64/)
 set(OPENSSL_USE_STATIC_LIBS FALSE)
 find_package(OpenSSL REQUIRED)
 set(RECORD_OPENSSL_SSL_LIBRARY ${OPENSSL_SSL_LIBRARY})
@@ -152,11 +153,22 @@ else()
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
-if (MSVC)
-  find_package(Boost REQUIRED COMPONENTS program_options regex system date_time)
-else()
-  find_package(Boost REQUIRED COMPONENTS program_options regex system)
+
+find_package(Boost)
+set(BOOST_COMPONENTS program_options regex)
+
+if (NOT Boost_VERSION_MAJOR OR
+        (Boost_VERSION_MAJOR EQUAL 1 AND Boost_VERSION_MINOR LESS 69)
+        )
+    # Boost System does not require linking since 1.69
+    set(BOOST_COMPONENTS ${BOOST_COMPONENTS} system)
 endif()
+
+if (MSVC)
+  set(BOOST_COMPONENTS ${BOOST_COMPONENTS} date_time)
+endif()
+
+find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 
 if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)
@@ -211,7 +223,7 @@ if (NOT APPLE AND NOT MSVC)
     # we don't set options below to build _pulsar.so
     set(CMAKE_CXX_FLAGS_PYTHON "${CMAKE_CXX_FLAGS}")
     # Hide all non-exported symbols to avoid conflicts
-    add_compile_options(-fvisibility=hidden -Wl,--exclude-libs,ALL)
+    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
 endif ()
 
 if (LIB_ZSTD)

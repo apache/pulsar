@@ -21,12 +21,6 @@ package org.apache.pulsar.common.naming;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.ServiceUnitId;
-
 import com.google.common.base.Objects;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
@@ -141,7 +135,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     Long getUpperEndpoint() {
         return this.keyRange.upperEndpoint();
     }
-    
+
     public boolean hasNonPersistentTopic() {
         return hasNonPersistentTopic;
     }

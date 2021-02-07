@@ -329,7 +329,6 @@ cd pulsar/deployment/kubernetes/helm
 The `prepare_helm_release` creates the following resources:
 
 - A Kubernetes namespace for installing the Pulsar release
-- A secret for storing the username and password of the control center administrator. The username and password can be passed to `prepare_helm_release.sh` through flags `--control-center-admin` and `--control-center-password`. The username and password is used for logging into the Grafana dashboard and Pulsar Manager.
 - JWT secret keys and tokens for three super users: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates an asymmetric pubic/private key pair. You can choose to generate a symmetric secret key by specifying `--symmetric`.
     - `proxy-admin` role is used for proxies to communicate to brokers.
     - `broker-admin` role is used for inter-broker communications.
@@ -352,6 +351,9 @@ helm upgrade --install pulsar pulsar \
     --timeout 10m \
     --set [your configuration options]
 ```
+> **Note**
+>
+> For the first deployment, add `--set initialize=true` option to initialize bookie and Pulsar cluster metadata.
 
 You can also use the `--version <installation version>` option if you want to install a specific version of Pulsar Helm chart.
 

@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.util.keystoretls;
 
 import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
-
 import com.google.common.base.Strings;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.FileInputStream;
@@ -142,7 +141,9 @@ public class KeyStoreSSLContext {
             KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(kmfAlgorithm);
             KeyStore keyStore = KeyStore.getInstance(keyStoreTypeString);
             char[] passwordChars = keyStorePassword.toCharArray();
-            keyStore.load(new FileInputStream(keyStorePath), passwordChars);
+            try (FileInputStream inputStream = new FileInputStream(keyStorePath)) {
+                keyStore.load(inputStream, passwordChars);
+            }
             keyManagerFactory.init(keyStore, passwordChars);
             keyManagers = keyManagerFactory.getKeyManagers();
         }
@@ -155,7 +156,9 @@ public class KeyStoreSSLContext {
             trustManagerFactory = TrustManagerFactory.getInstance(tmfAlgorithm);
             KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
             char[] passwordChars = trustStorePassword.toCharArray();
-            trustStore.load(new FileInputStream(trustStorePath), passwordChars);
+            try (FileInputStream inputStream = new FileInputStream(trustStorePath)) {
+                trustStore.load(inputStream, passwordChars);
+            }
             trustManagerFactory.init(trustStore);
         }
 
@@ -166,9 +169,15 @@ public class KeyStoreSSLContext {
     }
 
     public SSLEngine createSSLEngine() {
-        SSLEngine sslEngine = sslContext.createSSLEngine();
+        return configureSSLEngine(sslContext.createSSLEngine());
+    }
 
-        sslEngine.setEnabledProtocols(sslEngine.getSupportedProtocols());
+    public SSLEngine createSSLEngine(String peerHost, int peerPort) {
+        return configureSSLEngine(sslContext.createSSLEngine(peerHost, peerPort));
+    }
+
+    private SSLEngine configureSSLEngine(SSLEngine sslEngine) {
+        sslEngine.setEnabledProtocols(protocols.toArray(new String[0]));
         sslEngine.setEnabledCipherSuites(sslEngine.getSupportedCipherSuites());
 
         if (this.mode == Mode.SERVER) {
@@ -177,7 +186,6 @@ public class KeyStoreSSLContext {
         } else {
             sslEngine.setUseClientMode(true);
         }
-
         return sslEngine;
     }
 
@@ -353,3 +361,4 @@ public class KeyStoreSSLContext {
         return sslCtxFactory;
     }
 }
+

@@ -22,8 +22,8 @@ import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
@@ -66,13 +66,12 @@ public interface TransactionBuffer {
      *
      * @param txnId the transaction id
      * @param sequenceId the sequence id of the entry in this transaction buffer.
-     * @param batchSize
      * @param buffer the entry buffer
      * @return a future represents the result of the operation.
      * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException if the transaction
      *         has been sealed.
      */
-    CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, long batchSize, ByteBuf buffer);
+    CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer);
 
     /**
      * Open a {@link TransactionBufferReader} to read entries of a given transaction
@@ -87,44 +86,29 @@ public interface TransactionBuffer {
     CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId);
 
     /**
-     * Handle TC endTxnOnPartition command
-     *
-     * @return
-     */
-    CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction);
-
-    /**
-     * Append committed marker to the related origin topic partition.
-     *
-     * @param txnID transaction id
-     * @return a future represents the position of the committed marker in the origin topic partition.
-     */
-    CompletableFuture<Position> commitPartitionTopic(TxnID txnID);
-
-    /**
      * Commit the transaction and seal the buffer for this transaction.
      *
      * <p>If a transaction is sealed, no more entries can be {@link #appendBufferToTxn(TxnID, long, ByteBuf)}.
      *
      * @param txnID the transaction id
-     * @param committedAtLedgerId the data ledger id where the commit marker of the transaction was appended to.
-     * @param committedAtEntryId the data ledger id where the commit marker of the transaction was appended to.
+     * @param lowWaterMark the low water mark of this transaction
      * @return a future represents the result of commit operation.
      * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
-    CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId);
+    CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark);
 
     /**
      * Abort the transaction and all the entries of this transaction will
      * be discarded.
      *
      * @param txnID the transaction id
+     * @param lowWaterMark the low water mark of this transaction
      * @return a future represents the result of abort operation.
      * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
      *         is not in the buffer.
      */
-    CompletableFuture<Void> abortTxn(TxnID txnID);
+    CompletableFuture<Void> abortTxn(TxnID txnID, long lowWaterMark);
 
     /**
      * Purge all the data of the transactions who are committed and stored
@@ -144,4 +128,23 @@ public interface TransactionBuffer {
      * @return
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * Close the buffer asynchronously.
+     * @param txnID {@link TxnID} txnId.
+     * @return the txnId is aborted.
+     */
+    boolean isTxnAborted(TxnID txnID);
+
+    /**
+     * Sync max read position for normal publish.
+     * @param position {@link PositionImpl} the position to sync.
+     */
+    void syncMaxReadPositionForNormalPublish(PositionImpl position);
+
+    /**
+     * Get the can read max position.
+     * @return the stable position.
+     */
+    PositionImpl getMaxReadPosition();
 }

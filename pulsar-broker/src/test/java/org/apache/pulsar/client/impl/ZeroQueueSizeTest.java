@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -28,6 +30,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.collect.Lists;
 
@@ -59,7 +63,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
@@ -413,6 +417,81 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         Assert.assertEquals(receivedMessages.size(), messages);
 
         consumer.close();
+        producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testPauseAndResume() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume";
+        final String subName = "sub";
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(1));
+        AtomicInteger received = new AtomicInteger();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(0).messageListener((c1, msg) -> {
+                    assertNotNull(msg, "Message cannot be null");
+                    c1.acknowledgeAsync(msg);
+                    received.incrementAndGet();
+                    latch.get().countDown();
+                }).subscribe();
+        consumer.pause();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+
+        for (int i = 0; i < 2; i++) {
+            producer.send(("my-message-" + i).getBytes());
+        }
+
+        // Paused consumer receives only one message
+        assertTrue(latch.get().await(2, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+        Thread.sleep(2000);
+        assertEquals(received.intValue(), 1, "Consumer received messages while paused");
+
+        latch.set(new CountDownLatch(1));
+        consumer.resume();
+        assertTrue(latch.get().await(2, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+
+        consumer.unsubscribe();
+        producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testPauseAndResumeWithUnloading() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume-with-unloading";
+        final String subName = "sub";
+
+        AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(1));
+        AtomicInteger received = new AtomicInteger();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(0).messageListener((c1, msg) -> {
+                    assertNotNull(msg, "Message cannot be null");
+                    c1.acknowledgeAsync(msg);
+                    received.incrementAndGet();
+                    latch.get().countDown();
+                }).subscribe();
+        consumer.pause();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+
+        for (int i = 0; i < 2; i++) {
+            producer.send(("my-message-" + i).getBytes());
+        }
+
+        // Paused consumer receives only one message
+        assertTrue(latch.get().await(2, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+
+        // Make sure no flow permits are sent when the consumer reconnects to the topic
+        admin.topics().unload(topicName);
+        Thread.sleep(2000);
+        assertEquals(received.intValue(), 1, "Consumer received messages while paused");
+
+        latch.set(new CountDownLatch(1));
+        consumer.resume();
+        assertTrue(latch.get().await(2, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+
+        consumer.unsubscribe();
         producer.close();
     }
 }

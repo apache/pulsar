@@ -22,12 +22,17 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -46,6 +51,7 @@ import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -63,10 +70,12 @@ import java.util.regex.Pattern;
 
 import lombok.ToString;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -101,6 +110,7 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -125,7 +135,7 @@ public class PulsarFunctionE2ETest {
     PulsarAdmin admin;
     PulsarClient pulsarClient;
     BrokerStats brokerStatsClient;
-    WorkerService functionsWorkerService;
+    PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
@@ -196,8 +206,24 @@ public class PulsarFunctionE2ETest {
         config.setAllowAutoTopicCreationType("non-partitioned");
 
         functionsWorkerService = createPulsarFunctionWorker(config);
+        // populate builtin connectors folder
+        if (Arrays.asList(method.getAnnotation(Test.class).groups()).contains("builtin")) {
+            File connectorsDir = new File(workerConfig.getConnectorsDirectory());
+
+            if (connectorsDir.exists()) {
+                FileUtils.deleteDirectory(connectorsDir);
+            }
+
+            if (connectorsDir.mkdir()) {
+                File file = new File(getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile());
+                Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
+            } else {
+                throw new RuntimeException("Failed to create builtin connectors directory");
+            }
+        }
+
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         Map<String, String> authParams = new HashMap<>();
@@ -299,7 +325,7 @@ public class PulsarFunctionE2ETest {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         fileServer.stop(0);
@@ -309,9 +335,14 @@ public class PulsarFunctionE2ETest {
         functionsWorkerService.stop();
         pulsar.close();
         bkEnsemble.stop();
+
+        File connectorsDir = new File(workerConfig.getConnectorsDirectory());
+        if (connectorsDir.exists()) {
+            FileUtils.deleteDirectory(connectorsDir);
+        }
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) throws IOException {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
@@ -346,7 +377,11 @@ public class PulsarFunctionE2ETest {
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
-        return new WorkerService(workerConfig);
+        workerConfig.setConnectorsDirectory(Files.createTempDirectory("tempconnectorsdir").toFile().getAbsolutePath());
+
+        PulsarWorkerService workerService = new PulsarWorkerService();
+        workerService.init(workerConfig, null, false);
+        return workerService;
     }
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
@@ -726,11 +761,21 @@ public class PulsarFunctionE2ETest {
 
         sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
 
-        admin.sink().createSinkWithUrl(sinkConfig, jarFilePathUrl);
+        if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
+            sinkConfig.setArchive(jarFilePathUrl);
+            admin.sinks().createSink(sinkConfig, null);
+        } else {
+            admin.sinks().createSinkWithUrl(sinkConfig, jarFilePathUrl);
+        }
 
         sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(523).build()));
 
-        admin.sink().updateSinkWithUrl(sinkConfig, jarFilePathUrl);
+        if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
+            sinkConfig.setArchive(jarFilePathUrl);
+            admin.sinks().updateSink(sinkConfig, null);
+        } else {
+            admin.sinks().updateSinkWithUrl(sinkConfig, jarFilePathUrl);
+        }
 
         retryStrategically((test) -> {
             try {
@@ -925,6 +970,12 @@ public class PulsarFunctionE2ETest {
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
     }
 
+    @Test(timeOut = 20000, groups = "builtin")
+    public void testPulsarSinkStatsBuiltin() throws Exception {
+        String jarFilePathUrl = String.format("%s://data-generator", Utils.BUILTIN);
+        testPulsarSinkStats(jarFilePathUrl);
+    }
+
     @Test(timeOut = 20000)
     public void testPulsarSinkStatsWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
@@ -948,8 +999,12 @@ public class PulsarFunctionE2ETest {
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, sourceName, sinkTopic);
-
-        admin.source().createSourceWithUrl(sourceConfig, jarFilePathUrl);
+        if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
+            sourceConfig.setArchive(jarFilePathUrl);
+            admin.sources().createSource(sourceConfig, null);
+        } else {
+            admin.sources().createSourceWithUrl(sourceConfig, jarFilePathUrl);
+        }
 
         retryStrategically((test) -> {
             try {
@@ -961,7 +1016,12 @@ public class PulsarFunctionE2ETest {
 
         final String sinkTopic2 = "persistent://" + replNamespace + "/output2";
         sourceConfig.setTopicName(sinkTopic2);
-        admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
+
+        if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
+            admin.sources().updateSource(sourceConfig, null);
+        } else {
+            admin.sources().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
+        }
 
         retryStrategically((test) -> {
             try {
@@ -983,7 +1043,7 @@ public class PulsarFunctionE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic2).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic2).numberOfEntries > 4);
+                return (admin.topics().getStats(sinkTopic2).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic2, false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -1063,6 +1123,12 @@ public class PulsarFunctionE2ETest {
         File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+    }
+
+    @Test(timeOut = 20000, groups = "builtin")
+    public void testPulsarSourceStatsBuiltin() throws Exception {
+        String jarFilePathUrl = String.format("%s://data-generator", Utils.BUILTIN);
+        testPulsarSourceStats(jarFilePathUrl);
     }
 
     @Test(timeOut = 20000)
@@ -1512,15 +1578,30 @@ public class PulsarFunctionE2ETest {
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader()
+            .getResource("pulsar-functions-api-examples.jar").getFile();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 "my.*", sinkTopic, subscriptionName);
-        try {
-            admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-            assertTrue(validRoleName);
-        } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
-            assertFalse(validRoleName);
+        if (!validRoleName) {
+            // create a non-superuser admin to test the api
+            admin = spy(
+                PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())
+                    .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                    .allowTlsInsecureConnection(true).build());
+            try {
+                admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+            } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
+                assertFalse(validRoleName);
+            }
+        } else {
+            try {
+                admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+                assertTrue(validRoleName);
+            } catch (org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException ne) {
+                fail();
+            }
         }
+
     }
 
     @Test(timeOut = 20000)
@@ -1786,7 +1867,14 @@ public class PulsarFunctionE2ETest {
             checkArgument(matcher.matches());
             String name = matcher.group(1);
             Metric m = new Metric();
-            m.value = Double.valueOf(matcher.group(3));
+            String numericValue = matcher.group(3);
+            if (numericValue.equalsIgnoreCase("-Inf")) {
+                m.value = Double.NEGATIVE_INFINITY;
+            } else if (numericValue.equalsIgnoreCase("+Inf")) {
+                m.value = Double.POSITIVE_INFINITY;
+            } else {
+                m.value = Double.valueOf(numericValue);
+            }
             String tags = matcher.group(2);
             Matcher tagsMatcher = tagsPattern.matcher(tags);
             while (tagsMatcher.find()) {

@@ -34,9 +34,7 @@ import lombok.Setter;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -46,7 +44,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -54,6 +51,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -119,6 +117,8 @@ public class ProxyService implements Closeable {
     private final Set<ProxyConnection> clientCnxs;
     @Getter
     private final Map<String, TopicStats> topicStats;
+    @Getter
+    private AdditionalServlets proxyAdditionalServlets;
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws IOException {
@@ -131,7 +131,7 @@ public class ProxyService implements Closeable {
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
 
         if (proxyConfig.getProxyLogLevel().isPresent()) {
-            proxyLogLevel = Integer.valueOf(proxyConfig.getProxyLogLevel().get());
+            proxyLogLevel = proxyConfig.getProxyLogLevel().get();
         } else {
             proxyLogLevel = 0;
         }
@@ -152,6 +152,7 @@ public class ProxyService implements Closeable {
                 stats.calculate();
             });
         }, 60, TimeUnit.SECONDS);
+        this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
     }
 
     public void start() throws Exception {
@@ -176,7 +177,7 @@ public class ProxyService implements Closeable {
         // Bind and start to accept incoming connections.
         if (proxyConfig.getServicePort().isPresent()) {
             try {
-                listenChannel = bootstrap.bind(proxyConfig.getServicePort().get()).sync().channel();
+                listenChannel = bootstrap.bind(proxyConfig.getBindAddress(), proxyConfig.getServicePort().get()).sync().channel();
                 LOG.info("Started Pulsar Proxy at {}", listenChannel.localAddress());
             } catch (Exception e) {
                 throw new IOException("Failed to bind Pulsar Proxy on port " + proxyConfig.getServicePort().get(), e);
@@ -186,7 +187,7 @@ public class ProxyService implements Closeable {
         if (proxyConfig.getServicePortTls().isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
-            listenChannelTls = tlsBootstrap.bind(proxyConfig.getServicePortTls().get()).sync().channel();
+            listenChannelTls = tlsBootstrap.bind(proxyConfig.getBindAddress(), proxyConfig.getServicePortTls().get()).sync().channel();
             LOG.info("Started Pulsar TLS Proxy on {}", listenChannelTls.localAddress());
         }
 
@@ -234,6 +235,12 @@ public class ProxyService implements Closeable {
         if (statsExecutor != null) {
             statsExecutor.shutdown();
         }
+
+        if (proxyAdditionalServlets != null) {
+            proxyAdditionalServlets.close();
+            proxyAdditionalServlets = null;
+        }
+
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
     }

@@ -64,9 +64,9 @@ class ConsumerImpl : public ConsumerImplBase,
                      public HandlerBase,
                      public std::enable_shared_from_this<ConsumerImpl> {
    public:
-    ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscription,
+    ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscriptionName,
                  const ConsumerConfiguration&,
-                 const ExecutorServicePtr listenerExecutor = ExecutorServicePtr(),
+                 const ExecutorServicePtr listenerExecutor = ExecutorServicePtr(), bool hasParent = false,
                  const ConsumerTopicType consumerTopicType = NonPartitioned,
                  Commands::SubscriptionMode = Commands::SubscriptionModeDurable,
                  Optional<MessageId> startMessageId = Optional<MessageId>::empty());
@@ -166,6 +166,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
     virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
+    void trackMessage(const Message& msg);
 
     Optional<MessageId> clearReceiveQueue();
 
@@ -175,6 +176,7 @@ class ConsumerImpl : public ConsumerImplBase,
     std::string originalSubscriptionName_;
     MessageListener messageListener_;
     ExecutorServicePtr listenerExecutor_;
+    bool hasParent_;
     ConsumerTopicType consumerTopicType_;
 
     Commands::SubscriptionMode subscriptionMode_;
@@ -192,11 +194,11 @@ class ConsumerImpl : public ConsumerImplBase,
     bool messageListenerRunning_;
     std::mutex messageListenerMutex_;
     CompressionCodecProvider compressionCodecProvider_;
-    UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
+    UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
     BrokerConsumerStatsImpl brokerConsumerStats_;
     NegativeAcksTracker negativeAcksTracker_;
-    AckGroupingTrackerScopedPtr ackGroupingTrackerPtr_;
+    AckGroupingTrackerPtr ackGroupingTrackerPtr_;
 
     MessageCryptoPtr msgCrypto_;
     const bool readCompacted_;
@@ -218,6 +220,10 @@ class ConsumerImpl : public ConsumerImplBase,
     // these two declared friend to access setNegativeAcknowledgeEnabledForTesting
     friend class MultiTopicsConsumerImpl;
     friend class PartitionedConsumerImpl;
+
+    FRIEND_TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery);
+    FRIEND_TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery);
+    FRIEND_TEST(ConsumerTest, testBatchUnAckedMessageTracker);
 };
 
 } /* namespace pulsar */

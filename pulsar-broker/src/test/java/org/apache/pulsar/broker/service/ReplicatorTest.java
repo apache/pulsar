@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -69,9 +70,11 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,7 +108,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
+    @AfterClass(alwaysRun = true, timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }
@@ -196,6 +199,24 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(replicationClients3.get("r2"));
 
         // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
+    }
+
+    @Test(timeOut = 10000)
+    public void activeBrokerParse() throws Exception {
+        pulsar1.getConfiguration().setAuthorizationEnabled(true);
+        //init clusterData
+        ClusterData cluster2Data = new ClusterData();
+        String cluster2ServiceUrls = String.format("%s,localhost:1234,localhost:5678", pulsar2.getWebServiceAddress());
+        cluster2Data.setServiceUrl(cluster2ServiceUrls);
+        String cluster2 = "activeCLuster2";
+        admin2.clusters().createCluster(cluster2, cluster2Data);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+                -> admin2.clusters().getCluster(cluster2) != null);
+
+        List<String> list = admin1.brokers().getActiveBrokers(cluster2);
+        assertEquals(list.get(0), url2.toString().replace("http://", ""));
+        //restore configuration
+        pulsar1.getConfiguration().setAuthorizationEnabled(false);
     }
 
     @SuppressWarnings("unchecked")
@@ -609,7 +630,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String replicatorClusterName = topic.getReplicators().keys().get(0);
         Replicator replicator = topic.getPersistentReplicator(replicatorClusterName);
         pulsar2.close();
+        pulsar2 = null;
         pulsar3.close();
+        pulsar3 = null;
         replicator.disconnect(false);
         Thread.sleep(100);
         Field field = AbstractReplicator.class.getDeclaredField("producer");
@@ -925,6 +948,51 @@ public class ReplicatorTest extends ReplicatorTestBase {
         client1.close();
         client2.close();
     }
+
+    @DataProvider(name = "topicPrefix")
+    public static Object[][] topicPrefix() {
+        return new Object[][] { { "persistent://" , "/persistent" }, { "non-persistent://" , "/non-persistent" } };
+    }
+
+    @Test(dataProvider = "topicPrefix")
+    public void testTopicReplicatedAndProducerCreate(String topicPrefix, String topicName) throws Exception {
+        log.info("--- Starting ReplicatorTest::testTopicReplicatedAndProducerCreate ---");
+
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String namespace = "pulsar/ns-" + System.nanoTime();
+        final String partitionedTopicName = topicPrefix + namespace + topicName + "-partitioned";
+        final String nonPartitionedTopicName = topicPrefix + namespace + topicName + "-non-partitioned";
+        final int startPartitions = 4;
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
+        admin1.topics().createNonPartitionedTopic(nonPartitionedTopicName);
+
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        //persistent topic
+        Producer<byte[]> persistentProducer1 = client1.newProducer().topic(partitionedTopicName).create();
+        Producer<byte[]> persistentProducer2 = client2.newProducer().topic(partitionedTopicName).create();
+        assertNotNull(persistentProducer1.send("test".getBytes()));
+        assertNotNull(persistentProducer2.send("test".getBytes()));
+        //non-persistent topic
+        Producer<byte[]> nonPersistentProducer1 = client1.newProducer().topic(nonPartitionedTopicName).create();
+        Producer<byte[]> nonPersistentProducer2 = client2.newProducer().topic(nonPartitionedTopicName).create();
+
+        assertNotNull(nonPersistentProducer1.send("test".getBytes()));
+        assertNotNull(nonPersistentProducer2.send("test".getBytes()));
+
+        persistentProducer1.close();
+        persistentProducer2.close();
+
+        nonPersistentProducer1.close();
+        nonPersistentProducer2.close();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
 }

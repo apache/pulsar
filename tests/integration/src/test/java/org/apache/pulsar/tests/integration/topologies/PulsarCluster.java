@@ -83,6 +83,8 @@ public class PulsarCluster {
     private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
     private PrestoWorkerContainer prestoWorkerContainer;
+    @Getter
+    private Map<String, PrestoWorkerContainer> sqlFollowWorkerContainers;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private final boolean enablePrestoWorker;
 
@@ -93,15 +95,10 @@ public class PulsarCluster {
         this.network = Network.newNetwork();
         this.enablePrestoWorker = spec.enablePrestoWorker();
 
+        this.sqlFollowWorkerContainers = Maps.newTreeMap();
         if (enablePrestoWorker) {
-            prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
-                    .withNetwork(network)
-                    .withNetworkAliases(PrestoWorkerContainer.NAME)
-                    .withEnv("clusterName", clusterName)
-                    .withEnv("zkServers", ZKContainer.NAME)
-                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+            prestoWorkerContainer = buildPrestoWorkerContainer(
+                    PrestoWorkerContainer.NAME, true, null, null);
         } else {
             prestoWorkerContainer = null;
         }
@@ -132,6 +129,12 @@ public class PulsarCluster {
             .withEnv("zookeeperServers", ZKContainer.NAME)
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName);
+        if (spec.proxyEnvs != null) {
+            spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
+        }
+        if (spec.proxyMountFiles != null) {
+            spec.proxyMountFiles.forEach(this.proxyContainer::withFileSystemBind);
+        }
 
         // create bookies
         bookieContainers.putAll(
@@ -150,7 +153,8 @@ public class PulsarCluster {
 
         // create brokers
         brokerContainers.putAll(
-                runNumContainers("broker", spec.numBrokers(), (name) -> new BrokerContainer(clusterName, name)
+            runNumContainers("broker", spec.numBrokers(), (name) -> {
+                    BrokerContainer brokerContainer = new BrokerContainer(clusterName, name)
                         .withNetwork(network)
                         .withNetworkAliases(name)
                         .withEnv("zkServers", ZKContainer.NAME)
@@ -160,9 +164,20 @@ public class PulsarCluster {
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
-                        .withEnv("AWS_SECRET_KEY", "secretkey")
-                )
-        );
+                        .withEnv("AWS_SECRET_KEY", "secretkey");
+                    if (spec.queryLastMessage) {
+                        brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
+                        brokerContainer.withEnv("bookkeeperUseV2WireProtocol", "false");
+                    }
+                    if (spec.brokerEnvs != null) {
+                        brokerContainer.withEnv(spec.brokerEnvs);
+                    }
+                    if (spec.brokerMountFiles != null) {
+                        spec.brokerMountFiles.forEach(brokerContainer::withFileSystemBind);
+                    }
+                    return brokerContainer;
+                }
+            ));
 
         spec.classPathVolumeMounts.forEach((key, value) -> {
             zkContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
@@ -198,6 +213,10 @@ public class PulsarCluster {
 
     public String getZKConnString() {
         return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
+    }
+
+    public String getCSConnString() {
+        return csContainer.getContainerIpAddress() + ":" + csContainer.getMappedPort(CS_PORT);
     }
 
     public Network getNetwork() {
@@ -334,35 +353,76 @@ public class PulsarCluster {
     public void startPrestoWorker(String offloadDriver, String offloadProperties) {
         log.info("[startPrestoWorker] offloadDriver: {}, offloadProperties: {}", offloadDriver, offloadProperties);
         if (null == prestoWorkerContainer) {
-            prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
-                    .withNetwork(network)
-                    .withNetworkAliases(PrestoWorkerContainer.NAME)
-                    .withEnv("clusterName", clusterName)
-                    .withEnv("zkServers", ZKContainer.NAME)
-                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                    .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
-            if (offloadDriver != null && offloadProperties != null) {
-                log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
-                        offloadDriver, offloadProperties);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloader-properties", offloadProperties);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
-                // used in s3 tests
-                prestoWorkerContainer.withEnv("AWS_ACCESS_KEY_ID", "accesskey");
-                prestoWorkerContainer.withEnv("AWS_SECRET_KEY", "secretkey");
-            }
+            prestoWorkerContainer = buildPrestoWorkerContainer(
+                    PrestoWorkerContainer.NAME, true, offloadDriver, offloadProperties);
         }
-        log.info("[startPrestoWorker] Starting Presto Worker");
         prestoWorkerContainer.start();
+        log.info("[{}] Presto coordinator start finished.", prestoWorkerContainer.getContainerName());
     }
 
     public void stopPrestoWorker() {
+        if (sqlFollowWorkerContainers != null && sqlFollowWorkerContainers.size() > 0) {
+            for (PrestoWorkerContainer followWorker : sqlFollowWorkerContainers.values()) {
+                followWorker.stop();
+                log.info("Stopped presto follow worker {}.", followWorker.getContainerName());
+            }
+            sqlFollowWorkerContainers.clear();
+            log.info("Stopped all presto follow workers.");
+        }
         if (null != prestoWorkerContainer) {
             prestoWorkerContainer.stop();
-            log.info("Stopped Presto Worker");
+            log.info("Stopped presto coordinator.");
             prestoWorkerContainer = null;
         }
+    }
+
+    public void startPrestoFollowWorkers(int numSqlFollowWorkers, String offloadDriver, String offloadProperties) {
+        log.info("start presto follow worker containers.");
+        sqlFollowWorkerContainers.putAll(runNumContainers(
+                "sql-follow-worker",
+                numSqlFollowWorkers,
+                (name) -> {
+                    log.info("build presto follow worker with name {}", name);
+                    return buildPrestoWorkerContainer(name, false, offloadDriver, offloadProperties);
+                }
+        ));
+        // Start workers that have been initialized
+        sqlFollowWorkerContainers.values().parallelStream().forEach(PrestoWorkerContainer::start);
+        log.info("Successfully started {} presto follow worker containers.", sqlFollowWorkerContainers.size());
+    }
+
+    private PrestoWorkerContainer buildPrestoWorkerContainer(String hostName, boolean isCoordinator,
+                                                             String offloadDriver, String offloadProperties) {
+        String resourcePath = isCoordinator ? "presto-coordinator-config.properties"
+                : "presto-follow-worker-config.properties";
+        PrestoWorkerContainer container = new PrestoWorkerContainer(
+                clusterName, hostName)
+                .withNetwork(network)
+                .withNetworkAliases(hostName)
+                .withEnv("clusterName", clusterName)
+                .withEnv("zkServers", ZKContainer.NAME)
+                .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
+                .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080")
+                .withClasspathResourceMapping(
+                        resourcePath, "/pulsar/conf/presto/config.properties", BindMode.READ_WRITE);
+        if (spec.queryLastMessage) {
+            container.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
+                    .withEnv("pulsar.bookkeeper-explicit-interval", "10");
+        }
+        if (offloadDriver != null && offloadProperties != null) {
+            log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
+                    offloadDriver, offloadProperties);
+            // used to query from tiered storage
+            container.withEnv("SQL_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
+            container.withEnv("SQL_PREFIX_pulsar.offloader-properties", offloadProperties);
+            container.withEnv("SQL_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
+            container.withEnv("AWS_ACCESS_KEY_ID", "accesskey");
+            container.withEnv("AWS_SECRET_KEY", "secretkey");
+        }
+        log.info("[{}] build presto worker container. isCoordinator: {}, resourcePath: {}",
+                container.getContainerName(), isCoordinator, resourcePath);
+        return container;
     }
 
     public synchronized void setupFunctionWorkers(String suffix, FunctionRuntimeType runtimeType, int numFunctionWorkers) {
@@ -417,7 +477,8 @@ public class PulsarCluster {
                 .withEnv("PF_pulsarFunctionsCluster", clusterName)
                 .withEnv("PF_pulsarServiceUrl", serviceUrl)
                 .withEnv("PF_pulsarWebServiceUrl", httpServiceUrl)
-                .withEnv("PF_threadContainerFactory_threadGroupName", "pf-container-group")
+                .withEnv("PF_functionRuntimeFactoryClassName", "org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory")
+                .withEnv("PF_functionRuntimeFactoryConfigs_threadGroupName", "pf-container-group")
                 // script
                 .withEnv("clusterName", clusterName)
                 .withEnv("zookeeperServers", ZKContainer.NAME)

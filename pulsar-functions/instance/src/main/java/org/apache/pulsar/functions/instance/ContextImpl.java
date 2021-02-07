@@ -21,19 +21,40 @@ package org.apache.pulsar.functions.instance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
-import lombok.Getter;
-import lombok.Setter;
-import org.apache.bookkeeper.api.kv.Table;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.common.functions.ExternalPulsarConfig;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.instance.state.StateContextImpl;
+import org.apache.pulsar.functions.api.StateStore;
+import org.apache.pulsar.functions.instance.state.DefaultStateStore;
+import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
@@ -41,21 +62,14 @@ import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
-import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.ProducerConfigUtils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
-import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 /**
  * This class implements the Context interface exposed to the user.
@@ -67,18 +81,19 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     // Per Message related
     private Record<?> record;
 
-    private PulsarClient client;
-    private Map<String, Producer<?>> publishProducers;
-    private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
-    private ProducerBuilderImpl<?> producerBuilder;
-
-    private final TopicSchema topicSchema;
+    @VisibleForTesting
+    private String defaultPulsarCluster;
+    @VisibleForTesting
+    private Map<String, PulsarCluster> externalPulsarClusters;
 
     private final SecretsProvider secretsProvider;
     private final Map<String, Object> secretsMap;
 
     @VisibleForTesting
-    StateContextImpl stateContext;
+    StateManager stateManager;
+    @VisibleForTesting
+    DefaultStateStore defaultStateStore;
+
     private Map<String, Object> userConfigs;
 
     private ComponentStatsManager statsManager;
@@ -88,6 +103,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final Summary userMetricsSummary;
 
     private final static String[] userMetricsLabelNames;
+
+    private boolean exposePulsarAdminClientEnabled;
 
     static {
         // add label to indicate user metric
@@ -100,30 +117,29 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
-                       Table<ByteBuf, ByteBuf> stateTable) {
+                       StateManager stateManager, PulsarAdmin pulsarAdmin) {
         this.config = config;
         this.logger = logger;
-        this.client = client;
-        this.topicSchema = new TopicSchema(client);
         this.statsManager = statsManager;
 
-        this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
-                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
-        boolean useThreadLocalProducers = false;
-        if (config.getFunctionDetails().getSink().getProducerSpec() != null) {
-            if (config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessages() != 0) {
-                this.producerBuilder.maxPendingMessages(config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessages());
+        this.externalPulsarClusters = new HashMap<>();
+        if (!config.getFunctionDetails().getExternalPulsarsMap().isEmpty()) {
+            Map<String, ExternalPulsarConfig> externalPulsarConfig = new Gson().fromJson(config.getFunctionDetails().getExternalPulsarsMap(),
+                    new TypeToken<Map<String, ExternalPulsarConfig>>() {
+                    }.getType());
+            for (Map.Entry<String, ExternalPulsarConfig> entry : externalPulsarConfig.entrySet()) {
+                try {
+                    this.externalPulsarClusters.put(entry.getKey(),
+                            new PulsarCluster(InstanceUtils.createPulsarClient(entry.getValue().getServiceURL(), entry.getValue().getAuthConfig()),
+                                    config.isExposePulsarAdminClientEnabled() ? InstanceUtils.createPulsarAdminClient(entry.getValue().getWebServiceURL(), entry.getValue().getAuthConfig()) : null,
+                                    ProducerConfigUtils.convert(entry.getValue().getProducerConfig())));
+                } catch (PulsarClientException ex) {
+                    throw new RuntimeException("failed to create pulsar client for external cluster: " + entry.getKey(), ex);
+                }
             }
-            if (config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
-                this.producerBuilder.maxPendingMessagesAcrossPartitions(config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
-            }
-            useThreadLocalProducers = config.getFunctionDetails().getSink().getProducerSpec().getUseThreadLocalProducers();
         }
-        if (useThreadLocalProducers) {
-            tlPublishProducers = new ThreadLocal<>();
-        } else {
-            publishProducers = new HashMap<>();
-        }
+        this.defaultPulsarCluster = "default-" + UUID.randomUUID();
+        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client, config.isExposePulsarAdminClientEnabled() ? pulsarAdmin : null, config.getFunctionDetails().getSink().getProducerSpec()));
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
@@ -166,10 +182,13 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 .quantile(0.999, 0.01)
                 .register(collectorRegistry);
         this.componentType = componentType;
-
-        if (null != stateTable) {
-            this.stateContext = new StateContextImpl(stateTable);
-        }
+        this.stateManager = stateManager;
+        this.defaultStateStore = (DefaultStateStore) stateManager.getStore(
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            config.getFunctionDetails().getName()
+        );
+        this.exposePulsarAdminClientEnabled = config.isExposePulsarAdminClientEnabled();
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -288,88 +307,104 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         }
     }
 
+    @Override
+    public PulsarAdmin getPulsarAdmin() {
+        return getPulsarAdmin(defaultPulsarCluster);
+    }
+
+    @Override
+    public PulsarAdmin getPulsarAdmin(String clusterName) {
+        if (exposePulsarAdminClientEnabled) {
+            PulsarCluster pulsarCluster = externalPulsarClusters.get(clusterName);
+            if (pulsarCluster != null) {
+                return pulsarCluster.getAdminClient();
+            } else {
+                throw new IllegalArgumentException("PulsarAdmin for cluster " + clusterName + " is not available, only "
+                        + externalPulsarClusters.keySet());
+            }
+        } else {
+            throw new IllegalStateException("PulsarAdmin is not enabled in function worker");
+        }
+    }
+
+    @Override
+    public <S extends StateStore> S getStateStore(String name) {
+        return getStateStore(
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            name);
+    }
+
+    @Override
+    public <S extends StateStore> S getStateStore(String tenant, String ns, String name) {
+        return (S) stateManager.getStore(tenant, ns, name);
+    }
+
     private void ensureStateEnabled() {
-        checkState(null != stateContext, "State is not enabled.");
+        checkState(null != defaultStateStore, "State %s/%s/%s is not enabled.",
+            config.getFunctionDetails().getTenant(),
+            config.getFunctionDetails().getNamespace(),
+            config.getFunctionDetails().getName());
     }
 
     @Override
     public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
         ensureStateEnabled();
-        return stateContext.incrCounter(key, amount);
+        return defaultStateStore.incrCounterAsync(key, amount);
     }
 
     @Override
     public void incrCounter(String key, long amount) {
         ensureStateEnabled();
-        try {
-            result(stateContext.incrCounter(key, amount));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
-        }
+        defaultStateStore.incrCounter(key, amount);
     }
 
     @Override
     public CompletableFuture<Long> getCounterAsync(String key) {
         ensureStateEnabled();
-        return stateContext.getCounter(key);
+        return defaultStateStore.getCounterAsync(key);
     }
 
     @Override
     public long getCounter(String key) {
         ensureStateEnabled();
-        try {
-            return result(stateContext.getCounter(key));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
-        }
+        return defaultStateStore.getCounter(key);
     }
 
     @Override
     public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
         ensureStateEnabled();
-        return stateContext.put(key, value);
+        return defaultStateStore.putAsync(key, value);
     }
 
     @Override
     public void putState(String key, ByteBuffer value) {
         ensureStateEnabled();
-        try {
-            result(stateContext.put(key, value));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to update the state value for key '" + key + "'");
-        }
+        defaultStateStore.put(key, value);
     }
 
     @Override
     public CompletableFuture<Void> deleteStateAsync(String key) {
         ensureStateEnabled();
-        return stateContext.delete(key);
+        return defaultStateStore.deleteAsync(key);
     }
 
     @Override
     public void deleteState(String key) {
         ensureStateEnabled();
-        try {
-            result(stateContext.delete(key));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to delete the state value for key '" + key + "'");
-        }
+        defaultStateStore.delete(key);
     }
 
     @Override
     public CompletableFuture<ByteBuffer> getStateAsync(String key) {
         ensureStateEnabled();
-        return stateContext.get(key);
+        return defaultStateStore.getAsync(key);
     }
 
     @Override
     public ByteBuffer getState(String key) {
         ensureStateEnabled();
-        try {
-            return result(stateContext.get(key));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
-        }
+        return defaultStateStore.get(key);
     }
 
     @Override
@@ -380,25 +415,34 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     @SuppressWarnings("unchecked")
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName) {
-        return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
+        return publish(topicName, object, (Schema<O>) externalPulsarClusters.get(defaultPulsarCluster).getTopicSchema().getSchema(topicName, object, schemaOrSerdeClassName, false));
     }
 
     @Override
     public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
+        return newOutputMessage(defaultPulsarCluster, topicName, schema);
+    }
+
+    @Override
+    public <O> TypedMessageBuilder<O> newOutputMessage(String pulsarName, String topicName, Schema<O> schema) throws PulsarClientException {
         MessageBuilderImpl<O> messageBuilder = new MessageBuilderImpl<>();
-        TypedMessageBuilder<O> typedMessageBuilder = getProducer(topicName, schema).newMessage();
+        TypedMessageBuilder<O> typedMessageBuilder = getProducer(pulsarName, topicName, schema).newMessage();
         messageBuilder.setUnderlyingBuilder(typedMessageBuilder);
         return messageBuilder;
     }
 
     @Override
     public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
-        return this.client.newConsumer(schema);
+        return this.externalPulsarClusters.get(defaultPulsarCluster).getClient().newConsumer(schema);
     }
 
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
+        return publish(defaultPulsarCluster, topicName, object, schema);
+    }
+
+    public <O> CompletableFuture<Void> publish(String pulsarName, String topicName, O object, Schema<O> schema) {
         try {
-            return newOutputMessage(topicName, schema).value(object).sendAsync().thenApply(msgId -> null);
+           return newOutputMessage(pulsarName, topicName, schema).value(object).sendAsync().thenApply(msgId -> null);
         } catch (PulsarClientException e) {
             logger.error("Failed to create Producer while doing user publish", e);
             return FutureUtil.failedFuture(e);
@@ -420,22 +464,23 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         }
     }
 
-    private <O> Producer<O> getProducer(String topicName, Schema<O> schema) throws PulsarClientException {
+    private <O> Producer<O> getProducer(String pulsarName, String topicName, Schema<O> schema) throws PulsarClientException {
         Producer<O> producer;
-        if (tlPublishProducers != null) {
-            Map<String, Producer<?>> producerMap = tlPublishProducers.get();
+        PulsarCluster pulsar = externalPulsarClusters.get(pulsarName);
+        if (pulsar.getTlPublishProducers() != null) {
+            Map<String, Producer<?>> producerMap = pulsar.getTlPublishProducers().get();
             if (producerMap == null) {
                 producerMap = new HashMap<>();
-                tlPublishProducers.set(producerMap);
+                pulsar.getTlPublishProducers().set(producerMap);
             }
             producer = (Producer<O>) producerMap.get(topicName);
         } else {
-            producer = (Producer<O>) publishProducers.get(topicName);
+            producer = (Producer<O>) pulsar.getPublishProducers().get(topicName);
         }
 
         if (producer == null) {
 
-            Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
+            Producer<O> newProducer = ((ProducerBuilderImpl<O>) pulsar.getProducerBuilder().clone())
                     .schema(schema)
                     .blockIfQueueFull(true)
                     .enableBatching(true)
@@ -456,10 +501,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                             this.config.getInstanceId()))
                     .create();
 
-            if (tlPublishProducers != null) {
-                tlPublishProducers.get().put(topicName, newProducer);
+            if (pulsar.getTlPublishProducers() != null) {
+                pulsar.getTlPublishProducers().get().put(topicName, newProducer);
             } else {
-                Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
+                Producer<O> existingProducer = (Producer<O>) pulsar.getPublishProducers().putIfAbsent(topicName, newProducer);
 
                 if (existingProducer != null) {
                     // The value in the map was not updated after the concurrent put
@@ -609,15 +654,22 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     public void close() {
         List<CompletableFuture> futures = new LinkedList<>();
 
-        if (publishProducers != null) {
-            for (Producer<?> producer : publishProducers.values()) {
-                futures.add(producer.closeAsync());
+        for (Map.Entry<String, PulsarCluster> pulsarEntry : externalPulsarClusters.entrySet()) {
+            PulsarCluster pulsar = pulsarEntry.getValue();
+            if (pulsar.getPublishProducers() != null) {
+                for (Producer<?> producer : pulsar.getPublishProducers().values()) {
+                    futures.add(producer.closeAsync());
+                }
             }
-        }
 
-        if (tlPublishProducers != null) {
-            for (Producer<?> producer : tlPublishProducers.get().values()) {
-                futures.add(producer.closeAsync());
+            if (pulsar.getTlPublishProducers() != null) {
+                for (Producer<?> producer : pulsar.getTlPublishProducers().get().values()) {
+                    futures.add(producer.closeAsync());
+                }
+            }
+
+            if (exposePulsarAdminClientEnabled && pulsar.getAdminClient() != null) {
+                pulsar.getAdminClient().close();
             }
         }
 

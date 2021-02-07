@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
@@ -33,12 +34,19 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -50,11 +58,12 @@ import lombok.Getter;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.stats.Rate;
@@ -143,9 +152,55 @@ public class DirectProxyHandler {
                 inboundOutboundChannelMap.put(outboundChannel.id() , inboundChannel.id());
             }
 
-
+            if (config.isHaProxyProtocolEnabled()) {
+                if (proxyConnection.hasHAProxyMessage()) {
+                    outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()));
+                } else {
+                    if (inboundChannel.remoteAddress() instanceof InetSocketAddress) {
+                        InetSocketAddress clientAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                        String sourceAddress = clientAddress.getAddress().getHostAddress();
+                        int sourcePort = clientAddress.getPort();
+                        if (outboundChannel.localAddress() instanceof InetSocketAddress) {
+                            InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                            String destinationAddress = proxyAddress.getAddress().getHostAddress();
+                            int destinationPort = proxyAddress.getPort();
+                            HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
+                                    HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort, destinationPort);
+                            outboundChannel.writeAndFlush(encodeProxyProtocolMessage(msg));
+                            msg.release();
+                        }
+                    }
+                }
+            }
         });
     }
+
+    private ByteBuf encodeProxyProtocolMessage(HAProxyMessage msg) {
+        // Max length of v1 version proxy protocol message is 108
+        ByteBuf out = Unpooled.buffer(108);
+        out.writeBytes(TEXT_PREFIX);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(msg.proxiedProtocol().name(), CharsetUtil.US_ASCII);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(msg.sourceAddress(), CharsetUtil.US_ASCII);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(msg.destinationAddress(), CharsetUtil.US_ASCII);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(String.valueOf(msg.sourcePort()), CharsetUtil.US_ASCII);
+        out.writeByte((byte) ' ');
+        out.writeCharSequence(String.valueOf(msg.destinationPort()), CharsetUtil.US_ASCII);
+        out.writeByte((byte) '\r');
+        out.writeByte((byte) '\n');
+        return out;
+    }
+
+    static final byte[] TEXT_PREFIX = {
+            (byte) 'P',
+            (byte) 'R',
+            (byte) 'O',
+            (byte) 'X',
+            (byte) 'Y',
+    };
 
     enum BackendState {
         Init, HandshakeCompleted
@@ -169,7 +224,7 @@ public class DirectProxyHandler {
             this.ctx = ctx;
             // Send the Connect command to broker
             authenticationDataProvider = authentication.getAuthData(remoteHostName);
-            AuthData authData = authenticationDataProvider.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
+            AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             ByteBuf command = null;
             command = Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion, "Pulsar proxy",
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
@@ -209,10 +264,19 @@ public class DirectProxyHandler {
             checkArgument(authChallenge.hasChallenge());
             checkArgument(authChallenge.getChallenge().hasAuthData() && authChallenge.getChallenge().hasAuthData());
 
+            if (Arrays.equals(AuthData.REFRESH_AUTH_DATA_BYTES, authChallenge.getChallenge().getAuthData())) {
+                try {
+                    authenticationDataProvider = authentication.getAuthData(remoteHostName);
+                } catch (PulsarClientException e) {
+                    log.error("{} Error when refreshing authentication data provider: {}", ctx.channel(), e);
+                    return;
+                }
+            }
+
             // mutual authn. If auth not complete, continue auth; if auth complete, complete connectionFuture.
             try {
                 AuthData authData = authenticationDataProvider
-                    .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData().toByteArray()));
+                    .authenticate(AuthData.of(authChallenge.getChallenge().getAuthData()));
 
                 checkState(!authData.isComplete());
 

@@ -72,6 +72,9 @@ type Conf struct {
 	MaxMessageRetries           int32  `json:"maxMessageRetries" yaml:"maxMessageRetries"`
 	DeadLetterTopic             string `json:"deadLetterTopic" yaml:"deadLetterTopic"`
 	ExpectedHealthCheckInterval int32  `json:"expectedHealthCheckInterval" yaml:"expectedHealthCheckInterval"`
+	UserConfig                  string `json:"userConfig" yaml:"userConfig"`
+	//metrics config
+	MetricsPort int `json:"metricsPort" yaml:"metricsPort"`
 }
 
 var (

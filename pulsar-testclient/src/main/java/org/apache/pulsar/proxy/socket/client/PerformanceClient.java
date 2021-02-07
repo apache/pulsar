@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.proxy.socket.client;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -39,6 +42,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +75,7 @@ public class PerformanceClient {
         @Parameter(names = { "--conf-file" }, description = "Configuration file")
         public String confFile;
 
-        @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"", required = true)
+        @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"")
         public String proxyURL;
 
         @Parameter(description = "persistent://tenant/ns/my-topic", required = true)
@@ -143,8 +147,22 @@ public class PerformanceClient {
                 System.exit(1);
             }
 
-            if (arguments.proxyURL == null) {
-                arguments.proxyURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
+            if (isBlank(arguments.proxyURL)) {
+                String webSocketServiceUrl = prop.getProperty("webSocketServiceUrl");
+                if (isNotBlank(webSocketServiceUrl)) {
+                    arguments.proxyURL = webSocketServiceUrl;
+                } else {
+                    String webServiceUrl = isNotBlank(prop.getProperty("webServiceUrl"))
+                            ? prop.getProperty("webServiceUrl")
+                            : prop.getProperty("serviceUrl");
+                    if (isNotBlank(webServiceUrl)) {
+                        if (webServiceUrl.startsWith("ws://") || webServiceUrl.startsWith("wss://")) {
+                            arguments.proxyURL = webServiceUrl;
+                        } else if (webServiceUrl.startsWith("http://") || webServiceUrl.startsWith("https://")) {
+                            arguments.proxyURL = webServiceUrl.replaceFirst("^http", "ws");
+                        }
+                    }
+                }
             }
 
             if (arguments.authPluginClassName == null) {
@@ -154,6 +172,14 @@ public class PerformanceClient {
             if (arguments.authParams == null) {
                 arguments.authParams = prop.getProperty("authParams", null);
             }
+        }
+
+        if (isBlank(arguments.proxyURL)) {
+            arguments.proxyURL = "ws://localhost:8080/";
+        }
+
+        if (!arguments.proxyURL.endsWith("/")) {
+            arguments.proxyURL += "/";
         }
 
         arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
@@ -166,7 +192,9 @@ public class PerformanceClient {
             String topicName, String authPluginClassName, String authParams) throws InterruptedException, FileNotFoundException {
         ExecutorService executor = Executors.newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
         HashMap<String, Tuple> producersMap = new HashMap<>();
-        String produceBaseEndPoint = baseUrl + "ws/producer" + topicName;
+        String restPath = TopicName.get(topicName).getRestPath();
+        String produceBaseEndPoint = TopicName.get(topicName).isV2() ?
+                baseUrl + "ws/v2/producer/" + restPath : baseUrl + "ws/producer/" + restPath;
         for (int i = 0; i < numOfTopic; i++) {
             String topic = numOfTopic > 1 ? produceBaseEndPoint + String.valueOf(i) : produceBaseEndPoint;
             URI produceUri = URI.create(topic);

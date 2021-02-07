@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.google.common.base.MoreObjects;
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-
-import com.google.common.base.MoreObjects;
 
 public class SimpleResourceUnit implements ResourceUnit {
 
@@ -58,8 +57,9 @@ public class SimpleResourceUnit implements ResourceUnit {
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof SimpleResourceUnit))
+        if (!(o instanceof SimpleResourceUnit)) {
             return false;
+        }
         SimpleResourceUnit other = (SimpleResourceUnit) o;
         return this.resourceId.equals(other.resourceId);
     }
@@ -73,5 +73,4 @@ public class SimpleResourceUnit implements ResourceUnit {
     public String toString() {
         return MoreObjects.toStringHelper(this).add("resourceId", resourceId).toString();
     }
-    
 }

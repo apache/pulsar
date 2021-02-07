@@ -36,7 +36,7 @@ public class LoadReportNetworkLimit extends MockedPulsarServiceBaseTest {
         super.internalSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

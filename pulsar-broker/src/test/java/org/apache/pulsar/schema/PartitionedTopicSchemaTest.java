@@ -64,7 +64,7 @@ public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(PARTITIONED_TOPIC, TOPIC_PARTITION);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

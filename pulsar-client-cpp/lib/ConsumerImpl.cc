@@ -36,16 +36,18 @@ namespace pulsar {
 DECLARE_LOG_OBJECT()
 
 ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
-                           const std::string& subscription, const ConsumerConfiguration& conf,
+                           const std::string& subscriptionName, const ConsumerConfiguration& conf,
                            const ExecutorServicePtr listenerExecutor /* = NULL by default */,
+                           bool hasParent /* = false by default */,
                            const ConsumerTopicType consumerTopicType /* = NonPartitioned by default */,
                            Commands::SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId)
     : HandlerBase(client, topic, Backoff(milliseconds(100), seconds(60), milliseconds(0))),
       waitingForZeroQueueSizeMessage(false),
       config_(conf),
-      subscription_(subscription),
-      originalSubscriptionName_(subscription),
+      subscription_(subscriptionName),
+      originalSubscriptionName_(subscriptionName),
       messageListener_(config_.getMessageListener()),
+      hasParent_(hasParent),
       consumerTopicType_(consumerTopicType),
       subscriptionMode_(subscriptionMode),
       startMessageId_(startMessageId),
@@ -58,10 +60,11 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       partitionIndex_(-1),
       consumerCreatedPromise_(),
       messageListenerRunning_(true),
-      batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_),
+      batchAcknowledgementTracker_(topic_, subscriptionName, (long)consumerId_),
       brokerConsumerStats_(),
       consumerStatsBasePtr_(),
       negativeAcksTracker_(client, *this, conf),
+      ackGroupingTrackerPtr_(std::make_shared<AckGroupingTracker>()),
       msgCrypto_(),
       readCompacted_(conf.isReadCompacted()),
       lastMessageInBroker_(Optional<MessageId>::of(MessageId())) {
@@ -102,23 +105,6 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
     if (conf.isEncryptionEnabled()) {
         msgCrypto_ = std::make_shared<MessageCrypto>(consumerStr_, false);
     }
-
-    // Initialize ACK grouping tracker.
-    if (TopicName::get(topic)->isPersistent()) {
-        // Persistent topic, ACK requests need to be sent to broker.
-        if (conf.getAckGroupingTimeMs() > 0) {
-            // Grouping ACK is ENABLED because grouping time value is a positive value.
-            this->ackGroupingTrackerPtr_.reset(new AckGroupingTrackerEnabled(
-                client, *this, this->consumerId_, conf.getAckGroupingTimeMs(), conf.getAckGroupingMaxSize()));
-        } else {
-            // Grouping ACK is DISABLED because grouping time value is a non-positive value.
-            this->ackGroupingTrackerPtr_.reset(new AckGroupingTrackerDisabled(*this, this->consumerId_));
-        }
-    } else {
-        // Non-persistent topic, ACK requests do NOT need to be sent to broker.
-        LOG_INFO(getName() << "ACK will NOT be sent to broker for this non-persistent topic.");
-        this->ackGroupingTrackerPtr_.reset(new AckGroupingTracker());
-    }
 }
 
 ConsumerImpl::~ConsumerImpl() {
@@ -156,7 +142,24 @@ const std::string& ConsumerImpl::getSubscriptionName() const { return originalSu
 
 const std::string& ConsumerImpl::getTopic() const { return topic_; }
 
-void ConsumerImpl::start() { grabCnx(); }
+void ConsumerImpl::start() {
+    HandlerBase::start();
+
+    // Initialize ackGroupingTrackerPtr_ here because the shared_from_this() was not initialized until the
+    // constructor completed.
+    if (TopicName::get(topic_)->isPersistent()) {
+        if (config_.getAckGroupingTimeMs() > 0) {
+            ackGroupingTrackerPtr_.reset(new AckGroupingTrackerEnabled(
+                client_.lock(), shared_from_this(), consumerId_, config_.getAckGroupingTimeMs(),
+                config_.getAckGroupingMaxSize()));
+        } else {
+            ackGroupingTrackerPtr_.reset(new AckGroupingTrackerDisabled(*this, consumerId_));
+        }
+    } else {
+        LOG_INFO(getName() << "ACK will NOT be sent to broker for this non-persistent topic.");
+    }
+    ackGroupingTrackerPtr_->start();
+}
 
 void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     Lock lock(mutex_);
@@ -180,9 +183,10 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    SharedBuffer cmd = Commands::newSubscribe(
-        topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
-        startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition());
+    SharedBuffer cmd =
+        Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_,
+                               subscriptionMode_, startMessageId_, readCompacted_, config_.getProperties(),
+                               config_.getSchema(), getInitialPosition(), config_.getKeySharedPolicy());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
@@ -326,6 +330,10 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
     m.impl_->cnx_ = cnx.get();
     m.impl_->setTopicName(topic_);
     m.impl_->setRedeliveryCount(msg.redelivery_count());
+
+    if (metadata.has_schema_version()) {
+        m.impl_->setSchemaVersion(metadata.schema_version());
+    }
 
     LOG_DEBUG(getName() << " metadata.num_messages_in_batch() = " << metadata.num_messages_in_batch());
     LOG_DEBUG(getName() << " metadata.has_num_messages_in_batch() = "
@@ -557,7 +565,6 @@ void ConsumerImpl::internalListener() {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
-    unAckedMessageTrackerPtr_->add(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
         lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
@@ -632,7 +639,6 @@ void ConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     if (incomingMessages_.pop(msg, std::chrono::milliseconds(0))) {
         lock.unlock();
         messageProcessed(msg);
-        unAckedMessageTrackerPtr_->add(msg.getMessageId());
         callback(ResultOk, msg);
     } else {
         pendingReceives_.push(callback);
@@ -666,7 +672,6 @@ Result ConsumerImpl::receiveHelper(Message& msg) {
 
     incomingMessages_.pop(msg);
     messageProcessed(msg);
-    unAckedMessageTrackerPtr_->add(msg.getMessageId());
     return ResultOk;
 }
 
@@ -696,7 +701,6 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
 
     if (incomingMessages_.pop(msg, std::chrono::milliseconds(timeout))) {
         messageProcessed(msg);
-        unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
         return ResultTimeout;
@@ -714,6 +718,7 @@ void ConsumerImpl::messageProcessed(Message& msg) {
     }
 
     increaseAvailablePermits(currentCnx);
+    trackMessage(msg);
 }
 
 /**
@@ -880,7 +885,9 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
     state_ = Closing;
 
     // Flush pending grouped ACK requests.
-    this->ackGroupingTrackerPtr_->close();
+    if (ackGroupingTrackerPtr_) {
+        ackGroupingTrackerPtr_->close();
+    }
 
     ClientConnectionPtr cnx = getCnx().lock();
     if (!cnx) {
@@ -1222,6 +1229,14 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
 
 void ConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
     negativeAcksTracker_.setEnabledForTesting(enabled);
+}
+
+void ConsumerImpl::trackMessage(const Message& msg) {
+    if (hasParent_) {
+        unAckedMessageTrackerPtr_->remove(msg.getMessageId());
+    } else {
+        unAckedMessageTrackerPtr_->add(msg.getMessageId());
+    }
 }
 
 } /* namespace pulsar */

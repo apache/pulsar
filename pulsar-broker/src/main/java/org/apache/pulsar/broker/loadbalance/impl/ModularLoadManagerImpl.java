@@ -19,30 +19,26 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
-
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
-
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -63,12 +59,13 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -130,7 +127,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
     // Used to distribute bundles within a namespace evenly across brokers.
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
+    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
+            brokerToNamespaceToBundleRange;
 
     // Path to the ZNode containing the LocalBrokerData json for this broker.
     private String brokerZnodePath;
@@ -335,18 +333,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // For each broker that we have a recent load report, see if they are still alive
     private void reapDeadBrokerPreallocations(Set<String> aliveBrokers) {
-        for ( String broker : loadData.getBrokerData().keySet() ) {
-            if ( !aliveBrokers.contains(broker)) {
-                if ( log.isDebugEnabled() ) {
+        for (String broker : loadData.getBrokerData().keySet()) {
+            if (!aliveBrokers.contains(broker)) {
+                if (log.isDebugEnabled()) {
                     log.debug("Broker {} appears to have stopped; now reclaiming any preallocations", broker);
                 }
                 final Iterator<Map.Entry<String, String>> iterator = preallocatedBundleToBroker.entrySet().iterator();
-                while ( iterator.hasNext() ) {
+                while (iterator.hasNext()) {
                     Map.Entry<String, String> entry = iterator.next();
                     final String preallocatedBundle = entry.getKey();
                     final String preallocatedBroker = entry.getValue();
-                    if ( broker.equals(preallocatedBroker) ) {
-                        if ( log.isDebugEnabled() ) {
+                    if (broker.equals(preallocatedBroker)) {
+                        if (log.isDebugEnabled()) {
                             log.debug("Removing old preallocation on dead broker {} for bundle {}",
                                     preallocatedBroker, preallocatedBundle);
                         }
@@ -452,9 +450,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                                                 localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
                                         percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
-            log.info("Writing local data to ZooKeeper because maximum change {}% exceeded threshold {}%; " +
-                    "time since last report written is {} seconds", maxChange,
-                    conf.getLoadBalancerReportUpdateThresholdPercentage(), timeSinceLastReportWrittenToZooKeeper/1000.0);
+            log.info("Writing local data to ZooKeeper because maximum change {}% exceeded threshold {}%; "
+                            + "time since last report written is {} seconds", maxChange,
+                    conf.getLoadBalancerReportUpdateThresholdPercentage(),
+                    timeSinceLastReportWrittenToZooKeeper / 1000.0);
             return true;
         }
         return false;
@@ -539,8 +538,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             synchronized (preallocatedBundleData) {
                 for (String preallocatedBundleName : brokerData.getPreallocatedBundleData().keySet()) {
                     if (brokerData.getLocalData().getBundles().contains(preallocatedBundleName)) {
-                        final Iterator<Map.Entry<String, BundleData>> preallocatedIterator = preallocatedBundleData.entrySet()
-                                .iterator();
+                        final Iterator<Map.Entry<String, BundleData>> preallocatedIterator =
+                                preallocatedBundleData.entrySet()
+                                        .iterator();
                         while (preallocatedIterator.hasNext()) {
                             final String bundle = preallocatedIterator.next().getKey();
 
@@ -558,8 +558,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             // Using the newest data, update the aggregated time-average data for the current broker.
             brokerData.getTimeAverageData().reset(statsMap.keySet(), bundleData, defaultStats);
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
-                    .computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>());
+            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
+                    brokerToNamespaceToBundleRange
+                            .computeIfAbsent(broker, k -> new ConcurrentOpenHashMap<>());
             synchronized (namespaceToBundleRange) {
                 namespaceToBundleRange.clear();
                 LoadManagerShared.fillNamespaceToBundlesMap(statsMap.keySet(), namespaceToBundleRange);
@@ -654,9 +655,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     public boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker) {
         try {
-            Optional<Policies> nsPolicies = pulsar.getConfigurationCache().policiesCache()
-                    .get(path(POLICIES, namespace));
-            if (!nsPolicies.isPresent() || StringUtils.isBlank(nsPolicies.get().antiAffinityGroup)) {
+            Optional<LocalPolicies> nsPolicies = pulsar.getLocalZkCacheService().policiesCache()
+                    .get(joinPath(LOCAL_POLICIES_ROOT, namespace));
+            if (!nsPolicies.isPresent() || StringUtils.isBlank(nsPolicies.get().namespaceAntiAffinityGroup)) {
                 return true;
             }
 
@@ -751,6 +752,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         scheduler.submit(this::updateAll);
     }
 
+    private static final Summary selectBrokerForAssignment = Summary.build(
+            "pulsar_broker_load_manager_bundle_assigment", "-")
+            .quantile(0.50)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(1.0)
+            .register();
+
     /**
      * As the leader broker, find a suitable broker for the assignment of the given bundle.
      *
@@ -761,81 +770,93 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     @Override
     public Optional<String> selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
         // Use brokerCandidateCache as a lock to reduce synchronization.
-        synchronized (brokerCandidateCache) {
-            final String bundle = serviceUnit.toString();
-            if (preallocatedBundleToBroker.containsKey(bundle)) {
-                // If the given bundle is already in preallocated, return the selected broker.
-                return Optional.of(preallocatedBundleToBroker.get(bundle));
-            }
-            final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
-                    key -> getBundleDataOrDefault(bundle));
-            brokerCandidateCache.clear();
-            LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
-                    brokerTopicLoadingPredicate);
+        long startTime = System.nanoTime();
 
-            // filter brokers which owns topic higher than threshold
-            LoadManagerShared.filterBrokersWithLargeTopicCount(brokerCandidateCache, loadData,
-                    conf.getLoadBalancerBrokerMaxTopics());
-
-            // distribute namespaces to domain and brokers according to anti-affinity-group
-            LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, serviceUnit.toString(), brokerCandidateCache,
-                    brokerToNamespaceToBundleRange, brokerToFailureDomainMap);
-            // distribute bundles evenly to candidate-brokers
-
-            LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
-                    brokerToNamespaceToBundleRange);
-            log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
-
-            // Use the filter pipeline to finalize broker candidates.
-            try {
-                for (BrokerFilter filter : filterPipeline) {
-                    filter.filter(brokerCandidateCache, data, loadData, conf);
+        try {
+            synchronized (brokerCandidateCache) {
+                final String bundle = serviceUnit.toString();
+                if (preallocatedBundleToBroker.containsKey(bundle)) {
+                    // If the given bundle is already in preallocated, return the selected broker.
+                    return Optional.of(preallocatedBundleToBroker.get(bundle));
                 }
-            } catch ( BrokerFilterException x ) {
-                // restore the list of brokers to the full set
-                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
+                final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
+                        key -> getBundleDataOrDefault(bundle));
+                brokerCandidateCache.clear();
+                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+                        getAvailableBrokers(),
                         brokerTopicLoadingPredicate);
-            }
 
-            if ( brokerCandidateCache.isEmpty() ) {
-                // restore the list of brokers to the full set
-                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
-                        brokerTopicLoadingPredicate);
-            }
+                // filter brokers which owns topic higher than threshold
+                LoadManagerShared.filterBrokersWithLargeTopicCount(brokerCandidateCache, loadData,
+                        conf.getLoadBalancerBrokerMaxTopics());
 
-            // Choose a broker among the potentially smaller filtered list, when possible
-            Optional<String> broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
-            if (log.isDebugEnabled()) {
-                log.debug("Selected broker {} from candidate brokers {}", broker, brokerCandidateCache);
-            }
+                // distribute namespaces to domain and brokers according to anti-affinity-group
+                LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, serviceUnit.toString(),
+                        brokerCandidateCache,
+                        brokerToNamespaceToBundleRange, brokerToFailureDomainMap);
+                // distribute bundles evenly to candidate-brokers
 
-            if (!broker.isPresent()) {
-                // No brokers available
+                LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
+                        brokerToNamespaceToBundleRange);
+                log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
+
+                // Use the filter pipeline to finalize broker candidates.
+                try {
+                    for (BrokerFilter filter : filterPipeline) {
+                        filter.filter(brokerCandidateCache, data, loadData, conf);
+                    }
+                } catch (BrokerFilterException x) {
+                    // restore the list of brokers to the full set
+                    LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+                            getAvailableBrokers(),
+                            brokerTopicLoadingPredicate);
+                }
+
+                if (brokerCandidateCache.isEmpty()) {
+                    // restore the list of brokers to the full set
+                    LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+                            getAvailableBrokers(),
+                            brokerTopicLoadingPredicate);
+                }
+
+                // Choose a broker among the potentially smaller filtered list, when possible
+                Optional<String> broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                if (log.isDebugEnabled()) {
+                    log.debug("Selected broker {} from candidate brokers {}", broker, brokerCandidateCache);
+                }
+
+                if (!broker.isPresent()) {
+                    // No brokers available
+                    return broker;
+                }
+
+                final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+                final double maxUsage = loadData.getBrokerData().get(broker.get()).getLocalData().getMaxResourceUsage();
+                if (maxUsage > overloadThreshold) {
+                    // All brokers that were in the filtered list were overloaded, so check if there is a better broker
+                    LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+                            getAvailableBrokers(),
+                            brokerTopicLoadingPredicate);
+                    broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                }
+
+                // Add new bundle to preallocated.
+                loadData.getBrokerData().get(broker.get()).getPreallocatedBundleData().put(bundle, data);
+                preallocatedBundleToBroker.put(bundle, broker.get());
+
+                final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+                final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
+                        brokerToNamespaceToBundleRange
+                                .computeIfAbsent(broker.get(), k -> new ConcurrentOpenHashMap<>());
+                synchronized (namespaceToBundleRange) {
+                    namespaceToBundleRange.computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>())
+                            .add(bundleRange);
+                }
                 return broker;
             }
-
-            final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
-            final double maxUsage = loadData.getBrokerData().get(broker.get()).getLocalData().getMaxResourceUsage();
-            if (maxUsage > overloadThreshold) {
-                // All brokers that were in the filtered list were overloaded, so check if there is a better broker
-                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
-                        brokerTopicLoadingPredicate);
-                broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
-            }
-
-            // Add new bundle to preallocated.
-            loadData.getBrokerData().get(broker.get()).getPreallocatedBundleData().put(bundle, data);
-            preallocatedBundleToBroker.put(bundle, broker.get());
-
-            final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
-            final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange = brokerToNamespaceToBundleRange
-                    .computeIfAbsent(broker.get(), k -> new ConcurrentOpenHashMap<>());
-            synchronized (namespaceToBundleRange) {
-                namespaceToBundleRange.computeIfAbsent(namespaceName, k -> new ConcurrentOpenHashSet<>())
-                        .add(bundleRange);
-            }
-            return broker;
+        } finally {
+            selectBrokerForAssignment.observe(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
         }
     }
 
@@ -971,16 +992,21 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void writeBrokerDataOnZooKeeper() {
+        writeBrokerDataOnZooKeeper(false);
+    }
+
+    @Override
+    public void writeBrokerDataOnZooKeeper(boolean force) {
         try {
             updateLocalBrokerData();
-            if (needBrokerDataUpdate()) {
+            if (needBrokerDataUpdate() || force) {
                 localData.setLastUpdate(System.currentTimeMillis());
 
                 try {
                     zkClient.setData(brokerZnodePath, localData.getJsonBytes(), -1);
                 } catch (KeeperException.NoNodeException e) {
                     ZkUtils.createFullPathOptimistic(zkClient, brokerZnodePath, localData.getJsonBytes(),
-                            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
                 }
 
                 // Clear deltas.
@@ -1081,7 +1107,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         try {
             return brokerDataCache.get(key).orElse(null);
         } catch (Exception e) {
-            log.warn("Failed to get local-broker data for {}",broker, e);
+            log.warn("Failed to get local-broker data for {}", broker, e);
             return null;
         }
     }

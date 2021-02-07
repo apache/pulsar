@@ -20,24 +20,21 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
-
 import java.util.Collections;
 import java.util.List;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.service.persistent.TransactionReader;
-import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
-
 
 @Slf4j
 public abstract class AbstractBaseDispatcher implements Dispatcher {
@@ -70,11 +67,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
                                          SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-                                         ManagedCursor cursor, TransactionReader transactionReader) {
+                                         ManagedCursor cursor, boolean isReplayRead) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
-
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
             if (entry == null) {
@@ -85,52 +81,65 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
             MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
 
-            try {
-                if (Markers.isTxnCommitMarker(msgMetadata)) {
-                    entries.set(i, null);
-                    transactionReader.addPendingTxn(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits());
-                    continue;
-                } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
-                    PositionImpl pos = (PositionImpl) entry.getPosition();
-                    // Message metadata was corrupted or the messages was a server-only marker
-
-                    if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
-                        processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
-                    }
-
+            if (!isReplayRead && msgMetadata != null
+                    && msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+                if (Markers.isTxnMarker(msgMetadata)) {
                     entries.set(i, null);
                     entry.release();
-                    subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
+                    continue;
+                } else if (((PersistentTopic) subscription.getTopic()).isTxnAborted(
+                        new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()))) {
+                    subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
                             Collections.emptyMap());
-                    continue;
-                } else if (msgMetadata.hasDeliverAtTime()
-                        && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
-                    // The message is marked for delayed delivery. Ignore for now.
                     entries.set(i, null);
                     entry.release();
                     continue;
                 }
+            } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
+                PositionImpl pos = (PositionImpl) entry.getPosition();
+                // Message metadata was corrupted or the messages was a server-only marker
 
-                if (entry instanceof TransactionEntryImpl) {
-                    ((TransactionEntryImpl) entry).setStartBatchIndex(
-                            transactionReader.calculateStartBatchIndex(msgMetadata.getNumMessagesInBatch()));
+                if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
+                    processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
                 }
 
-                int batchSize = msgMetadata.getNumMessagesInBatch();
-                totalMessages += batchSize;
-                totalBytes += metadataAndPayload.readableBytes();
-                totalChunkedMessages += msgMetadata.hasChunkId() ? 1: 0;
-                batchSizes.setBatchSize(i, batchSize);
-                if (indexesAcks != null && cursor != null) {
-                    long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
-                    if (ackSet != null) {
-                        indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
-                    } else {
-                        indexesAcks.setIndexesAcks(i,null);
-                    }
+                entries.set(i, null);
+                entry.release();
+                subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
+                        Collections.emptyMap());
+                continue;
+            } else if (msgMetadata.hasDeliverAtTime()
+                    && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+                // The message is marked for delayed delivery. Ignore for now.
+                entries.set(i, null);
+                entry.release();
+                continue;
+            }
+
+            int batchSize = msgMetadata.getNumMessagesInBatch();
+            totalMessages += batchSize;
+            totalBytes += metadataAndPayload.readableBytes();
+            totalChunkedMessages += msgMetadata.hasChunkId() ? 1 : 0;
+            batchSizes.setBatchSize(i, batchSize);
+            long[] ackSet = null;
+            if (indexesAcks != null && cursor != null) {
+                ackSet = cursor.getDeletedBatchIndexesAsLongArray(
+                        PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                if (ackSet != null) {
+                    indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+                } else {
+                    indexesAcks.setIndexesAcks(i, null);
                 }
-            } finally {
-                msgMetadata.recycle();
+            }
+
+            BrokerInterceptor interceptor = subscription.interceptor();
+            if (null != interceptor) {
+                interceptor.beforeSendMessage(
+                    subscription,
+                    entry,
+                    ackSet,
+                    msgMetadata
+                );
             }
         }
 
@@ -156,20 +165,11 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         // noop
     }
 
-    public static final String NONE_KEY = "NONE_KEY";
-
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
-        metadataAndPayload.markReaderIndex();
-        PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-        metadataAndPayload.resetReaderIndex();
-        byte[] key = NONE_KEY.getBytes();
-        if (metadata.hasOrderingKey()) {
-            return metadata.getOrderingKey().toByteArray();
-        } else if (metadata.hasPartitionKey()) {
-            return metadata.getPartitionKey().getBytes();
-        }
-        metadata.recycle();
-        return key;
+        return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
     }
 
+    protected void addMessageToReplay(long ledgerId, long entryId) {
+        // No-op
+    }
 }

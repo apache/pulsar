@@ -127,7 +127,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         super.init();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

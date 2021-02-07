@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.cache;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -31,8 +32,6 @@ import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Cache service and ZooKeeper read/write access for resource quota.
@@ -69,7 +68,7 @@ public class ResourceQuotaCache {
     }
 
     // generate path for a specified ServiceUnit, return root path if suName is null or empty
-    private static final String path(String suName) {
+    private static String path(String suName) {
         if (suName != null && !suName.isEmpty()) {
             return RESOURCE_QUOTA_ROOT + "/namespace/" + suName;
         } else {

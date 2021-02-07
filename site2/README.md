@@ -77,11 +77,9 @@ The markdown files placed in the `docs` directory adopt a flat structure.
 │   ├── admin-api-brokers.md
 │   ├── admin-api-clusters.md
 │   ├── admin-api-namespaces.md
-│   ├── admin-api-non-persistent-topics.md
 │   ├── admin-api-overview.md
-│   ├── admin-api-partitioned-topics.md
 │   ├── admin-api-permissions.md
-│   ├── admin-api-persistent-topics.md
+│   ├── admin-api-topics.md
 │   ├── admin-api-tenants.md
 │   ├── administration-dashboard.md
 │   ├── administration-geo.md

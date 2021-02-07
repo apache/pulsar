@@ -10,7 +10,7 @@ All the methods in [producers](#producers), [consumers](#consumers), and [reader
 
 ## Installation
 
-You can install the [`pusar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
+You can install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
 
 ### Requirements
 Pulsar Node.js client library is based on the C++ client library.
@@ -226,7 +226,7 @@ Pulsar Node.js consumers have the following methods available:
 | :-------- | :---------- | :------ |
 | `topic` | The Pulsar [topic](reference-terminology.md#topic) on which the consumer will establish a subscription and listen for messages. | |
 | `subscription` | The subscription name for this consumer. | |
-| `subscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover`. | `Exclusive` |
+| `subscriptionType` | Available options are `Exclusive`, `Shared`, `Key_Shared`, and `Failover`. | `Exclusive` |
 | `subscriptionInitialPosition` | Initial position at which to set cursor when subscribing to a topic at first time. | `SubscriptionInitialPosition.Latest` |
 | `ackTimeoutMs` | Acknowledge timeout in milliseconds. | 0 |
 | `nAckRedeliverTimeoutMs` | Delay to wait before redelivering messages that failed to be processed. | 60000 |

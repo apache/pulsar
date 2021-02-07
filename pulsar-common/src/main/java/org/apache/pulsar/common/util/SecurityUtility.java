@@ -29,6 +29,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyManagementException;
@@ -49,6 +50,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
+
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -56,6 +59,7 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
@@ -71,6 +75,7 @@ public class SecurityUtility {
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
     public static final String BC_FIPS = "BCFIPS";
     public static final String BC = "BC";
+    private static final String SSLCONTEXT_ALGORITHM = "TLSv1.2";
 
     public static boolean isBCFIPS() {
         return BC_PROVIDER.getClass().getCanonicalName().equals(BC_FIPS_PROVIDER_CLASS);
@@ -100,14 +105,7 @@ public class SecurityUtility {
             return getBCProviderFromClassPath();
         } catch (Exception e) {
             log.warn("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path:", e);
-        }
-
-        // failed to get from class path. try to get from Nar file.
-        try {
-            // User need set the bc nar path in java env.
-            return SearchBcNarUtils.getBcProvider(System.getProperty("BcPath"));
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
+            throw new RuntimeException(e);
         }
     }
 
@@ -154,6 +152,37 @@ public class SecurityUtility {
         return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey);
     }
 
+    /**
+     * Creates {@link SslContext} with capability to do auto-cert refresh.
+     * @param allowInsecureConnection
+     * @param trustCertsFilePath
+     * @param certFilePath
+     * @param keyFilePath
+     * @param sslContextAlgorithm
+     * @param refreshDurationSec
+     * @param executor
+     * @return
+     * @throws GeneralSecurityException
+     * @throws SSLException
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
+    public static SslContext createAutoRefreshSslContextForClient(boolean allowInsecureConnection,
+            String trustCertsFilePath, String certFilePath, String keyFilePath, String sslContextAlgorithm,
+            int refreshDurationSec, ScheduledExecutorService executor)
+            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+        KeyManagerProxy keyManager = new KeyManagerProxy(certFilePath, keyFilePath, refreshDurationSec, executor);
+        SslContextBuilder sslContexBuilder = SslContextBuilder.forClient();
+        sslContexBuilder.keyManager(keyManager);
+        if (allowInsecureConnection) {
+            sslContexBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+        } else {
+            TrustManagerProxy trustManager = new TrustManagerProxy(trustCertsFilePath, refreshDurationSec, executor);
+            sslContexBuilder.trustManager(trustManager);
+        }
+        return sslContexBuilder.build();
+    }
+
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
             String certFilePath, String keyFilePath)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
@@ -165,8 +194,23 @@ public class SecurityUtility {
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
             Certificate[] certificates, PrivateKey privateKey)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
+
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
+                return createNettySslContextForClient(allowInsecureConnection, trustCertsStream, certificates,
+                        privateKey);
+            }
+        } else {
+            return createNettySslContextForClient(allowInsecureConnection, (InputStream) null, certificates,
+                    privateKey);
+        }
+    }
+
+    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection,
+            InputStream trustCertsStream, Certificate[] certificates, PrivateKey privateKey)
+            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         SslContextBuilder builder = SslContextBuilder.forClient();
-        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
+        setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
         setupKeyManager(builder, privateKey, (X509Certificate[]) certificates);
         return builder.build();
     }
@@ -181,7 +225,13 @@ public class SecurityUtility {
         SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
-        setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
+                setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
+            }
+        } else {
+            setupTrustCerts(builder, allowInsecureConnection, null);
+        }
         setupKeyManager(builder, privateKey, certificates);
         setupClientAuthentication(builder, requireTrustedClientCertOnConnect);
         return builder.build();
@@ -292,7 +342,7 @@ public class SecurityUtility {
             return privateKey;
         }
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream, StandardCharsets.UTF_8))) {
             if (inStream.markSupported()) {
                 inStream.reset();
             }
@@ -300,7 +350,7 @@ public class SecurityUtility {
             String currentLine = null;
 
             // Jump to the first line after -----BEGIN [RSA] PRIVATE KEY-----
-            while (!reader.readLine().startsWith("-----BEGIN")) {
+            while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----BEGIN")) {
                 reader.readLine();
             }
 
@@ -320,14 +370,12 @@ public class SecurityUtility {
     }
 
     private static void setupTrustCerts(SslContextBuilder builder, boolean allowInsecureConnection,
-            String trustCertsFilePath) throws IOException, FileNotFoundException {
+            InputStream trustCertsStream) throws IOException, FileNotFoundException {
         if (allowInsecureConnection) {
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {
-            if (trustCertsFilePath != null && trustCertsFilePath.length() != 0) {
-                try (FileInputStream input = new FileInputStream(trustCertsFilePath)) {
-                    builder.trustManager(input);
-                }
+            if (trustCertsStream != null) {
+                builder.trustManager(trustCertsStream);
             } else {
                 builder.trustManager((File) null);
             }

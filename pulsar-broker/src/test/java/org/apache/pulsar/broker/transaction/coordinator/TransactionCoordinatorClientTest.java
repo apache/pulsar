@@ -47,9 +47,9 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
 
         for (PulsarService pulsarService : pulsarServices) {
             TransactionBufferClient tbClient = Mockito.mock(TransactionBufferClientImpl.class);
-            Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
             Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
@@ -92,7 +92,7 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
         try {
             transactionCoordinatorClient.abort(txnID);
             Assert.fail("Should be fail, because the txn is in committing state, can't abort now.");
-        } catch (TransactionCoordinatorClientException.InvalidTxnStatusException ignore) {
+        } catch (TransactionCoordinatorClientException ignore) {
            // Ok here
         }
     }

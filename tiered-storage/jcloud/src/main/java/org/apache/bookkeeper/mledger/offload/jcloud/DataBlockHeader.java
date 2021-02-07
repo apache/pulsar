@@ -22,12 +22,12 @@ import java.io.InputStream;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
 /**
- * The data block header in code storage for each data block
+ * The data block header in tiered storage for each data block.
  *
- * Currently, It is in format:
+ * <p>Currently, It is in format:
  * [ magic_word -- int ][ block_len -- int ][ first_entry_id  -- long][padding]
  *
- * with the size: 4 + 4 + 8 + padding = 128 Bytes
+ * with the size: 4 + 4 + 8 + padding = 128 Bytes</p>
  */
 @Unstable
 public interface DataBlockHeader {

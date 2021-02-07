@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public abstract class SystemTopicClientBase implements SystemTopicClient {
 
@@ -86,8 +86,10 @@ public abstract class SystemTopicClientBase implements SystemTopicClient {
     @Override
     public CompletableFuture<Void> closeAsync() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        writers.forEach(writer -> futures.add(writer.closeAsync()));
-        readers.forEach(reader -> futures.add(reader.closeAsync()));
+        List<Writer> tempWriters = Lists.newArrayList(writers);
+        tempWriters.forEach(writer -> futures.add(writer.closeAsync()));
+        List<Reader> tempReaders = Lists.newArrayList(readers);
+        tempReaders.forEach(reader -> futures.add(reader.closeAsync()));
         writers.clear();
         readers.clear();
         return FutureUtil.waitForAll(futures);

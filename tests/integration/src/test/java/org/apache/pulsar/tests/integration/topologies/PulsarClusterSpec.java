@@ -89,6 +89,12 @@ public class PulsarClusterSpec {
     boolean enablePrestoWorker = false;
 
     /**
+     * Allow to query the last message
+     */
+    @Default
+    boolean queryLastMessage = false;
+
+    /**
      * Returns the function runtime type.
      *
      * @return the function runtime type.
@@ -126,4 +132,24 @@ public class PulsarClusterSpec {
      */
     @Default
     String pulsarTestImage = PulsarContainer.DEFAULT_IMAGE_NAME;
+
+    /**
+     * Specify envs for proxy.
+     */
+    Map<String, String> proxyEnvs;
+
+    /**
+     * Specify envs for broker.
+     */
+    Map<String, String> brokerEnvs;
+
+    /**
+     * Specify mount files.
+     */
+    Map<String, String> proxyMountFiles;
+
+    /**
+     * Specify mount files.
+     */
+    Map<String, String> brokerMountFiles;
 }

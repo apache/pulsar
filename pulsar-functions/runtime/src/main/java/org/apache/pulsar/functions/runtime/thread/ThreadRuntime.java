@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -54,6 +55,7 @@ public class ThreadRuntime implements Runtime {
     private FunctionCacheManager fnCache;
     private String jarFile;
     private PulsarClient pulsarClient;
+    private PulsarAdmin pulsarAdmin;
     private String stateStorageServiceUrl;
     private SecretsProvider secretsProvider;
     private CollectorRegistry collectorRegistry;
@@ -63,6 +65,7 @@ public class ThreadRuntime implements Runtime {
                   ThreadGroup threadGroup,
                   String jarFile,
                   PulsarClient pulsarClient,
+                  PulsarAdmin pulsarAdmin,
                   String stateStorageServiceUrl,
                   SecretsProvider secretsProvider,
                   CollectorRegistry collectorRegistry,
@@ -76,6 +79,7 @@ public class ThreadRuntime implements Runtime {
         this.fnCache = fnCache;
         this.jarFile = jarFile;
         this.pulsarClient = pulsarClient;
+        this.pulsarAdmin = pulsarAdmin;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
@@ -85,6 +89,7 @@ public class ThreadRuntime implements Runtime {
                 fnCache,
                 jarFile,
                 pulsarClient,
+                pulsarAdmin,
                 stateStorageServiceUrl,
                 secretsProvider,
                 collectorRegistry,
@@ -102,11 +107,11 @@ public class ThreadRuntime implements Runtime {
                 fnCache,
                 jarFile,
                 pulsarClient,
+                pulsarAdmin,
                 stateStorageServiceUrl,
                 secretsProvider,
                 collectorRegistry,
                 narExtractionDirectory);
-
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",

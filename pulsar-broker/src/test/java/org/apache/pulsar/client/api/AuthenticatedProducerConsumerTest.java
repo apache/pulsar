@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-import java.net.URI;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,6 +40,7 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.zookeeper.KeeperException.Code;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -111,12 +111,12 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         } else {
             lookupUrl = pulsar.getBrokerServiceUrlTls();
         }
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true).authentication(auth)
-                .enableTls(true).build();
+                .enableTls(true));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -241,9 +241,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                 EnumSet.allOf(AuthAction.class));
 
         // setup the client
-        pulsarClient.close();
-        pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
-                .operationTimeout(1, TimeUnit.SECONDS).build();
+        replacePulsarClient(PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
+                .operationTimeout(1, TimeUnit.SECONDS));
 
         // unauthorized topic test
         Exception pulsarClientException = null;
@@ -316,7 +315,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         String topic = "persistent://" + namespace + "1/topic1";
         // this will cause NPE and it should throw 500
-        mockZooKeeper.shutdown();
+        mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
         pulsar.getConfiguration().setSuperUserRoles(Sets.newHashSet());
         try {
             admin.topics().getPartitionedTopicMetadata(topic);
@@ -329,6 +328,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }
 
+        mockZooKeeperGlobal.unsetAlwaysFail();
     }
 
 }

@@ -18,11 +18,21 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
+import com.beust.jcommander.converters.CommaParameterSplitter;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -33,25 +43,13 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.CommaParameterSplitter;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
-
 @Parameters(commandDescription = "Operations on persistent topics. The persistent-topics " +
         "has been deprecated in favor of topics", hidden = true)
 public class CmdPersistentTopics extends CmdBase {
-    private final Topics persistentTopics;
+    private Topics persistentTopics;
 
-    public CmdPersistentTopics(PulsarAdmin admin) {
+    public CmdPersistentTopics(Supplier<PulsarAdmin> admin) {
         super("persistent", admin);
-        persistentTopics = admin.topics();
 
         jcommander.addCommand("list", new ListCmd());
         jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
@@ -80,10 +78,18 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("get-message-by-id", new GetMessageById());
+        jcommander.addCommand("last-message-id", new GetLastMessageId());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
         jcommander.addCommand("compaction-status", new CompactionStatusCmd());
+    }
+
+    private Topics getPersistentTopics() {
+        if (persistentTopics == null) {
+            persistentTopics = getAdmin().topics();
+        }
+        return persistentTopics;
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -94,7 +100,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(persistentTopics.getList(namespace));
+            print(getPersistentTopics().getList(namespace));
         }
     }
 
@@ -106,7 +112,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(persistentTopics.getPartitionedTopicList(namespace));
+            print(getPersistentTopics().getPartitionedTopicList(namespace));
         }
     }
 
@@ -124,7 +130,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            persistentTopics.grantPermission(topic, role, getAuthActions(actions));
+            getPersistentTopics().grantPermission(topic, role, getAuthActions(actions));
         }
     }
 
@@ -142,7 +148,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            persistentTopics.revokePermissions(topic, role);
+            getPersistentTopics().revokePermissions(topic, role);
         }
     }
 
@@ -157,7 +163,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(persistentTopics.getPermissions(topic));
+            print(getPersistentTopics().getPermissions(topic));
         }
     }
 
@@ -169,7 +175,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(admin.lookups().lookupTopic(topic));
+            print(getAdmin().lookups().lookupTopic(topic));
         }
     }
 
@@ -181,7 +187,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(admin.lookups().getBundleRange(topic));
+            print(getAdmin().lookups().getBundleRange(topic));
         }
     }
 
@@ -199,7 +205,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.createPartitionedTopic(persistentTopic, numPartitions);
+            getPersistentTopics().createPartitionedTopic(persistentTopic, numPartitions);
         }
     }
 
@@ -217,7 +223,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.updatePartitionedTopic(persistentTopic, numPartitions);
+            getPersistentTopics().updatePartitionedTopic(persistentTopic, numPartitions);
         }
     }
 
@@ -231,7 +237,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getPartitionedTopicMetadata(persistentTopic));
+            print(getPersistentTopics().getPartitionedTopicMetadata(persistentTopic));
         }
     }
 
@@ -248,7 +254,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.deletePartitionedTopic(persistentTopic, force);
+            getPersistentTopics().deletePartitionedTopic(persistentTopic, force);
         }
     }
 
@@ -264,7 +270,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.delete(persistentTopic, force);
+            getPersistentTopics().delete(persistentTopic, force);
         }
     }
 
@@ -276,7 +282,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.unload(persistentTopic);
+            getPersistentTopics().unload(persistentTopic);
         }
     }
 
@@ -288,7 +294,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getSubscriptions(persistentTopic));
+            print(getPersistentTopics().getSubscriptions(persistentTopic));
         }
     }
 
@@ -308,7 +314,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.deleteSubscription(persistentTopic, subName, force);
+            getPersistentTopics().deleteSubscription(persistentTopic, subName, force);
         }
     }
 
@@ -321,7 +327,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getStats(persistentTopic));
+            print(getPersistentTopics().getStats(persistentTopic));
         }
     }
 
@@ -330,10 +336,14 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-m",
+        "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getInternalStats(persistentTopic));
+            print(getPersistentTopics().getInternalStats(persistentTopic, metadata));
         }
     }
 
@@ -345,7 +355,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            JsonObject result = persistentTopics.getInternalInfo(persistentTopic);
+            JsonObject result = getPersistentTopics().getInternalInfo(persistentTopic);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(result));
         }
@@ -363,7 +373,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getPartitionedStats(persistentTopic, perPartition));
+            print(getPersistentTopics().getPartitionedStats(persistentTopic, perPartition));
         }
     }
 
@@ -376,7 +386,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getPartitionedInternalStats(persistentTopic));
+            print(getPersistentTopics().getPartitionedInternalStats(persistentTopic));
         }
     }
 
@@ -391,7 +401,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.skipAllMessages(persistentTopic, subName);
+            getPersistentTopics().skipAllMessages(persistentTopic, subName);
         }
     }
 
@@ -410,7 +420,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.skipMessages(persistentTopic, subName, numMessages);
+            getPersistentTopics().skipMessages(persistentTopic, subName, numMessages);
         }
     }
 
@@ -429,7 +439,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.expireMessages(persistentTopic, subName, expireTimeInSeconds);
+            getPersistentTopics().expireMessages(persistentTopic, subName, expireTimeInSeconds);
         }
     }
 
@@ -444,7 +454,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.expireMessagesForAllSubscriptions(persistentTopic, expireTimeInSeconds);
+            getPersistentTopics().expireMessagesForAllSubscriptions(persistentTopic, expireTimeInSeconds);
         }
     }
 
@@ -473,7 +483,7 @@ public class CmdPersistentTopics extends CmdBase {
                 messageId = validateMessageIdString(messageIdStr);
             }
 
-            persistentTopics.createSubscription(persistentTopic, subscriptionName, messageId);
+            getPersistentTopics().createSubscription(persistentTopic, subscriptionName, messageId);
         }
     }
 
@@ -499,13 +509,13 @@ public class CmdPersistentTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
             if (isNotBlank(resetMessageIdStr)) {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
-                persistentTopics.resetCursor(persistentTopic, subName, messageId);
+                getPersistentTopics().resetCursor(persistentTopic, subName, messageId);
             } else if (isNotBlank(resetTimeStr)) {
                 long resetTimeInMillis = TimeUnit.SECONDS
                         .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
                 // now - go back time
                 long timestamp = System.currentTimeMillis() - resetTimeInMillis;
-                persistentTopics.resetCursor(persistentTopic, subName, timestamp);
+                getPersistentTopics().resetCursor(persistentTopic, subName, timestamp);
             } else {
                 throw new PulsarAdminException(
                         "Either Timestamp (--time) or Position (--position) has to be provided to reset cursor");
@@ -523,7 +533,7 @@ public class CmdPersistentTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             try {
-                MessageId lastMessageId = persistentTopics.terminateTopicAsync(persistentTopic).get();
+                MessageId lastMessageId = getPersistentTopics().terminateTopicAsync(persistentTopic).get();
                 System.out.println("Topic succesfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
@@ -546,7 +556,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            List<Message<byte[]>> messages = persistentTopics.peekMessages(persistentTopic, subName, numMessages);
+            List<Message<byte[]>> messages = getPersistentTopics().peekMessages(persistentTopic, subName, numMessages);
             int position = 0;
             for (Message<byte[]> msg : messages) {
                 if (++position != 1) {
@@ -560,7 +570,7 @@ public class CmdPersistentTopics extends CmdBase {
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                 }
                 if (msg.getProperties().size() > 0) {
-                    System.out.println("Tenants:");
+                    System.out.println("Properties:");
                     print(msg.getProperties());
                 }
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
@@ -588,10 +598,24 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            Message<byte[]> message = persistentTopics.getMessageById(persistentTopic, ledgerId, entryId);
+            Message<byte[]> message = getPersistentTopics().getMessageById(persistentTopic, ledgerId, entryId);
 
             ByteBuf date = Unpooled.wrappedBuffer(message.getData());
             System.out.println(ByteBufUtil.prettyHexDump(date));
+        }
+    }
+
+
+    @Parameters(commandDescription = "Get last message Id of the topic")
+    private class GetLastMessageId extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            MessageId messageId = getPersistentTopics().getLastMessageId(persistentTopic);
+            print(messageId);
         }
     }
 
@@ -604,7 +628,7 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            persistentTopics.triggerCompaction(persistentTopic);
+            getPersistentTopics().triggerCompaction(persistentTopic);
             System.out.println("Topic compaction requested for " + persistentTopic);
         }
     }
@@ -623,10 +647,10 @@ public class CmdPersistentTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             try {
-                LongRunningProcessStatus status = persistentTopics.compactionStatus(persistentTopic);
+                LongRunningProcessStatus status = getPersistentTopics().compactionStatus(persistentTopic);
                 while (wait && status.status == LongRunningProcessStatus.Status.RUNNING) {
                     Thread.sleep(1000);
-                    status = persistentTopics.compactionStatus(persistentTopic);
+                    status = getPersistentTopics().compactionStatus(persistentTopic);
                 }
 
                 switch (status.status) {

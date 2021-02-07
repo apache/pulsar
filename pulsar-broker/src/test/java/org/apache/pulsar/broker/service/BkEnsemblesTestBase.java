@@ -57,6 +57,10 @@ public abstract class BkEnsemblesTestBase {
         this.numberOfBookies = numberOfBookies;
     }
 
+    protected void configurePulsar(ServiceConfiguration config) throws Exception {
+        //overridable by subclasses
+    }
+
     @BeforeMethod
     protected void setup() throws Exception {
         try {
@@ -77,6 +81,8 @@ public abstract class BkEnsemblesTestBase {
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
             config.setAllowAutoTopicCreationType("non-partitioned");
+            config.setZooKeeperOperationTimeoutSeconds(1);
+            configurePulsar(config);
 
             pulsar = new PulsarService(config);
             pulsar.start();
@@ -92,15 +98,11 @@ public abstract class BkEnsemblesTestBase {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void shutdown() throws Exception {
-        try {
-            admin.close();
-            pulsar.close();
-            bkEnsemble.stop();
-        } catch (Throwable t) {
-            log.warn("Error cleaning up broker test setup state", t);
-        }
+        admin.close();
+        pulsar.close();
+        bkEnsemble.stop();
     }
 
 }

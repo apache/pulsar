@@ -26,6 +26,9 @@ on:
     branches:
       - branch-*
 
+env:
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
+
 jobs:
 
   unit-tests:
@@ -36,10 +39,15 @@ jobs:
     timeout-minutes: 120
 
     steps:
+      - name: cancel previous runs
+        uses: apache/airflow-cancel-workflow-runs@953e057dc81d3458935a18d1184c386b0f6b5738
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check if this pull request only changes documentation
@@ -61,9 +69,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
-      - name: run unit tests for pulsar-broker "org/apache/pulsar/client/impl"
+      - name: run unit test 'BROKER_CLIENT_IMPL'
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/client/impl/**/*.java'
+        run: ./build/run_unit_group.sh BROKER_CLIENT_IMPL
 
       - name: package surefire artifacts
         if: failure()

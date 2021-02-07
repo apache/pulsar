@@ -75,7 +75,7 @@ public class TestPulsarConnectorConfig {
 
         final String managedLedgerOffloadDriver = "s3";
         final String offloaderDirectory = "/pulsar/offloaders";
-        final int managedLedgerOffloadMaxThreads = 5;
+        final Integer managedLedgerOffloadMaxThreads = 5;
         final String bucket = "offload-bucket";
         final String region = "us-west-2";
         final String endpoint = "http://s3.amazonaws.com";
@@ -94,7 +94,7 @@ public class TestPulsarConnectorConfig {
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), managedLedgerOffloadDriver);
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloaderDirectory);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
+        Assert.assertEquals((int) offloadPolicies.getManagedLedgerOffloadMaxThreads(), (int) managedLedgerOffloadMaxThreads);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), bucket);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), region);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), endpoint);

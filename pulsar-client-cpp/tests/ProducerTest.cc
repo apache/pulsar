@@ -19,10 +19,14 @@
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
 
-#include "../lib/Future.h"
-#include "../lib/Utils.h"
+#include "lib/Future.h"
+#include "lib/Utils.h"
+#include "lib/LogUtils.h"
+DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
+
+static std::string serviceUrl = "pulsar://localhost:6650";
 
 TEST(ProducerTest, producerNotInitialized) {
     Producer producer;
@@ -47,4 +51,47 @@ TEST(ProducerTest, producerNotInitialized) {
     ASSERT_EQ(ResultProducerNotInitialized, result);
 
     ASSERT_TRUE(producer.getTopic().empty());
+}
+
+TEST(ProducerTest, exactlyOnceWithProducerNameSpecified) {
+    Client client(serviceUrl);
+
+    std::string topicName = "persistent://public/default/exactlyOnceWithProducerNameSpecified";
+
+    Producer producer1;
+    ProducerConfiguration producerConfiguration1;
+    producerConfiguration1.setProducerName("p-name-1");
+
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConfiguration1, producer1));
+
+    Producer producer2;
+    ProducerConfiguration producerConfiguration2;
+    producerConfiguration2.setProducerName("p-name-2");
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConfiguration2, producer2));
+
+    Producer producer3;
+    Result result = client.createProducer(topicName, producerConfiguration2, producer3);
+    ASSERT_EQ(ResultProducerBusy, result);
+}
+
+TEST(ProducerTest, testSynchronouslySend) {
+    Client client(serviceUrl);
+    const std::string topic = "ProducerTestSynchronouslySend";
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub-name", consumer));
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+    MessageId messageId;
+    ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent("hello").build(), messageId));
+    LOG_INFO("Send message to " << messageId);
+
+    Message receivedMessage;
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMessage, 3000));
+    LOG_INFO("Received message from " << receivedMessage.getMessageId());
+    ASSERT_EQ(receivedMessage.getMessageId(), messageId);
+    ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMessage));
+
+    client.close();
 }

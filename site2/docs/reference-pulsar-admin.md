@@ -460,10 +460,12 @@ Options
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
+|`--retain-key-ordering`|Function consumes and processes messages in key order||
 |`--timeout-ms`|The message timeout in milliseconds||
 |`--tls-allow-insecure`|Allow insecure tls connection|false|
 |`--tls-trust-cert-path`|The tls trust cert file path||
 |`--use-tls`|Use tls connection|false|
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `create`
@@ -508,7 +510,9 @@ Options
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
+|`--retain-key-ordering`|Function consumes and processes messages in key order||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `delete`
@@ -571,7 +575,9 @@ Options
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
+|`--retain-key-ordering`|Function consumes and processes messages in key order||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `get`
@@ -845,6 +851,7 @@ Subcommands
 * `set-persistence`
 * `get-message-ttl`
 * `set-message-ttl`
+* `remove-message-ttl`
 * `get-anti-affinity-group`
 * `set-anti-affinity-group`
 * `get-anti-affinity-namespaces`
@@ -1163,7 +1170,16 @@ $ pulsar-admin namespaces set-message-ttl tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-ttl`, `--messageTTL`|Message TTL in seconds|0|
+|`-ttl`, `--messageTTL`|Message TTL in seconds. When the value is set to `0`, TTL is disabled. TTL is disabled by default. |0|
+
+### `remove-message-ttl`
+Remove the message TTL for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-message-ttl tenant/namespace
+```
+
 
 ### `get-anti-affinity-group`
 Get Anti-affinity group name for a namespace
@@ -1210,7 +1226,7 @@ $ pulsar-admin namespaces delete-anti-affinity-group tenant/namespace
 ```
 
 ### `get-retention`
-Get the retention policy for a namespace
+Get the retention policy that is applied to each topic within the specified namespace
 
 Usage
 ```bash
@@ -1218,7 +1234,7 @@ $ pulsar-admin namespaces get-retention tenant/namespace
 ```
 
 ### `set-retention`
-Set the retention policy for a namespace
+Set the retention policy for each topic within the specified namespace
 
 Usage
 ```bash
@@ -1228,7 +1244,7 @@ $ pulsar-admin namespaces set-retention tenant/namespace
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-s`, `--size`|The retention size limits (for example 10M, 16G or 3T). 0 means no retention and -1 means infinite size retention||
+|`-s`, `--size`|The retention size limits (for example 10M, 16G or 3T) for each topic in the namespace. 0 means no retention and -1 means infinite size retention||
 |`-t`, `--time`|The retention time in minutes, hours, days, or weeks. Examples: 100m, 13h, 2d, 5w. 0 means no retention and -1 means infinite time retention||
 
 
@@ -1743,11 +1759,18 @@ Options
 |`--broker`|Broker name to get namespace-isolation policies attached to it||
 
 ## `topics`
-Operations for managing Pulsar topics (both persistent and non persistent)
+Operations for managing Pulsar topics (both persistent and non-persistent). 
 
 Usage
 ```bash
 $ pulsar-admin topics subcommand
+```
+
+From Pulsar 2.7.0, some namespace-level policies are available on topic level. To enable topic-level policy in Pulsar, you need to configure the following parameters in the `broker.conf` file. 
+
+```shell
+systemTopicEnabled=true
+topicLevelPoliciesEnabled=true
 ```
 
 Subcommands
@@ -1787,9 +1810,48 @@ Subcommands
 * `reset-cursor`
 * `get-message-by-id`
 * `last-message-id`
+* `get-backlog-quotas`
+* `set-backlog-quota`
+* `remove-backlog-quota`
+* `get-persistence`
+* `set-persistence`
+* `remove-persistence`
+* `get-message-ttl`
+* `set-message-ttl`
+* `remove-message-ttl`
 * `get-deduplication`
 * `set-deduplication`
 * `remove-deduplication`
+* `get-max-producers`
+* `set-max-producers`
+* `remove-max-producers`
+* `get-max-consumers`
+* `set-max-consumers`
+* `remove-max-consumers`
+* `get-retention`
+* `set-retention`
+* `remove-retention`
+* `get-dispatch-rate`
+* `set-dispatch-rate`
+* `remove-dispatch-rate`
+* `get-compaction-threshold`
+* `set-compaction-threshold`
+* `remove-compaction-threshold`
+* `get-offload-policies`
+* `set-offload-policies`
+* `remove-offload-policies`
+* `get-max-unacked-messages-per-subscription`
+* `set-max-unacked-messages-per-subscription`
+* `remove-max-unacked-messages-per-subscription`
+* `get-max-unacked-messages-per-consumer`
+* `set-max-unacked-messages-per-consumer`
+* `remove-max-unacked-messages-per-consumer`
+* `get-delayed-delivery`
+* `set-delayed-delivery`
+* `remove-delayed-delivery`
+* `get-inactive-topic-policies`
+* `set-inactive-topic-policies`
+* `remove-inactive-topic-policies`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -2205,6 +2267,21 @@ Options
 |`-l`, `--ledgerId`|The ledger id |0|
 |`-e`, `--entryId`|The entry id |0|
 
+### `get-backlog-quotas`
+Get the backlog quota policies for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-backlog-quotas tenant/namespace/topic
+```
+
+### `set-backlog-quota`
+Set a backlog quota policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-backlog-quota tenant/namespace/topic options
+=======
 ### `get-deduplication`
 Get a deduplication policy for a topic.
 
@@ -2223,6 +2300,77 @@ $ pulsar-admin topics set-deduplication tenant/namespace/topic
 
 Options
 |Flag|Description|Default|
+|----|---|---|
+|`-l`, `--limit`|Size limit (eg: 10M, 16G)", required = true)||
+|`-p`, `--policy`|Retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
+
+### `remove-backlog-quota`
+Remove a backlog quota policy from a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-backlog-quota tenant/namespace/topic
+```
+
+### `get-persistence`
+Get the persistence policies for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-persistence tenant/namespace/topic
+```
+
+### `set-persistence`
+Set the persistence policies for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-persistence tenant/namespace/topic options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-e`, `--bookkeeper-ensemble`|Number of bookies to use for a topic|0|
+|`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
+|`-a`, `--bookkeeper-ack-quorum`|Number of acks (garanteed copies) to wait for each entry|0|
+|`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
+
+### `remove-persistence`
+Remove the persistence policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-persistence tenant/namespace/topic
+```
+### `get-message-ttl`
+Get the message TTL for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-message-ttl tenant/namespace/topic
+```
+
+### `set-message-ttl`
+Set the message TTL for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-message-ttl tenant/namespace/topic options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-ttl`, `--messageTTL`|Message TTL for a topic in second, allowed range from 1 to `Integer.MAX_VALUE` |0|
+
+### `remove-message-ttl`
+Remove the message TTL for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-message-ttl tenant/namespace/topic
+=======
 |---|---|---|
 |`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
 |`--disable`, `-d`|Disable message deduplication on the specified topic.|false|
@@ -2460,6 +2608,8 @@ Options
 |`-r`, `--region`|The long term storage region||
 |`-b`, `--bucket`|Bucket to place offloaded ledger into||
 |`-e`, `--endpoint`|Alternative endpoint to connect to||
+|`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
+|`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
 |`-mbs`, `--maxBlockSize`|Max block size|64MB|
 |`-rbs`, `--readBufferSize`|Read buffer size|1MB|
 |`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||

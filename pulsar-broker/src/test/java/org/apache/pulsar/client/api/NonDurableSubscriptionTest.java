@@ -18,25 +18,35 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.lang.reflect.Field;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentSubscription;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertNotNull;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNull;
+import static org.testng.AssertJUnit.assertTrue;
+
 public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setSubscriptionExpirationTimeMinutes(1);
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -65,7 +75,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         // 3 receive the first 5 messages
         for (int i = 0; i < 5; i++) {
             Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
-            Assert.assertNotNull(message);
+            assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
             consumer.acknowledge(message);
         }
@@ -74,9 +84,45 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < messageNum; i++) {
             Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
-            Assert.assertNotNull(message);
+            assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
         }
+
+    }
+
+    @Test(timeOut = 10000)
+    public void testDeleteInactiveNonPersistentSubscription() throws Exception {
+        final String topic = "non-persistent://my-property/my-ns/topic-" + UUID.randomUUID();
+        final String subName = "my-subscriber";
+        admin.topics().createNonPartitionedTopic(topic);
+        // 1 setup consumer
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName(subName).subscribe();
+        // 3 due to the existence of consumers, subscriptions will not be cleaned up
+        NonPersistentTopic nonPersistentTopic = (NonPersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        NonPersistentSubscription nonPersistentSubscription = (NonPersistentSubscription) nonPersistentTopic.getSubscription(subName);
+        assertNotNull(nonPersistentSubscription);
+        assertNotNull(nonPersistentSubscription.getDispatcher());
+        assertTrue(nonPersistentSubscription.getDispatcher().isConsumerConnected());
+        assertFalse(nonPersistentSubscription.isReplicated());
+
+        nonPersistentTopic.checkInactiveSubscriptions();
+        Thread.sleep(500);
+        nonPersistentSubscription = (NonPersistentSubscription) nonPersistentTopic.getSubscription(subName);
+        assertNotNull(nonPersistentSubscription);
+        // remove consumer and wait for cleanup
+        consumer.close();
+        Thread.sleep(500);
+
+        //change last active time to 5 minutes ago
+        Field f = NonPersistentSubscription.class.getDeclaredField("lastActive");
+        f.setAccessible(true);
+        f.set(nonPersistentTopic.getSubscription(subName), System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(5));
+        //without consumers and last active time is 5 minutes ago, subscription should be cleaned up
+        nonPersistentTopic.checkInactiveSubscriptions();
+        Thread.sleep(500);
+        nonPersistentSubscription = (NonPersistentSubscription) nonPersistentTopic.getSubscription(subName);
+        assertNull(nonPersistentSubscription);
 
     }
 }

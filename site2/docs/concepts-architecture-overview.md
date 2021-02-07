@@ -22,7 +22,7 @@ At the broader instance level, an instance-wide ZooKeeper cluster called the con
 
 The Pulsar message broker is a stateless component that's primarily responsible for running two other components:
 
-* An HTTP server that exposes a {@inject: rest:REST:/} API for both administrative tasks and [topic lookup](concepts-clients.md#client-setup-phase) for producers and consumers
+* An HTTP server that exposes a {@inject: rest:REST:/} API for both administrative tasks and [topic lookup](concepts-clients.md#client-setup-phase) for producers and consumers. The producers connect to the brokers to publish messages and the consumers connect to the brokers to consume the messages.
 * A dispatcher, which is an asynchronous TCP server over a custom [binary protocol](developing-binary-protocol.md) used for all data transfers
 
 Messages are typically dispatched out of a [managed ledger](#managed-ledgers) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from BookKeeper.
@@ -45,10 +45,16 @@ Clusters can replicate amongst themselves using [geo-replication](concepts-repli
 
 ## Metadata store
 
-Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. In a Pulsar instance:
+The Pulsar metadata store maintains all the metadata of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. Pulsar uses [Apache ZooKeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. The Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster. You can use one ZooKeeper cluster for both Pulsar metadata store and [BookKeeper metadata store](https://bookkeeper.apache.org/docs/latest/getting-started/concepts/#metadata-storage). If you want to deploy Pulsar brokers connected to an existing BookKeeper cluster, you need to deploy separate ZooKeeper clusters for Pulsar metadata store and BookKeeper metadata store respectively.
+
+In a Pulsar instance:
 
 * A configuration store quorum stores configuration for tenants, namespaces, and other entities that need to be globally consistent.
-* Each cluster has its own local ZooKeeper ensemble that stores cluster-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper ledger metadata, and more.
+* Each cluster has its own local ZooKeeper ensemble that stores cluster-specific configuration and coordination such as which brokers are responsible for which topics as well as ownership metadata, broker load reports, BookKeeper ledger metadata, and more.
+
+## Configuration store
+
+The configuration store maintains all the configurations of a Pulsar instance, such as clusters, tenants, namespaces, partitioned topic related configurations, and so on. A Pulsar instance can have a single local cluster, multiple local clusters, or multiple cross-region clusters. Consequently, the configuration store can share the configurations across multiple clusters under a Pulsar instance. The configuration store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster.
 
 ## Persistent storage
 
@@ -150,3 +156,6 @@ from pulsar import Client
 
 client = Client('pulsar://pulsar-cluster.acme.com:6650')
 ```
+
+> **Note**
+> In Pulsar, each topic is handled by only one broker. Initial requests from a client to read, update or delete a topic are sent to a broker that may not be the topic owner. If the broker cannot handle the request for this topic, it redirects the request to the appropriate broker.

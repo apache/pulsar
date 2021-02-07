@@ -19,9 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Maps;
-
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -52,8 +50,30 @@ public class TopicPolicies {
     private OffloadPolicies offloadPolicies;
     private InactiveTopicPolicies inactiveTopicPolicies = null;
     private DispatchRate dispatchRate = null;
+    private DispatchRate subscriptionDispatchRate = null;
     private Long compactionThreshold = null;
     private PublishRate publishRate = null;
+    private SubscribeRate subscribeRate = null;
+    private Integer deduplicationSnapshotIntervalSeconds = null;
+    private Integer maxMessageSize = null;
+    private Integer maxSubscriptionsPerTopic = null;
+    private DispatchRate replicatorDispatchRate = null;
+
+    public boolean isReplicatorDispatchRateSet() {
+        return replicatorDispatchRate != null;
+    }
+
+    public boolean isMaxSubscriptionsPerTopicSet() {
+        return maxSubscriptionsPerTopic != null;
+    }
+
+    public boolean isMaxMessageSizeSet() {
+        return maxMessageSize != null;
+    }
+
+    public boolean isDeduplicationSnapshotIntervalSecondsSet(){
+        return deduplicationSnapshotIntervalSeconds != null;
+    }
 
     public boolean isInactiveTopicPoliciesSet() {
         return inactiveTopicPolicies != null;
@@ -115,11 +135,19 @@ public class TopicPolicies {
         return dispatchRate != null;
     }
 
+    public boolean isSubscriptionDispatchRateSet() {
+        return subscriptionDispatchRate != null;
+    }
+
     public boolean isCompactionThresholdSet() {
         return compactionThreshold != null;
     }
 
     public boolean isPublishRateSet() {
         return publishRate != null;
+    }
+
+    public boolean isSubscribeRateSet() {
+        return subscribeRate != null;
     }
 }

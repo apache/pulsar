@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * {@link ReaderBuilder} is used to configure and create instances of {@link Reader}.
@@ -29,6 +31,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @since 2.0.0
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ReaderBuilder<T> extends Cloneable {
 
     /**
@@ -166,6 +170,30 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt the message payloads.
+     *
+     * @param privateKey
+     *            the private key that is always used to decrypt message payloads.
+     * @return the reader builder instance
+     * @since 2.8.0
+     */
+    ReaderBuilder<T> defaultCryptoKeyReader(String privateKey);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt the message payloads.
+     *
+     * @param privateKeys
+     *            the map of private key names and their URIs used to decrypt message payloads.
+     * @return the reader builder instance
+     * @since 2.8.0
+     */
+    ReaderBuilder<T> defaultCryptoKeyReader(Map<String, String> privateKeys);
+
+    /**
      * Sets the {@link ConsumerCryptoFailureAction} to specify.
      *
      * @param action
@@ -208,6 +236,15 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @return the reader builder instance
      */
     ReaderBuilder<T> subscriptionRolePrefix(String subscriptionRolePrefix);
+
+    /**
+     * Set the subscription name.
+     * <p>If subscriptionRolePrefix is set at the same time, this configuration will prevail
+     *
+     * @param subscriptionName
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> subscriptionName(String subscriptionName);
 
     /**
      * If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog

@@ -66,6 +66,15 @@ func newGoInstance() *goInstance {
 		consumers: make(map[string]pulsar.Consumer),
 	}
 	now := time.Now()
+
+	goInstance.context.outputMessage = func(topic string) pulsar.Producer {
+		producer, err := goInstance.getProducer(topic)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return producer
+	}
+
 	goInstance.lastHealthCheckTs = now.UnixNano()
 	goInstance.properties = make(map[string]string)
 	goInstance.stats = NewStatWithLabelValues(goInstance.getMetricsLabels()...)
@@ -135,6 +144,9 @@ func (gi *goInstance) startFunction(function function) error {
 	servicer := InstanceControlServicer{goInstance: gi}
 	servicer.serve(gi)
 
+	metricsServicer := NewMetricsServicer(gi)
+	metricsServicer.serve()
+	defer metricsServicer.close()
 CLOSE:
 	for {
 		idleTimer.Reset(idleDuration)
@@ -191,28 +203,55 @@ func (gi *goInstance) setupClient() error {
 	return nil
 }
 
-func (gi *goInstance) setupProducer() (err error) {
+func (gi *goInstance) setupProducer() error {
 	if gi.context.instanceConf.funcDetails.Sink.Topic != "" && len(gi.context.instanceConf.funcDetails.Sink.Topic) > 0 {
 		log.Debugf("Setting up producer for topic %s", gi.context.instanceConf.funcDetails.Sink.Topic)
-		properties := getProperties(getDefaultSubscriptionName(
-			gi.context.instanceConf.funcDetails.Tenant,
-			gi.context.instanceConf.funcDetails.Namespace,
-			gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
-		gi.producer, err = gi.client.CreateProducer(pulsar.ProducerOptions{
-			Topic:                   gi.context.instanceConf.funcDetails.Sink.Topic,
-			Properties:              properties,
-			CompressionType:         pulsar.LZ4,
-			BatchingMaxPublishDelay: time.Millisecond * 10,
-			// Set send timeout to be infinity to prevent potential deadlock with consumer
-			// that might happen when consumer is blocked due to unacked messages
-		})
+		producer, err := gi.getProducer(gi.context.instanceConf.funcDetails.Sink.Topic)
 		if err != nil {
-			gi.stats.incrTotalSysExceptions(err)
-			log.Errorf("create producer error:%s", err.Error())
-			return err
+			log.Fatal(err)
+		}
+
+		gi.producer = producer
+		return nil
+	}
+
+	return nil
+}
+
+func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
+	properties := getProperties(getDefaultSubscriptionName(
+		gi.context.instanceConf.funcDetails.Tenant,
+		gi.context.instanceConf.funcDetails.Namespace,
+		gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
+
+	batchBuilderType := pulsar.DefaultBatchBuilder
+
+	if gi.context.instanceConf.funcDetails.Sink.ProducerSpec != nil {
+		batchBuilder := gi.context.instanceConf.funcDetails.Sink.ProducerSpec.BatchBuilder
+		if batchBuilder != "" {
+			if batchBuilder == "KEY_BASED" {
+				batchBuilderType = pulsar.KeyBasedBatchBuilder
+			}
 		}
 	}
-	return nil
+
+	producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
+		Topic:                   topicName,
+		Properties:              properties,
+		CompressionType:         pulsar.LZ4,
+		BatchingMaxPublishDelay: time.Millisecond * 10,
+		BatcherBuilderType:      batchBuilderType,
+		SendTimeout:             0,
+		// Set send timeout to be infinity to prevent potential deadlock with consumer
+		// that might happen when consumer is blocked due to unacked messages
+	})
+	if err != nil {
+		gi.stats.incrTotalSysExceptions(err)
+		log.Errorf("create producer error:%s", err.Error())
+		return nil, err
+	}
+
+	return producer, err
 }
 
 func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
@@ -232,16 +271,22 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 	channel := make(chan pulsar.ConsumerMessage)
 
 	var (
-		consumer pulsar.Consumer
-		err      error
+		consumer  pulsar.Consumer
+		topicName *TopicName
+		err       error
 	)
 
 	for topic, consumerConf := range funcDetails.Source.InputSpecs {
-		log.Debugf("Setting up consumer for topic: %s with subscription name: %s", topic, subscriptionName)
+		topicName, err = ParseTopicName(topic)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Debugf("Setting up consumer for topic: %s with subscription name: %s", topicName.Name, subscriptionName)
 		if consumerConf.ReceiverQueueSize != nil {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:     topic,
+					TopicsPattern:     topicName.Name,
 					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
 					SubscriptionName:  subscriptionName,
 					Properties:        properties,
@@ -250,7 +295,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:             topic,
+					Topic:             topicName.Name,
 					SubscriptionName:  subscriptionName,
 					Properties:        properties,
 					Type:              subscriptionType,
@@ -261,7 +306,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		} else {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:    topic,
+					TopicsPattern:    topicName.Name,
 					SubscriptionName: subscriptionName,
 					Properties:       properties,
 					Type:             subscriptionType,
@@ -269,7 +314,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:            topic,
+					Topic:            topicName.Name,
 					SubscriptionName: subscriptionName,
 					Properties:       properties,
 					Type:             subscriptionType,
@@ -284,7 +329,7 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 			gi.stats.incrTotalSysExceptions(err)
 			return nil, err
 		}
-		gi.consumers[topic] = consumer
+		gi.consumers[topicName.Name] = consumer
 	}
 	return channel, nil
 }
@@ -292,6 +337,9 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	gi.context.SetCurrentRecord(input)
+
 	ctx = NewContext(ctx, gi.context)
 	msgInput := input.Payload()
 	return gi.function.process(ctx, msgInput)
@@ -332,6 +380,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 
 // ackInputMessage doesn't produce any result, or the user doesn't want the result.
 func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
+	log.Debugf("ack input message topic name is: %s", inputMessage.Topic())
 	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
 }
 

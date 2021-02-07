@@ -9,7 +9,7 @@ The Pulsar Node.js client can be used to create Pulsar [producers](#producers), 
 
 ## Installation
 
-You can install the [`pusar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
+You can install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
 
 ### Requirements
 Pulsar Node.js client library is based on the C++ client library.
@@ -220,7 +220,7 @@ Pulsar Node.js consumers have the following methods available:
 | :-------- | :---------- | :------ |
 | `topic` | The Pulsar [topic](reference-terminology.md#topic) on which the consumer will establish a subscription and listen for messages. | |
 | `subscription` | The subscription name for this consumer. | |
-| `subscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover`. | `Exclusive` |
+| `subscriptionType` | Available options are `Exclusive`, `Shared`, `Key_Shared`, and `Failover`. | `Exclusive` |
 | `ackTimeoutMs` | Acknowledge timeout in milliseconds. | 0 |
 | `receiverQueueSize` | Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls `receive`. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization. | 1000 |
 | `receiverQueueSizeAcrossPartitions` | Set the max total receiver queue size across partitions. This setting will be used to reduce the receiver queue size for individual partitions if the total exceeds this value. | 50000 |

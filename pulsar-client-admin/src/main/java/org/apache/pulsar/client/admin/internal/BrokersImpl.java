@@ -24,12 +24,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -284,6 +282,38 @@ public class BrokersImpl extends BaseResource implements Brokers {
                         future.completeExceptionally(getApiException(throwable.getCause()));
                     }
                 });
+        return future;
+    }
+
+    @Override
+    public void backlogQuotaCheck() throws PulsarAdminException {
+        try {
+            backlogQuotaCheckAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> backlogQuotaCheckAsync() {
+        WebTarget path = adminBrokers.path("backlogQuotaCheck");
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<Void>() {
+            @Override
+            public void completed(Void unused) {
+                future.complete(null);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
         return future;
     }
 

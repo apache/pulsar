@@ -61,6 +61,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -211,6 +212,13 @@ public class PerformanceProducer {
         @Parameter(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key" +
                 ", valid options are: [autoIncrement, random]")
         public String messageKeyGenerationMode = null;
+
+        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
+                "used for handling connections to brokers, default is 1 thread")
+        public int ioThreads = 1;
+
+        @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
+        public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
     }
 
     static class EncKeyReader implements CryptoKeyReader {
@@ -426,7 +434,7 @@ public class PerformanceProducer {
             ClientBuilder clientBuilder = PulsarClient.builder() //
                     .serviceUrl(arguments.serviceURL) //
                     .connectionsPerBroker(arguments.maxConnections) //
-                    .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                    .ioThreads(arguments.ioThreads) //
                     .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                     .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
@@ -448,6 +456,7 @@ public class PerformanceProducer {
                     .compressionType(arguments.compression) //
                     .maxPendingMessages(arguments.maxOutstanding) //
                     .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
+                    .accessMode(arguments.producerAccessMode)
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
@@ -628,6 +637,6 @@ public class PerformanceProducer {
     private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
 
     public enum MessageKeyGenerationMode {
-        autoIncrement,random;
+        autoIncrement,random
     }
 }

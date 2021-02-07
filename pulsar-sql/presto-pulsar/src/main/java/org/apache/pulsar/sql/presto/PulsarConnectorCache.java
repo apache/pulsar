@@ -19,7 +19,6 @@
 package org.apache.pulsar.sql.presto;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
@@ -27,7 +26,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
@@ -96,16 +94,17 @@ public class PulsarConnectorCache {
     private static ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
         throws Exception {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
-                .setZkServers(pulsarConnectorConfig.getZookeeperUri())
-                .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getZookeeperUri()
-                        .replace(",", ";") + "/ledgers")
-                .setClientTcpNoDelay(false)
-                .setUseV2WireProtocol(true)
-                .setStickyReadsEnabled(false)
-                .setReadEntryTimeout(60)
-                .setThrottleValue(pulsarConnectorConfig.getBookkeeperThrottleValue())
-                .setNumIOThreads(pulsarConnectorConfig.getBookkeeperNumIOThreads())
-                .setNumWorkerThreads(pulsarConnectorConfig.getBookkeeperNumWorkerThreads());
+            .setZkServers(pulsarConnectorConfig.getZookeeperUri())
+            .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getZookeeperUri()
+                .replace(",", ";") + "/ledgers")
+            .setClientTcpNoDelay(false)
+            .setUseV2WireProtocol(pulsarConnectorConfig.getBookkeeperUseV2Protocol())
+            .setExplictLacInterval(pulsarConnectorConfig.getBookkeeperExplicitInterval())
+            .setStickyReadsEnabled(false)
+            .setReadEntryTimeout(60)
+            .setThrottleValue(pulsarConnectorConfig.getBookkeeperThrottleValue())
+            .setNumIOThreads(pulsarConnectorConfig.getBookkeeperNumIOThreads())
+            .setNumWorkerThreads(pulsarConnectorConfig.getBookkeeperNumWorkerThreads());
 
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(pulsarConnectorConfig.getManagedLedgerCacheSizeMB());

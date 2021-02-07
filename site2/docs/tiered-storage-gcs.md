@@ -91,7 +91,7 @@ You can configure GCS offloader driver in the configuration file `broker.conf` o
     `gcsManagedLedgerOffloadReadBufferSizeInBytes`|Size of block read|1 MB
     `gcsManagedLedgerOffloadMaxBlockSizeInBytes`|Size of block write|64 MB
     `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic.|2
-    `managedLedgerMaxEntriesPerLedger`|Max number of entries to append to a ledger before triggering a rollover.|5000
+    `managedLedgerMaxEntriesPerLedger`|The max number of entries to append to a ledger before triggering a rollover.|5000
 
 #### Bucket (required)
 
@@ -181,38 +181,38 @@ Threshold value|Action
 
 Automatic offloading runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offloader does not work until the current segment is full.
 
-You can configure the threshold size using CLI tools, such as [pulsarctl](https://streamnative.io/docs/v1.0.0/manage-and-monitor/pulsarctl/overview/) or pulsar-admin.
+You can configure the threshold size using CLI tools, such as pulsar-admin.
 
 The offload configurations in `broker.conf` and `standalone.conf` are used for the namespaces that do not have namespace level offload policies. Each namespace can have its own offload policy. If you want to set offload policy for each namespace, use the command [`pulsar-admin namespaces set-offload-policies options`](http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-offload-policies-em-) command.
 
 #### Example
 
-This example sets the GCS offloader threshold size to 10 MB using pulsarctl.
+This example sets the GCS offloader threshold size to 10 MB using pulsar-admin.
 
 ```bash
-bin/pulsarctl namespaces set-offload-threshold --size 10M my-tenant/my-namespace
+pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 ```
 
 > #### Tip
 >
-> For more information about the `pulsarctl namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-set-offload-threshold-em-). 
+> For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#set-offload-threshold). 
 
 ### Configure GCS offloader to run manually
 
 For individual topics, you can trigger GCS offloader manually using one of the following methods:
 
-- Use REST endpoint 
+- Use REST endpoint.
 
-- Use CLI tools (such as pulsarctl or pulsar-admin). 
+- Use CLI tools (such as pulsar-admin). 
 
     To trigger the GCS via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to GCS until the threshold is no longer exceeded. Older segments are moved first.
 
 #### Example
 
-- This example triggers the GCS offloader to run manually using pulsarctl with the command `pulsarctl topic offload (topic-name) (threshold)`.
+- This example triggers the GCS offloader to run manually using pulsar-admin with the command `pulsar-admin topics offload (topic-name) (threshold)`.
 
     ```bash
-    bin/pulsarctl topics offload persistent://my-tenant/my-namespace/topic1 10M
+    pulsar-admin topics offload persistent://my-tenant/my-namespace/topic1 10M
     ``` 
 
     **Output**
@@ -223,12 +223,12 @@ For individual topics, you can trigger GCS offloader manually using one of the f
 
     > #### Tip
     >
-    > For more information about the `pulsarctl topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-offload-em-). 
+    > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
 
-- This example checks the GCS offloader status using pulsarctl with the command `pulsarctl topic offload-status options`.
+- This example checks the GCS offloader status using pulsar-admin with the command `pulsar-admin topics offload-status options`.
 
     ```bash
-    bin/pulsarctl topics offload-status persistent://my-tenant/my-namespace/topic1
+    pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
     ```
 
     **Output**
@@ -240,7 +240,7 @@ For individual topics, you can trigger GCS offloader manually using one of the f
     To wait for GCS to complete the job, add the `-w` flag.
 
     ```bash
-    bin/pulsarctl topics offload-status -w persistent://my-tenant/my-namespace/topic1
+    pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
     ```
 
     **Output**
@@ -249,10 +249,10 @@ For individual topics, you can trigger GCS offloader manually using one of the f
     Offload was a success
     ```
 
-    If there is an error in offloading, the error is propagated to the `pulsarctl topic offload-status` command.
+    If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
     ```bash
-    bin/pulsarctl topic offload-status persistent://my-tenant/my-namespace/topic1
+   pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
     ```
 
     **Output**
@@ -266,7 +266,7 @@ For individual topics, you can trigger GCS offloader manually using one of the f
 
     > #### Tip
     >
-    > For more information about the `pulsarctl topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-offload-status-em-). 
+    > For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
 
 ## Tutorial
 

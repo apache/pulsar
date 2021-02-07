@@ -48,6 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
 import org.apache.zookeeper.KeeperException.Code;
@@ -561,6 +562,63 @@ public class ZookeeperCacheTest {
         executor.shutdown();
         zkExecutor.shutdown();
         scheduledExecutor.shutdown();
+    }
+
+    /**
+     * Test to verify {@link ZooKeeperCache} renews cache data after expiry time in background.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testZKRefreshExpiredEntry() throws Exception {
+        int cacheExpiryTimeSec = 1;
+        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
+        ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
+        ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
+
+        String path = "/test";
+        String val1 = "test-1";
+        String val2 = "test-2";
+        zkClient.create(path, val1.getBytes(), null, null);
+
+        // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
+        // callback-result process
+        ZooKeeperCache zkCacheService = new ZooKeeperCacheTest("test", zkClient, 30, executor, cacheExpiryTimeSec);
+        ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
+            @Override
+            public String deserialize(String key, byte[] content) throws Exception {
+                return new String(content);
+            }
+        };
+
+        // try to do get on the path which will time-out and async-cache will have non-completed Future
+        assertEquals(zkCache.get(path).get(), val1);
+
+        zkClient.setData(path, val2.getBytes(), -1);
+
+        retryStrategically((test) -> {
+            try {
+                return zkCache.get(path).get().equalsIgnoreCase(val2);
+            } catch (Exception e) {
+                log.warn("Failed to get date for path {}", path);
+            }
+            return false;
+        }, 5, 1000);
+
+        assertEquals(zkCache.get(path).get(), val2);
+
+        executor.shutdown();
+        zkExecutor.shutdown();
+        scheduledExecutor.shutdown();
+    }
+
+    static class ZooKeeperCacheTest extends ZooKeeperCache {
+
+        public ZooKeeperCacheTest(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds,
+                OrderedExecutor executor, int cacheExpirySeconds) {
+            super(cacheName, zkSession, zkOperationTimeoutSeconds, executor, cacheExpirySeconds);
+        }
+
     }
 
     private static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)

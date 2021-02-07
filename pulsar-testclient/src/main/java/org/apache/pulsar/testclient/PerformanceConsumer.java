@@ -81,8 +81,11 @@ public class PerformanceConsumer {
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per topic)")
+        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive")
         public int numConsumers = 1;
+
+        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
+        public int numSubscriptions = 1;
 
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
@@ -98,6 +101,9 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
+
+        @Parameter(names = { "-p", "--receiver-queue-size-across-partitions" }, description = "Max total size of the receiver queue across partitions")
+        public int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
         @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
@@ -158,6 +164,10 @@ public class PerformanceConsumer {
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
         public long testTime = 0;
+
+        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
+                "used for handling connections to brokers, default is 1 thread")
+        public int ioThreads = 1;
     }
 
     public static void main(String[] args) throws Exception {
@@ -180,6 +190,12 @@ public class PerformanceConsumer {
 
         if (arguments.topic.size() != 1) {
             System.out.println("Only one topic name is allowed");
+            jc.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.subscriptionType == SubscriptionType.Exclusive && arguments.numConsumers > 1) {
+            System.out.println("Only one consumer is allowed when subscriptionType is Exclusive");
             jc.usage();
             System.exit(-1);
         }
@@ -260,7 +276,7 @@ public class PerformanceConsumer {
                 .serviceUrl(arguments.serviceURL) //
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                .ioThreads(arguments.ioThreads) //
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
@@ -302,6 +318,7 @@ public class PerformanceConsumer {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer() //
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
+                .maxTotalReceiverQueueSizeAcrossPartitions(arguments.maxTotalReceiverQueueSizeAcrossPartitions)
                 .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
                 .subscriptionType(arguments.subscriptionType)
                 .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
@@ -324,18 +341,20 @@ public class PerformanceConsumer {
         for (int i = 0; i < arguments.numTopics; i++) {
             final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
                     : TopicName.get(String.format("%s-%d", prefixTopicName, i));
-            log.info("Adding {} consumers on topic {}", arguments.numConsumers, topicName);
+            log.info("Adding {} consumers per subscription on topic {}", arguments.numConsumers, topicName);
 
-            for (int j = 0; j < arguments.numConsumers; j++) {
+            for (int j = 0; j < arguments.numSubscriptions; j++) {
                 String subscriberName;
-                if (arguments.numConsumers > 1) {
+                if (arguments.numSubscriptions > 1) {
                     subscriberName = String.format("%s-%d", arguments.subscriberName, j);
                 } else {
                     subscriberName = arguments.subscriberName;
                 }
 
-                futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
-                        .subscribeAsync());
+                for (int k = 0; k < arguments.numConsumers; k++) {
+                    futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
+                            .subscribeAsync());
+                }
             }
         }
 
@@ -343,7 +362,7 @@ public class PerformanceConsumer {
             future.get();
         }
 
-        log.info("Start receiving from {} consumers on {} topics", arguments.numConsumers,
+        log.info("Start receiving from {} consumers per subscription on {} topics", arguments.numConsumers,
                 arguments.numTopics);
 
         long start = System.nanoTime();
