@@ -16,24 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils.io;
-
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
-import lombok.Data;
-
-import org.apache.pulsar.common.io.ConfigFieldDefinition;
-import org.apache.pulsar.common.io.ConnectorDefinition;
-
-@Data
-public class Connectors {
-    final List<ConnectorDefinition> connectors = new ArrayList<>();
-    final Map<String, Path> sources = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sourceConfigDefinitions = new TreeMap<>();
-    final Map<String, Path> sinks = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sinkConfigDefinitions = new TreeMap<>();
-}
+/**
+ * The storage layer for Apache Pulsar.
+ */
+package org.apache.pulsar.broker.storage;

@@ -1349,6 +1349,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int defaultNumPartitions = 1;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        doc = "The class of the managed ledger storage"
+    )
+    private String managedLedgerStorageClassName = "org.apache.pulsar.broker.ManagedLedgerClientFactory";
+    @FieldContext(
+        category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger tasks dispatching"
     )
     private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();

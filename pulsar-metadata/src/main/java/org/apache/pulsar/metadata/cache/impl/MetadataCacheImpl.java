@@ -227,6 +227,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         return store.getChildren(path);
     }
 
+    @Override
     public void invalidate(String path) {
         objCache.synchronous().invalidate(path);
     }
