@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.NamespacesBase.getBundles;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 
 import java.util.Collections;
 import java.util.List;
@@ -68,6 +70,7 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.bookkeeper.net.DNS;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -1120,7 +1123,23 @@ public class PulsarService implements AutoCloseable {
      * @return Hostname or IP address the service advertises to the outside world.
      */
     public static String advertisedAddress(ServiceConfiguration config) {
-        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+        String advertisedAddress = null;
+        if (!isBlank(config.getAdvertisedAddress())) {
+            advertisedAddress = config.getAdvertisedAddress();
+        } else {
+            String iface = config.getListeningInterface();
+            if (!isBlank(iface)) {
+                try {
+                    advertisedAddress = DNS.getDefaultIP(iface);
+                } catch (UnknownHostException e) {
+                    LOG.error("GetAdvertisedAddressIP Fail: {}", iface);
+                }
+            } else {
+                advertisedAddress =
+                        ServiceConfigurationUtils.unsafeLocalhostResolve();
+            }
+        }
+        return advertisedAddress;
     }
 
     private String brokerUrl(ServiceConfiguration config) {
