@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -133,7 +134,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                      nextExpectedId, entryId, lastEntry);
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
-                            inputStream.skip(length);
+                            long ignored = inputStream.skip(length);
                         }
                     }
 
@@ -193,12 +194,14 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         Blob blob = blobStore.getBlob(bucket, indexKey);
         versionCheck.check(indexKey, blob);
         OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
-        OffloadIndexBlock index = indexBuilder.fromStream(blob.getPayload().openStream());
+        final InputStream payLoadStream = blob.getPayload().openStream();
+        OffloadIndexBlock index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
+        payLoadStream.close();
 
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
-            versionCheck,
-            index.getDataObjectLength(),
-            readBufferSize);
+                versionCheck,
+                index.getDataObjectLength(),
+                readBufferSize);
         return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
     }
 }

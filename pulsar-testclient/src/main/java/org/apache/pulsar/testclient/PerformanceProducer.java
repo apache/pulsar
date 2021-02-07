@@ -61,6 +61,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -215,6 +216,9 @@ public class PerformanceProducer {
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
+
+        @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
+        public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
     }
 
     static class EncKeyReader implements CryptoKeyReader {
@@ -452,6 +456,7 @@ public class PerformanceProducer {
                     .compressionType(arguments.compression) //
                     .maxPendingMessages(arguments.maxOutstanding) //
                     .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
+                    .accessMode(arguments.producerAccessMode)
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 

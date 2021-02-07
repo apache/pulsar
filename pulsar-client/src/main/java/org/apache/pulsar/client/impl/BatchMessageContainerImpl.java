@@ -29,8 +29,8 @@ import java.util.List;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.slf4j.Logger;
@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  */
 class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
-    private PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
+    private MessageMetadata messageMetadata = new MessageMetadata();
     // sequence id for this batch which will be persisted as a single entry by broker
     private long lowestSequenceId = -1L;
     private long highestSequenceId = -1L;
@@ -104,10 +104,9 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
         for (int i = 0, n = messages.size(); i < n; i++) {
             MessageImpl<?> msg = messages.get(i);
-            PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
             msg.getDataBuffer().markReaderIndex();
             try {
-                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
+                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msg.getMessageBuilder(),
                         msg.getDataBuffer(), batchedMessageMetadataAndPayload);
             } catch (Throwable th) {
                 // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
@@ -121,14 +120,11 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 throw new RuntimeException(th);
             }
         }
-        // Recycle messages only once they serialized successfully in batch
-        for (MessageImpl<?> msg : messages) {
-            msg.getMessageBuilder().recycle();
-        }
+
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
         ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
         batchedMessageMetadataAndPayload.release();
-        if (compressionType != PulsarApi.CompressionType.NONE) {
+        if (compressionType != CompressionType.NONE) {
             messageMetadata.setCompression(compressionType);
             messageMetadata.setUncompressedSize(uncompressedSize);
         }
@@ -195,7 +191,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             messageMetadata.setTxnidLeastBits(currentTxnidLeastBits);
         }
         ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
-                messageMetadata.getHighestSequenceId(), numMessagesInBatch, messageMetadata.build(), encryptedPayload);
+                messageMetadata.getHighestSequenceId(), numMessagesInBatch, messageMetadata, encryptedPayload);
 
         OpSendMsg op = OpSendMsg.create(messages, cmd, messageMetadata.getSequenceId(),
                 messageMetadata.getHighestSequenceId(), firstCallback);
@@ -214,8 +210,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         if (!messageMetadata.hasSchemaVersion()) {
             return msg.getSchemaVersion() == null;
         }
-        return Arrays.equals(msg.getSchemaVersion(),
-                             messageMetadata.getSchemaVersion().toByteArray());
+        return Arrays.equals(msg.getSchemaVersion(), messageMetadata.getSchemaVersion());
     }
 
     private static final Logger log = LoggerFactory.getLogger(BatchMessageContainerImpl.class);

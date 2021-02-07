@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -34,7 +33,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
@@ -130,8 +128,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         AtomicInteger completed = new AtomicInteger();
         for (int partitionIndex = 0; partitionIndex < topicMetadata.numPartitions(); partitionIndex++) {
             String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
-            ProducerImpl<T> producer = new ProducerImpl<>(client, partitionName, conf, new CompletableFuture<>(),
-                    partitionIndex, schema, interceptors);
+            ProducerImpl<T> producer = client.newProducerImpl(partitionName, partitionIndex,
+                    conf, schema, interceptors, new CompletableFuture<>());
             producers.add(producer);
             producer.producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {
@@ -178,6 +176,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             case Closing:
             case Closed:
                 return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+            case ProducerFenced:
+                return FutureUtil.failedFuture(new PulsarClientException.ProducerFencedException("Producer was fenced"));
             case Terminated:
                 return FutureUtil.failedFuture(new PulsarClientException.TopicTerminatedException("Topic was terminated"));
             case Failed:

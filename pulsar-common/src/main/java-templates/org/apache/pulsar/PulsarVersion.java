@@ -70,6 +70,11 @@ public class PulsarVersion {
     public static String getGitSha() {
         String commit = "${git.commit.id}";
         String dirtyString = "${git.dirty}";
+        if (commit.contains("git.commit.id")){
+            // this case may happen if you are building the sources
+            // out of the git repository
+            commit = "";
+        }
         if (dirtyString == null || Boolean.valueOf(dirtyString)) {
             return commit + "(dirty)";
         } else {

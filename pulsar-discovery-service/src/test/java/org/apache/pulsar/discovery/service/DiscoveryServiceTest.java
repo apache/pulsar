@@ -35,12 +35,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
@@ -66,6 +65,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import org.awaitility.Awaitility;
 
 public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
 
@@ -77,7 +77,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         super.setup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     private void clean() throws Exception {
         super.cleanup();
     }
@@ -91,9 +91,10 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
     public void testBrokerDiscoveryRoundRobin() throws Exception {
         addBrokerToZk(5);
         String prevUrl = null;
+        BrokerDiscoveryProvider discoveryProvider = service.getDiscoveryProvider();
         for (int i = 0; i < 10; i++) {
-            String current = service.getDiscoveryProvider().nextBroker().getPulsarServiceUrl();
-            assertNotEquals(prevUrl, current);
+            String current = discoveryProvider.nextBroker().getPulsarServiceUrl();
+            assertNotEquals(prevUrl, current, "unexpected " + current + " vs " + prevUrl + ", available " + discoveryProvider.getAvailableBrokers());
             prevUrl = current;
         }
     }
@@ -205,13 +206,8 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
                 ByteBuf buffer = (ByteBuf) msg;
                 buffer.readUnsignedInt(); // discard frame length
                 int cmdSize = (int) buffer.readUnsignedInt();
-                buffer.writerIndex(buffer.readerIndex() + cmdSize);
-                ByteBufCodedInputStream cmdInputStream = ByteBufCodedInputStream.get(buffer);
-                BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
-                BaseCommand cmd = cmdBuilder.mergeFrom(cmdInputStream, null).build();
-
-                cmdInputStream.recycle();
-                cmdBuilder.recycle();
+                BaseCommand cmd = new BaseCommand();
+                cmd.parseFrom(buffer, cmdSize);
                 buffer.release();
 
                 promise.complete(cmd);
@@ -251,6 +247,9 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         ZooKeeperChildrenCache availableBrokersCache = (ZooKeeperChildrenCache) field
                 .get(service.getDiscoveryProvider().localZkCache);
         availableBrokersCache.reloadCache(LOADBALANCE_BROKERS_ROOT);
+
+        Awaitility.await().until(()
+                -> service.getDiscoveryProvider().getAvailableBrokers().size() == number);
     }
 
 }

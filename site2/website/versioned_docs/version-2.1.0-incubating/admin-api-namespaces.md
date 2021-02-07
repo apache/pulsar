@@ -174,7 +174,7 @@ cl2
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/replication
+GET /admin/v2/namespaces/:tenant/:namespace/replication
 ```
 
 ###### Java
@@ -208,7 +208,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/backlogQuota
+POST /admin/v2/namespaces/:tenant/:namespace/backlogQuota
 ```
 
 ###### Java
@@ -239,7 +239,7 @@ $ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/backlogQuotaMap
+GET /admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap
 ```
 
 ###### Java
@@ -265,7 +265,7 @@ N/A
 ###### REST
 
 ```
-DELETE /admin/v2/namespaces/{tenant}/{namespace}/backlogQuota
+DELETE /admin/v2/namespaces/:tenant/:namespace/backlogQuota
 ```
 
 ###### Java
@@ -299,7 +299,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/persistence
+POST /admin/v2/namespaces/:tenant/:namespace/persistence
 ```
 
 ###### Java
@@ -331,7 +331,7 @@ $ pulsar-admin namespaces get-persistence test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/persistence
+GET /admin/v2/namespaces/:tenant/:namespace/persistence
 ```
 
 ###### Java
@@ -358,7 +358,7 @@ N/A
 ###### REST
 
 ```
-PUT /admin/v2/namespaces/{tenant}/{namespace}/unload
+PUT /admin/v2/namespaces/:tenant/:namespace/unload
 ```
 
 ###### Java
@@ -385,7 +385,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/messageTTL
+POST /admin/v2/namespaces/:tenant/:namespace/messageTTL
 ```
 
 ###### Java
@@ -412,7 +412,7 @@ $ pulsar-admin namespaces get-message-ttl test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/messageTTL
+GET /admin/v2/namespaces/:tenant/:namespace/messageTTL
 ```
 
 ###### Java
@@ -439,7 +439,7 @@ N/A
 ###### REST
 
 ```
-PUT /admin/v2/namespaces/{tenant}/{namespace}/{bundle}/split
+PUT /admin/v2/namespaces/:tenant/:namespace/{bundle}/split
 ```
 
 ###### Java
@@ -466,7 +466,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/clearBacklog
+POST /admin/v2/namespaces/:tenant/:namespace/clearBacklog
 ```
 
 ###### Java
@@ -493,7 +493,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog
+POST /admin/v2/namespaces/:tenant/:namespace/{bundle}/clearBacklog
 ```
 
 ###### Java
@@ -520,7 +520,7 @@ N/A
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/retention
+POST /admin/v2/namespaces/:tenant/:namespace/retention
 ```
 
 ###### Java
@@ -550,7 +550,7 @@ $ pulsar-admin namespaces get-retention test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/retention
+GET /admin/v2/namespaces/:tenant/:namespace/retention
 ```
 
 ###### Java
@@ -578,7 +578,7 @@ $ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
 ###### REST
 
 ```
-POST /admin/v2/namespaces/{tenant}/{namespace}/dispatchRate
+POST /admin/v2/namespaces/:tenant/:namespace/dispatchRate
 ```
 
 ###### Java
@@ -608,7 +608,7 @@ $ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 ###### REST
 
 ```
-GET /admin/v2/namespaces/{tenant}/{namespace}/dispatchRate
+GET /admin/v2/namespaces/:tenant/:namespace/dispatchRate
 ```
 
 ###### Java

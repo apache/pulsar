@@ -35,6 +35,7 @@ Pay attention to the following required settings when configuring functions-work
 
 - `numFunctionPackageReplicas`: The number of replicas to store function packages. The default value is `1`, which is good for standalone deployment. For production deployment, to ensure high availability, set it to be larger than `2`.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
+- `initializedDlogMetadata`: Whether to initialize distributed log metadata in runtime. If it is set to `true`, you must ensure that it has been initialized by `bin/pulsarinitialize-cluster-metadata` command.
 
 If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.
 
@@ -270,16 +271,20 @@ The error message prompts when either of the cases occurs:
 
 If any of these cases happens, follow the instructions below to fix the problem:
 
-1. Get the current clusters list of `public/functions` namespace.
+1. Disable Functions Worker by setting `functionsWorkerEnabled=false`, and restart brokers.
+
+2. Get the current clusters list of `public/functions` namespace.
 
 ```bash
 bin/pulsar-admin namespaces get-clusters public/functions
 ```
 
-2. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
+3. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
 
 ```bash
-bin/pulsar-admin namespaces set-clusters --cluster=<existing-clusters>,<new-cluster> public/functions
+bin/pulsar-admin namespaces set-clusters --clusters <existing-clusters>,<new-cluster> public/functions
 ```
 
-3. Set the correct cluster name in `pulsarFunctionsCluster` in the `conf/functions_worker.yml` file. 
+4. After setting the cluster successfully, enable functions worker by setting `functionsWorkerEnabled=true`. 
+
+5. Set the correct cluster name in `pulsarFunctionsCluster` in the `conf/functions_worker.yml` file, and restart brokers. 

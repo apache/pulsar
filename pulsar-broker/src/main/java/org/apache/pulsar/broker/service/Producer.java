@@ -23,7 +23,6 @@ import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
@@ -32,10 +31,10 @@ import io.netty.util.Recycler.Handle;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
@@ -43,8 +42,9 @@ import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ProducerAccessMode;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
@@ -56,7 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Represents a currently connected producer
+ * Represents a currently connected producer.
  */
 public class Producer {
     private final Topic topic;
@@ -85,13 +85,18 @@ public class Producer {
     private final boolean isNonPersistentTopic;
     private final boolean isEncrypted;
 
+    private final ProducerAccessMode accessMode;
+    private Optional<Long> topicEpoch;
+
     private final Map<String, String> metadata;
 
     private final SchemaVersion schemaVersion;
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
-            boolean userProvidedProducerName) {
+            boolean userProvidedProducerName,
+            ProducerAccessMode accessMode,
+            Optional<Long> topicEpoch) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -109,12 +114,17 @@ public class Producer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         this.stats = isNonPersistentTopic ? new NonPersistentPublisherStats() : new PublisherStats();
-        stats.setAddress(cnx.clientAddress().toString());
+        if (cnx.hasHAProxyMessage()) {
+            stats.setAddress(cnx.getHAProxyMessage().sourceAddress() + ":" + cnx.getHAProxyMessage().sourcePort());
+        } else {
+            stats.setAddress(cnx.clientAddress().toString());
+        }
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
         stats.setProducerName(producerName);
         stats.producerId = producerId;
         stats.metadata = this.metadata;
+        stats.accessMode = Commands.convertProducerAccessMode(accessMode);
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
@@ -122,6 +132,8 @@ public class Producer {
 
         this.isEncrypted = isEncrypted;
         this.schemaVersion = schemaVersion;
+        this.accessMode = accessMode;
+        this.topicEpoch = topicEpoch;
     }
 
     @Override
@@ -173,7 +185,8 @@ public class Producer {
 
         if (!verifyChecksum(headersAndPayload)) {
             cnx.execute(() -> {
-                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError, "Checksum failed on the broker");
+                cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.ChecksumError,
+                        "Checksum failed on the broker");
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return false;
@@ -185,7 +198,6 @@ public class Producer {
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.resetReaderIndex();
             int encryptionKeysCount = msgMetadata.getEncryptionKeysCount();
-            msgMetadata.recycle();
             // Check whether the message is encrypted or not
             if (encryptionKeysCount < 1) {
                 log.warn("[{}] Messages must be encrypted", getTopic().getName());
@@ -204,13 +216,16 @@ public class Producer {
 
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, sequenceId, msgIn,
+                        headersAndPayload.readableBytes(), batchSize,
                         isChunked, System.nanoTime()));
     }
 
-    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId, long batchSize, boolean isChunked) {
+    private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId,
+                                       long batchSize, boolean isChunked) {
         topic.publishMessage(headersAndPayload,
-                MessagePublishContext.get(this, lowestSequenceId, highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                MessagePublishContext.get(this, lowestSequenceId,
+                        highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                         isChunked, System.nanoTime()));
     }
 
@@ -268,7 +283,8 @@ public class Producer {
     }
 
     /**
-     * Return the sequence id of
+     * Return the sequence id of.
+     *
      * @return the sequence id
      */
     public long getLastSequenceId() {
@@ -349,13 +365,12 @@ public class Producer {
         }
 
         /**
-         * Executed from managed ledger thread when the message is persisted
+         * Executed from managed ledger thread when the message is persisted.
          */
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
             if (exception != null) {
-                ServerError serverError = (exception instanceof TopicTerminatedException)
-                        ? ServerError.TopicTerminatedError : ServerError.PersistenceError;
+                final ServerError serverError = getServerError(exception);
 
                 producer.cnx.execute(() -> {
                     if (!(exception instanceof TopicClosedException)) {
@@ -381,8 +396,20 @@ public class Producer {
             }
         }
 
+        private ServerError getServerError(Exception exception) {
+            ServerError serverError;
+            if (exception instanceof TopicTerminatedException) {
+                serverError = ServerError.TopicTerminatedError;
+            } else if (exception instanceof BrokerServiceException.NotAllowedException) {
+                serverError = ServerError.NotAllowedError;
+            } else {
+                serverError = ServerError.PersistenceError;
+            }
+            return serverError;
+        }
+
         /**
-         * Executed from I/O thread when sending receipt back to client
+         * Executed from I/O thread when sending receipt back to client.
          */
         @Override
         public void run() {
@@ -433,6 +460,11 @@ public class Producer {
             callback.startTimeNs = startTimeNs;
             callback.chunked = chunked;
             return callback;
+        }
+
+        @Override
+        public long getNumberOfMessages() {
+            return batchSize;
         }
 
         private final Handle<MessagePublishContext> recyclerHandle;
@@ -553,7 +585,10 @@ public class Producer {
             msgDrop.calculateRate();
             ((NonPersistentPublisherStats) stats).msgDropRate = msgDrop.getRate();
         }
+    }
 
+    public void updateRates(int numOfMessages, long msgSizeInBytes) {
+        msgIn.recordMultipleEvents(numOfMessages, msgSizeInBytes);
     }
 
     public boolean isRemote() {
@@ -620,6 +655,14 @@ public class Producer {
 
     public SchemaVersion getSchemaVersion() {
         return schemaVersion;
+    }
+
+    public ProducerAccessMode getAccessMode() {
+        return accessMode;
+    }
+
+    public Optional<Long> getTopicEpoch() {
+        return topicEpoch;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);

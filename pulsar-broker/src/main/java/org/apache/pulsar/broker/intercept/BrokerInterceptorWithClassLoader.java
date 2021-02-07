@@ -18,19 +18,21 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-import org.apache.pulsar.common.intercept.InterceptException;
-import org.apache.pulsar.common.nar.NarClassLoader;
-
+import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import java.io.IOException;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.nar.NarClassLoader;
 
 /**
  * A broker interceptor with it's classloader.
@@ -42,6 +44,15 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
 
     private final BrokerInterceptor interceptor;
     private final NarClassLoader classLoader;
+
+    @Override
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata) {
+        this.interceptor.beforeSendMessage(
+            subscription, entry, ackSet, msgMetadata);
+    }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
@@ -59,7 +70,8 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response)
+            throws IOException, ServletException {
         this.interceptor.onWebserviceResponse(request, response);
     }
 

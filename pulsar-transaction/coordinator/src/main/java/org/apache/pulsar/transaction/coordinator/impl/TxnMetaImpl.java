@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 
 /**
  * A class represents the metadata of a transaction stored in
@@ -36,14 +38,38 @@ import org.apache.pulsar.transaction.impl.common.TxnStatus;
  */
 class TxnMetaImpl implements TxnMeta {
 
-    private final TxnID txnID;
+    private TxnID txnID;
     private final Set<String> producedPartitions = new HashSet<>();
     private final Set<TransactionSubscription> ackedPartitions = new HashSet<>();
-    private TxnStatus txnStatus;
+    private volatile TxnStatus txnStatus = TxnStatus.OPEN;
+    private final Handle<TxnMetaImpl> recycleHandle;
 
-    TxnMetaImpl(TxnID txnID) {
-        this.txnID = txnID;
+    private static final Recycler<TxnMetaImpl> RECYCLER = new Recycler<TxnMetaImpl>() {
+        protected TxnMetaImpl newObject(Recycler.Handle<TxnMetaImpl> handle) {
+            return new TxnMetaImpl(handle);
+        }
+    };
+
+    TxnMetaImpl(Handle<TxnMetaImpl> handle) {
+        this.recycleHandle = handle;
+    }
+
+    // Constructor for transaction metadata
+    static TxnMetaImpl create(TxnID txnID) {
+        @SuppressWarnings("unchecked")
+        TxnMetaImpl txnMeta = RECYCLER.get();
+        txnMeta.txnID = txnID;
+        return txnMeta;
+    }
+
+    public void recycle() {
+        this.producedPartitions.clear();
+        this.ackedPartitions.clear();
         this.txnStatus = TxnStatus.OPEN;
+
+        if (recycleHandle != null) {
+            recycleHandle.recycle(this);
+        }
     }
 
     @Override
@@ -140,7 +166,7 @@ class TxnMetaImpl implements TxnMeta {
                                                     TxnStatus expectedStatus)
         throws InvalidTxnStatusException {
         checkTxnStatus(expectedStatus);
-        if (!txnStatus.canTransitionTo(newStatus)) {
+        if (!TransactionUtil.canTransitionTo(txnStatus, newStatus)) {
             throw new InvalidTxnStatusException(
                 "Transaction `" + txnID + "` CANNOT transaction from status " + txnStatus + " to " + newStatus);
         }

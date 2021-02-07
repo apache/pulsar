@@ -19,10 +19,8 @@
 package org.apache.pulsar.common.functions;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 import java.util.Collection;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -128,6 +126,8 @@ public class FunctionConfig {
     // Max pending async requests per instance to avoid large number of concurrent requests.
     // Only used in AsyncFunction. Default: 1000.
     private Integer maxPendingAsyncRequests;
+    // Whether the pulsar admin client exposed to function context, default is disabled.
+    private Boolean exposePulsarAdminClientEnabled;
 
     private SubscriptionInitialPosition subscriptionPosition;
 }

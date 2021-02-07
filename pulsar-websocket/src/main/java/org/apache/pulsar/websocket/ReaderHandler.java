@@ -19,7 +19,6 @@
 package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.util.Base64;

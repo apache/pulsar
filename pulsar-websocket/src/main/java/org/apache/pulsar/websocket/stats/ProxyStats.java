@@ -155,8 +155,9 @@ public class ProxyStats {
             dMetrics.put("ns_byte_deliver_rate", numberOfBytesDelivered);
             dMetrics.put("ns_msg_ack_rate", numberOfMsgsAcked);
             for (int i = 0; i < latencyBuckets.length; i++) {
-                final String latencyBucket = i >= ENTRY_LATENCY_BUCKETS_USEC.length
-                        ? ENTRY_LATENCY_BUCKETS_USEC[ENTRY_LATENCY_BUCKETS_USEC.length-1] + "_higher" : Long.toString(ENTRY_LATENCY_BUCKETS_USEC[i]);
+                final String latencyBucket = i >= ENTRY_LATENCY_BUCKETS_USEC.size()
+                        ? ENTRY_LATENCY_BUCKETS_USEC.get(ENTRY_LATENCY_BUCKETS_USEC.size() - 1) + "_higher"
+                        : Long.toString(ENTRY_LATENCY_BUCKETS_USEC.get(i));
                 dMetrics.put("ns_msg_publish_latency_" + latencyBucket, latencyBuckets[i]);
             }
             return dMetrics;

@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.concurrent.Promise;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-
 import java.net.SocketAddress;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 
 public interface TransportCnx {
 
@@ -36,7 +36,8 @@ public interface TransportCnx {
     boolean isBatchMessageCompatibleVersion();
 
     /**
-     * The security role for this connection
+     * The security role for this connection.
+     *
      * @return the role
      */
     String getAuthRole();
@@ -72,5 +73,9 @@ public interface TransportCnx {
     boolean isPreciseDispatcherFlowControl();
 
     Promise<Void> newPromise();
+
+    boolean hasHAProxyMessage();
+
+    HAProxyMessage getHAProxyMessage();
 
 }

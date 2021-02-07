@@ -155,6 +155,10 @@ public final class WorkerUtils {
         return conf;
     }
 
+    public static URI newDlogNamespaceURI(String zookeeperServers) {
+        return URI.create(String.format("distributedlog://%s/pulsar/functions", zookeeperServers));
+    }
+
     public static URI initializeDlogNamespace(InternalConfigurationData internalConf) throws IOException {
         String zookeeperServers = internalConf.getZookeeperServers();
         String ledgersRootPath;
@@ -170,8 +174,8 @@ public final class WorkerUtils {
         }
         BKDLConfig dlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
-        URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zookeeperServers));
 
+        URI dlogUri = newDlogNamespaceURI(internalConf.getZookeeperServers());
         try {
             dlMetadata.create(dlogUri);
         } catch (ZKException e) {
@@ -190,6 +194,11 @@ public final class WorkerUtils {
     public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams,
                                                    String tlsTrustCertsFilePath, Boolean allowTlsInsecureConnection,
                                                    Boolean enableTlsHostnameVerificationEnable) {
+        log.info("Create Pulsar Admin to service url {}: "
+            + "authPlugin = {}, authParams = {}, "
+            + "tlsTrustCerts = {}, allowTlsInsecureConnector = {}, enableTlsHostnameVerification = {}",
+            pulsarWebServiceUrl, authPlugin, authParams,
+            tlsTrustCertsFilePath, allowTlsInsecureConnection, enableTlsHostnameVerificationEnable);
         try {
             PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (isNotBlank(authPlugin) && isNotBlank(authParams)) {

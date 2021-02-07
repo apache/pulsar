@@ -24,6 +24,8 @@ import org.apache.pulsar.common.policies.data.BookieInfo;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
+import java.util.function.Supplier;
+
 @Parameters(commandDescription = "Operations about bookies rack placement")
 public class CmdBookies extends CmdBase {
 
@@ -32,7 +34,7 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(admin.bookies().getBookiesRackInfo());
+            print(getAdmin().bookies().getBookiesRackInfo());
         }
     }
 
@@ -44,7 +46,7 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            print(admin.bookies().getBookieRackInfo(bookieAddress));
+            print(getAdmin().bookies().getBookieRackInfo(bookieAddress));
         }
     }
 
@@ -56,7 +58,7 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            admin.bookies().deleteBookieRackInfo(bookieAddress);
+            getAdmin().bookies().deleteBookieRackInfo(bookieAddress);
         }
     }
 
@@ -76,11 +78,11 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
-            admin.bookies().updateBookieRackInfo(bookieAddress, group, new BookieInfo(bookieRack, bookieHost));
+            getAdmin().bookies().updateBookieRackInfo(bookieAddress, group, new BookieInfo(bookieRack, bookieHost));
         }
     }
 
-    public CmdBookies(PulsarAdmin admin) {
+    public CmdBookies(Supplier<PulsarAdmin> admin) {
         super("bookies", admin);
         jcommander.addCommand("racks-placement", new GetAll());
         jcommander.addCommand("get-bookie-rack", new GetBookie());

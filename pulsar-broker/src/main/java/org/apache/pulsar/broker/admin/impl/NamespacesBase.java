@@ -16,17 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.admin.impl;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-
+import static org.apache.pulsar.common.policies.data.Policies.getBundles;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
-
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -48,7 +48,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -79,6 +78,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -93,7 +93,6 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
-import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
@@ -104,8 +103,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class NamespacesBase extends AdminResource {
-
-    private static final long MAX_BUNDLES = ((long) 1) << 32;
 
     protected List<String> internalGetTenantNamespaces(String tenant) {
         checkNotNull(tenant, "Tenant should not be null");
@@ -414,9 +411,12 @@ public abstract class NamespacesBase extends AdminResource {
             // firstly remove all topics including system topics
             if (!topics.isEmpty()) {
                 for (String topic : topics) {
-                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
-                        topicOptional.ifPresent(tp -> futures.add(tp.deleteForcefully()));
-                    });
+                    try {
+                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true));
+                    } catch (Exception e) {
+                        log.error("[{}] Failed to force delete topic {}", clientAppId(), topic, e);
+                        asyncResponse.resume(new RestException(e));
+                    }
                 }
             }
             // forcefully delete namespace bundles
@@ -526,8 +526,9 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(replClusterUrl.getHost())
                             .port(replClusterUrl.getPort()).replaceQueryParam("authoritative", false).build();
-                    if(log.isDebugEnabled()) {
-                        log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(), redirect, replCluster);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Redirecting the rest call to {}: cluster={}",
+                                clientAppId(), redirect, replCluster);
                     }
                     throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
                 }
@@ -538,9 +539,9 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(e);
         }
 
-        NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
         try {
+            NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                authoritative, true);
             List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
             for (String topic : topics) {
                 NamespaceBundle topicBundle = pulsar().getNamespaceService()
@@ -597,9 +598,11 @@ public abstract class NamespacesBase extends AdminResource {
                                 "The replication cluster does not provide TLS encrypted service");
                     }
                     URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(replClusterUrl.getHost())
-                            .port(replClusterUrl.getPort()).replaceQueryParam("authoritative", false).build();
-                    if(log.isDebugEnabled()) {
-                        log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(), redirect, replCluster);
+                            .port(replClusterUrl.getPort())
+                            .replaceQueryParam("authoritative", false).build();
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Redirecting the rest call to {}: cluster={}",
+                                clientAppId(), redirect, replCluster);
                     }
                     throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
                 }
@@ -610,10 +613,9 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(e);
         }
 
-        NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
-
         try {
+            NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                authoritative, true);
             // directly remove from owned namespace map and ephemeral node from ZK
             pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
         } catch (WebApplicationException wae) {
@@ -634,7 +636,7 @@ public abstract class NamespacesBase extends AdminResource {
             AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
             if (null != authService) {
                 authService.grantPermissionAsync(namespaceName, actions, role, null/*additional auth-data json*/)
-                    .get();
+                        .get();
             } else {
                 throw new RestException(Status.NOT_IMPLEMENTED, "Authorization is not enabled");
             }
@@ -796,7 +798,8 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to update the replication clusters on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to update the replication clusters on"
+                            + " namespace {} expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
@@ -835,7 +838,8 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to update the message TTL on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to update the message TTL"
+                            + " on namespace {} expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
@@ -874,7 +878,8 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to update the subscription expiration time on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to update the subscription expiration time on"
+                            + " namespace {} expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
@@ -884,7 +889,8 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse, AutoTopicCreationOverride autoTopicCreationOverride) {
+    protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse,
+                                                AutoTopicCreationOverride autoTopicCreationOverride) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
@@ -893,7 +899,8 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid configuration for autoTopicCreationOverride");
         }
         if (maxPartitions > 0 && autoTopicCreationOverride.defaultNumPartitions > maxPartitions) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be less than or equal to " + maxPartitions);
+            throw new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of partitions should be less than or equal to " + maxPartitions);
         }
 
         // Force to read the data s.t. the watch to the cache content is setup.
@@ -905,12 +912,16 @@ public abstract class NamespacesBase extends AdminResource {
                         try {
                             // Write back the new policies into zookeeper
                             globalZk().setData(path(POLICIES, namespaceName.toString()),
-                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion(),
+                                    jsonMapper().writeValueAsBytes(
+                                            policiesNode.getKey()), policiesNode.getValue().getVersion(),
                                     (rc, path1, ctx, stat) -> {
                                         if (rc == KeeperException.Code.OK.intValue()) {
                                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-                                            String autoOverride = autoTopicCreationOverride.allowAutoTopicCreation ? "enabled" : "disabled";
-                                            log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(), autoOverride, namespaceName);
+                                            String autoOverride =
+                                                    autoTopicCreationOverride
+                                                            .allowAutoTopicCreation ? "enabled" : "disabled";
+                                            log.info("[{}] Successfully {} autoTopicCreation on namespace {}",
+                                                    clientAppId(), autoOverride, namespaceName);
                                             asyncResponse.resume(Response.noContent().build());
                                         } else {
                                             String errorMsg = String.format(
@@ -918,28 +929,35 @@ public abstract class NamespacesBase extends AdminResource {
                                                     clientAppId(), namespaceName);
                                             if (rc == KeeperException.Code.NONODE.intValue()) {
                                                 log.warn("{} : does not exist", errorMsg);
-                                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                                        "Namespace does not exist"));
                                             } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
                                                 log.warn("{} : concurrent modification", errorMsg);
-                                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                                                asyncResponse.resume(new RestException(Status.CONFLICT,
+                                                        "Concurrent modification"));
                                             } else {
-                                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                                                asyncResponse.resume(
+                                                        KeeperException.create(
+                                                                KeeperException.Code.get(rc), errorMsg));
                                             }
                                         }
                                     }, null);
                             return null;
                         } catch (Exception e) {
-                            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+                            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}",
+                                    clientAppId(), namespaceName, e);
                             asyncResponse.resume(new RestException(e));
                             return null;
                         }
                     } else {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Namespace " + namespaceName + " does not exist"));
                         return null;
                     }
                 }
         ).exceptionally(e -> {
-            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}",
+                    clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
             return null;
         });
@@ -958,11 +976,14 @@ public abstract class NamespacesBase extends AdminResource {
                         try {
                             // Write back the new policies into zookeeper
                             globalZk().setData(path(POLICIES, namespaceName.toString()),
-                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion(),
+                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()),
+                                    policiesNode.getValue().getVersion(),
                                     (rc, path1, ctx, stat) -> {
                                         if (rc == KeeperException.Code.OK.intValue()) {
                                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-                                            log.info("[{}] Successfully removed autoTopicCreation override on namespace {}", clientAppId(), namespaceName);
+                                            log.info("[{}] Successfully removed autoTopicCreation override"
+                                                            + " on namespace {}",
+                                                    clientAppId(), namespaceName);
                                             asyncResponse.resume(Response.noContent().build());
                                         } else {
                                             String errorMsg = String.format(
@@ -970,34 +991,41 @@ public abstract class NamespacesBase extends AdminResource {
                                                     clientAppId(), namespaceName);
                                             if (rc == KeeperException.Code.NONODE.intValue()) {
                                                 log.warn("{} : does not exist", errorMsg);
-                                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                                        "Namespace does not exist"));
                                             } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
                                                 log.warn("{} : concurrent modification", errorMsg);
-                                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                                                asyncResponse.resume(new RestException(Status.CONFLICT,
+                                                        "Concurrent modification"));
                                             } else {
-                                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                                                asyncResponse.resume(KeeperException.create(
+                                                        KeeperException.Code.get(rc), errorMsg));
                                             }
                                         }
                                     }, null);
                             return null;
                         } catch (Exception e) {
-                            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+                            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}",
+                                    clientAppId(), namespaceName, e);
                             asyncResponse.resume(new RestException(e));
                             return null;
                         }
                     } else {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Namespace " + namespaceName + " does not exist"));
                         return null;
                     }
                 }
         ).exceptionally(e -> {
-            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName, e);
+            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}",
+                    clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
             return null;
         });
     }
 
-    protected void internalSetAutoSubscriptionCreation(AsyncResponse asyncResponse, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
+    protected void internalSetAutoSubscriptionCreation(
+            AsyncResponse asyncResponse, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
@@ -1010,41 +1038,52 @@ public abstract class NamespacesBase extends AdminResource {
                         try {
                             // Write back the new policies into zookeeper
                             globalZk().setData(path(POLICIES, namespaceName.toString()),
-                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion(),
+                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()),
+                                    policiesNode.getValue().getVersion(),
                                     (rc, path1, ctx, stat) -> {
                                         if (rc == KeeperException.Code.OK.intValue()) {
                                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-                                            String autoOverride = autoSubscriptionCreationOverride.allowAutoSubscriptionCreation ? "enabled" : "disabled";
-                                            log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}", clientAppId(), autoOverride, namespaceName);
+                                            String autoOverride =
+                                                    autoSubscriptionCreationOverride
+                                                            .allowAutoSubscriptionCreation ? "enabled" : "disabled";
+                                            log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}",
+                                                    clientAppId(), autoOverride, namespaceName);
                                             asyncResponse.resume(Response.noContent().build());
                                         } else {
                                             String errorMsg = String.format(
-                                                    "[%s] Failed to modify autoSubscriptionCreation status for namespace %s",
+                                                    "[%s] Failed to modify autoSubscriptionCreation"
+                                                            + " status for namespace %s",
                                                     clientAppId(), namespaceName);
                                             if (rc == KeeperException.Code.NONODE.intValue()) {
                                                 log.warn("{} : does not exist", errorMsg);
-                                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                                        "Namespace does not exist"));
                                             } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
                                                 log.warn("{} : concurrent modification", errorMsg);
-                                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                                                asyncResponse.resume(new RestException(Status.CONFLICT,
+                                                        "Concurrent modification"));
                                             } else {
-                                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                                                asyncResponse.resume(KeeperException.create(
+                                                        KeeperException.Code.get(rc), errorMsg));
                                             }
                                         }
                                     }, null);
                             return null;
                         } catch (Exception e) {
-                            log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(), namespaceName, e);
+                            log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}",
+                                    clientAppId(), namespaceName, e);
                             asyncResponse.resume(new RestException(e));
                             return null;
                         }
                     } else {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Namespace " + namespaceName + " does not exist"));
                         return null;
                     }
                 }
         ).exceptionally(e -> {
-            log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(), namespaceName, e);
+            log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}",
+                    clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
             return null;
         });
@@ -1063,40 +1102,50 @@ public abstract class NamespacesBase extends AdminResource {
                         try {
                             // Write back the new policies into zookeeper
                             globalZk().setData(path(POLICIES, namespaceName.toString()),
-                                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion(),
+                                    jsonMapper().writeValueAsBytes(
+                                            policiesNode.getKey()), policiesNode.getValue().getVersion(),
                                     (rc, path1, ctx, stat) -> {
                                         if (rc == KeeperException.Code.OK.intValue()) {
                                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-                                            log.info("[{}] Successfully removed autoSubscriptionCreation override on namespace {}", clientAppId(), namespaceName);
+                                            log.info("[{}] Successfully removed autoSubscriptionCreation"
+                                                            + " override on namespace {}",
+                                                    clientAppId(), namespaceName);
                                             asyncResponse.resume(Response.noContent().build());
                                         } else {
                                             String errorMsg = String.format(
-                                                    "[%s] Failed to modify autoSubscriptionCreation status for namespace %s",
+                                                    "[%s] Failed to modify autoSubscriptionCreation"
+                                                            + " status for namespace %s",
                                                     clientAppId(), namespaceName);
                                             if (rc == KeeperException.Code.NONODE.intValue()) {
                                                 log.warn("{} : does not exist", errorMsg);
-                                                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                                        "Namespace does not exist"));
                                             } else if (rc == KeeperException.Code.BADVERSION.intValue()) {
                                                 log.warn("{} : concurrent modification", errorMsg);
-                                                asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
+                                                asyncResponse.resume(new RestException(Status.CONFLICT,
+                                                        "Concurrent modification"));
                                             } else {
-                                                asyncResponse.resume(KeeperException.create(KeeperException.Code.get(rc), errorMsg));
+                                                asyncResponse.resume(KeeperException.create(
+                                                        KeeperException.Code.get(rc), errorMsg));
                                             }
                                         }
                                     }, null);
                             return null;
                         } catch (Exception e) {
-                            log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(), namespaceName, e);
+                            log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}",
+                                    clientAppId(), namespaceName, e);
                             asyncResponse.resume(new RestException(e));
                             return null;
                         }
                     } else {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Namespace " + namespaceName + " does not exist"));
                         return null;
                     }
                 }
         ).exceptionally(e -> {
-            log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(), namespaceName, e);
+            log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}",
+                    clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
             return null;
         });
@@ -1127,12 +1176,14 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to modify deduplication status on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to modify deduplication status on"
+                            + " namespace {} expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
-            log.error("[{}] Failed to modify deduplication status on namespace {}", clientAppId(), namespaceName, e);
+            log.error("[{}] Failed to modify deduplication status on namespace {}",
+                    clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -1254,15 +1305,16 @@ public abstract class NamespacesBase extends AdminResource {
         String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
         try {
             Optional<LocalPolicies> policies = pulsar().getLocalZkCacheService().policiesCache().get(path);
-            final BookieAffinityGroupData bookkeeperAffinityGroup = policies.orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace local-policies does not exist")).bookieAffinityGroup;
+            final BookieAffinityGroupData bookkeeperAffinityGroup =
+                    policies.orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                            "Namespace local-policies does not exist")).bookieAffinityGroup;
             if (bookkeeperAffinityGroup == null) {
                 throw new RestException(Status.NOT_FOUND, "bookie-affinity group does not exist");
             }
             return bookkeeperAffinityGroup;
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace policies does not exist");
         } catch (RestException re) {
             throw re;
@@ -1281,13 +1333,16 @@ public abstract class NamespacesBase extends AdminResource {
 
         Policies policies = getNamespacePolicies(namespaceName);
 
-        NamespaceBundle bundle = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName.toString(), bundleRange);
+        NamespaceBundle bundle =
+                pulsar().getNamespaceService().getNamespaceBundleFactory()
+                        .getBundle(namespaceName.toString(), bundleRange);
         boolean isOwnedByLocalCluster = false;
         try {
             isOwnedByLocalCluster = pulsar().getNamespaceService().isNamespaceBundleOwned(bundle).get();
         } catch (Exception e) {
-            if(log.isDebugEnabled()) {
-                log.debug("Failed to validate cluster ownership for {}-{}, {}", namespaceName.toString(), bundleRange, e.getMessage(), e);
+            if (log.isDebugEnabled()) {
+                log.debug("Failed to validate cluster ownership for {}-{}, {}",
+                        namespaceName.toString(), bundleRange, e.getMessage(), e);
             }
         }
 
@@ -1305,30 +1360,46 @@ public abstract class NamespacesBase extends AdminResource {
 
         validatePoliciesReadOnlyAccess();
 
-        if (!isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)) {
-            log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
-                    bundleRange);
-            asyncResponse.resume(Response.noContent().build());
-            return;
-        }
+        isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange).thenAccept(flag -> {
+            if (!flag) {
+                log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
+                        bundleRange);
+                asyncResponse.resume(Response.noContent().build());
+                return;
+            }
+            NamespaceBundle nsBundle;
 
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
+            try {
+                nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                    authoritative, true);
+            } catch (WebApplicationException wae) {
+                asyncResponse.resume(wae);
+                return;
+            }
 
-        pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
-                .thenRun(() -> {
-                    log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
-                    asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex -> {
-                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
-                            ex);
-                    asyncResponse.resume(new RestException(ex));
-                    return null;
-                });
+            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
+                    .thenRun(() -> {
+                        log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
+                        asyncResponse.resume(Response.noContent().build());
+                    }).exceptionally(ex -> {
+                log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
+                        ex);
+                asyncResponse.resume(new RestException(ex));
+                return null;
+            });
+        }).exceptionally((ex) -> {
+            if (ex.getCause() instanceof WebApplicationException) {
+                asyncResponse.resume(ex.getCause());
+            } else {
+                asyncResponse.resume(new RestException(ex.getCause()));
+            }
+            return null;
+        });
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(String bundleRange, boolean authoritative, boolean unload, String splitAlgorithmName) {
+    protected void internalSplitNamespaceBundle(String bundleRange,
+                                                boolean authoritative, boolean unload, String splitAlgorithmName) {
         validateSuperUserAccess();
         checkNotNull(bundleRange, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
@@ -1344,22 +1415,28 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         validatePoliciesReadOnlyAccess();
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
 
-        List<String> supportedNamespaceBundleSplitAlgorithms = pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
-        if (StringUtils.isNotBlank(splitAlgorithmName) && !supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
+        List<String> supportedNamespaceBundleSplitAlgorithms =
+                pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
+        if (StringUtils.isNotBlank(splitAlgorithmName)
+                && !supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
             throw new RestException(Status.PRECONDITION_FAILED,
-                "Unsupported namespace bundle split algorithm, supported algorithms are " + supportedNamespaceBundleSplitAlgorithms);
+                    "Unsupported namespace bundle split algorithm, supported algorithms are "
+                            + supportedNamespaceBundleSplitAlgorithms);
         }
 
         try {
-            pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload, getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName)).get();
+            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                authoritative, true);
+            pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
+                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName)).get();
             log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
+        } catch (WebApplicationException wae) {
+            throw wae;
         } catch (ExecutionException e) {
             if (e.getCause() instanceof IllegalArgumentException) {
                 log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,
-                    bundleRange, e.getMessage());
+                        bundleRange, e.getMessage());
                 throw new RestException(Status.PRECONDITION_FAILED, "Split bundle failed due to invalid request");
             } else {
                 log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
@@ -1374,10 +1451,11 @@ public abstract class NamespacesBase extends AdminResource {
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
         NamespaceBundleSplitAlgorithm algorithm = NamespaceBundleSplitAlgorithm.of(algorithmName);
         if (algorithm == null) {
-            algorithm = NamespaceBundleSplitAlgorithm.of(pulsar().getConfig().getDefaultNamespaceBundleSplitAlgorithm());
+            algorithm = NamespaceBundleSplitAlgorithm.of(
+                    pulsar().getConfig().getDefaultNamespaceBundleSplitAlgorithm());
         }
         if (algorithm == null) {
-            algorithm = NamespaceBundleSplitAlgorithm.rangeEquallyDivide;
+            algorithm = NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO;
         }
         return algorithm;
     }
@@ -1393,14 +1471,16 @@ public abstract class NamespacesBase extends AdminResource {
             // Force to read the data s.t. the watch to the cache content is setup.
             policiesNode = policiesCache().getWithStat(path).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().publishMaxMessageRate.put(pulsar().getConfiguration().getClusterName(), maxPublishMessageRate);
+            policiesNode.getKey().publishMaxMessageRate.put(
+                    pulsar().getConfiguration().getClusterName(), maxPublishMessageRate);
 
             // Write back the new policies into zookeeper
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
                     policiesNode.getValue().getVersion());
             policiesCache().invalidate(path);
 
-            log.info("[{}] Successfully updated the publish_max_message_rate for cluster on namespace {}", clientAppId(),
+            log.info("[{}] Successfully updated the publish_max_message_rate for cluster on namespace {}",
+                    clientAppId(),
                     namespaceName);
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update the publish_max_message_rate for cluster on namespace {}: does not exist",
@@ -1408,7 +1488,8 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to update the publish_max_message_rate for cluster on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to update the publish_max_message_rate for cluster on namespace {}"
+                            + " expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
@@ -1421,7 +1502,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalRemovePublishRate() {
         validateSuperUserAccess();
-        log.info("[{}] Remove namespace publish-rate {}/{}", clientAppId(), namespaceName);
+        log.info("[{}] Remove namespace publish-rate {}/{}", clientAppId(), namespaceName, topicName);
         Entry<Policies, Stat> policiesNode = null;
         try {
             final String path = path(POLICIES, namespaceName.toString());
@@ -1443,7 +1524,8 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to remove the publish_max_message_rate for cluster on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to remove the publish_max_message_rate for cluster on"
+                            + " namespace {} expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
@@ -1495,7 +1577,8 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to update the dispatchRate for cluster on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to update the dispatchRate for cluster on"
+                            + " namespace {} expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
@@ -1512,9 +1595,6 @@ public abstract class NamespacesBase extends AdminResource {
 
         Policies policies = getNamespacePolicies(namespaceName);
         DispatchRate dispatchRate = policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
-        if (dispatchRate == null) {
-            dispatchRate = policies.clusterDispatchRate.get(pulsar().getConfiguration().getClusterName());
-        }
         if (dispatchRate != null) {
             return dispatchRate;
         } else {
@@ -1533,29 +1613,31 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             // Force to read the data s.t. the watch to the cache content is setup.
             policiesNode = policiesCache().getWithStat(path).orElseThrow(
-                () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().subscriptionDispatchRate
+                    .put(pulsar().getConfiguration().getClusterName(), dispatchRate);
 
             // Write back the new policies into zookeeper
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
-                policiesNode.getValue().getVersion());
+                    policiesNode.getValue().getVersion());
             policiesCache().invalidate(path);
 
-            log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
-                namespaceName);
+            log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
+                    clientAppId(), namespaceName);
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update the subscriptionDispatchRate for cluster on namespace {}: does not exist",
-                clientAppId(), namespaceName);
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                "[{}] Failed to update the subscriptionDispatchRate for cluster on namespace {} expected policy node version={} : concurrent modification",
-                clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+                    "[{}] Failed to update the subscriptionDispatchRate for cluster on"
+                            + " namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
             log.error("[{}] Failed to update the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
-                namespaceName, e);
+                    namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -1564,12 +1646,14 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        DispatchRate dispatchRate = policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
+        DispatchRate dispatchRate =
+                policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
         if (dispatchRate != null) {
             return dispatchRate;
         } else {
             throw new RestException(Status.NOT_FOUND,
-                "Subscription-Dispatch-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
+                    "Subscription-Dispatch-rate is not configured for cluster "
+                            + pulsar().getConfiguration().getClusterName());
         }
     }
 
@@ -1585,7 +1669,8 @@ public abstract class NamespacesBase extends AdminResource {
             // Force to read the data s.t. the watch to the cache content is setup.
             policiesNode = policiesCache().getWithStat(path).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
+            policiesNode.getKey().clusterSubscribeRate.put(
+                    pulsar().getConfiguration().getClusterName(), subscribeRate);
 
             // Write back the new policies into zookeeper
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
@@ -1600,7 +1685,8 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to update the subscribeRate for cluster on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to update the subscribeRate for cluster on"
+                            + " namespace {} expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
@@ -1633,29 +1719,31 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             // Force to read the data s.t. the watch to the cache content is setup.
             policiesNode = policiesCache().getWithStat(path).orElseThrow(
-                () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().replicatorDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().replicatorDispatchRate.put(
+                    pulsar().getConfiguration().getClusterName(), dispatchRate);
 
             // Write back the new policies into zookeeper
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
-                policiesNode.getValue().getVersion());
+                    policiesNode.getValue().getVersion());
             policiesCache().invalidate(path);
 
             log.info("[{}] Successfully updated the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                namespaceName);
+                    namespaceName);
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}: does not exist",
-                clientAppId(), namespaceName);
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                "[{}] Failed to update the replicatorDispatchRate for cluster on namespace {} expected policy node version={} : concurrent modification",
-                clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+                    "[{}] Failed to update the replicatorDispatchRate for cluster on"
+                            + " namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
             log.error("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                namespaceName, e);
+                    namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -1669,7 +1757,8 @@ public abstract class NamespacesBase extends AdminResource {
             return dispatchRate;
         } else {
             throw new RestException(Status.NOT_FOUND,
-                "replicator-Dispatch-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
+                    "replicator-Dispatch-rate is not configured for cluster "
+                            + pulsar().getConfiguration().getClusterName());
         }
     }
 
@@ -1692,10 +1781,12 @@ public abstract class NamespacesBase extends AdminResource {
                 p.backlog_quota_map.put(backlogQuotaType, backlogQuota);
                 if (!checkQuotas(p, r)) {
                     log.warn(
-                            "[{}] Failed to update backlog configuration for namespace {}: conflicts with retention quota",
+                            "[{}] Failed to update backlog configuration"
+                                    + " for namespace {}: conflicts with retention quota",
                             clientAppId(), namespaceName);
                     throw new RestException(Status.PRECONDITION_FAILED,
-                            "Backlog Quota exceeds configured retention quota for namespace. Please increase retention quota and retry");
+                            "Backlog Quota exceeds configured retention quota for namespace."
+                                    + " Please increase retention quota and retry");
                 }
             }
             policies.backlog_quota_map.put(backlogQuotaType, backlogQuota);
@@ -1709,8 +1800,8 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update backlog quota map for namespace {}: concurrent modification", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update backlog quota map for namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
@@ -1744,8 +1835,8 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update backlog quota map for namespace {}: concurrent modification", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update backlog quota map for namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
             log.error("[{}] Failed to update backlog quota map for namespace {}", clientAppId(), namespaceName, e);
@@ -1764,7 +1855,8 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
             if (!checkQuotas(policies, retention)) {
-                log.warn("[{}] Failed to update retention configuration for namespace {}: conflicts with backlog quota",
+                log.warn("[{}] Failed to update retention configuration"
+                                + " for namespace {}: conflicts with backlog quota",
                         clientAppId(), namespaceName);
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "Retention Quota must exceed configured backlog quota for namespace.");
@@ -1776,8 +1868,8 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName, jsonMapper().writeValueAsString(policies.retention_policies));
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update retention configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update retention configuration for namespace {}: does not exist",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn("[{}] Failed to update retention configuration for namespace {}: concurrent modification",
@@ -1827,12 +1919,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.persistence == null) {
-            return new PersistencePolicies(config().getManagedLedgerDefaultEnsembleSize(),
-                    config().getManagedLedgerDefaultWriteQuorum(), config().getManagedLedgerDefaultAckQuorum(), 0.0d);
-        } else {
-            return policies.persistence;
-        }
+        return policies.persistence;
     }
 
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
@@ -1899,7 +1986,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalClearNamespaceBacklogForSubscription(AsyncResponse asyncResponse, String subscription,
-            boolean authoritative) {
+                                                                boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
         checkNotNull(subscription, "Subscription should not be null");
 
@@ -1943,7 +2030,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("deprecation")
     protected void internalClearNamespaceBundleBacklogForSubscription(String subscription, String bundleRange,
-            boolean authoritative) {
+                                                                      boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
         checkNotNull(subscription, "Subscription should not be null");
         checkNotNull(bundleRange, "BundleRange should not be null");
@@ -1966,7 +2053,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalUnsubscribeNamespace(AsyncResponse asyncResponse, String subscription,
-            boolean authoritative) {
+                                                boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.UNSUBSCRIBE);
         checkNotNull(subscription, "Subscription should not be null");
 
@@ -2092,49 +2179,37 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn(
-                    "[{}] Failed to modify encryption required status on namespace {} expected policy node version={} : concurrent modification",
+                    "[{}] Failed to modify encryption required status on"
+                            + " namespace {} expected policy node version={} : concurrent modification",
                     clientAppId(), namespaceName, policiesNode.getValue().getVersion());
 
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
-            log.error("[{}] Failed to modify encryption required status on namespace {}", clientAppId(), namespaceName,
-                    e);
+            log.error("[{}] Failed to modify encryption required status on namespace {}", clientAppId(),
+                    namespaceName, e);
             throw new RestException(e);
         }
     }
 
     protected DelayedDeliveryPolicies internalGetDelayedDelivery() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.DELAYED_DELIVERY, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.delayed_delivery_policies == null) {
-            return new DelayedDeliveryPolicies(config().getDelayedDeliveryTickTimeMillis(),
-                    config().isDelayedDeliveryEnabled());
-        } else {
-            return policies.delayed_delivery_policies;
-        }
+        return getNamespacePolicies(namespaceName).delayed_delivery_policies;
     }
 
     protected InactiveTopicPolicies internalGetInactiveTopic() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.inactive_topic_policies == null) {
-            return new InactiveTopicPolicies(config().getBrokerDeleteInactiveTopicsMode()
-                    , config().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds()
-                    , config().isBrokerDeleteInactiveTopicsEnabled());
-        } else {
-            return policies.inactive_topic_policies;
-        }
+        return policies.inactive_topic_policies;
     }
 
-    protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies){
+    protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         internalSetPolicies("inactive_topic_policies", inactiveTopicPolicies);
     }
 
-    protected void internalSetPolicies(String fieldName, Object value){
+    protected void internalSetPolicies(String fieldName, Object value) {
         try {
             Stat nodeStat = new Stat();
             final String path = path(POLICIES, namespaceName.toString());
@@ -2267,7 +2342,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected List<String> internalGetAntiAffinityNamespaces(String cluster, String antiAffinityGroup,
-            String tenant) {
+                                                             String tenant) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
         checkNotNull(cluster, "Cluster should not be null");
         checkNotNull(antiAffinityGroup, "AntiAffinityGroup should not be null");
@@ -2305,12 +2380,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.retention_policies == null) {
-            return new RetentionPolicies(config().getDefaultRetentionTimeInMinutes(),
-                    config().getDefaultRetentionSizeInMB());
-        } else {
-            return policies.retention_policies;
-        }
+        return policies.retention_policies;
     }
 
     private boolean checkQuotas(Policies policies, RetentionPolicies retention) {
@@ -2333,13 +2403,15 @@ public abstract class NamespacesBase extends AdminResource {
                     subscription = PersistentReplicator.getRemoteCluster(subscription);
                 }
                 for (Topic topic : topicList) {
-                    if (topic instanceof PersistentTopic && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                    if (topic instanceof PersistentTopic
+                            && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog(subscription));
                     }
                 }
             } else {
                 for (Topic topic : topicList) {
-                    if (topic instanceof PersistentTopic && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                    if (topic instanceof PersistentTopic
+                            && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog());
                     }
                 }
@@ -2383,12 +2455,10 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     /**
-     * It validates that peer-clusters can't coexist in replication-clusters
+     * It validates that peer-clusters can't coexist in replication-clusters.
      *
-     * @param clusterName:
-     *            given cluster whose peer-clusters can't be present into replication-cluster list
-     * @param replicationClusters:
-     *            replication-cluster list
+     * @param clusterName:         given cluster whose peer-clusters can't be present into replication-cluster list
+     * @param replicationClusters: replication-cluster list
      */
     private void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
         try {
@@ -2434,27 +2504,6 @@ public abstract class NamespacesBase extends AdminResource {
         return new BundlesData(bundles);
     }
 
-    public static BundlesData getBundles(int numBundles) {
-        if (numBundles <= 0 || numBundles > MAX_BUNDLES) {
-            throw new RestException(Status.BAD_REQUEST,
-                    "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
-        }
-        Long maxVal = ((long) 1) << 32;
-        Long segSize = maxVal / numBundles;
-        List<String> partitions = Lists.newArrayList();
-        partitions.add(String.format("0x%08x", 0l));
-        Long curPartition = segSize;
-        for (int i = 0; i < numBundles; i++) {
-            if (i != numBundles - 1) {
-                partitions.add(String.format("0x%08x", curPartition));
-            } else {
-                partitions.add(String.format("0x%08x", maxVal - 1));
-            }
-            curPartition += segSize;
-        }
-        return new BundlesData(partitions);
-    }
-
     private void validatePolicies(NamespaceName ns, Policies policies) {
         if (ns.isV2() && policies.replication_clusters.isEmpty()) {
             // Default to local cluster
@@ -2489,18 +2538,21 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void validateRetentionPolicies(RetentionPolicies retention) {
+        if (retention == null) {
+            return;
+        }
         checkArgument(retention.getRetentionSizeInMB() >= -1,
                 "Invalid retention policy: size limit must be >= -1");
         checkArgument(retention.getRetentionTimeInMinutes() >= -1,
                 "Invalid retention policy: time limit must be >= -1");
-        checkArgument((retention.getRetentionTimeInMinutes() != 0 && retention.getRetentionSizeInMB() != 0) ||
-                        (retention.getRetentionTimeInMinutes() == 0 && retention.getRetentionSizeInMB() == 0),
-                "Invalid retention policy: Setting a single time or size limit to 0 is invalid when " +
-                        "one of the limits has a non-zero value. Use the value of -1 instead of 0 to ignore a " +
-                        "specific limit. To disable retention both limits must be set to 0.");
+        checkArgument((retention.getRetentionTimeInMinutes() != 0 && retention.getRetentionSizeInMB() != 0)
+                        || (retention.getRetentionTimeInMinutes() == 0 && retention.getRetentionSizeInMB() == 0),
+                "Invalid retention policy: Setting a single time or size limit to 0 is invalid when "
+                        + "one of the limits has a non-zero value. Use the value of -1 instead of 0 to ignore a "
+                        + "specific limit. To disable retention both limits must be set to 0.");
     }
 
-    protected int internalGetMaxProducersPerTopic() {
+    protected Integer internalGetMaxProducersPerTopic() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_producers_per_topic;
     }
@@ -2518,7 +2570,7 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("deduplicationSnapshotIntervalSeconds", interval);
     }
 
-    protected void internalSetMaxProducersPerTopic(int maxProducersPerTopic) {
+    protected void internalSetMaxProducersPerTopic(Integer maxProducersPerTopic) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
@@ -2527,39 +2579,40 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (maxProducersPerTopic < 0) {
+            if (maxProducersPerTopic != null && maxProducersPerTopic < 0) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "maxProducersPerTopic must be 0 or more");
             }
             policies.max_producers_per_topic = maxProducersPerTopic;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated maxProducersPerTopic configuration: namespace={}, value={}", clientAppId(),
-                    namespaceName, policies.max_producers_per_topic);
+            log.info("[{}] Successfully updated maxProducersPerTopic configuration: namespace={}, value={}",
+                    clientAppId(), namespaceName, policies.max_producers_per_topic);
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update maxProducersPerTopic configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update maxProducersPerTopic configuration for namespace {}: does not exist",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update maxProducersPerTopic configuration for namespace {}: concurrent modification",
+            log.warn("[{}] Failed to update maxProducersPerTopic configuration for"
+                            + " namespace {}: concurrent modification",
                     clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update maxProducersPerTopic configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
+            log.error("[{}] Failed to update maxProducersPerTopic configuration for namespace {}",
+                    clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
 
-    protected int internalGetMaxConsumersPerTopic() {
+    protected Integer internalGetMaxConsumersPerTopic() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_consumers_per_topic;
     }
 
-    protected void internalSetMaxConsumersPerTopic(int maxConsumersPerTopic) {
+    protected void internalSetMaxConsumersPerTopic(Integer maxConsumersPerTopic) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
@@ -2568,29 +2621,30 @@ public abstract class NamespacesBase extends AdminResource {
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (maxConsumersPerTopic < 0) {
+            if (maxConsumersPerTopic != null && maxConsumersPerTopic < 0) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "maxConsumersPerTopic must be 0 or more");
             }
             policies.max_consumers_per_topic = maxConsumersPerTopic;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated maxConsumersPerTopic configuration: namespace={}, value={}", clientAppId(),
-                    namespaceName, policies.max_consumers_per_topic);
+            log.info("[{}] Successfully updated maxConsumersPerTopic configuration: namespace={}, value={}",
+                    clientAppId(), namespaceName, policies.max_consumers_per_topic);
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update maxConsumersPerTopic configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update maxConsumersPerTopic configuration for namespace {}: does not exist",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update maxConsumersPerTopic configuration for namespace {}: concurrent modification",
+            log.warn("[{}] Failed to update maxConsumersPerTopic configuration for"
+                            + " namespace {}: concurrent modification",
                     clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update maxConsumersPerTopic configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
+            log.error("[{}] Failed to update maxConsumersPerTopic configuration for namespace {}",
+                    clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -2616,22 +2670,23 @@ public abstract class NamespacesBase extends AdminResource {
             policies.max_consumers_per_subscription = maxConsumersPerSubscription;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated maxConsumersPerSubscription configuration: namespace={}, value={}", clientAppId(),
-                    namespaceName, policies.max_consumers_per_subscription);
+            log.info("[{}] Successfully updated maxConsumersPerSubscription configuration: namespace={}, value={}",
+                    clientAppId(), namespaceName, policies.max_consumers_per_subscription);
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: does not exist",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: concurrent modification",
+            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for"
+                            + " namespace {}: concurrent modification",
                     clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
+            log.error("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}",
+                    clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -2657,22 +2712,24 @@ public abstract class NamespacesBase extends AdminResource {
             policies.max_unacked_messages_per_consumer = maxUnackedMessagesPerConsumer;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated maxUnackedMessagesPerConsumer configuration: namespace={}, value={}", clientAppId(),
-                    namespaceName, policies.max_unacked_messages_per_consumer);
+            log.info("[{}] Successfully updated maxUnackedMessagesPerConsumer configuration: namespace={}, value={}",
+                    clientAppId(), namespaceName, policies.max_unacked_messages_per_consumer);
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update maxUnackedMessagesPerConsumer configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update maxUnackedMessagesPerConsumer configuration"
+                            + " for namespace {}: does not exist",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update maxUnackedMessagesPerConsumer configuration for namespace {}: concurrent modification",
+            log.warn("[{}] Failed to update maxUnackedMessagesPerConsumer configuration"
+                            + " for namespace {}: concurrent modification",
                     clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update maxUnackedMessagesPerConsumer configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
+            log.error("[{}] Failed to update maxUnackedMessagesPerConsumer configuration for namespace {}",
+                    clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -2680,6 +2737,21 @@ public abstract class NamespacesBase extends AdminResource {
     protected int internalGetMaxUnackedMessagesPerSubscription() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_subscription;
+    }
+
+    protected Integer internalGetMaxSubscriptionsPerTopic() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.READ);
+        return getNamespacePolicies(namespaceName).max_subscriptions_per_topic;
+    }
+
+    protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+        if (maxSubscriptionsPerTopic != null && maxSubscriptionsPerTopic < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxSubscriptionsPerTopic must be 0 or more");
+        }
+        internalSetPolicies("max_subscriptions_per_topic", maxSubscriptionsPerTopic);
     }
 
     protected void internalSetMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
@@ -2698,22 +2770,25 @@ public abstract class NamespacesBase extends AdminResource {
             policies.max_unacked_messages_per_subscription = maxUnackedMessagesPerSubscription;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated maxUnackedMessagesPerSubscription configuration: namespace={}, value={}", clientAppId(),
-                    namespaceName, policies.max_unacked_messages_per_subscription);
+            log.info("[{}] Successfully updated maxUnackedMessagesPerSubscription"
+                            + " configuration: namespace={}, value={}",
+                    clientAppId(), namespaceName, policies.max_unacked_messages_per_subscription);
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update maxUnackedMessagesPerSubscription configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update maxUnackedMessagesPerSubscription configuration for"
+                            + " namespace {}: does not exist",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update maxUnackedMessagesPerSubscription configuration for namespace {}: concurrent modification",
+            log.warn("[{}] Failed to update maxUnackedMessagesPerSubscription configuration for"
+                            + " namespace {}: concurrent modification",
                     clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update maxUnackedMessagesPerSubscription configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
+            log.error("[{}] Failed to update maxUnackedMessagesPerSubscription configuration for namespace {}",
+                    clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -2740,21 +2815,22 @@ public abstract class NamespacesBase extends AdminResource {
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
             log.info("[{}] Successfully updated compactionThreshold configuration: namespace={}, value={}",
-                     clientAppId(), namespaceName, policies.compaction_threshold);
+                    clientAppId(), namespaceName, policies.compaction_threshold);
 
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update compactionThreshold configuration for namespace {}: does not exist",
-                     clientAppId(), namespaceName);
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update compactionThreshold configuration for namespace {}: concurrent modification",
-                     clientAppId(), namespaceName);
+            log.warn("[{}] Failed to update compactionThreshold configuration for"
+                            + " namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
             log.error("[{}] Failed to update compactionThreshold configuration for namespace {}",
-                      clientAppId(), namespaceName, e);
+                    clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -2788,21 +2864,21 @@ public abstract class NamespacesBase extends AdminResource {
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
             log.info("[{}] Successfully updated offloadThreshold configuration: namespace={}, value={}",
-                     clientAppId(), namespaceName, policies.offload_threshold);
+                    clientAppId(), namespaceName, policies.offload_threshold);
 
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update offloadThreshold configuration for namespace {}: does not exist",
-                     clientAppId(), namespaceName);
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn("[{}] Failed to update offloadThreshold configuration for namespace {}: concurrent modification",
-                     clientAppId(), namespaceName);
+                    clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
             log.error("[{}] Failed to update offloadThreshold configuration for namespace {}",
-                      clientAppId(), namespaceName, e);
+                    clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -2836,36 +2912,39 @@ public abstract class NamespacesBase extends AdminResource {
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
             log.info("[{}] Successfully updated offloadDeletionLagMs configuration: namespace={}, value={}",
-                     clientAppId(), namespaceName, policies.offload_deletion_lag_ms);
+                    clientAppId(), namespaceName, policies.offload_deletion_lag_ms);
 
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update offloadDeletionLagMs configuration for namespace {}: does not exist",
-                     clientAppId(), namespaceName);
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update offloadDeletionLagMs configuration for namespace {}: concurrent modification",
-                     clientAppId(), namespaceName);
+            log.warn("[{}] Failed to update offloadDeletionLagMs configuration for"
+                            + " namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
             log.error("[{}] Failed to update offloadDeletionLag configuration for namespace {}",
-                      clientAppId(), namespaceName, e);
+                    clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
 
     @Deprecated
     protected SchemaAutoUpdateCompatibilityStrategy internalGetSchemaAutoUpdateCompatibilityStrategy() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).schema_auto_update_compatibility_strategy;
     }
 
     protected SchemaCompatibilityStrategy internalGetSchemaCompatibilityStrategy() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
         SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
-        if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED){
+        if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
             schemaCompatibilityStrategy = SchemaCompatibilityStrategy
                     .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
         }
@@ -2874,18 +2953,20 @@ public abstract class NamespacesBase extends AdminResource {
 
     @Deprecated
     protected void internalSetSchemaAutoUpdateCompatibilityStrategy(SchemaAutoUpdateCompatibilityStrategy strategy) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
-                policies.schema_auto_update_compatibility_strategy = strategy;
-                return policies;
-            }, (policies) -> policies.schema_auto_update_compatibility_strategy,
-            "schemaAutoUpdateCompatibilityStrategy");
+                    policies.schema_auto_update_compatibility_strategy = strategy;
+                    return policies;
+                }, (policies) -> policies.schema_auto_update_compatibility_strategy,
+                "schemaAutoUpdateCompatibilityStrategy");
     }
 
     protected void internalSetSchemaCompatibilityStrategy(SchemaCompatibilityStrategy strategy) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
@@ -2896,28 +2977,32 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected boolean internalGetSchemaValidationEnforced() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).schema_validation_enforced;
     }
 
     protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
-                policies. schema_validation_enforced = schemaValidationEnforced;
-                return policies;
-            }, (policies) -> policies. schema_validation_enforced,
-            "schemaValidationEnforced");
+                    policies.schema_validation_enforced = schemaValidationEnforced;
+                    return policies;
+                }, (policies) -> policies.schema_validation_enforced,
+                "schemaValidationEnforced");
     }
 
     protected boolean internalGetIsAllowAutoUpdateSchema() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.READ);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
     }
 
     protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
@@ -2940,21 +3025,21 @@ public abstract class NamespacesBase extends AdminResource {
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
             log.info("[{}] Successfully updated {} configuration: namespace={}, value={}",
-                     clientAppId(), policyName, namespaceName, getter.apply(policies));
+                    clientAppId(), policyName, namespaceName, getter.apply(policies));
 
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update {} configuration for namespace {}: does not exist",
-                     clientAppId(), policyName, namespaceName);
+                    clientAppId(), policyName, namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
             log.warn("[{}] Failed to update {} configuration for namespace {}: concurrent modification",
-                     clientAppId(), policyName, namespaceName);
+                    clientAppId(), policyName, namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
             log.error("[{}] Failed to update {} configuration for namespace {}",
-                      clientAppId(), policyName, namespaceName, e);
+                    clientAppId(), policyName, namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -2988,8 +3073,8 @@ public abstract class NamespacesBase extends AdminResource {
                     (rc, path1, ctx, stat) -> {
                         if (rc == KeeperException.Code.OK.intValue()) {
                             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-                            log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
-                                    namespaceName, updatedOffloadPolicies);
+                            log.info("[{}] Successfully updated offload configuration: namespace={}, map={}",
+                                    clientAppId(), namespaceName, updatedOffloadPolicies);
                             asyncResponse.resume(Response.noContent().build());
                         } else {
                             String errorMsg = String.format(
@@ -3061,8 +3146,8 @@ public abstract class NamespacesBase extends AdminResource {
                     "The offloadPolicies must be specified for namespace offload.");
         }
         if (!offloadPolicies.driverSupported()) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: " +
-                            "driver is not supported, support value: {}",
+            log.warn("[{}] Failed to update offload configuration for namespace {}: "
+                            + "driver is not supported, support value: {}",
                     clientAppId(), namespaceName, OffloadPolicies.getSupportedDriverNames());
             throw new RestException(Status.PRECONDITION_FAILED,
                     "The driver is not supported, support value: " + OffloadPolicies.getSupportedDriverNames());
@@ -3082,5 +3167,26 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.offload_policies;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
+    protected int internalGetMaxTopicsPerNamespace() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.READ);
+        return getNamespacePolicies(namespaceName).max_topics_per_namespace;
+    }
+
+   protected void internalRemoveMaxTopicsPerNamespace() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.WRITE);
+        internalSetMaxTopicsPerNamespace(null);
+   }
+
+   protected void internalSetMaxTopicsPerNamespace(Integer maxTopicsPerNamespace) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        if (maxTopicsPerNamespace != null && maxTopicsPerNamespace < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxTopicsPerNamespace must be 0 or more");
+        }
+        internalSetPolicies("max_topics_per_namespace", maxTopicsPerNamespace);
+   }
+
+   private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }
