@@ -718,7 +718,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         try {
-            functionRuntimeManager.restartFunctionInstances(tenant, namespace, componentName);
+            functionRuntimeManager.restartFunctionInstances(tenant, namespace, componentName,componentType);
         } catch (WebApplicationException we) {
             throw we;
         } catch (Exception e) {
