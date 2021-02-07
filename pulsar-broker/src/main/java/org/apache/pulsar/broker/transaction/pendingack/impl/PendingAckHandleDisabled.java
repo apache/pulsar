@@ -72,6 +72,11 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
+    public boolean checkIfReady() {
+        return true;
+    }
+
+    @Override
     public CompletableFuture<Void> close() {
         return CompletableFuture.completedFuture(null);
     }

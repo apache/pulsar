@@ -563,7 +563,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             final Object ctx, PositionImpl maxPosition) {
         checkArgument(numberOfEntriesToRead > 0);
         if (isClosed()) {
-            callback.readEntriesFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
+            callback.readEntriesFailed(new ManagedLedgerException
+                    .CursorAlreadyClosedException("Cursor was already closed"), ctx);
             return;
         }
 
@@ -614,7 +615,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             Object ctx) {
         checkArgument(n > 0);
         if (isClosed()) {
-            callback.readEntryFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
+            callback.readEntryFailed(new ManagedLedgerException
+                    .CursorAlreadyClosedException("Cursor was already closed"), ctx);
             return;
         }
 
@@ -1583,7 +1585,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         checkArgument(position instanceof PositionImpl);
 
         if (isClosed()) {
-            callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
+            callback.markDeleteFailed(new ManagedLedgerException
+                    .CursorAlreadyClosedException("Cursor was already closed"), ctx);
             return;
         }
 
@@ -1658,7 +1661,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             // The state might have changed while we were waiting on the queue mutex
             switch (STATE_UPDATER.get(this)) {
             case Closed:
-                callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
+                callback.markDeleteFailed(new ManagedLedgerException
+                        .CursorAlreadyClosedException("Cursor was already closed"), ctx);
                 return;
 
             case NoLedger:
@@ -1820,7 +1824,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncDelete(Iterable<Position> positions, AsyncCallbacks.DeleteCallback callback, Object ctx) {
         if (isClosed()) {
-            callback.deleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
+            callback.deleteFailed(new ManagedLedgerException
+                    .CursorAlreadyClosedException("Cursor was already closed"), ctx);
             return;
         }
 

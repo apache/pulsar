@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 
 /**
  * In memory implementation of {@link PendingAckStore}.
@@ -44,7 +43,8 @@ public class InMemoryPendingAckStore implements PendingAckStore {
     }
 
     @Override
-    public CompletableFuture<Void> appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
+    public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
+                                                       List<MutablePair<PositionImpl, Integer>> positions) {
         return CompletableFuture.completedFuture(null);
     }
 
@@ -54,12 +54,12 @@ public class InMemoryPendingAckStore implements PendingAckStore {
     }
 
     @Override
-    public CompletableFuture<Void> appendCommitMark(TxnID txnID, PulsarApi.CommandAck.AckType ackType) {
+    public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<Void> appendAbortMark(TxnID txnID, PulsarApi.CommandAck.AckType ackType) {
+    public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
         return CompletableFuture.completedFuture(null);
     }
 

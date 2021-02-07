@@ -161,7 +161,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                         Thread.sleep(1);
                     }
                 } catch (ManagedLedgerException e) {
-                    if (!e.getMessage().equals("Cursor was already closed")) {
+                    if (!(e instanceof ManagedLedgerException.CursorAlreadyClosedException)) {
                         gotException.set(true);
                     }
 

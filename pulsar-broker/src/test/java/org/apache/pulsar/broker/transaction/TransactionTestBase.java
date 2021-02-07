@@ -118,6 +118,8 @@ public class TransactionTestBase {
             conf.setWebServicePortTls(Optional.of(0));
             conf.setTransactionCoordinatorEnabled(true);
             conf.setBrokerDeduplicationEnabled(true);
+            conf.setMinPendingAckTimerTaskIntervalTime(1);
+            conf.setMaxPendingAckTimerTaskIntervalTime(10);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));

@@ -16,24 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.pendingack;
+syntax = "proto2";
 
-import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry;
+import "pulsar-common/src/main/proto/PulsarApi.proto";
+package pulsar.proto;
+option java_package = "org.apache.pulsar.broker.transaction.pendingack.proto";
+option optimize_for = SPEED;
 
-/**
- * Call back for pending ack reply.
- */
-public interface PendingAckReplyCallBack {
+enum PendingAckOp {
+    ACK    = 1;
+    COMMIT = 2;
+    ABORT  = 3;
+}
 
-    /**
-     * Pending ack replay complete callback for pending ack store.
-     */
-    void replayComplete();
+message PendingAckMetadata {
+    required uint64 ledgerId = 1;
+    required uint64 entryId  = 2;
+    repeated int64 ack_set = 3;
+    optional int32 batch_size = 4;
+}
 
-    /**
-     * Handle metadata entry.
-     *
-     * @param pendingAckMetadataEntry {@link PendingAckMetadataEntry} the metadata entry of pending ack
-     */
-    void handleMetadataEntry(PendingAckMetadataEntry pendingAckMetadataEntry);
+message PendingAckMetadataEntry {
+    optional PendingAckOp pending_ack_op = 1;
+    optional pulsar.proto.CommandAck.AckType ack_type = 2;
+    optional uint64 txnid_least_bits = 3;
+    optional uint64 txnid_most_bits = 4;
+    repeated PendingAckMetadata pending_ack_metadata = 5;
 }

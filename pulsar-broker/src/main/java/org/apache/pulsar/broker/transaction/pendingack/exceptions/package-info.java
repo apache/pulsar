@@ -16,24 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.pendingack;
-
-import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry;
 
 /**
- * Call back for pending ack reply.
+ * The implementation for pending ack exceptions.
  */
-public interface PendingAckReplyCallBack {
-
-    /**
-     * Pending ack replay complete callback for pending ack store.
-     */
-    void replayComplete();
-
-    /**
-     * Handle metadata entry.
-     *
-     * @param pendingAckMetadataEntry {@link PendingAckMetadataEntry} the metadata entry of pending ack
-     */
-    void handleMetadataEntry(PendingAckMetadataEntry pendingAckMetadataEntry);
-}
+package org.apache.pulsar.broker.transaction.pendingack.exceptions;

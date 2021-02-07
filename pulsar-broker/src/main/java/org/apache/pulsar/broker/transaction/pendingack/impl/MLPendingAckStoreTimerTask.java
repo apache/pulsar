@@ -22,6 +22,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -31,14 +34,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.transaction.proto.TransactionPendingAck.PendingAckMetadata;
-import org.apache.pulsar.broker.transaction.proto.TransactionPendingAck.PendingAckMetadataEntry;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadata;
+import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 
 /**
  * Pending ack timer task.
@@ -84,46 +82,39 @@ public class MLPendingAckStoreTimerTask implements TimerTask {
             // when no transaction ack operation in this pending ack store, it will increase the interval time
             if (markDeletePosition.compareTo((PositionImpl) storeManagedLedger.getLastConfirmedEntry()) == 0) {
                 int time = intervalTime + minIntervalTime;
-                if (time > maxIntervalTime) {
-                    intervalTime = maxIntervalTime;
-                } else {
-                    intervalTime = time;
-                }
+                intervalTime = Math.min(time, maxIntervalTime);
                 managedCursor.markDelete(markDeletePosition);
                 timer.newTimeout(MLPendingAckStoreTimerTask.this, intervalTime, TimeUnit.SECONDS);
                 return;
             } else {
                 int time = intervalTime - minIntervalTime;
-                if (time < minIntervalTime) {
-                    intervalTime = minIntervalTime;
-                } else {
-                    intervalTime = time;
-                }
+                intervalTime = Math.max(time, minIntervalTime);
             }
             // this while in order to find the last position witch can mark delete
             while (true) {
                 PositionImpl nextPosition = storeManagedLedger.getNextValidPosition(markDeletePosition);
+                if (nextPosition.compareTo((PositionImpl) storeManagedLedger.getLastConfirmedEntry()) > 0) {
+                    timer.newTimeout(MLPendingAckStoreTimerTask.this, intervalTime, TimeUnit.SECONDS);
+                    return;
+                }
                 Entry entry = getEntry(nextPosition).get();
                 ByteBuf buffer = entry.getDataBuffer();
-                ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(buffer);
-                PendingAckMetadataEntry.Builder pendingAckMetadataEntryBuilder =
-                        PendingAckMetadataEntry.newBuilder();
-                PendingAckMetadataEntry pendingAckMetadataEntry = null;
+                PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
+                pendingAckMetadataEntry.parseFrom(buffer, buffer.readableBytes());
+
                 try {
-                    pendingAckMetadataEntry =
-                            pendingAckMetadataEntryBuilder.mergeFrom(stream, null).build();
                     switch (pendingAckMetadataEntry.getPendingAckOp()) {
                         case ACK:
                             if (pendingAckMetadataEntry.getAckType() == AckType.Cumulative) {
                                 PendingAckMetadata pendingAckMetadata =
-                                        pendingAckMetadataEntry.getPendingAckMetadata(0);
-                                handleAckCommon(PositionImpl.get(pendingAckMetadata.getLedgerId(),
+                                        pendingAckMetadataEntry.getPendingAckMetadatasList().get(0);
+                                handleAckMarkDeletePosition(PositionImpl.get(pendingAckMetadata.getLedgerId(),
                                         pendingAckMetadata.getEntryId()), nextPosition);
                             } else {
                                 //this judge the pendingAckMetadataEntry is can delete
                                 PositionImpl largestPosition = null;
                                 List<PendingAckMetadata> metadataList =
-                                        pendingAckMetadataEntry.getPendingAckMetadataList();
+                                        pendingAckMetadataEntry.getPendingAckMetadatasList();
                                 for (int i = 0; i < metadataList.size(); i++) {
                                     PendingAckMetadata pendingAckMetadata = metadataList.get(0);
                                     if (largestPosition == null) {
@@ -140,7 +131,7 @@ public class MLPendingAckStoreTimerTask implements TimerTask {
                                     }
                                 }
                                 if (largestPosition != null) {
-                                    handleAckCommon(largestPosition, nextPosition);
+                                    handleAckMarkDeletePosition(largestPosition, nextPosition);
                                 }
                             }
                             break;
@@ -154,11 +145,6 @@ public class MLPendingAckStoreTimerTask implements TimerTask {
                     }
                 } finally {
                     entry.release();
-                    if (pendingAckMetadataEntry != null) {
-                        pendingAckMetadataEntry.recycle();
-                    }
-                    pendingAckMetadataEntryBuilder.recycle();
-                    stream.recycle();
                 }
                 // when markDeletePosition is not nextPosition, before markDeletePosition can delete
                 if (markDeletePosition != nextPosition) {
@@ -168,8 +154,13 @@ public class MLPendingAckStoreTimerTask implements TimerTask {
             }
             this.timer.newTimeout(this, intervalTime, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
-            log.error("PendingAck timer task error!", e);
-            if ("Cursor was already closed".equals(e.getCause().getMessage())) {
+            if (log.isDebugEnabled()) {
+                log.debug("PendingAck timer task error!", e);
+            }
+            if (e instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}]MLPendingAckStoreTimerTask will close!", this.storeManagedLedger.getName(), e);
+                }
                 return;
             }
             this.timer.newTimeout(this, intervalTime, TimeUnit.MILLISECONDS);
@@ -192,7 +183,7 @@ public class MLPendingAckStoreTimerTask implements TimerTask {
         return completableFuture;
     }
 
-    private void handleAckCommon(PositionImpl readPosition, PositionImpl storePosition) {
+    private void handleAckMarkDeletePosition(PositionImpl readPosition, PositionImpl storePosition) {
         if (readPosition.compareTo((PositionImpl) subManagedCursor.getMarkDeletedPosition()) <= 0) {
             markDeletePosition = storePosition;
         }

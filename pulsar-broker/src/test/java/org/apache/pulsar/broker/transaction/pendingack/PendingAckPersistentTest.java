@@ -22,9 +22,7 @@ import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
@@ -134,12 +132,12 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         //in order to test pending ack replay
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
+        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
         Transaction commitTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
 
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
 
         // this messageIds are ack by transaction
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {

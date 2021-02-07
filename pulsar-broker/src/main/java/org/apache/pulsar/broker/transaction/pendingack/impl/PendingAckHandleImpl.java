@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -44,7 +43,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -149,8 +148,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             // If try to ack message already acked by committed transaction or normal acknowledge, throw exception.
             if (((ManagedCursorImpl) persistentSubscription.getCursor())
                     .isMessageDeleted(position)) {
-                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                        " try to ack message:" + position + " already acked before.";
+                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                        + " try to ack message:" + position + " already acked before.";
                 log.error(errorMsg);
                 semaphore.release();
                 return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
@@ -168,8 +167,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 bitSetRecyclable.recycle();
                 if (isAckSetOverlap(ackSetOverlap,
                         ((ManagedCursorImpl) persistentSubscription.getCursor()).getBatchPositionAckSet(position))) {
-                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                            " try to ack message:" + position + " already acked before.";
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                            + " try to ack message:" + position + " already acked before.";
                     log.error(errorMsg);
                     semaphore.release();
                     return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
@@ -177,16 +176,16 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
                 if (this.individualAckPositions != null && individualAckPositions.containsKey(position)
                         && isAckSetOverlap(individualAckPositions.get(position).getLeft().getAckSet(), ackSetOverlap)) {
-                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                            " try to ack batch message:" + position + " in pending ack status.";
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                            + " try to ack batch message:" + position + " in pending ack status.";
                     log.error(errorMsg);
                     semaphore.release();
                     return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
                 }
             } else {
                 if (this.individualAckPositions != null && this.individualAckPositions.containsKey(position)) {
-                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                            " try to ack message:" + position + " in pending ack status.";
+                    String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                            + " try to ack message:" + position + " in pending ack status.";
                     log.error(errorMsg);
                     semaphore.release();
                     return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
@@ -217,7 +216,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID,
-                                                                             List<PositionImpl> positions) {
+                                                                List<PositionImpl> positions) {
 
         if (txnID == null) {
             return FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
@@ -228,8 +227,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         this.semaphore.acquireUninterruptibly();
 
         if (positions.size() != 1) {
-            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                    " invalid cumulative ack received with multiple message ids.";
+            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                    + " invalid cumulative ack received with multiple message ids.";
             log.error(errorMsg);
             semaphore.release();
             return FutureUtil.failedFuture(new NotAllowedException(errorMsg));
@@ -238,9 +237,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         PositionImpl position = positions.get(0);
 
         if (position.compareTo((PositionImpl) persistentSubscription.getCursor().getMarkDeletedPosition()) <= 0) {
-            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                    " try to cumulative ack position: " + position + " within range of cursor's " +
-                    "markDeletePosition: " + persistentSubscription.getCursor().getMarkDeletedPosition();
+            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                    + " try to cumulative ack position: " + position + " within range of cursor's "
+                    + "markDeletePosition: " + persistentSubscription.getCursor().getMarkDeletedPosition();
             log.error(errorMsg);
             semaphore.release();
             return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
@@ -252,9 +251,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (cumulativeAckOfTransaction != null && (!this.cumulativeAckOfTransaction.getKey().equals(txnID)
                 || compareToWithAckSet(position, this.cumulativeAckOfTransaction.getValue()) <= 0)) {
-            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID +
-                    " try to cumulative batch ack position: " + position + " within range of current " +
-                    "currentPosition: " + this.cumulativeAckOfTransaction.getValue();
+            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                    + " try to cumulative batch ack position: " + position + " within range of current "
+                    + "currentPosition: " + this.cumulativeAckOfTransaction.getValue();
             log.error(errorMsg);
             semaphore.release();
             return FutureUtil.failedFuture(new TransactionConflictException(errorMsg));
@@ -466,8 +465,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                           HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn) {
         for (Map.Entry<PositionImpl, PositionImpl> entry :
                 pendingAckMessageForCurrentTxn.entrySet()) {
-            if (entry.getValue().hasAckSet() &&
-                    individualAckPositions.containsKey(entry.getValue())) {
+            if (entry.getValue().hasAckSet()
+                    && individualAckPositions.containsKey(entry.getValue())) {
                 BitSetRecyclable thisBitSet =
                         BitSetRecyclable.valueOf(entry.getValue().getAckSet());
                 thisBitSet.flip(0, individualAckPositions.get(entry.getValue()).right);
@@ -503,10 +502,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     private void individualAckCommitCommon(TxnID txnID,
                                            HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn,
-                                           Map<String,Long> properties) {
+                                           Map<String, Long> properties) {
         if (pendingAckMessageForCurrentTxn != null) {
-            persistentSubscription.acknowledgeMessage(
-                    new ArrayList<>(pendingAckMessageForCurrentTxn.values()),
+            persistentSubscription.acknowledgeMessage(new ArrayList<>(pendingAckMessageForCurrentTxn.values()),
                     AckType.Individual, properties);
             individualAckOfTransaction.remove(txnID);
         }

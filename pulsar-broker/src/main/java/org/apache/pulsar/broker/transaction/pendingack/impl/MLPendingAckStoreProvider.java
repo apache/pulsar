@@ -19,11 +19,6 @@
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
-import io.netty.util.HashedWheelTimer;
-import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -34,7 +29,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.exceptions.TransactionPendingAckStoreProviderException;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 
 /**
@@ -42,10 +37,6 @@ import org.apache.pulsar.common.naming.TopicName;
  */
 @Slf4j
 public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProvider {
-
-    private volatile Timer timer;
-
-    private static final long tickTimeMillis = 1L;
 
     @Override
     public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
@@ -70,13 +61,6 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                         InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {
                                             @Override
                                             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                                                if (timer == null) {
-                                                    synchronized (MLPendingAckStoreProvider.this) {
-                                                        if (timer == null) {
-                                                            initialize();
-                                                        }
-                                                    }
-                                                }
                                                 int maxIntervalTime =
                                                         originPersistentTopic.getBrokerService().getPulsar()
                                                                 .getConfig().getMaxPendingAckTimerTaskIntervalTime();
@@ -84,7 +68,10 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                         originPersistentTopic.getBrokerService().getPulsar()
                                                                 .getConfig().getMaxPendingAckTimerTaskIntervalTime();
                                                 pendingAckStoreFuture
-                                                        .complete(new MLPendingAckStore(ledger, cursor, timer,
+                                                        .complete(new MLPendingAckStore(ledger, cursor,
+                                                                ((PersistentTopic) subscription.getTopic())
+                                                                        .getBrokerService().getPulsar()
+                                                                        .getTransactionTimer(),
                                                                 subscription.getCursor(),
                                                                 maxIntervalTime, minIntervalTime));
                                             }
@@ -104,17 +91,5 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                             }
                         }, null);
         return pendingAckStoreFuture;
-    }
-
-    public void initialize() {
-        this.timer = new HashedWheelTimer(new DefaultThreadFactory("pending-ack-provider-timer"),
-                tickTimeMillis, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public void close() {
-        if (timer != null) {
-            timer.stop();
-        }
     }
 }

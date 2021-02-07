@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
-
+import static com.google.common.base.Preconditions.checkArgument;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-
-import static com.google.common.base.Preconditions.checkArgument;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 
 /**
  * Provider of transaction pending ack store.
@@ -61,8 +59,4 @@ public interface TransactionPendingAckStoreProvider {
      */
     CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription);
 
-    /**
-     * Close the provider and release all the resources.
-     */
-    void close() throws IOException;
 }

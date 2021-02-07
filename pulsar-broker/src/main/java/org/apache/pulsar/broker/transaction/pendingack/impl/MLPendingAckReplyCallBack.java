@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
-import org.apache.pulsar.broker.transaction.proto.TransactionPendingAck.PendingAckMetadata;
-import org.apache.pulsar.broker.transaction.proto.TransactionPendingAck.PendingAckMetadataEntry;
+import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadata;
+import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * MLPendingAckStore reply call back.
@@ -72,24 +71,30 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                 pendingAckHandle.handleAbort(txnID, ackType);
                 break;
             case COMMIT:
-                pendingAckHandle.handleCommit(txnID, ackType, null);
+                pendingAckHandle.handleCommit(txnID, ackType, Collections.emptyMap());
                 break;
             case ACK:
                 if (ackType == AckType.Cumulative) {
                     PendingAckMetadata pendingAckMetadata =
-                            pendingAckMetadataEntry.getPendingAckMetadataList().get(0);
+                            pendingAckMetadataEntry.getPendingAckMetadatasList().get(0);
                     pendingAckHandle.handleCumulativeAck(txnID,
                             PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId()));
                 } else {
                     List<MutablePair<PositionImpl, Integer>> positions = new ArrayList<>();
-                    pendingAckMetadataEntry.getPendingAckMetadataList().forEach(pendingAckMetadata -> {
-                        if (pendingAckMetadata.getAckSetCount() == 0) {
+                    pendingAckMetadataEntry.getPendingAckMetadatasList().forEach(pendingAckMetadata -> {
+                        if (pendingAckMetadata.getAckSetsCount() == 0) {
                             positions.add(new MutablePair<>(PositionImpl.get(pendingAckMetadata.getLedgerId(),
                                     pendingAckMetadata.getEntryId()), pendingAckMetadata.getBatchSize()));
                         } else {
                             PositionImpl position =
                                     PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId());
-                            position.setAckSet(SafeCollectionUtils.longListToArray(pendingAckMetadata.getAckSetList()));
+                            if (pendingAckMetadata.getAckSetsCount() > 0) {
+                                long[] ackSets = new long[pendingAckMetadata.getAckSetsCount()];
+                                for (int i = 0; i < pendingAckMetadata.getAckSetsCount(); i++) {
+                                    ackSets[i] = pendingAckMetadata.getAckSetAt(i);
+                                }
+                                position.setAckSet(ackSets);
+                            }
                             positions.add(new MutablePair<>(position, pendingAckMetadata.getBatchSize()));
                         }
                     });
@@ -97,8 +102,8 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                 }
                 break;
             default:
-                throw new IllegalStateException("Transaction pending ack replay " +
-                        "error with illegal state : " + pendingAckMetadataEntry.getPendingAckOp());
+                throw new IllegalStateException("Transaction pending ack replay "
+                        + "error with illegal state : " + pendingAckMetadataEntry.getPendingAckOp());
 
         }
     }

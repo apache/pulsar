@@ -27,7 +27,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 /**
@@ -53,7 +53,8 @@ public interface PendingAckHandle {
      * @throws NotAllowedException if Use this method incorrectly eg. not use
      * PositionImpl or cumulative ack with a list of positions.
      */
-    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions);
+    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl,
+            Integer>> positions);
 
     /**
      * Acknowledge message(s) for an ongoing transaction.
@@ -86,7 +87,7 @@ public interface PendingAckHandle {
      * @param properties    Additional user-defined properties that can be associated with a particular cursor position.
      * @return the future of this operation.
      */
-    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String,Long> properties);
+    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties);
 
     /**
      * Abort a transaction.
@@ -117,6 +118,13 @@ public interface PendingAckHandle {
      * @param position {@link Position} which position need to clear
      */
     void clearIndividualPosition(Position position);
+
+    /**
+     * Check the pending ack handle is ready.
+     *
+     * @return the ready or not.
+     */
+    boolean checkIfReady();
 
     /**
      * Close the pending ack handle.
