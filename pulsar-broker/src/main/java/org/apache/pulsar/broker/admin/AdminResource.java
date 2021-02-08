@@ -358,8 +358,6 @@ public abstract class AdminResource extends PulsarWebResource {
                     topic, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
-
-        this.topicName = TopicName.get(domain(), namespaceName, topic);
     }
 
     protected void validatePartitionedTopicName(String tenant, String namespace, String encodedTopic) {

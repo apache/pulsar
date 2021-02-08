@@ -2203,7 +2203,20 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String partitionedtopic = "persistent://prop-xyz/ns1/partitioned-topic";
 
         admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
+        try {
+            admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
+            fail("should not be able to create an existed non-partitioned topic");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof ConflictException);
+        }
+
         admin.topics().createPartitionedTopic(partitionedtopic, 2);
+        try {
+            admin.topics().createPartitionedTopic(partitionedtopic, 1);
+            fail("should not be able to create an existed partitioned topic");
+        } catch (PulsarAdminException e) {
+            assertTrue(e instanceof ConflictException);
+        }
 
         try {
             admin.topics().createPartitionedTopic(nonPartitionedtopic, 2);

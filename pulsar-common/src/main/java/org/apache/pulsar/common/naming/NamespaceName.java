@@ -102,8 +102,10 @@ public class NamespaceName implements ServiceUnitId {
             } else {
                 throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace);
             }
-        } catch (NullPointerException e) {
-            throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace, e);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new IllegalArgumentException("Invalid namespace format."
+                    + " expected <tenant>/<namespace> or <tenant>/<cluster>/<namespace> "
+                    + "but got: " + namespace, e);
         }
         this.namespace = namespace;
     }
