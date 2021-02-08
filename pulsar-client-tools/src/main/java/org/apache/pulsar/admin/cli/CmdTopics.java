@@ -521,10 +521,15 @@ public class CmdTopics extends CmdBase {
             "--get-precise-backlog" }, description = "Set true to get precise backlog")
         private boolean getPreciseBacklog = false;
 
+        @Parameter(names = { "-sbs",
+                "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
+        + ", locking required.")
+        private boolean subscriptionBacklogSize = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(topics.getStats(topic, getPreciseBacklog));
+            print(topics.getStats(topic, getPreciseBacklog, subscriptionBacklogSize));
         }
     }
 
@@ -571,10 +576,15 @@ public class CmdTopics extends CmdBase {
             "--get-precise-backlog" }, description = "Set true to get precise backlog")
         private boolean getPreciseBacklog = false;
 
+        @Parameter(names = { "-sbs",
+                "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
+                + ", locking required.")
+        private boolean subscriptionBacklogSize = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(topics.getPartitionedStats(topic, perPartition, getPreciseBacklog));
+            print(topics.getPartitionedStats(topic, perPartition, getPreciseBacklog, subscriptionBacklogSize));
         }
     }
 
