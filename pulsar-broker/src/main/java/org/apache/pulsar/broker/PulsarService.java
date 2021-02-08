@@ -1226,7 +1226,7 @@ public class PulsarService implements AutoCloseable {
      * @return Hostname or IP address the service advertises to the outside world.
      */
     public static String advertisedAddress(ServiceConfiguration config) {
-        String advertisedAddress = null;
+        String advertisedAddress = "localhost";
         if (!isBlank(config.getAdvertisedAddress())) {
             advertisedAddress = config.getAdvertisedAddress();
         } else {
