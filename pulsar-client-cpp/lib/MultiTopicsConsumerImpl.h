@@ -89,7 +89,6 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     const std::string subscriptionName_;
     std::string consumerStr_;
     std::string topic_;
-    NamespaceNamePtr namespaceName_;
     const ConsumerConfiguration conf_;
     typedef std::map<std::string, ConsumerImplPtr> ConsumerMap;
     ConsumerMap consumers_;

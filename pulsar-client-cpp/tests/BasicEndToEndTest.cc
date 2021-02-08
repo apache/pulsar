@@ -1848,33 +1848,41 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
     topicNames.push_back(topicName2);
     topicNames.push_back(topicName3);
 
-    // call admin api to make topics partitioned
-    std::string url1 =
-        adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumerDifferentNamespace1/partitions";
-    std::string url2 =
-        adminUrl +
-        "admin/v2/persistent/public/default-2/testMultiTopicsConsumerDifferentNamespace2/partitions";
-    std::string url3 =
-        adminUrl +
-        "admin/v2/persistent/public/default-3/testMultiTopicsConsumerDifferentNamespace3/partitions";
+    // key: message value integer, value: a pair of (topic, message id)
+    using MessageInfo = std::pair<std::string, MessageId>;
+    std::map<int, MessageInfo> messageIndexToInfo;
+    int index = 0;
+    // Produce some messages for each topic
+    for (const auto &topic : topicNames) {
+        Producer producer;
+        ProducerConfiguration producerConfig;
+        ASSERT_EQ(ResultOk, client.createProducer(topic, producerConfig, producer));
 
-    int res = makePutRequest(url1, "2");
-    ASSERT_FALSE(res != 204 && res != 409);
-    res = makePutRequest(url2, "3");
-    ASSERT_FALSE(res != 204 && res != 409);
-    res = makePutRequest(url3, "4");
-    ASSERT_FALSE(res != 204 && res != 409);
+        const auto message = MessageBuilder().setContent(std::to_string(index)).build();
+        MessageId messageId;
+        ASSERT_EQ(ResultOk, producer.send(message, messageId));
+        messageIndexToInfo[index] = std::make_pair(topic, messageId);
+        LOG_INFO("Send " << index << " to " << topic << ", " << messageId);
 
-    // empty topics
+        ASSERT_EQ(ResultOk, producer.close());
+        index++;
+    }
+
     ConsumerConfiguration consConfig;
-    consConfig.setConsumerType(ConsumerShared);
+    consConfig.setSubscriptionInitialPosition(InitialPositionEarliest);
     Consumer consumer;
-    Promise<Result, Consumer> consumerPromise;
-    client.subscribeAsync(topicNames, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
-    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
-    Result result = consumerFuture.get(consumer);
-    ASSERT_EQ(ResultInvalidTopicName, result);
-    LOG_INFO("subscribe on topics with different names should fail");
+    ASSERT_EQ(ResultOk, client.subscribe(topicNames, subName, consConfig, consumer));
+
+    for (int i = 0; i < index; i++) {
+        Message message;
+        ASSERT_EQ(ResultOk, consumer.receive(message, 3000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(message));
+        const int index = std::stoi(message.getDataAsString());
+        LOG_INFO("Receive " << index << " from " << message.getTopicName() << "," << message.getMessageId());
+        ASSERT_EQ(messageIndexToInfo.count(index), 1);
+        ASSERT_EQ(messageIndexToInfo[index], std::make_pair(message.getTopicName(), message.getMessageId()));
+    }
+
     consumer.close();
 
     client.shutdown();

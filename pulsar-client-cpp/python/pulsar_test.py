@@ -905,12 +905,12 @@ class PulsarTest(TestCase):
         client = Client(self.serviceUrl)
         topic1 = 'persistent://public/default/my-python-topics-consumer-1'
         topic2 = 'persistent://public/default/my-python-topics-consumer-2'
-        topic3 = 'persistent://public/default/my-python-topics-consumer-3'
+        topic3 = 'persistent://public/default-2/my-python-topics-consumer-3' # topic from different namespace
         topics = [topic1, topic2, topic3]
 
         url1 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-1/partitions'
         url2 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-2/partitions'
-        url3 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-3/partitions'
+        url3 = self.adminUrl + '/admin/v2/persistent/public/default-2/my-python-topics-consumer-3/partitions'
 
         doHttpPut(url1, '2')
         doHttpPut(url2, '3')
