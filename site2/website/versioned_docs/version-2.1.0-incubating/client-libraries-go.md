@@ -7,7 +7,8 @@ original_id: client-libraries-go
 
 The Pulsar Go client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
-> **API docs available as well**  > For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar).
+> **API docs available as well**  
+> For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar).
 
 
 ## Installation
@@ -22,7 +23,7 @@ through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) o
 
 You can install the `pulsar` library locally using `go get`:
 
-> #### NOTE
+> **NOTE**
 > 
 > `go get` doesn't support fetching a specific tag. so it will always pull in pulsar go client
 > from latest master. You need to make sure you have installed the right pulsar cpp client library.
