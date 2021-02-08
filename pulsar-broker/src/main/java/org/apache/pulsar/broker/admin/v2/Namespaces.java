@@ -43,6 +43,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -1445,31 +1446,31 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/subscriptionSharedEnable")
-    @ApiOperation(value = "The flag of whether allow shared sub type")
+    @Path("/{tenant}/{namespace}/subscriptionTypesEnabled")
+    @ApiOperation(value = "The set of whether allow subscription types")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public boolean getSubscriptionSharedEnable(
+    public Set<SubscriptionType> getSubscriptionTypesEnabled(
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetSubscriptionSharedEnable();
+        return internalGetSubscriptionTypesEnabled();
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/subscriptionSharedEnable")
-    @ApiOperation(value = "Update flag of whether allow share sub type")
+    @Path("/{tenant}/{namespace}/subscriptionTypesEnabled")
+    @ApiOperation(value = "Update set of whether allow share sub type")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
-    public void setSubscriptionSharedEnable(
+    public void setSubscriptionTypesEnabled(
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Flag of whether to allow share sub type", required = true)
-                    boolean subscriptionSharedEnable) {
+            @ApiParam(value = "Set of whether allow subscription types", required = true)
+                    Set<SubscriptionType> subscriptionTypesEnabled) {
         validateNamespaceName(tenant, namespace);
-        internalSetSubscriptionSharedEnable(subscriptionSharedEnable);
+        internalSetSubscriptionTypesEnabled(subscriptionTypesEnabled);
     }
 
 

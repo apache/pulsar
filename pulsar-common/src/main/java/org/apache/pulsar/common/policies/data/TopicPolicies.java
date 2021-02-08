@@ -19,6 +19,9 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Maps;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,6 +29,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 
 /**
@@ -62,7 +66,7 @@ public class TopicPolicies {
     private Integer maxMessageSize = null;
     private Integer maxSubscriptionsPerTopic = null;
     private DispatchRate replicatorDispatchRate = null;
-    private boolean subscriptionSharedEnable = true;
+    private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
 
     public boolean isReplicatorDispatchRateSet() {
         return replicatorDispatchRate != null;

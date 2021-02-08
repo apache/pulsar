@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -3013,10 +3014,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void setSubscriptionSharedEnable(String topic,
-                                            boolean subscriptionSharedEnable) throws PulsarAdminException {
+    public void setSubscriptionTypesEnabled(
+            String topic, Set<SubscriptionType>
+            subscriptionTypesEnabled) throws PulsarAdminException {
         try {
-            setSubscriptionSharedEnableAsync(topic, subscriptionSharedEnable)
+            setSubscriptionTypesEnabledAsync(topic, subscriptionTypesEnabled)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -3029,16 +3031,17 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> setSubscriptionSharedEnableAsync(String topic, boolean subscriptionSharedEnable) {
+    public CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String topic,
+                                                                    Set<SubscriptionType> subscriptionTypesEnabled) {
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "subscriptionSharedEnable");
-        return asyncPostRequest(path, Entity.entity(subscriptionSharedEnable, MediaType.APPLICATION_JSON));
+        WebTarget path = topicPath(tn, "subscriptionTypesEnabled");
+        return asyncPostRequest(path, Entity.entity(subscriptionTypesEnabled, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public Boolean getSubscriptionSharedEnable(String topic) throws PulsarAdminException {
+    public Set<SubscriptionType> getSubscriptionTypesEnabled(String topic) throws PulsarAdminException {
         try {
-            return getSubscriptionSharedEnableAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getSubscriptionTypesEnabledAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -3050,15 +3053,15 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Boolean> getSubscriptionSharedEnableAsync(String topic) {
+    public CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic) {
         TopicName topicName = validateTopic(topic);
-        WebTarget path = topicPath(topicName, "subscriptionSharedEnable");
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        WebTarget path = topicPath(topicName, "subscriptionTypesEnabled");
+        final CompletableFuture<Set<SubscriptionType>> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<Boolean>() {
+                new InvocationCallback<Set<SubscriptionType>>() {
                     @Override
-                    public void completed(Boolean subscriptionSharedEnable) {
-                        future.complete(subscriptionSharedEnable);
+                    public void completed(Set<SubscriptionType> subscriptionTypesEnabled) {
+                        future.complete(subscriptionTypesEnabled);
                     }
 
                     @Override

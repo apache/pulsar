@@ -104,8 +104,6 @@ public abstract class AbstractTopic implements Topic {
 
     protected boolean preciseTopicPublishRateLimitingEnable;
 
-    protected boolean subscriptionSharedEnable = true;
-
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
 

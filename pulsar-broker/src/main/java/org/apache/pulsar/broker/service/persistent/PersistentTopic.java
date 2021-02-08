@@ -28,7 +28,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -109,6 +108,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -272,7 +272,6 @@ public class PersistentTopic extends AbstractTopic
 
             setSchemaCompatibilityStrategy(policies);
             isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-            subscriptionSharedEnable = policies.subscription_shared_enable;
 
             schemaValidationEnforced = policies.schema_validation_enforced;
             if (policies.inactive_topic_policies != null) {
@@ -636,13 +635,11 @@ public class PersistentTopic extends AbstractTopic
         }
 
         try {
-            if (subType == SubType.Shared
-                    && ((brokerService.pulsar().getConfiguration().getSubscriptionTypesEnable() != null
-                    && !Arrays.asList(brokerService.pulsar().getConfiguration()
-                    .getSubscriptionTypesEnable().split(",")).contains(subType.name()))
-                    || !checkIsSubscriptionSharedEnable())) {
+            if (!topic.endsWith(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)
+                    && !checkSubscriptionTypesEnable(subType)) {
                 future.completeExceptionally(
-                        new NotAllowedException("Topic[{" + topic + "}] don't support share sub type!"));
+                        new NotAllowedException("Topic[{" + topic + "}] don't support "
+                                + subType.name() + " sub type!"));
                 return future;
             }
         } catch (Exception e) {
@@ -2741,16 +2738,34 @@ public class PersistentTopic extends AbstractTopic
         return false;
     }
 
-    public boolean checkIsSubscriptionSharedEnable() throws Exception {
+    public boolean checkSubscriptionTypesEnable(SubType subType) throws Exception {
         TopicName topicName = TopicName.get(topic);
         if (brokerService.pulsar().getConfiguration().isTopicLevelPoliciesEnabled()) {
-            return brokerService.pulsar().getTopicPoliciesService()
-                    .getTopicPolicies(TopicName.get(topic)).isSubscriptionSharedEnable();
+            TopicPolicies topicPolicies =
+                    brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
+            if (topicPolicies == null) {
+                return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+            } else {
+                return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
+            }
         } else {
-            Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
-            return policies.map(value ->
-                    value.subscription_shared_enable).orElse(false);
+            return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+        }
+    }
+
+    private boolean checkNsAndBrokerSubscriptionTypesEnable(TopicName topicName, SubType subType) throws Exception {
+        Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
+        if (policies.isPresent()) {
+            if (policies.get().subscription_types_enabled.isEmpty()) {
+                return getBrokerService().getPulsar().getConfiguration()
+                        .getSubscriptionTypesEnable().contains(subType.name());
+            } else {
+                return policies.get().subscription_types_enabled.contains(subType);
+            }
+        } else {
+            return getBrokerService().getPulsar().getConfiguration()
+                    .getSubscriptionTypesEnable().contains(subType.name());
         }
     }
 

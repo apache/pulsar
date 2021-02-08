@@ -30,6 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -2828,42 +2829,45 @@ public interface Topics {
     CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String topic);
 
     /**
-     * Set is enable share sub type.
+     * Set is enable sub types.
      *
      * @param topic
-     * @param subscriptionSharedEnable
-     *            is enable share subType
+     * @param subscriptionTypesEnabled
+     *            is enable subTypes
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setSubscriptionSharedEnable(String topic, boolean subscriptionSharedEnable) throws PulsarAdminException;
+    void setSubscriptionTypesEnabled(String topic,
+                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
 
     /**
-     * Set is enable share sub type asynchronously.
+     * Set is enable sub types asynchronously.
      *
      * @param topic
-     * @param subscriptionSharedEnable
-     *            is enable share subType
+     * @param subscriptionTypesEnabled
+     *            is enable subTypes
      */
-    CompletableFuture<Void> setSubscriptionSharedEnableAsync(String topic, boolean subscriptionSharedEnable);
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String topic,
+                                                             Set<SubscriptionType> subscriptionTypesEnabled);
 
     /**
-     * Get is enable share sub type.
+     * Get is enable sub types.
      *
      * @param topic
-     *            is enable share subType
+     *            is topic for get is enable sub types
+     * @return set of enable sub types {@link Set<SubscriptionType>}
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Boolean getSubscriptionSharedEnable(String topic) throws PulsarAdminException;
+    Set<SubscriptionType> getSubscriptionTypesEnabled(String topic) throws PulsarAdminException;
 
     /**
-     * Get is enable share sub type asynchronously.
+     * Get is enable sub types asynchronously.
      *
      * @param topic
-     *            is enable share subType
+     *            is topic for get is enable sub types
      */
-    CompletableFuture<Boolean> getSubscriptionSharedEnableAsync(String topic);
+    CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic);
 
     /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).

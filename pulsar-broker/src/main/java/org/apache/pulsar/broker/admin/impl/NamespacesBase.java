@@ -31,6 +31,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -60,6 +61,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -3012,22 +3015,26 @@ public abstract class NamespacesBase extends AdminResource {
                 "isAllowAutoUpdateSchema");
     }
 
-    protected boolean internalGetSubscriptionSharedEnable() {
+    protected Set<SubscriptionType> internalGetSubscriptionTypesEnabled() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
                 PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).subscription_shared_enable;
+        Set<SubscriptionType> subscriptionTypes = new HashSet<>();
+        getNamespacePolicies(namespaceName).subscription_types_enabled.forEach(subType ->
+                subscriptionTypes.add(SubscriptionType.valueOf(subType.name())));
+        return subscriptionTypes;
     }
 
-    protected void internalSetSubscriptionSharedEnable(boolean subscriptionSharedEnable) {
+    protected void internalSetSubscriptionTypesEnabled(Set<SubscriptionType> subscriptionTypesEnabled) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
                 PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-
+        Set<SubType> subTypes = new HashSet<>();
+        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
         mutatePolicy((policies) -> {
-                    policies.subscription_shared_enable = subscriptionSharedEnable;
+                    policies.subscription_types_enabled = subTypes;
                     return policies;
-                }, (policies) -> policies.subscription_shared_enable,
-                "subscriptionSharedEnable");
+                }, (policies) -> policies.subscription_types_enabled,
+                "subscriptionTypesEnabled");
     }
 
 

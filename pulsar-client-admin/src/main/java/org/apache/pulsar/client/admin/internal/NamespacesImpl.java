@@ -33,6 +33,7 @@ import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -960,10 +961,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setSubscriptionSharedEnable(String namespace,
-                                            boolean subscriptionSharedEnable) throws PulsarAdminException {
+    public void setSubscriptionTypesEnabled(
+            String namespace, Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException {
         try {
-            setSubscriptionSharedEnableAsync(namespace, subscriptionSharedEnable)
+            setSubscriptionTypesEnabledAsync(namespace, subscriptionTypesEnabled)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -976,17 +977,17 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setSubscriptionSharedEnableAsync(String namespace,
-                                                                    boolean subscriptionSharedEnable) {
+    public CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String namespace,
+                                                                    Set<SubscriptionType> subscriptionTypes) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "subscriptionSharedEnable");
-        return asyncPostRequest(path, Entity.entity(subscriptionSharedEnable, MediaType.APPLICATION_JSON));
+        WebTarget path = namespacePath(ns, "subscriptionTypesEnabled");
+        return asyncPostRequest(path, Entity.entity(subscriptionTypes, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public boolean getSubscriptionSharedEnable(String namespace) throws PulsarAdminException {
+    public Set<SubscriptionType> getSubscriptionTypesEnabled(String namespace) throws PulsarAdminException {
         try {
-            return getSubscriptionSharedEnableAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getSubscriptionTypesEnabledAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -998,15 +999,15 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Boolean> getSubscriptionSharedEnableAsync(String namespace) {
+    public CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "subscriptionSharedEnable");
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        WebTarget path = namespacePath(ns, "subscriptionTypesEnabled");
+        final CompletableFuture<Set<SubscriptionType>> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<Boolean>() {
+                new InvocationCallback<Set<SubscriptionType>>() {
                     @Override
-                    public void completed(Boolean subscriptionSharedEnable) {
-                        future.complete(subscriptionSharedEnable);
+                    public void completed(Set<SubscriptionType> subscriptionTypesEnabled) {
+                        future.complete(subscriptionTypesEnabled);
                     }
 
                     @Override

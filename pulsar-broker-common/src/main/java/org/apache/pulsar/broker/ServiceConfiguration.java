@@ -407,7 +407,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = "Enable subscription types (default is all type enabled)"
     )
-    private String subscriptionTypesEnable;
+    private Set<String> subscriptionTypesEnable =
+            Sets.newHashSet("Exclusive", "Shared", "Failover", "Key_Shared");
 
     @FieldContext(
         category = CATEGORY_POLICIES,

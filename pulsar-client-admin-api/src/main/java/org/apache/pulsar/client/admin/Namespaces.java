@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -1272,28 +1273,22 @@ public interface Namespaces {
             String namespace, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride);
 
     /**
-     * Sets the subscriptionSharedEnable policy for a given namespace, overriding broker settings.
-     * <p/>
-     * When subscriptionSharedEnable is enabled, server can create subscription
-     * Shared {@link org.apache.pulsar.client.api.SubscriptionType} type.
+     * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
      *
-     * When subscriptionSharedEnable is disabled, server can't create subscription
-     * Shared {@link org.apache.pulsar.client.api.SubscriptionType} type.
-     * <p/>
      * Request example:
      *
      * <pre>
      * <code>
      *  {
-     *      "subscriptionSharedEnable" : true
+     *      "subscriptionTypesEnabled" : {"Shared", "Failover"}
      *  }
      * </code>
      * </pre>
      *
      * @param namespace
      *            Namespace name
-     * @param subscriptionSharedEnable
-     *            is enable share sub type
+     * @param subscriptionTypesEnabled
+     *            is enable subscription types
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1302,48 +1297,36 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setSubscriptionSharedEnable(
-            String namespace, boolean subscriptionSharedEnable)
-            throws PulsarAdminException;
+    void setSubscriptionTypesEnabled(String namespace,
+                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
 
     /**
-     * Set the subscriptionSharedEnable policy for a given namespace, overriding broker settings.
-     * <p/>
-     * When subscriptionSharedEnable is enabled, server can create subscription
-     * Shared {@link org.apache.pulsar.client.api.SubscriptionType} type.
+     * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
      *
-     * When subscriptionSharedEnable is disabled, server can't create subscription
-     * Shared {@link org.apache.pulsar.client.api.SubscriptionType} type.
-     * <p/>
      * Request example:
      *
      * <pre>
      * <code>
      *  {
-     *      "subscriptionSharedEnable" : true
+     *      "subscriptionTypesEnabled" : {"Shared", "Failover"}
      *  }
      * </code>
      * </pre>
      *
      * @param namespace
      *            Namespace name
-     * @param subscriptionSharedEnable
-     *            is enable share sub type
+     * @param subscriptionTypesEnabled
+     *            is enable subscription types
      */
-    CompletableFuture<Void> setSubscriptionSharedEnableAsync(
-            String namespace, boolean subscriptionSharedEnable);
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String namespace,
+                                                        Set<SubscriptionType> subscriptionTypesEnabled);
 
     /**
-     * Set the subscriptionSharedEnable policy for a given namespace, overriding broker settings.
-     * <p/>
-     * When subscriptionSharedEnable is enabled, server can create subscription
-     * Shared {@link org.apache.pulsar.client.api.SubscriptionType} type.
-     *
-     * When subscriptionSharedEnable is disabled, server can't create subscription
-     * Shared {@link org.apache.pulsar.client.api.SubscriptionType} type.
+     * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
      *
      * @param namespace
      *            Namespace name
+     * @return subscription types {@link Set<SubscriptionType>} the subscription types
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1352,23 +1335,16 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    boolean getSubscriptionSharedEnable(String namespace) throws PulsarAdminException;
+    Set<SubscriptionType> getSubscriptionTypesEnabled(String namespace) throws PulsarAdminException;
 
     /**
-     * Get the subscriptionSharedEnable policy for a given namespace, overriding broker settings.
-     * <p/>
-     * When subscriptionSharedEnable is enabled, server can create subscription
-     * Shared {@link org.apache.pulsar.client.api.SubscriptionType} type.
-     *
-     * When subscriptionSharedEnable is disabled, server can't create subscription
-     * Shared {@link org.apache.pulsar.client.api.SubscriptionType} type.
-     * <p/>
+     * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
      *
      * @param namespace
      *            Namespace name
-     * @return the future of the result
+     * @return the future of subscription types {@link Set<SubscriptionType>} the subscription types
      */
-    CompletableFuture<Boolean> getSubscriptionSharedEnableAsync(String namespace);
+    CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace);
 
     /**
      * Removes the autoSubscriptionCreation policy for a given namespace.

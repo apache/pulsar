@@ -87,9 +87,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -3687,17 +3689,20 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
-    protected Optional<Boolean> internalGetSubscriptionSharedEnable() {
+    protected Optional<List<SubType>> internalGetSubscriptionTypesEnabled() {
         preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::isSubscriptionSharedEnable);
+        return getTopicPolicies(topicName).map(TopicPolicies::getSubscriptionTypesEnabled);
 
     }
 
-    protected CompletableFuture<Void> internalSetSubscriptionSharedEnable(boolean subscriptionSharedEnable) {
+    protected CompletableFuture<Void> internalSetSubscriptionTypesEnabled(
+            Set<SubscriptionType> subscriptionTypesEnabled) {
+        List<SubType> subTypes = Lists.newArrayList();
+        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
         preValidation();
         TopicPolicies topicPolicies = getTopicPolicies(topicName)
                 .orElseGet(TopicPolicies::new);
-        topicPolicies.setSubscriptionSharedEnable(subscriptionSharedEnable);
+        topicPolicies.setSubscriptionTypesEnabled(subTypes);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
