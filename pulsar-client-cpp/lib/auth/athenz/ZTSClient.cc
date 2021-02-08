@@ -45,9 +45,9 @@ namespace ptree = boost::property_tree;
 #include <mutex>
 
 #ifdef PULSAR_USE_BOOST_REGEX
-#  include <boost/regex.hpp>
+#include <boost/regex.hpp>
 #else
-#  include <regex>
+#include <regex>
 #endif
 
 DECLARE_LOG_OBJECT()
@@ -367,15 +367,15 @@ PrivateKeyUri ZTSClient::parseUri(const char *uri) {
     // scheme mediatype[;base64] path file
 
 #ifdef PULSAR_USE_BOOST_REGEX
-   static const boost::regex expression(
-         "^(\?:([^:/\?#]+):)(\?:([;/\\-\\w]*),)\?(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)");
-   boost::cmatch groups;
-   if (boost::regex_match(uri, groups, expression)) {
-       uriSt.scheme = groups.str(1);
-       uriSt.mediaTypeAndEncodingType = groups.str(2);
-       uriSt.data = groups.str(4);
-   }
-#else // !PULSAR_USE_BOOST_REGEX
+    static const boost::regex expression(
+        "^(\?:([^:/\?#]+):)(\?:([;/\\-\\w]*),)\?(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)");
+    boost::cmatch groups;
+    if (boost::regex_match(uri, groups, expression)) {
+        uriSt.scheme = groups.str(1);
+        uriSt.mediaTypeAndEncodingType = groups.str(2);
+        uriSt.data = groups.str(4);
+    }
+#else   // !PULSAR_USE_BOOST_REGEX
     static const std::regex expression(
         R"(^(?:([A-Za-z]+):)(?:([/\w\-]+;\w+),([=\w]+))?(?:\/\/)?(\/[^?#]+)?)");
     std::cmatch groups;
@@ -385,7 +385,7 @@ PrivateKeyUri ZTSClient::parseUri(const char *uri) {
         uriSt.data = groups.str(3);
         uriSt.path = groups.str(4);
     }
-#endif //PULSAR_USE_BOOST_REGEX
+#endif  // PULSAR_USE_BOOST_REGEX
     return uriSt;
 }
 }  // namespace pulsar

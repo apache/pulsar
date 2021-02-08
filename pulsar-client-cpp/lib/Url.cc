@@ -23,13 +23,12 @@
 #include <sstream>
 
 #ifdef PULSAR_USE_BOOST_REGEX
-#  include <boost/regex.hpp>
-#  define PULSAR_REGEX_NAMESPACE boost
+#include <boost/regex.hpp>
+#define PULSAR_REGEX_NAMESPACE boost
 #else
-#  include <regex>
-#  define PULSAR_REGEX_NAMESPACE std
+#include <regex>
+#define PULSAR_REGEX_NAMESPACE std
 #endif
-
 
 namespace pulsar {
 
