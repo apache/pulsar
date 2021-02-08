@@ -43,6 +43,8 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -78,6 +80,7 @@ import org.testng.annotations.Test;
 
 @PrepareForTest(PersistentTopics.class)
 @PowerMockIgnore("com.sun.management.*")
+@Slf4j
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
@@ -424,6 +427,23 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.grantPermissionsOnTopic(testTenant, testNamespace, topicName, role, expectActions);
         Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace, topicName);
         Assert.assertEquals(permissions.get(role), expectActions);
+    }
+
+    @Test
+    public void testCreateExistedPartition() {
+        final AsyncResponse response = mock(AsyncResponse.class);
+        final String topicName = "test-create-existed-partition";
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 3);
+
+        final String partitionName = TopicName.get(topicName).getPartition(0).getLocalName();
+        try {
+            persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, partitionName, false);
+            Assert.fail();
+        } catch (RestException e) {
+            log.error("Failed to create {}: {}", partitionName, e.getMessage());
+            Assert.assertEquals(e.getResponse().getStatus(), 409);
+            Assert.assertEquals(e.getMessage(), "This topic already exists");
+        }
     }
 
     @Test
