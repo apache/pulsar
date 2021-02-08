@@ -220,43 +220,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
-    public void readModifyUpdateOrCreate(String provider, String url) throws Exception {
-        @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
-
-        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
-
-        String key1 = newKey();
-
-        objCache.readModifyUpdateOrCreate(key1, optValue -> {
-            if (optValue.isPresent()) {
-                return new MyClass(optValue.get().a, optValue.get().b + 1);
-            } else {
-                return new MyClass("a", 1);
-            }
-        }).join();
-
-        Optional<MyClass> newValue1 = objCache.get(key1).join();
-        assertTrue(newValue1.isPresent());
-        assertEquals(newValue1.get().a, "a");
-        assertEquals(newValue1.get().b, 1);
-
-        objCache.readModifyUpdateOrCreate(key1, optValue -> {
-            assertTrue(optValue.isPresent());
-            return new MyClass(optValue.get().a, optValue.get().b + 1);
-        }).join();
-
-        newValue1 = objCache.get(key1).join();
-        assertTrue(newValue1.isPresent());
-        assertEquals(newValue1.get().a, "a");
-        assertEquals(newValue1.get().b, 2);
-    }
-
     /**
      * This test validates that metadata-cache can handle BadVersion failure if other cache/metadata-source updates the
      * data with different version.
-     * 
+     *
      * @throws Exception
      */
     @Test
