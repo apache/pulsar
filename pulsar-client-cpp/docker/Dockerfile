@@ -126,14 +126,6 @@ RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.12.1.tar.gz && \
     make && make install && \
     rm -rf /v3.12.1.tar.gz /CMake-3.12.1
 
-# Compile JSON CPP
-RUN curl -O -L  https://github.com/open-source-parsers/jsoncpp/archive/1.8.0.tar.gz && \
-    tar xvfz 1.8.0.tar.gz && \
-    cd jsoncpp-1.8.0 && \
-    cmake . -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
-    make && make install && \
-    rm -rf /1.8.0.tar.gz /jsoncpp-1.8.0
-
 # LibCurl
 RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
     tar xvfz curl-7.61.0.tar.gz && \
