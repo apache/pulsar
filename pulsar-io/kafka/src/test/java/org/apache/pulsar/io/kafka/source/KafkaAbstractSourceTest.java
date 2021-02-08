@@ -48,7 +48,7 @@ import static org.testng.Assert.fail;
 
 public class KafkaAbstractSourceTest {
 
-    private static class DummySource extends KafkaAbstractSource<byte[], String> {
+    private static class DummySource extends KafkaAbstractSource<byte[], String, String> {
 
         @Override
         public String extractValue(ConsumerRecord<String, byte[]> record) {

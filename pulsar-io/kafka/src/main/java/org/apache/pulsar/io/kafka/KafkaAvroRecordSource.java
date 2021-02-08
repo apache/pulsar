@@ -19,51 +19,95 @@
 
 package org.apache.pulsar.io.kafka;
 
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.NonRecordContainer;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericContainer;
 import org.apache.avro.generic.IndexedRecord;
+import org.apache.avro.io.BinaryDecoder;
+import org.apache.avro.io.DatumReader;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
+import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Properties;
 
 /**
  * Simple Kafka Source that just transfers the value part of the kafka records
- * as Avro Records, it is integrated with the Schema Registry
+ * as Avro Records, it is integrated with the Schema Registry.
+ * This source produces messages with AVRO schema (GenericRecord) but it write raw bytes
+ * in order to skip decoding the payload to an in memory data model.
  */
 @Connector(
     name = "kafka-avro",
     type = IOType.SOURCE,
-    help = "The KafkaBytesSource is used for moving messages from Kafka to Pulsar.",
+    help = "The KafkaAvroRecordSource is used for moving messages from Kafka to Pulsar.",
     configClass = KafkaSourceConfig.class
 )
 @Slf4j
-public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRecord> {
+public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRecord, BytesWithAvroPulsarSchema> {
 
-    private PulsarSchemaCache<GenericRecord> schemaCache = new PulsarSchemaCache<>();
+    private final PulsarSchemaCache<GenericRecord> schemaCache = new PulsarSchemaCache<>();
+
+    @AllArgsConstructor
+    @Getter
+    private static class RecordWithSchema {
+        ByteBuffer byteBuffer;
+        Schema schema;
+    }
+
+    public static class NoCopyKafkaAvroDeserializer extends KafkaAvroDeserializer {
+
+        @Override
+        protected Object deserialize(boolean includeSchemaAndVersion, String topic, Boolean isKey, byte[] payload, Schema readerSchema) throws SerializationException {
+            if (payload == null) {
+                return null;
+            } else {
+                int id = -1;
+                try {
+                    ByteBuffer buffer = ByteBuffer.wrap(payload);
+                    buffer.get(); // magic number
+                    id = buffer.getInt();
+                    String subject = getSubjectName(topic, isKey != null ? isKey : false);
+                    Schema schema = this.schemaRegistry.getBySubjectAndId(subject, id);
+                    return new RecordWithSchema(
+                            ByteBuffer.wrap(payload, 5, payload.length - 5),
+                            schema
+                    );
+                } catch (Exception err) {
+                    throw new SerializationException("Error deserializing Avro message for id " + id, err);
+                }
+            }
+        }
+    }
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
         props.putIfAbsent("schema.registry.url", "http://localhost:8081");
         props.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName());
-
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, NoCopyKafkaAvroDeserializer.class.getName());
         log.info("Created kafka consumer config : {}", props);
         return props;
     }
 
     @Override
-    public GenericRecord extractValue(ConsumerRecord<String, Object> record) {
-       Object value = record.value();
-       if (value instanceof org.apache.avro.generic.GenericRecord) {
-            org.apache.avro.generic.GenericRecord container = (org.apache.avro.generic.GenericRecord) value;
-            return new AvroRecordWithPulsarSchema(container, schemaCache);
-       }
-       throw new IllegalArgumentException("cannot convert " + value + " to a GenericRecord");
+    public BytesWithAvroPulsarSchema extractValue(ConsumerRecord<String, Object> record) {
+       RecordWithSchema recordWithSchema = (RecordWithSchema) record.value();
+       return new BytesWithAvroPulsarSchema(recordWithSchema.getSchema(), recordWithSchema.getByteBuffer(), schemaCache);
     }
 
 }

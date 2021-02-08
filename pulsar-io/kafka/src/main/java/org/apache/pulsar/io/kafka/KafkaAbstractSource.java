@@ -43,11 +43,11 @@ import java.util.concurrent.ExecutionException;
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic.
  */
-public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
+public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType, PulsarSerializedType> extends PushSource<PulsarSchemaType> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
-    private volatile Consumer<String, KV> consumer;
+    private volatile Consumer<String, KafkaValueType> consumer;
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
@@ -122,13 +122,13 @@ public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
             LOG.info("Starting kafka source on {}", kafkaSourceConfig.getTopic());
             consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
-            ConsumerRecords<String, KV> consumerRecords;
+            ConsumerRecords<String, KafkaValueType> consumerRecords;
             while (running) {
                 consumerRecords = consumer.poll(1000);
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
-                for (ConsumerRecord<String, KV> consumerRecord : consumerRecords) {
-                    KafkaRecord<V> record = new KafkaRecord<>(consumerRecord, extractValue(consumerRecord));
+                for (ConsumerRecord<String, KafkaValueType> consumerRecord : consumerRecords) {
+                    KafkaRecord record = new KafkaRecord(consumerRecord, extractValue(consumerRecord));
                     consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;
@@ -151,7 +151,7 @@ public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
         runnerThread.start();
     }
 
-    public abstract V extractValue(ConsumerRecord<String, KV> record);
+    public abstract PulsarSerializedType extractValue(ConsumerRecord<String, KafkaValueType> record);
 
     @Slf4j
     static private class KafkaRecord<V> implements Record<V> {
@@ -181,6 +181,9 @@ public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
 
         @Override
         public V getValue() {
+            if (value instanceof BytesWithAvroPulsarSchema) {
+                return (V) ((BytesWithAvroPulsarSchema) value).getValue();
+            }
             return value;
         }
 
@@ -191,8 +194,8 @@ public abstract class KafkaAbstractSource<KV, V> extends PushSource<V> {
 
         @Override
         public Schema<V> getSchema() {
-            if (value instanceof AvroRecordWithPulsarSchema) {
-                return (Schema) ((AvroRecordWithPulsarSchema) value).getPulsarSchema();
+            if (value instanceof BytesWithAvroPulsarSchema) {
+                return (Schema) ((BytesWithAvroPulsarSchema) value).getPulsarSchema();
             } else if (value instanceof String) {
                 return (Schema) Schema.STRING;
             } else {

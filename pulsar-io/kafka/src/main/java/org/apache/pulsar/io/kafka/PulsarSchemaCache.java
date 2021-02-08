@@ -18,34 +18,21 @@
  */
 package org.apache.pulsar.io.kafka;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 class PulsarSchemaCache<T> {
+    private IdentityHashMap<org.apache.avro.Schema, Schema<T>> cache = new IdentityHashMap<>();
 
-    @Data
-    @AllArgsConstructor
-    public static final class CachedSchema<T> {
-        private final Schema<T> schema;
-        private final List<Field> fields;
-    }
-
-    private IdentityHashMap<org.apache.avro.Schema, CachedSchema<T>> cache = new IdentityHashMap<>();
-
-    public synchronized CachedSchema<T> get(org.apache.avro.Schema avroSchema) {
+    public synchronized Schema<T> get(org.apache.avro.Schema avroSchema) {
         if (cache.size() > 100) {
             // very simple auto cleanup
             // schema do not change very often, we just want this map to grow
@@ -60,11 +47,32 @@ class PulsarSchemaCache<T> {
                     .name(schema.getName())
                     .schema(definition.getBytes(StandardCharsets.UTF_8)
                     ).build());
-            List<Field> fields = schema.getFields()
-                    .stream()
-                    .map(f-> new Field(f.name(), f.pos()))
-                    .collect(Collectors.toList());
-            return new CachedSchema<>(pulsarSchema, fields);
+            Schema<T> wrapper = new Schema<T>() {
+                @Override
+                public byte[] encode(T message) {
+                    if (message instanceof ByteBuffer) {
+                        ByteBuffer buf = (ByteBuffer) message;
+                        byte[] arr = new byte[buf.remaining()];
+                        buf.get(arr);
+                        return arr;
+                    } else {
+                        throw new RuntimeException("Cannot write a " + message.getClass());
+                    }
+                }
+
+                @Override
+                public SchemaInfo getSchemaInfo() {
+                    return pulsarSchema.getSchemaInfo();
+                }
+
+                @Override
+                public Schema<T> clone() {
+                    // this structure is immutable and is cached
+                    // so no need to clone ?
+                    return this;
+                }
+            };
+            return wrapper;
         });
     }
 }

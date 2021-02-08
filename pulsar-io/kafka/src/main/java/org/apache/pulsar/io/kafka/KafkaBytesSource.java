@@ -39,7 +39,7 @@ import org.apache.pulsar.io.core.annotations.IOType;
     configClass = KafkaSourceConfig.class
 )
 @Slf4j
-public class KafkaBytesSource extends KafkaAbstractSource<byte[], byte[]> {
+public class KafkaBytesSource extends KafkaAbstractSource<byte[], byte[], byte[]> {
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {

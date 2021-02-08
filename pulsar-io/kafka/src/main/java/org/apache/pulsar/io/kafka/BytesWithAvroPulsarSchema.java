@@ -16,18 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka;
 
-import org.apache.kafka.clients.consumer.*;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
+
+import java.nio.ByteBuffer;
+import org.apache.pulsar.client.api.schema.*;
+
 
 /**
- * Simple Kafka Source that just transfers the value part of the kafka records
- * as Strings
+ * This is a wrapper around a Byte array (the Avro encoded record) and a Pulsar Schema.
  */
-public class KafkaStringSource extends KafkaAbstractSource<byte[], String, String> {
-    @Override
-    public String extractValue(ConsumerRecord<String, byte[]> record) {
-        return new String(record.value());
+@Slf4j
+public class BytesWithAvroPulsarSchema {
+    private final ByteBuffer value;
+    private final Schema<GenericRecord> schema;
+
+    public BytesWithAvroPulsarSchema(org.apache.avro.Schema schema, ByteBuffer byteBuffer, PulsarSchemaCache<GenericRecord> schemaCache) {
+        this.schema = schemaCache.get(schema);
+        this.value = byteBuffer;
     }
+
+    public Schema<GenericRecord> getPulsarSchema() {
+        return schema;
+    }
+
+    public ByteBuffer getValue() {
+        return value;
+    }
+
 }
