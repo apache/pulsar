@@ -32,10 +32,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -213,8 +210,7 @@ public class ManagedLedgerWriter {
         Collections.shuffle(managedLedgers);
         AtomicBoolean isDone = new AtomicBoolean();
 
-        List<List<ManagedLedger>> managedLedgersPerThread = Lists.partition(managedLedgers,
-                Math.max(1, managedLedgers.size() / arguments.numThreads));
+        Map<Integer, List<ManagedLedger>> managedLedgersPerThread = allocateToThreads(managedLedgers, arguments.numThreads);
 
         for (int i = 0; i < arguments.numThreads; i++) {
             List<ManagedLedger> managedLedgersForThisThread = managedLedgersPerThread.get(i);
@@ -332,6 +328,42 @@ public class ManagedLedgerWriter {
         }
 
         factory.shutdown();
+    }
+
+
+    public static <T> Map<Integer,List<T>> allocateToThreads(List<T> managedLedgers, int numThreads) {
+
+        Map<Integer,List<T>> map = new HashMap<>();
+
+        if (managedLedgers.size() >= numThreads) {
+            int threadIndex = 0;
+            for (T managedLedger : managedLedgers) {
+
+                List<T> ledgerList = map.getOrDefault(threadIndex, new ArrayList<>());
+                ledgerList.add(managedLedger);
+                map.put(threadIndex, ledgerList);
+
+                threadIndex++;
+                if (threadIndex >= numThreads) {
+                    threadIndex = threadIndex % numThreads;
+                }
+            }
+
+        } else {
+            int ledgerIndex = 0;
+            for(int threadIndex = 0;threadIndex<numThreads;threadIndex++) {
+                List<T> ledgerList = map.getOrDefault(threadIndex,new ArrayList<>());
+                ledgerList.add(managedLedgers.get(ledgerIndex));
+                map.put(threadIndex,ledgerList);
+
+                ledgerIndex++;
+                if(ledgerIndex >= managedLedgers.size()) {
+                    ledgerIndex = ledgerIndex % managedLedgers.size();
+                }
+            }
+        }
+
+        return map;
     }
 
     private static void printAggregatedStats() {
