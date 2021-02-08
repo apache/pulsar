@@ -66,7 +66,7 @@ public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRe
     @AllArgsConstructor
     @Getter
     private static class RecordWithSchema {
-        ByteBuffer byteBuffer;
+        byte[] value;
         Schema schema;
     }
 
@@ -84,8 +84,10 @@ public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRe
                     id = buffer.getInt();
                     String subject = getSubjectName(topic, isKey != null ? isKey : false);
                     Schema schema = this.schemaRegistry.getBySubjectAndId(subject, id);
+                    byte[] avroEncodedData = new byte[buffer.remaining()];
+                    buffer.get(avroEncodedData);
                     return new RecordWithSchema(
-                            ByteBuffer.wrap(payload, 5, payload.length - 5),
+                            avroEncodedData,
                             schema
                     );
                 } catch (Exception err) {
@@ -107,7 +109,7 @@ public class KafkaAvroRecordSource extends KafkaAbstractSource<Object, GenericRe
     @Override
     public BytesWithAvroPulsarSchema extractValue(ConsumerRecord<String, Object> record) {
        RecordWithSchema recordWithSchema = (RecordWithSchema) record.value();
-       return new BytesWithAvroPulsarSchema(recordWithSchema.getSchema(), recordWithSchema.getByteBuffer(), schemaCache);
+       return new BytesWithAvroPulsarSchema(recordWithSchema.getSchema(), recordWithSchema.getValue(), schemaCache);
     }
 
 }

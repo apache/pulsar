@@ -59,7 +59,7 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
         log.info("{} function workers has started", numFunctionWorkers);
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterClass
     public void teardownFunctionWorkers() {
         log.info("Tearing down function workers ...");
         pulsarCluster.stopWorkers();

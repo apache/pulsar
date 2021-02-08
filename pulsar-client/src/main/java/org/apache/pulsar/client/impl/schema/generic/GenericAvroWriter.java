@@ -18,78 +18,38 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 
 import java.io.ByteArrayOutputStream;
-@Slf4j
+
 public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
 
     private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> writer;
     private BinaryEncoder encoder;
     private final ByteArrayOutputStream byteArrayOutputStream;
-    private final Schema schema;
-    private final GenericRecordAdapter adapter;
 
     public GenericAvroWriter(Schema schema) {
-        this.schema = schema;
         this.writer = new GenericDatumWriter<>(schema);
         this.byteArrayOutputStream = new ByteArrayOutputStream();
         this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
-        this.adapter = new GenericRecordAdapter();
     }
 
     @Override
     public synchronized byte[] write(GenericRecord message) {
         try {
-            if (message instanceof GenericAvroRecord) {
-                writer.write(((GenericAvroRecord) message).getAvroRecord(), this.encoder);
-            } else {
-                adapter.setCurrentMessage(message);
-                try {
-                    writer.write(adapter, this.encoder);
-                } finally {
-                    adapter.setCurrentMessage(null);
-                }
-            }
+            writer.write(((GenericAvroRecord)message).getAvroRecord(), this.encoder);
             this.encoder.flush();
             return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {
             throw new SchemaSerializationException(e);
         } finally {
             this.byteArrayOutputStream.reset();
-        }
-    }
-
-    /**
-     * This is an adapter from Pulsar GenericRecord to Avro classes.
-     */
-    private class GenericRecordAdapter extends SpecificRecordBase {
-        private GenericRecord message;
-
-        void setCurrentMessage(GenericRecord message) {
-            this.message = message;
-        }
-        @Override
-        public Schema getSchema() {
-            return schema;
-        }
-
-        @Override
-        public Object get(int field) {
-            return message.getField(schema.getFields().get(field).name());
-        }
-
-        @Override
-        public void put(int field, Object value) {
-            throw new UnsupportedOperationException();
         }
     }
 }

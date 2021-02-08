@@ -57,19 +57,19 @@
     <dependency>
       <groupId>io.confluent</groupId>
       <artifactId>kafka-schema-registry</artifactId>
-      <version>${kafka.confluent.schemaregstryclient.version}</version>
+      <version>${kafka.confluent.schemaregistryclient.version}</version>
     </dependency>
 
     <dependency>
       <groupId>io.confluent</groupId>
       <artifactId>kafka-avro-serializer</artifactId>
-      <version>${kafka.confluent.schemaregstryclient.version}</version>
+      <version>${kafka.confluent.schemaregistryclient.version}</version>
     </dependency>
 
     <dependency>
       <groupId>io.confluent</groupId>
       <artifactId>kafka-streams-avro-serde</artifactId>
-      <version>${kafka.confluent.schemaregstryclient.version}</version>
+      <version>${kafka.confluent.schemaregistryclient.version}</version>
     </dependency>
 
     <dependency>

@@ -30,19 +30,19 @@ import org.apache.pulsar.client.api.schema.*;
  */
 @Slf4j
 public class BytesWithAvroPulsarSchema {
-    private final ByteBuffer value;
+    private final byte[] value;
     private final Schema<GenericRecord> schema;
 
-    public BytesWithAvroPulsarSchema(org.apache.avro.Schema schema, ByteBuffer byteBuffer, PulsarSchemaCache<GenericRecord> schemaCache) {
+    public BytesWithAvroPulsarSchema(org.apache.avro.Schema schema, byte[] value, PulsarSchemaCache<GenericRecord> schemaCache) {
         this.schema = schemaCache.get(schema);
-        this.value = byteBuffer;
+        this.value = value;
     }
 
     public Schema<GenericRecord> getPulsarSchema() {
         return schema;
     }
 
-    public ByteBuffer getValue() {
+    public byte[] getValue() {
         return value;
     }
 

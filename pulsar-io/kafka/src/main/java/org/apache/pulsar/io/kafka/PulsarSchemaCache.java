@@ -30,6 +30,8 @@ import java.util.IdentityHashMap;
 
 @Slf4j
 class PulsarSchemaCache<T> {
+    // we are using the Object identity as key of the cache
+    // we do not want to perform costly operations in order to lookup into the cache
     private IdentityHashMap<org.apache.avro.Schema, Schema<T>> cache = new IdentityHashMap<>();
 
     public synchronized Schema<T> get(org.apache.avro.Schema avroSchema) {
@@ -50,14 +52,7 @@ class PulsarSchemaCache<T> {
             Schema<T> wrapper = new Schema<T>() {
                 @Override
                 public byte[] encode(T message) {
-                    if (message instanceof ByteBuffer) {
-                        ByteBuffer buf = (ByteBuffer) message;
-                        byte[] arr = new byte[buf.remaining()];
-                        buf.get(arr);
-                        return arr;
-                    } else {
-                        throw new RuntimeException("Cannot write a " + message.getClass());
-                    }
+                    return (byte[]) message;
                 }
 
                 @Override
