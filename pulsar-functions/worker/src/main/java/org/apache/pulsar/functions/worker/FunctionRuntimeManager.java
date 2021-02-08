@@ -385,7 +385,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    public synchronized void restartFunctionInstances(String tenant, String namespace, String functionName, ComponentType componentType)
+    public synchronized void restartFunctionInstances(String tenant, String namespace, String functionName)
             throws Exception {
         final String fullFunctionName = String.format("%s/%s/%s", tenant, namespace, functionName);
         Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
@@ -418,12 +418,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                             .type(MediaType.APPLICATION_JSON)
                             .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
                 }
-<<<<<<< HEAD
 
                 ComponentType componentType = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getComponentType();
 
-=======
->>>>>>> c502d2497d66916986e358bebd97e64574f17eac
                 if (ComponentType.SOURCE == componentType) {
                     this.functionAdmin.sources().restartSource(tenant, namespace, functionName);
                 } else if (ComponentType.SINK == componentType) {
@@ -453,12 +450,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         }
                         continue;
                     }
-<<<<<<< HEAD
 
                     ComponentType componentType = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getComponentType();
 
-=======
->>>>>>> c502d2497d66916986e358bebd97e64574f17eac
                     if (ComponentType.SOURCE == componentType) {
                         this.functionAdmin.sources().restartSource(tenant, namespace, functionName,
                             assignment.getInstance().getInstanceId());
