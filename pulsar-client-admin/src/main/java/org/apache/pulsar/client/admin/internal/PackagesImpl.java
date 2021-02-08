@@ -175,7 +175,9 @@ public class PackagesImpl extends ComponentResource implements Packages {
                     InputStream inputStream = response.readEntity(InputStream.class);
                     Path destinyPath = Paths.get(path);
                     try {
-                        Files.createDirectories(destinyPath.getParent());
+                        if (destinyPath.getParent() != null) {
+                            Files.createDirectories(destinyPath.getParent());
+                        }
                         Files.copy(inputStream, destinyPath);
                         future.complete(null);
                     } catch (IOException e) {
