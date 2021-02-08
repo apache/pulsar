@@ -413,8 +413,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void start() throws Exception {
-        this.producerNameGenerator = new DistributedIdGenerator(pulsar.getZkClient(), PRODUCER_NAME_GENERATOR_PATH,
-                pulsar.getConfiguration().getClusterName());
+        this.producerNameGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
+                PRODUCER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
 
         ServerBootstrap bootstrap = defaultServerBootstrap.clone();
 
@@ -1731,7 +1731,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, TopicStats> getTopicStats() {
         HashMap<String, TopicStats> stats = new HashMap<>();
 
-        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false)));
+        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false, false)));
 
         return stats;
     }

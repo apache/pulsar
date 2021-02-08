@@ -38,6 +38,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.glassfish.jersey.internal.inject.InjectionManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,8 +99,14 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
     }
 
     private SchemaInfo loadSchema(BytesSchemaVersion bytesSchemaVersion) throws PulsarAdminException {
-        return pulsarAdmin.schemas()
-                .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
+        ClassLoader originalContextLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(InjectionManagerFactory.class.getClassLoader());
+            return pulsarAdmin.schemas()
+                    .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalContextLoader);
+        }
     }
 
 
