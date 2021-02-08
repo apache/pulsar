@@ -18,37 +18,17 @@
  */
 package org.apache.pulsar.functions.source;
 
-import lombok.Cleanup;
-import lombok.Getter;
-import lombok.Setter;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertEquals;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.io.core.SourceContext;
-import org.mockito.ArgumentMatcher;
 import org.testng.annotations.Test;
-import sun.net.www.content.text.Generic;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.argThat;
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.assertSame;
-import static org.testng.AssertJUnit.*;
 
 @Slf4j
 public class TopicSchemaTest {
