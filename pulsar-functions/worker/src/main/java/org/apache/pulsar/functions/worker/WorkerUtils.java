@@ -314,28 +314,6 @@ public final class WorkerUtils {
         }
     }
 
-    public static boolean isFunctionCodeBuiltin(Function.FunctionDetailsOrBuilder functionDetails) {
-        if (functionDetails.hasSource()) {
-            Function.SourceSpec sourceSpec = functionDetails.getSource();
-            if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
-                return true;
-            }
-        }
-
-        if (functionDetails.hasSink()) {
-            Function.SinkSpec sinkSpec = functionDetails.getSink();
-            if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
-                return true;
-            }
-        }
-
-        if (!StringUtils.isEmpty(functionDetails.getBuiltin())) {
-            return true;
-        }
-
-        return false;
-    }
-
     public static Reader<byte[]> createReader(ReaderBuilder readerBuilder,
                                               String readerName,
                                               String topic,
