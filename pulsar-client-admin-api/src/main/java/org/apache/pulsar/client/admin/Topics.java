@@ -755,6 +755,8 @@ public interface Topics {
      *            topic name
      * @param getPreciseBacklog
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -764,10 +766,15 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException;
+    TopicStats getStats(String topic, boolean getPreciseBacklog,
+                        boolean subscriptionBacklogSize) throws PulsarAdminException;
+
+    default TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException {
+        return getStats(topic, getPreciseBacklog, false);
+    }
 
     default TopicStats getStats(String topic) throws PulsarAdminException {
-        return getStats(topic, false);
+        return getStats(topic, false, false);
     }
 
     /**
@@ -778,14 +785,16 @@ public interface Topics {
      *            topic name
      * @param getPreciseBacklog
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
-     *
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return a future that can be used to track when the topic statistics are returned
      *
      */
-    CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog);
+    CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
+                                                boolean subscriptionBacklogSize);
 
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
-        return getStatsAsync(topic, false);
+        return getStatsAsync(topic, false, false);
     }
 
     /**
@@ -936,7 +945,11 @@ public interface Topics {
      * @param topic
      *            topic name
      * @param perPartition
-     *
+     *            flag to get stats per partition
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return the partitioned topic statistics
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -946,11 +959,12 @@ public interface Topics {
      *             Unexpected error
      *
      */
-    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog)
+    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog,
+                                              boolean subscriptionBacklogSize)
             throws PulsarAdminException;
 
     default PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException {
-        return getPartitionedStats(topic, perPartition, false);
+        return getPartitionedStats(topic, perPartition, false, false);
     }
 
     /**
@@ -960,13 +974,17 @@ public interface Topics {
      *            topic Name
      * @param perPartition
      *            flag to get stats per partition
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
     CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(
-            String topic, boolean perPartition, boolean getPreciseBacklog);
+            String topic, boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize);
 
     default CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition) {
-        return getPartitionedStatsAsync(topic, perPartition, false);
+        return getPartitionedStatsAsync(topic, perPartition, false, false);
     }
 
     /**
@@ -1740,6 +1758,23 @@ public interface Topics {
     CompletableFuture<RetentionPolicies> getRetentionAsync(String topic);
 
     /**
+     * Get the applied retention configuration for a topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    RetentionPolicies getRetention(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the applied retention configuration for a topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<RetentionPolicies> getRetentionAsync(String topic, boolean applied);
+
+    /**
      * Remove the retention configuration for all the topics on a topic.
      * <p/>
      * Remove the retention configuration on a topic. This operation requires Pulsar super-user access.
@@ -1903,6 +1938,21 @@ public interface Topics {
      * @return
      */
     CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic);
+
+    /**
+     * get applied offload policies of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    OffloadPolicies getOffloadPolicies(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * get applied offload policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic, boolean applied);
 
     /**
      * set offload policies of a topic.

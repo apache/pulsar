@@ -16,30 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.protocol.schema;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+package org.apache.pulsar.metadata.api.extended;
 
 /**
- * Schema storage.
+ * An event regarding a session of MetadataStore
  */
-public interface SchemaStorage {
+public enum SessionEvent {
 
-    CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
+    /**
+     * The client is temporarily disconnected, although the session is still valid
+     */
+    ConnectionLost,
 
-    CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
+    /**
+     * The client was able to successfully reconnect
+     */
+    Reconnected,
 
-    CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
+    /**
+     * The session was lost, all the ephemeral keys created on the store within the current session might have been
+     * already expired.
+     */
+    SessionLost,
 
-    CompletableFuture<SchemaVersion> delete(String key, boolean forcefully);
-
-    CompletableFuture<SchemaVersion> delete(String key);
-
-    SchemaVersion versionFromBytes(byte[] version);
-
-    void start() throws Exception;
-
-    void close() throws Exception;
-
+    /**
+     * The session was established
+     */
+    SessionReestablished,
 }
