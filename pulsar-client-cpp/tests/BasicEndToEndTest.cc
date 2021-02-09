@@ -1284,7 +1284,8 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
 TEST(BasicEndToEndTest, testRSAEncryption) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "my-rsaenctopic";
+    std::string topicNames[] = {"my-rsaenctopic", "persistent://public/default-4/my-rsaenctopic"};
+    //    std::string topicOfEncryptionRequired = "persistent://public/default-4/" + topicName;
     std::string subName = "my-sub-name";
     Producer producer;
 
@@ -1301,48 +1302,51 @@ TEST(BasicEndToEndTest, testRSAEncryption) {
     conf.addEncryptionKey("client-rsa.pem");
     conf.setCryptoKeyReader(keyReader);
 
-    Promise<Result, Producer> producerPromise;
-    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
-    Future<Result, Producer> producerFuture = producerPromise.getFuture();
-    Result result = producerFuture.get(producer);
-    ASSERT_EQ(ResultOk, result);
+    for (const auto &topicName : topicNames) {
+        Promise<Result, Producer> producerPromise;
+        client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+        Future<Result, Producer> producerFuture = producerPromise.getFuture();
+        Result result = producerFuture.get(producer);
+        ASSERT_EQ(ResultOk, result);
 
-    ConsumerConfiguration consConfig;
-    consConfig.setCryptoKeyReader(keyReader);
-    // consConfig.setCryptoFailureAction(ConsumerCryptoFailureAction::CONSUME);
+        ConsumerConfiguration consConfig;
+        consConfig.setCryptoKeyReader(keyReader);
+        // consConfig.setCryptoFailureAction(ConsumerCryptoFailureAction::CONSUME);
 
-    Consumer consumer;
-    Promise<Result, Consumer> consumerPromise;
-    client.subscribeAsync(topicName, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
-    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
-    result = consumerFuture.get(consumer);
-    ASSERT_EQ(ResultOk, result);
+        Consumer consumer;
+        Promise<Result, Consumer> consumerPromise;
+        client.subscribeAsync(topicName, subName, consConfig,
+                              WaitForCallbackValue<Consumer>(consumerPromise));
+        Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+        result = consumerFuture.get(consumer);
+        ASSERT_EQ(ResultOk, result);
 
-    // Send 1000 messages synchronously
-    std::string msgContent = "msg-content";
-    LOG_INFO("Publishing 1000 messages synchronously");
-    int msgNum = 0;
-    for (; msgNum < 1000; msgNum++) {
-        std::stringstream stream;
-        stream << msgContent << msgNum;
-        Message msg = MessageBuilder().setContent(stream.str()).build();
-        ASSERT_EQ(ResultOk, producer.send(msg));
+        // Send 1000 messages synchronously
+        std::string msgContent = "msg-content";
+        LOG_INFO("Publishing 1000 messages synchronously");
+        int msgNum = 0;
+        for (; msgNum < 1000; msgNum++) {
+            std::stringstream stream;
+            stream << msgContent << msgNum;
+            Message msg = MessageBuilder().setContent(stream.str()).build();
+            ASSERT_EQ(ResultOk, producer.send(msg));
+        }
+
+        LOG_INFO("Trying to receive 1000 messages");
+        Message msgReceived;
+        for (msgNum = 0; msgNum < 1000; msgNum++) {
+            consumer.receive(msgReceived, 1000);
+            LOG_DEBUG("Received message :" << msgReceived.getMessageId());
+            std::stringstream expected;
+            expected << msgContent << msgNum;
+            ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
+            ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
+        }
+
+        ASSERT_EQ(ResultOk, consumer.unsubscribe());
+        ASSERT_EQ(ResultAlreadyClosed, consumer.close());
+        ASSERT_EQ(ResultOk, producer.close());
     }
-
-    LOG_INFO("Trying to receive 1000 messages");
-    Message msgReceived;
-    for (msgNum = 0; msgNum < 1000; msgNum++) {
-        consumer.receive(msgReceived, 1000);
-        LOG_DEBUG("Received message :" << msgReceived.getMessageId());
-        std::stringstream expected;
-        expected << msgContent << msgNum;
-        ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
-        ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
-    }
-
-    ASSERT_EQ(ResultOk, consumer.unsubscribe());
-    ASSERT_EQ(ResultAlreadyClosed, consumer.close());
-    ASSERT_EQ(ResultOk, producer.close());
     ASSERT_EQ(ResultOk, client.close());
 }
 
