@@ -435,7 +435,7 @@ The Apache Software License, Version 2.0
   * GSON
     - gson-2.8.6.jar
   * Snappy
-    - snappy-java-1.1.7.3.jar
+    - snappy-java-1.1.7.jar
   * Jackson
     - jackson-module-parameter-names-2.10.0.jar
     - jackson-module-parameter-names-2.11.1.jar
