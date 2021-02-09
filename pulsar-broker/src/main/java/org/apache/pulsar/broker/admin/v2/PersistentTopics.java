@@ -1221,7 +1221,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             ResetCursorData resetCursorData) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalExpireMessagesOnPosition(asyncResponse, decode(encodedSubName), authoritative,
+            internalExpireMessagesByPosition(asyncResponse, decode(encodedSubName), authoritative,
             new MessageIdImpl(resetCursorData.getLedgerId(),
                     resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
             , resetCursorData.isExcluded(), resetCursorData.getBatchIndex());

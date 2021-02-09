@@ -472,7 +472,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/expireMessages")
+    @Path("/{property}/{cluster}/{namespace}/{topic}/subscription/{subName}/expireMessages")
     @ApiOperation(value = "Expiry messages on a topic subscription.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
@@ -485,8 +485,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
     public void expireTopicMessages(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
-            @PathParam("tenant") String tenant,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
@@ -498,8 +497,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
                     ResetCursorData resetCursorData) {
         try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            internalExpireMessagesOnPosition(asyncResponse, decode(encodedSubName), authoritative,
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalExpireMessagesByPosition(asyncResponse, decode(encodedSubName), authoritative,
                     new MessageIdImpl(resetCursorData.getLedgerId(),
                             resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
                     , resetCursorData.isExcluded(), resetCursorData.getBatchIndex());

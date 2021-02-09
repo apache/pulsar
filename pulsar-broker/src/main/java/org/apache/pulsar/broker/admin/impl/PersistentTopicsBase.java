@@ -3026,7 +3026,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalExpireMessagesOnPosition(AsyncResponse asyncResponse, String subName, boolean authoritative,
+    protected void internalExpireMessagesByPosition(AsyncResponse asyncResponse, String subName, boolean authoritative,
                                                  MessageIdImpl messageId, boolean isExcluded, int batchIndex) {
         if (topicName.isGlobal()) {
             try {
@@ -3049,6 +3049,13 @@ public class PersistentTopicsBase extends AdminResource {
             asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
                     "Expire message at position is not supported for partitioned-topic"));
             return;
+        } else if (messageId.getPartitionIndex() != topicName.getPartitionIndex()) {
+            log.warn("[{}] Invalid parameter for expire message by position, partition index of passed in message"
+                            + " position {} doesn't match partition index of topic requested {}.",
+                    clientAppId(), messageId, topicName);
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                    "Invalid parameter for expire message by position, partition index of message position "
+                            + "passed in doesn't match partition index for the topic."));
         } else {
             validateAdminAccessForSubscriber(subName, authoritative);
             validateReadOperationOnTopic(authoritative);

@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -670,7 +671,8 @@ public class CmdTopics extends CmdBase {
             if (expireTimeInSeconds >= 0) {
                 getTopics().expireMessages(topic, subName, expireTimeInSeconds);
             } else if (isNotBlank(messagePosition)) {
-                MessageId messageId = validateMessageIdString(messagePosition);
+                int partitionIndex = TopicName.get(topic).getPartitionIndex();
+                MessageId messageId = validateMessageIdString(messagePosition, partitionIndex);
                 getTopics().expireMessages(topic, subName, messageId, excludeResetPosition);
             } else {
                 throw new ParameterException(
