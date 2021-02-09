@@ -614,7 +614,7 @@ public class PulsarFunctionE2ETest {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testReadCompactedSink() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
