@@ -534,10 +534,15 @@ public class CmdTopics extends CmdBase {
             "--get-precise-backlog" }, description = "Set true to get precise backlog")
         private boolean getPreciseBacklog = false;
 
+        @Parameter(names = { "-sbs",
+                "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
+        + ", locking required.")
+        private boolean subscriptionBacklogSize = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(getTopics().getStats(topic, getPreciseBacklog));
+            print(getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize));
         }
     }
 
@@ -584,10 +589,15 @@ public class CmdTopics extends CmdBase {
             "--get-precise-backlog" }, description = "Set true to get precise backlog")
         private boolean getPreciseBacklog = false;
 
+        @Parameter(names = { "-sbs",
+                "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
+                + ", locking required.")
+        private boolean subscriptionBacklogSize = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(getTopics().getPartitionedStats(topic, perPartition, getPreciseBacklog));
+            print(topics.getPartitionedStats(topic, perPartition, getPreciseBacklog, subscriptionBacklogSize));
         }
     }
 
@@ -1226,10 +1236,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getRetention(persistentTopic));
+            print(getAdmin().topics().getRetention(persistentTopic, applied));
         }
     }
 
@@ -1359,10 +1372,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getOffloadPolicies(persistentTopic));
+            print(getAdmin().topics().getOffloadPolicies(persistentTopic, applied));
         }
     }
 

@@ -463,11 +463,21 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         try {
+            Optional<Topic> existedTopic = pulsar().getBrokerService().getTopicIfExists(topicName.toString()).get();
+            if (existedTopic.isPresent()) {
+                log.error("[{}] Topic {} already exists", clientAppId(), topicName);
+                throw new RestException(Status.CONFLICT, "This topic already exists");
+            }
+
             Topic createdTopic = getOrCreateTopic(topicName);
             log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), createdTopic);
         } catch (Exception e) {
-            log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
+            if (e instanceof RestException) {
+                throw (RestException) e;
+            } else {
+                log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
+                throw new RestException(e);
+            }
         }
     }
 
@@ -846,6 +856,17 @@ public class PersistentTopicsBase extends AdminResource {
         return CompletableFuture.completedFuture(delayedDeliveryPolicies);
     }
 
+    protected CompletableFuture<OffloadPolicies> internalGetOffloadPolicies(boolean applied) {
+        OffloadPolicies offloadPolicies =
+                getTopicPolicies(topicName).map(TopicPolicies::getOffloadPolicies).orElse(null);
+        if (applied) {
+            OffloadPolicies namespacePolicy = getNamespacePolicies(namespaceName).offload_policies;
+            offloadPolicies = OffloadPolicies.mergeConfiguration(offloadPolicies
+                    , namespacePolicy, pulsar().getConfiguration().getProperties());
+        }
+        return CompletableFuture.completedFuture(offloadPolicies);
+    }
+
     protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPolicies offloadPolicies) {
         TopicPolicies topicPolicies = null;
         try {
@@ -1142,14 +1163,15 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog) {
+    protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog,
+                                          boolean subscriptionBacklogSize) {
         validateAdminAndClientPermission();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         validateTopicOwnership(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return topic.getStats(getPreciseBacklog);
+        return topic.getStats(getPreciseBacklog, subscriptionBacklogSize);
     }
 
     protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative, boolean metadata) {
@@ -1270,7 +1292,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative,
-            boolean perPartition, boolean getPreciseBacklog) {
+            boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
         if (topicName.isGlobal()) {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
@@ -1292,7 +1314,8 @@ public class PersistentTopicsBase extends AdminResource {
                 try {
                     topicStatsFutureList
                             .add(pulsar().getAdminClient().topics().getStatsAsync(
-                                    (topicName.getPartition(i).toString()), getPreciseBacklog));
+                                    (topicName.getPartition(i).toString()), getPreciseBacklog,
+                                    subscriptionBacklogSize));
                 } catch (PulsarServerException e) {
                     asyncResponse.resume(new RestException(e));
                     return;
@@ -2651,15 +2674,19 @@ public class PersistentTopicsBase extends AdminResource {
         internalSetBacklogQuota(asyncResponse, backlogQuotaType, null);
     }
 
-    protected void internalGetRetention(AsyncResponse asyncResponse){
+    protected void internalGetRetention(AsyncResponse asyncResponse, boolean applied){
         preValidation();
-        Optional<RetentionPolicies> retention = getTopicPolicies(topicName)
-                .map(TopicPolicies::getRetentionPolicies);
-        if (!retention.isPresent()) {
-            asyncResponse.resume(Response.noContent().build());
-        } else {
-            asyncResponse.resume(retention.get());
-        }
+        RetentionPolicies retentionPolicies = getTopicPolicies(topicName)
+                .map(TopicPolicies::getRetentionPolicies).orElseGet(() -> {
+                    if (applied) {
+                        RetentionPolicies policies = getNamespacePolicies(namespaceName).retention_policies;
+                        return policies == null ? new RetentionPolicies(
+                                config().getDefaultRetentionTimeInMinutes(), config().getDefaultRetentionSizeInMB())
+                                : policies;
+                    }
+                    return null;
+                });
+        asyncResponse.resume(retentionPolicies == null ? Response.noContent().build() : retentionPolicies);
     }
 
     protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention) {

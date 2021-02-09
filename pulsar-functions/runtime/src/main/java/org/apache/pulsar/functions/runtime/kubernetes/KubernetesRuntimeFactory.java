@@ -43,6 +43,7 @@ import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.lang.reflect.Field;
@@ -129,6 +130,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
+                           ConnectorsManager connectorsManager,
                            Optional<FunctionAuthProvider> functionAuthProvider,
                            Optional<RuntimeCustomizer> runtimeCustomizer) {
 

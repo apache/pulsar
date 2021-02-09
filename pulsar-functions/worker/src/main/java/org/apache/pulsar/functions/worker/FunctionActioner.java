@@ -31,7 +31,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -48,7 +47,6 @@ import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.Connector;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -120,7 +118,7 @@ public class FunctionActioner {
                     URL url = new URL(pkgLocation);
                     File pkgFile = new File(url.toURI());
                     packageFile = pkgFile.getAbsolutePath();
-                } else if (WorkerUtils.isFunctionCodeBuiltin(functionDetails)) {
+                } else if (FunctionCommon.isFunctionCodeBuiltin(functionDetails)) {
                     File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
                     packageFile = pkgFile.getAbsolutePath();
                 } else {

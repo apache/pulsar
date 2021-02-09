@@ -1694,6 +1694,20 @@ public interface Namespaces {
     CompletableFuture<Void> setRetentionAsync(String namespace, RetentionPolicies retention);
 
     /**
+     * Remove the retention configuration for all the topics on a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeRetention(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the retention configuration for all the topics on a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeRetentionAsync(String namespace);
+
+    /**
      * Get the retention configuration for a namespace.
      * <p/>
      * Get the retention configuration for a namespace.
