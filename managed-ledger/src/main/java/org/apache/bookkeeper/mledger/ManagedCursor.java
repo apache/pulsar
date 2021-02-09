@@ -104,6 +104,18 @@ public interface ManagedCursor {
      */
     void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
 
+
+    /**
+     * Asynchronously read entries from the ManagedLedger.
+     *
+     * @param numberOfEntriesToRead maximum number of entries to return
+     * @param maxSizeBytes          max size in bytes of the entries to return
+     * @param callback              callback object
+     * @param ctx                   opaque context
+     */
+    void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                          Object ctx);
+
     /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
      *
