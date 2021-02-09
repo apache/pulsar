@@ -200,6 +200,27 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName));
     }
 
+    @Test(timeOut = 20000)
+    public void testMaxUnackedMessagesOnConsumerAppliedApi() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topicName, 3);
+        waitCacheInit(topicName);
+        Integer max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
+        assertEquals(max.intValue(), pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer());
+
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 10);
+        Awaitility.await().untilAsserted(()
+                -> assertNotNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace)));
+        max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
+        assertEquals(max.intValue(), 10);
+
+        admin.topics().setMaxUnackedMessagesOnConsumer(topicName, 20);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
+        max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
+        assertEquals(max.intValue(), 20);
+    }
+
     @Test(timeOut = 30000)
     public void testMaxUnackedMessagesOnConsumer() throws Exception {
         final String topicName = testTopic + System.currentTimeMillis();

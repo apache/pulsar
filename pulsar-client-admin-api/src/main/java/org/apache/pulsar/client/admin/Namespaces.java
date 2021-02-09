@@ -2790,7 +2790,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
+    Integer getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxUnackedMessagesPerConsumer for a namespace asynchronously.

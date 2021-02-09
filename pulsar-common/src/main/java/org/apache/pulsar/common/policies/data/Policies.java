@@ -85,7 +85,7 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_subscription = 0;
     @SuppressWarnings("checkstyle:MemberName")
-    public int max_unacked_messages_per_consumer = -1;
+    public Integer max_unacked_messages_per_consumer = null;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_unacked_messages_per_subscription = -1;
     @SuppressWarnings("checkstyle:MemberName")
