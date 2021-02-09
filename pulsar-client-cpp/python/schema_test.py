@@ -624,6 +624,41 @@ class SchemaTest(TestCase):
         self.assertEqual(MyEnum.C, msg.value().v)
         client.close()
 
+    def test_avro_map_array(self):
+        class MapArray(Record):
+            values = Map(Array(Integer()))
+
+        topic = 'my-avro-map-array-topic'
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(topic, schema=AvroSchema(MapArray))
+        consumer = client.subscribe(topic, 'sub', schema=AvroSchema(MapArray))
+
+        r = MapArray(values={"A": [1, 2], "B": [3]})
+        producer.send(r)
+
+        msg = consumer.receive()
+        print("Receive {} from {}", msg.value().values, msg.topic_name())
+        self.assertEqual(msg.value().values, r.values)
+        client.close()
+
+    def test_avro_array_map(self):
+        class ArrayMap(Record):
+            values = Array(Map(Integer()))
+
+        topic = 'my-avro-array-map-topic'
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(topic, schema=AvroSchema(ArrayMap))
+        consumer = client.subscribe(topic, 'sub', schema=AvroSchema(ArrayMap))
+
+        r = ArrayMap(values=[{"A": 1}, {"B": 2}])
+        producer.send(r)
+
+        msg = consumer.receive()
+        print("Receive {} from {}", msg.value().values, msg.topic_name())
+        self.assertEqual(msg.value().values, r.values)
+        client.close()
+
+
     def test_default_value(self):
         class MyRecord(Record):
             A = Integer()
