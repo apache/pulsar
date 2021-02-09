@@ -23,9 +23,6 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import org.apache.pulsar.broker.admin.impl.TopicsBase;
-import org.apache.pulsar.websocket.data.ProducerMessages;
-
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -37,6 +34,8 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import org.apache.pulsar.broker.admin.impl.TopicsBase;
+import org.apache.pulsar.websocket.data.ProducerMessages;
 
 @Path("/persistent/topics")
 @Consumes(MediaType.APPLICATION_JSON)

@@ -19,12 +19,11 @@
 package org.apache.pulsar.broker.rest;
 
 import io.netty.util.Recycler;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -44,12 +43,14 @@ public class RestMessagePublishContext implements Topic.PublishContext {
         if (exception != null) {
             positionFuture.completeExceptionally(exception);
             if (log.isDebugEnabled()) {
-                log.warn("Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. triggered send callback.",
+                log.warn("Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. "
+                                + "triggered send callback.",
                         ledgerId, entryId);
             }
         } else {
             if (log.isDebugEnabled()) {
-                log.warn("Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. triggered send callback.",
+                log.warn("Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. "
+                                + "triggered send callback.",
                         topic.getName(), ledgerId, entryId);
             }
             topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.MICROSECONDS);
