@@ -2588,4 +2588,63 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(consumerStats.getReadPositionWhenJoining(),
                 PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId() + 1).toString());
     }
+
+    @Test
+    public void testPartitionedTopicMsgDelayedAggregated() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testPartitionedTopicMsgDelayedAggregated-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+        final int numPartitions = 2;
+        conf.setSubscriptionRedeliveryTrackerEnabled(true);
+        conf.setDelayedDeliveryEnabled(true);
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        for (int i = 0; i < 2; i++) {
+            pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName(subName)
+                    .subscribe();
+        }
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        final int messages = 100;
+        for (int i = 0; i < messages; i++) {
+            String msg = "Hello Pulsar - " + i;
+            producer.send(msg.getBytes());
+            producer.newMessage().deliverAfter(1L, TimeUnit.HOURS).value(msg.getBytes()).send();
+        }
+        PartitionedTopicStats partitionedTopicStats = admin.topics().getPartitionedStats(topic, false);
+        Assert.assertNotNull(partitionedTopicStats);
+        SubscriptionStats subStats = partitionedTopicStats.subscriptions.get(subName);
+        Assert.assertNotNull(subStats);
+        Assert.assertEquals(subStats.msgBacklog, subStats.msgBacklogNoDelayed + subStats.msgDelayed);
+
+        partitionedTopicStats = admin.topics().getPartitionedStats(topic, true);
+        Assert.assertNotNull(partitionedTopicStats);
+        subStats = partitionedTopicStats.subscriptions.get(subName);
+        Assert.assertNotNull(subStats);
+        Assert.assertEquals(subStats.msgBacklog, subStats.msgBacklogNoDelayed + subStats.msgDelayed);
+        Assert.assertNotNull(partitionedTopicStats.partitions);
+        Assert.assertEquals(partitionedTopicStats.partitions.size(), numPartitions);
+
+        long sumMsgBacklog = 0;
+        long sumMsgBacklogNoDelayed = 0;
+        long sumMsgDelayed = 0;
+        for(TopicStats stats: partitionedTopicStats.partitions.values()){
+            Assert.assertNotNull(stats);
+            SubscriptionStats partitionedSubStats = stats.subscriptions.get(subName);
+            Assert.assertNotNull(partitionedSubStats);
+            sumMsgBacklog += partitionedSubStats.msgBacklog;
+            sumMsgBacklogNoDelayed += partitionedSubStats.msgBacklogNoDelayed;
+            sumMsgDelayed += partitionedSubStats.msgDelayed;
+        }
+        Assert.assertEquals(sumMsgBacklog, sumMsgBacklogNoDelayed + sumMsgDelayed);
+        Assert.assertEquals(sumMsgBacklog, subStats.msgBacklog);
+        Assert.assertEquals(sumMsgBacklogNoDelayed, subStats.msgBacklogNoDelayed);
+        Assert.assertEquals(sumMsgDelayed, subStats.msgDelayed);
+    }
 }

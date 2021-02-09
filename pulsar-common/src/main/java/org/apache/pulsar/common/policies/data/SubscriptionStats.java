@@ -145,6 +145,7 @@ public class SubscriptionStats {
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.msgBacklog += stats.msgBacklog;
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
+        this.msgDelayed += stats.msgDelayed;
         this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
         this.totalMsgExpired += stats.totalMsgExpired;
