@@ -628,17 +628,33 @@ class SchemaTest(TestCase):
         class MapArray(Record):
             values = Map(Array(Integer()))
 
-        topic = 'my-avro-map-array-topic'
+        class ArrayMap(Record):
+            values = Array(Map(Integer()))
+
+        data_list = (
+            ("my-avro-map-array-topic-0", AvroSchema(MapArray),
+                MapArray(values={"A": [1, 2], "B": [3]})),
+            ("my-avro-map-array-topic-1", AvroSchema(ArrayMap),
+                ArrayMap(values=[{"A": 1}, {"B": 2}, {"C": 3}])),
+        )
+
         client = pulsar.Client(self.serviceUrl)
-        producer = client.create_producer(topic, schema=AvroSchema(MapArray))
-        consumer = client.subscribe(topic, 'sub', schema=AvroSchema(MapArray))
+        for data in data_list:
+            topic = data[0]
+            schema = data[1]
+            record = data[2]
 
-        r = MapArray(values={"A": [1, 2], "B": [3]})
-        producer.send(r)
+            producer = client.create_producer(topic, schema=schema)
+            consumer = client.subscribe(topic, 'sub', schema=schema)
 
-        msg = consumer.receive()
-        print("Receive {} from {}", msg.value().values, msg.topic_name())
-        self.assertEqual(msg.value().values, r.values)
+            producer.send(record)
+            msg = consumer.receive()
+            print("Receive {} from {}", msg.value().values, msg.topic_name())
+            self.assertEqual(msg.value().values, record.values)
+            consumer.acknowledge(msg)
+            consumer.close()
+            producer.close()
+
         client.close()
 
     def test_avro_array_map(self):
