@@ -11,6 +11,11 @@ module.exports = [
         logo: 'https://assets-global.website-files.com/5d278e4646ba9e55d6c67475/5d49ce69c03a64b2d8466816_Logo%20-%20Colored.svg',
     },
     {
+        name: 'mParticle',
+        url: 'https://www.mparticle.com/',
+        logo: 'https://s3.amazonaws.com/static.mparticle.com/public/logo-black.svg'
+    },
+    {
         name: 'Giggso',
         url: 'https://giggso.com/',
         logo: 'https://www.giggso.com/wp-content/uploads/2019/11/logo-2.png',
