@@ -65,7 +65,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         log.info("Proxy Server Started");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
         service.close();

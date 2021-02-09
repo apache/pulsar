@@ -123,11 +123,22 @@ static Result getResult(ServerError serverError) {
 
         case TransactionConflict:
             return ResultTransactionConflict;
+
+        case TransactionNotFound:
+            return ResultTransactionNotFound;
+
+        case ProducerFenced:
+            return ResultProducerFenced;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
     // return here to make the compiler happy.
     return ResultUnknownError;
+}
+
+inline std::ostream& operator<<(std::ostream& os, ServerError error) {
+    os << getResult(error);
+    return os;
 }
 
 static bool file_exists(const std::string& path) {
@@ -180,6 +191,8 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
 #else
         boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
 #endif
+        Url serviceUrl;
+        Url::parse(physicalAddress, serviceUrl);
         if (clientConfiguration.isTlsAllowInsecureConnection()) {
             ctx.set_verify_mode(boost::asio::ssl::context::verify_none);
             isTlsAllowInsecureConnection_ = true;
@@ -187,9 +200,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             ctx.set_verify_mode(boost::asio::ssl::context::verify_peer);
 
             if (clientConfiguration.isValidateHostName()) {
-                Url service_url;
-                Url::parse(physicalAddress, service_url);
-                LOG_DEBUG("Validating hostname for " << service_url.host() << ":" << service_url.port());
+                LOG_DEBUG("Validating hostname for " << serviceUrl.host() << ":" << serviceUrl.port());
                 ctx.set_verify_callback(boost::asio::ssl::rfc2818_verification(physicalAddress));
             }
 
@@ -236,6 +247,14 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
         }
 
         tlsSocket_ = executor_->createTlsSocket(socket_, ctx);
+
+        LOG_DEBUG("TLS SNI Host: " << serviceUrl.host());
+        if (!SSL_set_tlsext_host_name(tlsSocket_->native_handle(), serviceUrl.host().c_str())) {
+            boost::system::error_code ec{static_cast<int>(::ERR_get_error()),
+                                         boost::asio::error::get_ssl_category()};
+            LOG_ERROR(boost::system::system_error{ec}.what() << ": Error while setting TLS SNI");
+            return;
+        }
     }
 }
 
@@ -340,9 +359,15 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
                                           tcp::resolver::iterator endpointIterator) {
     if (!err) {
         std::stringstream cnxStringStream;
-        cnxStringStream << "[" << socket_->local_endpoint() << " -> " << socket_->remote_endpoint() << "] ";
-        cnxString_ = cnxStringStream.str();
-
+        try {
+            cnxStringStream << "[" << socket_->local_endpoint() << " -> " << socket_->remote_endpoint()
+                            << "] ";
+            cnxString_ = cnxStringStream.str();
+        } catch (const boost::system::system_error& e) {
+            LOG_ERROR("Failed to get endpoint: " << e.what());
+            close();
+            return;
+        }
         if (logicalAddress_ == physicalAddress_) {
             LOG_INFO(cnxString_ << "Connected to broker");
         } else {
@@ -1166,8 +1191,9 @@ Future<Result, BrokerConsumerStatsImpl> ClientConnection::newConsumerStats(uint6
 }
 
 void ClientConnection::newTopicLookup(const std::string& topicName, bool authoritative,
-                                      const uint64_t requestId, LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newLookup(topicName, authoritative, requestId), requestId, promise);
+                                      const std::string& listenerName, const uint64_t requestId,
+                                      LookupDataResultPromisePtr promise) {
+    newLookup(Commands::newLookup(topicName, authoritative, requestId, listenerName), requestId, promise);
 }
 
 void ClientConnection::newPartitionedMetadataLookup(const std::string& topicName, const uint64_t requestId,

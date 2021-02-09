@@ -41,7 +41,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -122,14 +122,18 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(expectedExceptions = PulsarClientException.NotAllowedException.class)
-    public void testDisableReplicatedSubscriptions() throws PulsarClientException {
+    @Test
+    public void testDisableReplicatedSubscriptions() throws Exception {
         this.conf.setEnableReplicatedSubscriptions(false);
         String topic = "disableReplicatedSubscriptions-" + System.nanoTime();
-        pulsarClient.newConsumer()
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .replicateSubscriptionState(true)
                 .subscribe();
+
+        TopicStats stats = admin.topics().getStats(topic);
+        assertFalse(stats.subscriptions.get("sub").isReplicated);
+        consumer.close();
     }
 }

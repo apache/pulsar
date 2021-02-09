@@ -18,15 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import io.netty.util.ReferenceCountUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -35,17 +31,23 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.SafeRunnable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * Handles the life-cycle of an addEntry() operation.
  *
  */
-class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
+@Slf4j
+public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     private long entryId;
+    private int numberOfMessages;
 
     @SuppressWarnings("unused")
     private static final AtomicReferenceFieldUpdater<OpAddEntry, AddEntryCallback> callbackUpdater =
@@ -74,6 +76,23 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     }
 
     public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
+        OpAddEntry op = createOpAddEntry(ml, data, callback, ctx);
+        if (log.isDebugEnabled()) {
+            log.debug("Created new OpAddEntry {}", op);
+        }
+        return op;
+    }
+
+    public static OpAddEntry create(ManagedLedgerImpl ml, ByteBuf data, int numberOfMessages, AddEntryCallback callback, Object ctx) {
+        OpAddEntry op = createOpAddEntry(ml, data, callback, ctx);
+        op.numberOfMessages = numberOfMessages;
+        if (log.isDebugEnabled()) {
+            log.debug("Created new OpAddEntry {}", op);
+        }
+        return op;
+    }
+
+    private static OpAddEntry createOpAddEntry(ManagedLedgerImpl ml, ByteBuf data, AddEntryCallback callback, Object ctx) {
         OpAddEntry op = RECYCLER.get();
         op.ml = ml;
         op.ledger = null;
@@ -87,9 +106,6 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         op.startTime = System.nanoTime();
         op.state = State.OPEN;
         ml.mbean.addAddEntrySample(op.dataLength);
-        if (log.isDebugEnabled()) {
-            log.debug("Created new OpAddEntry {}", op);
-        }
         return op;
     }
 
@@ -103,6 +119,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
     public void initiate() {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
+
             ByteBuf duplicateBuffer = data.retainedDuplicate();
 
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
@@ -117,7 +134,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     public void failed(ManagedLedgerException e) {
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            data.release();
+            ReferenceCountUtil.release(data);
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
         }
@@ -175,23 +192,25 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
             entry.release();
         }
 
-        // We are done using the byte buffer
-        data.release();
-
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
         if (closeWhenDone) {
+            ReferenceCountUtil.release(data);
             log.info("[{}] Closing ledger {} for being full", ml.getName(), ledger.getId());
             ledger.asyncClose(this, ctx);
         } else {
             updateLatency();
             AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
             if (cb != null) {
-                cb.addComplete(lastEntry, ctx);
+                cb.addComplete(lastEntry, data.asReadOnly(), ctx);
+                ReferenceCountUtil.release(data);
                 ml.notifyCursors();
+                ml.notifyWaitingEntryCallBacks();
                 this.recycle();
+            } else {
+                ReferenceCountUtil.release(data);
             }
         }
     }
@@ -202,7 +221,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
                 lh.getId());
 
         if (rc == BKException.Code.OK) {
-            log.debug("Successfuly closed ledger {}", lh.getId());
+            log.debug("Successfully closed ledger {}", lh.getId());
         } else {
             log.warn("Error when closing ledger {}. Status={}", lh.getId(), BKException.getMessage(rc));
         }
@@ -212,14 +231,16 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
 
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            cb.addComplete(PositionImpl.get(lh.getId(), entryId), ctx);
+            cb.addComplete(PositionImpl.get(lh.getId(), entryId), null, ctx);
             ml.notifyCursors();
+            ml.notifyWaitingEntryCallBacks();
             this.recycle();
         }
     }
 
     private void updateLatency() {
         ml.mbean.addAddEntryLatencySample(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+        ml.mbean.addLedgerAddEntryLatencySample(System.nanoTime() - lastInitTime, TimeUnit.NANOSECONDS);
     }
 
     /**
@@ -268,7 +289,23 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     public State getState() {
         return state;
     }
-    
+
+    public ByteBuf getData() {
+        return data;
+    }
+
+    public int getNumberOfMessages() {
+        return numberOfMessages;
+    }
+
+    public void setNumberOfMessages(int numberOfMessages) {
+        this.numberOfMessages = numberOfMessages;
+    }
+
+    public void setData(ByteBuf data) {
+        this.data = data;
+    }
+
     private final Handle<OpAddEntry> recyclerHandle;
 
     private OpAddEntry(Handle<OpAddEntry> recyclerHandle) {
@@ -286,6 +323,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         ml = null;
         ledger = null;
         data = null;
+        numberOfMessages = 0;
         dataLength = -1;
         callback = null;
         ctx = null;
@@ -297,5 +335,15 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         recyclerHandle.recycle(this);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(OpAddEntry.class);
+    @Override
+    public String toString() {
+        return "OpAddEntry{" +
+                "mlName" + ml.getName() +
+                "ledgerId=" + ledger.getId() +
+                ", entryId=" + entryId +
+                ", startTime=" + startTime +
+                ", dataLength=" + dataLength +
+                '}';
+    }
+
 }

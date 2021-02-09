@@ -36,13 +36,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.lang.reflect.Field;
@@ -66,6 +67,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
     private String k8Uri;
     private String jobNamespace;
+    private String jobName;
     private String pulsarDockerImageName;
     private Map<String, String> functionDockerImages;
     private String imagePullPolicy;
@@ -128,6 +130,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
+                           ConnectorsManager connectorsManager,
                            Optional<FunctionAuthProvider> functionAuthProvider,
                            Optional<RuntimeCustomizer> runtimeCustomizer) {
 
@@ -139,6 +142,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.jobNamespace = factoryConfig.getJobNamespace();
         } else {
             this.jobNamespace = "default";
+        }
+        if (!isEmpty(factoryConfig.getJobName())) {
+            this.jobName = factoryConfig.getJobName();
+        } else {
+            this.jobName = null;
         }
         if (!isEmpty(factoryConfig.getPulsarDockerImageName())) {
             this.pulsarDockerImageName = factoryConfig.getPulsarDockerImageName();
@@ -250,7 +258,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 instanceFile = pythonInstanceFile;
                 break;
             case GO:
-                throw new UnsupportedOperationException();
+                break;
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
@@ -265,12 +273,14 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         String overriddenNamespace = manifestCustomizer.map((customizer) -> customizer.customizeNamespace(instanceConfig.getFunctionDetails(), jobNamespace)).orElse(jobNamespace);
+        String overriddenName = manifestCustomizer.map((customizer) -> customizer.customizeName(instanceConfig.getFunctionDetails(), jobName)).orElse(jobName);
 
         return new KubernetesRuntime(
             appsClient,
             coreClient,
             // get the namespace for this function
             overriddenNamespace,
+            overriddenName,
             customLabels,
             installUserCodeDependencies,
             pythonDependencyRepository,
@@ -310,9 +320,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
     @Override
     public void doAdmissionChecks(Function.FunctionDetails functionDetails) {
-        KubernetesRuntime.doChecks(functionDetails);
+    	final String overriddenJobName = getOverriddenName(functionDetails);
+        KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
-        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, getOverriddenNamespace(functionDetails), functionDetails);
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, 
+        		getOverriddenNamespace(functionDetails), overriddenJobName, functionDetails);
     }
 
     @VisibleForTesting
@@ -419,5 +431,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String getOverriddenNamespace(Function.FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace)).orElse(jobNamespace);
+    }
+    
+    private String getOverriddenName(Function.FunctionDetails funcDetails) {
+        Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
+        return manifestCustomizer.map((customizer) -> customizer.customizeName(funcDetails, jobName)).orElse(jobName);
     }
 }

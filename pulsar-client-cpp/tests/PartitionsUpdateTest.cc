@@ -25,6 +25,7 @@
 #include <memory>
 
 #include "HttpHelper.h"
+#include "CustomRoutingPolicy.h"
 
 using namespace pulsar;
 
@@ -57,7 +58,7 @@ class PartitionsSet {
     Result initProducer(bool enablePartitionsUpdate) {
         clientForProducer_.reset(new Client(serviceUrl, newClientConfig(enablePartitionsUpdate)));
         const auto producerConfig =
-            ProducerConfiguration().setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+            ProducerConfiguration().setMessageRouter(std::make_shared<SimpleRoundRobinRoutingPolicy>());
         return clientForProducer_->createProducer(topicName, producerConfig, producer_);
     }
 

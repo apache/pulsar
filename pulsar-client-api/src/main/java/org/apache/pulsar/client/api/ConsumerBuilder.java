@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * {@link ConsumerBuilder} is used to configure and create instances of {@link Consumer}.
@@ -31,6 +33,8 @@ import java.util.regex.Pattern;
  *
  * @since 2.0.0
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
@@ -183,6 +187,14 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
+     * Ack will return receipt but does not mean that the message will not be resent after get receipt.
+     *
+     * @param isAckReceiptEnabled {@link Boolean} is enable ack for receipt
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled);
+
+    /**
      * Define the granularity of the ack-timeout redelivery.
      *
      * <p>By default, the tick time is set to 1 second. Using an higher tick time will
@@ -265,6 +277,30 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt the message payloads.
+     *
+     * @param privateKey
+     *            the private key that is always used to decrypt message payloads.
+     * @return the consumer builder instance
+     * @since 2.8.0
+     */
+    ConsumerBuilder<T> defaultCryptoKeyReader(String privateKey);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt the message payloads.
+     *
+     * @param privateKeys
+     *            the map of private key names and their URIs used to decrypt message payloads.
+     * @return the consumer builder instance
+     * @since 2.8.0
+     */
+    ConsumerBuilder<T> defaultCryptoKeyReader(Map<String, String> privateKeys);
 
     /**
      * Sets a {@link MessageCrypto}.
@@ -471,8 +507,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            the property key
      * @param value
      *            the property value
-     * @param key
-     * @param value
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> property(String key, String value);

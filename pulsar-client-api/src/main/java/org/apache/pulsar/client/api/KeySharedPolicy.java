@@ -21,10 +21,14 @@ package org.apache.pulsar.client.api;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * KeyShared policy for KeyShared subscription.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public abstract class KeySharedPolicy {
 
     protected KeySharedMode keySharedMode;
@@ -103,7 +107,7 @@ public abstract class KeySharedPolicy {
             }
             for (int i = 0; i < ranges.size(); i++) {
                 Range range1 = ranges.get(i);
-                if (range1.getStart() < 0 || range1.getEnd() > DEFAULT_HASH_RANGE_SIZE) {
+                if (range1.getStart() < 0 || range1.getEnd() >= DEFAULT_HASH_RANGE_SIZE) {
                     throw new IllegalArgumentException("Ranges must be [0, 65535] but provided range is " + range1);
                 }
                 for (int j = 0; j < ranges.size(); j++) {

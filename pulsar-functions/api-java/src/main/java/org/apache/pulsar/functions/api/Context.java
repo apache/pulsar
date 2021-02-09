@@ -19,17 +19,19 @@
 package org.apache.pulsar.functions.api;
 
 import java.nio.ByteBuffer;
-
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.slf4j.Logger;
-
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.slf4j.Logger;
 
 /**
  * Context provides contextual information to the executing function.
@@ -37,6 +39,8 @@ import java.util.concurrent.CompletableFuture;
  * message, what are our operating constraints, etc can be accessed by the
  * executing function
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface Context {
     /**
      * Access the record associated with the current input value.
@@ -123,13 +127,38 @@ public interface Context {
     Logger getLogger();
 
     /**
+     * Get the state store with the provided store name in the function tenant & namespace.
+     *
+     * @param name the state store name
+     * @param <S> the type of interface of the store to return
+     * @return the state store instance.
+     *
+     * @throws ClassCastException if the return type isn't a type
+     * or interface of the actual returned store.
+     */
+    <S extends StateStore> S getStateStore(String name);
+
+    /**
+     * Get the state store with the provided store name.
+     *
+     * @param tenant the state tenant name
+     * @param ns the state namespace name
+     * @param name the state store name
+     * @param <S> the type of interface of the store to return
+     * @return the state store instance.
+     *
+     * @throws ClassCastException if the return type isn't a type
+     * or interface of the actual returned store.
+     */
+    <S extends StateStore> S getStateStore(String tenant, String ns, String name);
+
+    /**
      * Increment the builtin distributed counter referred by key.
      *
      * @param key    The name of the key
      * @param amount The amount to be incremented
      */
     void incrCounter(String key, long amount);
-
 
     /**
      * Increment the builtin distributed counter referred by key
@@ -236,6 +265,21 @@ public interface Context {
     String getSecret(String secretName);
 
     /**
+     * Get the pulsar admin client.
+     *
+     * @return The instance of pulsar admin client
+     */
+    PulsarAdmin getPulsarAdmin();
+
+    /**
+     * Get the pulsar admin client by cluster name.
+     *
+     * @param clusterName The name of the cluster name for pulsar admin client
+     * @return The instance of pulsar admin client
+     */
+    PulsarAdmin getPulsarAdmin(String clusterName);
+
+    /**
      * Record a user defined metric.
      *
      * @param metricName The name of the metric
@@ -275,6 +319,18 @@ public interface Context {
      * @throws PulsarClientException
      */
     <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+
+    /**
+     * New output message using schema for serializing to the topic in the cluster
+     *
+     * @param clusterName the name of the cluster for topic
+     * @param topicName The name of the topic for output message
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <O>
+     * @return the message builder instance
+     * @throws PulsarClientException
+     */
+    <O> TypedMessageBuilder<O> newOutputMessage(String clusterName, String topicName, Schema<O> schema) throws PulsarClientException;
 
     /**
      * Create a ConsumerBuilder with the schema.

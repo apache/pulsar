@@ -64,8 +64,6 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
         cacheEvictions.recordEvent();
     }
 
-    // //
-
     @Override
     public int getNumberOfManagedLedgers() {
         return factory.ledgers.size();

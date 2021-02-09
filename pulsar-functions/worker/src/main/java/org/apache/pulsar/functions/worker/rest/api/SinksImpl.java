@@ -40,8 +40,10 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.service.api.Sinks;
+import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
@@ -50,23 +52,24 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.function.Supplier;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
-import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
-public class SinksImpl extends ComponentImpl {
+public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerService> {
 
-    public SinksImpl(Supplier<WorkerService> workerServiceSupplier) {
+    public SinksImpl(Supplier<PulsarWorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, Function.FunctionDetails.ComponentType.SINK);
     }
 
+    @Override
     public void registerSink(final String tenant,
                              final String namespace,
                              final String sinkName,
@@ -146,14 +149,17 @@ public class SinksImpl extends ComponentImpl {
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-
-                    if (!Utils.isFunctionPackageUrlSupported(sinkPkgUrl)) {
-                        throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
-                    }
-                    try {
-                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
+                    if (hasPackageTypePrefix(sinkPkgUrl)) {
+                        componentPackageFile = downloadPackageFile(sinkPkgUrl);
+                    } else {
+                        if (!Utils.isFunctionPackageUrlSupported(sinkPkgUrl)) {
+                            throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
+                        }
+                        try {
+                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
+                        } catch (Exception e) {
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
+                        }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
                             sinkConfig, componentPackageFile);
@@ -233,6 +239,7 @@ public class SinksImpl extends ComponentImpl {
         }
     }
 
+    @Override
     public void updateSink(final String tenant,
                            final String namespace,
                            final String sinkName,
@@ -300,7 +307,6 @@ public class SinksImpl extends ComponentImpl {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
 
-
         if (existingSinkConfig.equals(mergedConfig) && isBlank(sinkPkgUrl) && uploadedInputStream == null) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, sinkName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
@@ -313,10 +319,14 @@ public class SinksImpl extends ComponentImpl {
             // validate parameters
             try {
                 if (isNotBlank(sinkPkgUrl)) {
-                    try {
-                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
+                    if (hasPackageTypePrefix(sinkPkgUrl)) {
+                        componentPackageFile = downloadPackageFile(sinkPkgUrl);
+                    } else {
+                        try {
+                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(sinkPkgUrl);
+                        } catch (Exception e) {
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sinkPkgUrl));
+                        }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sinkName,
                             mergedConfig, componentPackageFile);
@@ -587,6 +597,7 @@ public class SinksImpl extends ComponentImpl {
         return exceptionInformation;
     }
 
+    @Override
     public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkInstanceStatus(final String tenant,
                                                                                       final String namespace,
                                                                                       final String sinkName,
@@ -612,6 +623,7 @@ public class SinksImpl extends ComponentImpl {
         return sinkInstanceStatusData;
     }
 
+    @Override
     public SinkStatus getSinkStatus(final String tenant,
                                     final String namespace,
                                     final String componentName,
@@ -635,6 +647,7 @@ public class SinksImpl extends ComponentImpl {
         return sinkStatus;
     }
 
+    @Override
     public SinkConfig getSinkInfo(final String tenant,
                                   final String namespace,
                                   final String componentName) {
@@ -665,6 +678,7 @@ public class SinksImpl extends ComponentImpl {
         return config;
     }
 
+    @Override
     public List<ConnectorDefinition> getSinkList() {
         List<ConnectorDefinition> connectorDefinitions = getListOfConnectors();
         List<ConnectorDefinition> retval = new ArrayList<>();
@@ -676,6 +690,7 @@ public class SinksImpl extends ComponentImpl {
         return retval;
     }
 
+    @Override
     public List<ConfigFieldDefinition> getSinkConfigDefinition(String name) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -691,28 +706,47 @@ public class SinksImpl extends ComponentImpl {
                                                                  final String namespace,
                                                                  final String sinkName,
                                                                  final SinkConfig sinkConfig,
-                                                                 final File componentPackageFile) throws IOException {
+                                                                 final File sinkPackageFile) throws IOException {
 
-        Path archivePath = null;
         // The rest end points take precedence over whatever is there in sinkConfig
         sinkConfig.setTenant(tenant);
         sinkConfig.setNamespace(namespace);
         sinkConfig.setName(sinkName);
         org.apache.pulsar.common.functions.Utils.inferMissingArguments(sinkConfig);
+
+        ClassLoader classLoader = null;
+        // check if sink is builtin and extract classloader
         if (!StringUtils.isEmpty(sinkConfig.getArchive())) {
-            String builtinArchive = sinkConfig.getArchive();
-            if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
-                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
-            }
-            try {
-                archivePath = this.worker().getConnectorsManager().getSinkArchive(builtinArchive);
-            } catch (Exception e) {
-                throw new IllegalArgumentException(String.format("No Sink archive %s found", archivePath));
+            String archive = sinkConfig.getArchive();
+            if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+                archive = archive.replaceFirst("^builtin://", "");
+                classLoader = this.worker().getConnectorsManager().getConnector(archive).getClassLoader();
             }
         }
-        SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validate(sinkConfig, archivePath,
-                componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory(),
-                worker().getWorkerConfig().getValidateConnectorConfig());
+
+        // if sink is not builtin, attempt to extract classloader from package file if it exists
+        if (classLoader == null && sinkPackageFile != null) {
+            classLoader = getClassLoaderFromPackage(sinkConfig.getClassName(),
+                    sinkPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+        }
+
+        if (classLoader == null) {
+            throw new IllegalArgumentException("Sink package is not provided");
+        }
+
+        SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validateAndExtractDetails(
+                sinkConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
         return SinkConfigUtils.convert(sinkConfig, sinkDetails);
+    }
+
+
+    private static boolean hasPackageTypePrefix(String destPkgUrl) {
+        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString()));
+    }
+
+    private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
+        File file = Files.createTempFile("function", ".tmp").toFile();
+        worker().getBrokerAdmin().packages().download(packageName, file.toString());
+        return file;
     }
 }

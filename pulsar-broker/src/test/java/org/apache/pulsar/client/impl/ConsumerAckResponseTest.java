@@ -54,14 +54,14 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         super.producerBaseSetup();
         doReturn(1L).when(transaction).getTxnIdLeastBits();
         doReturn(1L).when(transaction).getTxnIdMostBits();
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        doReturn(completableFuture).when(transaction).registerAckOp(any());
-        doNothing().when(transaction).registerAckedTopic(any(), any());
+        CompletableFuture<Void> completableFuture = CompletableFuture.completedFuture(null);
+        doNothing().when(transaction).registerAckOp(any());
+        doReturn(completableFuture).when(transaction).registerAckedTopic(any(), any());
 
         Thread.sleep(1000 * 3);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -87,9 +87,15 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
             consumer.acknowledgeAsync(new MessageIdImpl(1, 1, 1), transaction).get();
             fail();
         } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
         }
         Message<Integer> message = consumer.receive();
-        consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+
+        try {
+            consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+            fail();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
+        }
     }
 }

@@ -30,7 +30,7 @@ import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -50,9 +50,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * A function container implemented using java thread.
@@ -90,7 +87,8 @@ class ProcessRuntime implements Runtime {
                    String stateStorageServiceUrl,
                    AuthenticationConfig authConfig,
                    SecretsProviderConfigurator secretsProviderConfigurator,
-                   Long expectedHealthCheckInterval) throws Exception {
+                   Long expectedHealthCheckInterval,
+                   String pulsarWebServiceUrl) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
         this.metricsPort = FunctionCommon.findAvailablePort();
@@ -138,7 +136,8 @@ class ProcessRuntime implements Runtime {
             null,
                 this.metricsPort,
                 narExtractionDirectory,
-                null);
+                null,
+                pulsarWebServiceUrl);
     }
 
     /**

@@ -32,11 +32,13 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.glassfish.jersey.internal.inject.InjectionManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +62,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
                 }
             });
 
-    PulsarSqlSchemaInfoProvider(TopicName topicName, PulsarAdmin pulsarAdmin) {
+    public PulsarSqlSchemaInfoProvider(TopicName topicName, PulsarAdmin pulsarAdmin) {
         this.topicName = topicName;
         this.pulsarAdmin = pulsarAdmin;
     }
@@ -97,8 +99,19 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
     }
 
     private SchemaInfo loadSchema(BytesSchemaVersion bytesSchemaVersion) throws PulsarAdminException {
-        return pulsarAdmin.schemas()
-                .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
+        ClassLoader originalContextLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(InjectionManagerFactory.class.getClassLoader());
+            return pulsarAdmin.schemas()
+                    .getSchemaInfo(topicName.toString(), ByteBuffer.wrap(bytesSchemaVersion.get()).getLong());
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalContextLoader);
+        }
+    }
+
+
+    public static SchemaInfo defaultSchema(){
+        return Schema.BYTES.getSchemaInfo();
     }
 
 }

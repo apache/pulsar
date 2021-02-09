@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.impl.auth;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.PrivateKey;
@@ -28,7 +26,6 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.function.Supplier;
 
-import org.apache.commons.compress.utils.IOUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -130,6 +127,16 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     @Override
     public InputStream getTlsTrustStoreStream() {
         return trustStoreStreamProvider != null ? trustStoreStreamProvider.get() : null;
+    }
+
+    @Override
+    public String getTlsCerificateFilePath() {
+        return certFile != null ? certFile.getFileName() : null;
+    }
+
+    @Override
+    public String getTlsPrivateKeyFilePath() {
+        return keyFile != null ? keyFile.getFileName() : null;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationDataTls.class);

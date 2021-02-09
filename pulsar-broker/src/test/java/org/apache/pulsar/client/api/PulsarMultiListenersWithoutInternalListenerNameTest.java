@@ -63,8 +63,9 @@ public class PulsarMultiListenersWithoutInternalListenerNameTest extends MockedP
         this.conf.setAdvertisedListeners(String.format("internal:pulsar://%s:6650,internal:pulsar+ssl://%s:6651", host, host));
     }
 
-    protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
-        return PulsarClient.builder().serviceUrl(url).listenerName("internal").statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.listenerName("internal");
     }
 
     @Test
@@ -92,10 +93,10 @@ public class PulsarMultiListenersWithoutInternalListenerNameTest extends MockedP
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        if (this.executorService != null) {
+        if (this.lookupService != null) {
             this.lookupService.close();
         }
         if (this.executorService != null) {

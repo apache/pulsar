@@ -19,17 +19,19 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
-
+import com.google.common.collect.Maps;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
-
+import java.util.concurrent.TimeoutException;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -39,17 +41,13 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-
-import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.PulsarService.State;
-import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -59,25 +57,14 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Maps;
-
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
 
 /**
  * Broker admin base.
  */
-public class BrokersBase extends AdminResource {
+public class BrokersBase extends PulsarWebResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
-    private int serviceConfigZkVersion = -1;
 
     @GET
     @Path("/{cluster}")
@@ -98,7 +85,7 @@ public class BrokersBase extends AdminResource {
 
         try {
             // Add Native brokers
-            return pulsar().getLocalZkCache().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT);
+            return new HashSet<>(dynamicConfigurationResources().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT));
         } catch (Exception e) {
             LOG.error("[{}] Failed to get active broker list: cluster={}", clientAppId(), cluster, e);
             throw new RestException(e);
@@ -107,11 +94,12 @@ public class BrokersBase extends AdminResource {
 
     @GET
     @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
-    @ApiOperation(value = "Get the list of namespaces served by the specific broker", response = NamespaceOwnershipStatus.class, responseContainer = "Map")
+    @ApiOperation(value = "Get the list of namespaces served by the specific broker",
+            response = NamespaceOwnershipStatus.class, responseContainer = "Map")
     @ApiResponses(value = {
-        @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 404, message = "Cluster doesn't exist") })
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(@PathParam("clusterName") String cluster,
             @PathParam("broker-webserviceurl") String broker) throws Exception {
         validateSuperUserAccess();
@@ -130,21 +118,24 @@ public class BrokersBase extends AdminResource {
 
     @POST
     @Path("/configuration/{configName}/{configValue}")
-    @ApiOperation(value = "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
+    @ApiOperation(value =
+            "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = {
-        @ApiResponse(code = 204, message = "Service configuration updated successfully"),
-        @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
-        @ApiResponse(code = 404, message = "Configuration not found"),
-        @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
-        @ApiResponse(code = 500, message = "Internal server error")})
-    public void updateDynamicConfiguration(@PathParam("configName") String configName, @PathParam("configValue") String configValue) throws Exception {
+            @ApiResponse(code = 204, message = "Service configuration updated successfully"),
+            @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
+            @ApiResponse(code = 404, message = "Configuration not found"),
+            @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void updateDynamicConfiguration(@PathParam("configName") String configName,
+                                           @PathParam("configValue") String configValue) throws Exception {
         validateSuperUserAccess();
-        updateDynamicConfigurationOnZk(configName, configValue);
+        persistDynamicConfiguration(configName, configValue);
     }
 
     @DELETE
     @Path("/configuration/{configName}")
-    @ApiOperation(value = "Delete dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
+    @ApiOperation(value =
+            "Delete dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 204, message = "Service configuration updated successfully"),
             @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
             @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
@@ -163,12 +154,8 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error")})
     public Map<String, String> getAllDynamicConfigurations() throws Exception {
         validateSuperUserAccess();
-
-        ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
-                .getDynamicConfigurationCache();
-        Map<String, String> configurationMap = null;
         try {
-            configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
+            return dynamicConfigurationResources().get(BROKER_SERVICE_CONFIGURATION_PATH)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find configuration in zk"));
         } catch (RestException e) {
             LOG.error("[{}] couldn't find any configuration in zk {}", clientAppId(), e.getMessage(), e);
@@ -177,7 +164,6 @@ public class BrokersBase extends AdminResource {
             LOG.error("[{}] Failed to retrieve configuration from zk {}", clientAppId(), e.getMessage(), e);
             throw new RestException(e);
         }
-        return configurationMap;
     }
 
     @GET
@@ -208,29 +194,17 @@ public class BrokersBase extends AdminResource {
      * @param configValue
      *            : configuration value
      */
-    private synchronized void updateDynamicConfigurationOnZk(String configName, String configValue) {
+    private synchronized void persistDynamicConfiguration(String configName, String configValue) {
         try {
             if (!BrokerService.validateDynamicConfiguration(configName, configValue)) {
                 throw new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value");
             }
             if (BrokerService.isDynamicConfiguration(configName)) {
-                ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
-                        .getDynamicConfigurationCache();
-                Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
-                        .orElse(null);
-                if (configurationMap != null) {
+                dynamicConfigurationResources().setWithCreate(BROKER_SERVICE_CONFIGURATION_PATH, (old) -> {
+                    Map<String, String> configurationMap = old.isPresent() ? old.get() : Maps.newHashMap();
                     configurationMap.put(configName, configValue);
-                    byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
-                    dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
-                    serviceConfigZkVersion = localZk()
-                            .setData(BROKER_SERVICE_CONFIGURATION_PATH, content, serviceConfigZkVersion).getVersion();
-                } else {
-                    configurationMap = Maps.newHashMap();
-                    configurationMap.put(configName, configValue);
-                    byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
-                    ZkUtils.createFullPathOptimistic(localZk(), BROKER_SERVICE_CONFIGURATION_PATH, content,
-                            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                }
+                    return configurationMap;
+                });
                 LOG.info("[{}] Updated Service configuration {}/{}", clientAppId(), configName, configValue);
             } else {
                 if (LOG.isDebugEnabled()) {
@@ -397,17 +371,12 @@ public class BrokersBase extends AdminResource {
     private synchronized void deleteDynamicConfigurationOnZk(String configName) {
         try {
             if (BrokerService.isDynamicConfiguration(configName)) {
-                ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
-                        .getDynamicConfigurationCache();
-                Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
-                        .orElse(null);
-                if (configurationMap != null && configurationMap.containsKey(configName)) {
-                    configurationMap.remove(configName);
-                    byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
-                    dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
-                    serviceConfigZkVersion = localZk()
-                            .setData(BROKER_SERVICE_CONFIGURATION_PATH, content, serviceConfigZkVersion).getVersion();
-                }
+                dynamicConfigurationResources().set(BROKER_SERVICE_CONFIGURATION_PATH, (old) -> {
+                    if (old != null) {
+                        old.remove(configName);
+                    }
+                    return old;
+                });
                 LOG.info("[{}] Deleted Service configuration {}", clientAppId(), configName);
             } else {
                 if (LOG.isDebugEnabled()) {

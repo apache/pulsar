@@ -22,8 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.prestosql.spi.type.BigintType;
@@ -34,162 +32,40 @@ import io.prestosql.spi.type.VarcharType;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-import org.apache.pulsar.common.api.raw.RawMessage;
 
 /**
  * This abstract class represents internal columns.
  */
-public abstract class PulsarInternalColumn {
+public class PulsarInternalColumn {
 
-    /**
-     * Internal column representing the partition.
-     */
-    public static class PartitionColumn extends PulsarInternalColumn {
 
-        PartitionColumn(String name, Type type, String comment) {
-            super(name, type, comment);
-        }
+    public static final PulsarInternalColumn PARTITION = new PulsarInternalColumn("__partition__",
+            IntegerType.INTEGER, "The partition number which the message belongs to");
 
-        @Override
-        public Object getData(RawMessage message) {
-            return null;
-        }
-    }
+    public static final PulsarInternalColumn EVENT_TIME = new PulsarInternalColumn("__event_time__",
+            TimestampType.TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred");
 
-    /**
-     * Internal column representing the event time.
-     */
-    public static class EventTimeColumn extends PulsarInternalColumn {
-
-        EventTimeColumn(String name, Type type, String comment) {
-            super(name, type, comment);
-        }
-
-        @Override
-        public Object getData(RawMessage message) {
-            return message.getEventTime() == 0 ? null : message.getEventTime();
-        }
-    }
-
-    /**
-     * Internal column representing the publish time.
-     */
-    public static class PublishTimeColumn extends PulsarInternalColumn {
-
-        PublishTimeColumn(String name, Type type, String comment) {
-            super(name, type, comment);
-        }
-
-        @Override
-        public Object getData(RawMessage message) {
-            return message.getPublishTime();
-        }
-    }
-
-    /**
-     * Internal column representing the message id.
-     */
-    public static class MessageIdColumn extends PulsarInternalColumn {
-
-        MessageIdColumn(String name, Type type, String comment) {
-            super(name, type, comment);
-        }
-
-        @Override
-        public Object getData(RawMessage message) {
-            return message.getMessageId().toString();
-        }
-    }
-
-    /**
-     * Internal column representing the sequence id.
-     */
-    public static class SequenceIdColumn extends PulsarInternalColumn {
-
-        SequenceIdColumn(String name, Type type, String comment) {
-            super(name, type, comment);
-        }
-
-        @Override
-        public Object getData(RawMessage message) {
-            return message.getSequenceId();
-        }
-    }
-
-    /**
-     * Internal column representing the producer name.
-     */
-    public static class ProducerNameColumn extends PulsarInternalColumn {
-
-        ProducerNameColumn(String name, Type type, String comment) {
-            super(name, type, comment);
-        }
-
-        @Override
-        public Object getData(RawMessage message) {
-            return message.getProducerName();
-        }
-    }
-
-    /**
-     * Internal column representing the key.
-     */
-    public static class KeyColumn extends PulsarInternalColumn {
-
-        KeyColumn(String name, Type type, String comment) {
-            super(name, type, comment);
-        }
-
-        @Override
-        public Object getData(RawMessage message) {
-            return message.getKey().orElse(null);
-        }
-    }
-
-    /**
-     * Internal column representing the message properties.
-     */
-    public static class PropertiesColumn extends PulsarInternalColumn {
-
-        private static final ObjectMapper mapper = new ObjectMapper();
-
-        PropertiesColumn(String name, Type type, String comment) {
-            super(name, type, comment);
-        }
-
-        @Override
-        public Object getData(RawMessage message) {
-            try {
-                return mapper.writeValueAsString(message.getProperties());
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    public static final PartitionColumn PARTITION = new PartitionColumn("__partition__", IntegerType.INTEGER,
-        "The partition number which the message belongs to");
-
-    public static final PulsarInternalColumn EVENT_TIME = new EventTimeColumn("__event_time__", TimestampType
-            .TIMESTAMP, "Application defined timestamp in milliseconds of when the event occurred");
-
-    public static final PulsarInternalColumn PUBLISH_TIME = new PublishTimeColumn("__publish_time__",
+    public static final PulsarInternalColumn PUBLISH_TIME = new PulsarInternalColumn("__publish_time__",
             TimestampType.TIMESTAMP, "The timestamp in milliseconds of when event as published");
 
-    public static final PulsarInternalColumn MESSAGE_ID = new MessageIdColumn("__message_id__", VarcharType.VARCHAR,
-            "The message ID of the message used to generate this row");
+    public static final PulsarInternalColumn MESSAGE_ID = new PulsarInternalColumn("__message_id__",
+            VarcharType.VARCHAR, "The message ID of the message used to generate this row");
 
-    public static final PulsarInternalColumn SEQUENCE_ID = new SequenceIdColumn("__sequence_id__", BigintType.BIGINT,
-            "The sequence ID of the message used to generate this row");
+    public static final PulsarInternalColumn SEQUENCE_ID = new PulsarInternalColumn("__sequence_id__",
+            BigintType.BIGINT, "The sequence ID of the message used to generate this row");
 
-    public static final PulsarInternalColumn PRODUCER_NAME = new ProducerNameColumn("__producer_name__", VarcharType
-            .VARCHAR, "The name of the producer that publish the message used to generate this row");
+    public static final PulsarInternalColumn PRODUCER_NAME = new PulsarInternalColumn("__producer_name__",
+            VarcharType.VARCHAR, "The name of the producer that publish the message used to generate this row");
 
-    public static final PulsarInternalColumn KEY = new KeyColumn("__key__", VarcharType.VARCHAR, "The partition key "
-        + "for the topic");
+    public static final PulsarInternalColumn KEY = new PulsarInternalColumn("__key__",
+            VarcharType.VARCHAR, "The partition key for the topic");
 
-    public static final PulsarInternalColumn PROPERTIES = new PropertiesColumn("__properties__", VarcharType.VARCHAR,
-            "User defined properties");
+    public static final PulsarInternalColumn PROPERTIES = new PulsarInternalColumn("__properties__",
+            VarcharType.VARCHAR, "User defined properties");
+
+    private static Set<PulsarInternalColumn> internalFields = ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME,
+            MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY, PROPERTIES);
+
 
     private final String name;
     private final Type type;
@@ -218,17 +94,16 @@ public abstract class PulsarInternalColumn {
                 getName(),
                 getType(),
                 hidden,
-                true, null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
+                true, getName(), null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
     }
 
     PulsarColumnMetadata getColumnMetadata(boolean hidden) {
-        return new PulsarColumnMetadata(name, type, comment, null, hidden, true, null, null,
-                PulsarColumnHandle.HandleKeyValueType.NONE);
+        return new PulsarColumnMetadata(name, type, comment, null, hidden, true,
+                PulsarColumnHandle.HandleKeyValueType.NONE, new PulsarColumnMetadata.DecoderExtraInfo());
     }
 
     public static Set<PulsarInternalColumn> getInternalFields() {
-        return ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME, MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY,
-            PROPERTIES);
+        return internalFields;
     }
 
     public static Map<String, PulsarInternalColumn> getInternalFieldsMap() {
@@ -242,5 +117,4 @@ public abstract class PulsarInternalColumn {
         return builder.build();
     }
 
-    public abstract Object getData(RawMessage message);
 }

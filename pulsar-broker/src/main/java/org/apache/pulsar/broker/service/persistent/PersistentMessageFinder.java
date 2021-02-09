@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -27,14 +30,8 @@ import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-
-import static com.google.common.base.Preconditions.checkArgument;
-
 /**
- *
- * given a timestamp find the first message (position) (published) at or before the timestamp
+ * given a timestamp find the first message (position) (published) at or before the timestamp.
  */
 public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback {
     private final ManagedCursor cursor;
@@ -46,8 +43,9 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     private static final int TRUE = 1;
     @SuppressWarnings("unused")
     private volatile int messageFindInProgress = FALSE;
-    private static final AtomicIntegerFieldUpdater<PersistentMessageFinder> messageFindInProgressUpdater = AtomicIntegerFieldUpdater
-            .newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
+    private static final AtomicIntegerFieldUpdater<PersistentMessageFinder> messageFindInProgressUpdater =
+            AtomicIntegerFieldUpdater
+                    .newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
 
     public PersistentMessageFinder(String topicName, ManagedCursor cursor) {
         this.topicName = topicName;
@@ -63,10 +61,10 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             }
 
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
-                MessageImpl msg = null;
+                MessageImpl<byte[]> msg = null;
                 try {
-                    msg = MessageImpl.deserialize(entry.getDataBuffer());
-                    return msg.getPublishTime() < timestamp;
+                    msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
+                    return msg.publishedEarlierThan(timestamp);
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
                 } finally {

@@ -24,31 +24,28 @@ import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import io.netty.util.concurrent.DefaultThreadFactory;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
-import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.ClientCnx;
-import org.apache.pulsar.client.impl.ConnectionPool;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
-import org.apache.pulsar.common.util.FutureUtil;
-
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class TransactionBufferHandlerImpl implements TransactionBufferHandler, TimerTask {
@@ -57,39 +54,34 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     private final ConnectionPool connectionPool;
     private final NamespaceService namespaceService;
     private final AtomicLong requestIdGenerator = new AtomicLong();
-    private long operationTimeoutInMills;
+    private final long operationTimeoutInMills;
     private Timeout requestTimeout;
-    private HashedWheelTimer timer;
+    private final HashedWheelTimer timer;
     private final Semaphore semaphore;
     private final boolean blockIfReachMaxPendingOps;
 
-    public TransactionBufferHandlerImpl(ConnectionPool connectionPool, NamespaceService namespaceService) {
+    public TransactionBufferHandlerImpl(ConnectionPool connectionPool, NamespaceService namespaceService,
+                                        HashedWheelTimer timer) {
         this.connectionPool = connectionPool;
         this.pendingRequests = new ConcurrentSkipListMap<>();
         this.namespaceService = namespaceService;
         this.operationTimeoutInMills = 3000L;
         this.semaphore = new Semaphore(10000);
         this.blockIfReachMaxPendingOps = true;
-        this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-buffer-client-timer"));
+        this.timer = timer;
         this.requestTimeout = timer.newTimeout(this, operationTimeoutInMills, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action, List<MessageId> messageIdList) {
+    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
+                                                  TxnAction action, long lowWaterMark) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
         }
         long requestId = requestIdGenerator.getAndIncrement();
-        List<PulsarApi.MessageIdData> messageIdDataList = new ArrayList<>();
-        for (MessageId messageId : messageIdList) {
-            messageIdDataList.add(PulsarApi.MessageIdData.newBuilder()
-                    .setLedgerId(((MessageIdImpl) messageId).getLedgerId())
-                    .setEntryId(((MessageIdImpl) messageId).getEntryId())
-                    .setPartition(((MessageIdImpl) messageId).getPartitionIndex())
-                    .build());
-        }
-        ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits, topic, action, messageIdDataList);
+        ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
+                topic, action, lowWaterMark);
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
@@ -112,13 +104,15 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits, long txnIdLeastBits, PulsarApi.TxnAction action) {
+    public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
+                                                         long txnIdLeastBits, TxnAction action) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
         }
         long requestId = requestIdGenerator.getAndIncrement();
-        ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits, topic, subscription, action);
+        ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
+                topic, subscription, action);
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
@@ -141,7 +135,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public void handleEndTxnOnTopicResponse(long requestId, PulsarApi.CommandEndTxnOnPartitionResponse response) {
+    public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
             if (log.isDebugEnabled()) {
@@ -158,14 +152,16 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             log.info("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
             op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
         } else {
-            log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(), response.getError());
+            log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(),
+                    response.getError());
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
         }
         op.recycle();
     }
 
     @Override
-    public void handleEndTxnOnSubscriptionResponse(long requestId, PulsarApi.CommandEndTxnOnSubscriptionResponse response) {
+    public void handleEndTxnOnSubscriptionResponse(long requestId,
+                                                   CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
             if (log.isDebugEnabled()) {
@@ -177,11 +173,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
 
         if (!response.hasError()) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Got end txn on subscription response for for request {}", op.topic, response.getRequestId());
+                log.debug("[{}] Got end txn on subscription response for for request {}",
+                        op.topic, response.getRequestId());
             }
             op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
         } else {
-            log.error("[{}] Got end txn on subscription response for request {} error {}", op.topic, response.getRequestId(), response.getError());
+            log.error("[{}] Got end txn on subscription response for request {} error {}",
+                    op.topic, response.getRequestId(), response.getError());
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
         }
         op.recycle();
@@ -194,7 +192,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                     return CompletableFuture.completedFuture(null);
                 }
                 URI uri = new URI(serviceUrl);
-                return connectionPool.getConnection(InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort())).thenCompose(clientCnx -> {
+                return connectionPool.getConnection(InetSocketAddress.createUnresolved(uri.getHost(),
+                        uri.getPort())).thenCompose(clientCnx -> {
                     clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
                     return CompletableFuture.completedFuture(clientCnx);
                 });
@@ -217,7 +216,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 });
     }
 
-    private TransactionBufferClientException getException(PulsarApi.ServerError serverError, String msg) {
+    private TransactionBufferClientException getException(ServerError serverError, String msg) {
         return new TransactionBufferClientException(msg);
     }
 
@@ -311,5 +310,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 return new OpRequestSend(handle);
             }
         };
+    }
+
+    @Override
+    public void close() {
+        this.timer.stop();
     }
 }

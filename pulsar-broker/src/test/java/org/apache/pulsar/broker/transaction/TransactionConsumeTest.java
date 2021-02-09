@@ -25,11 +25,13 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.Consumer;
@@ -38,7 +40,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
@@ -71,7 +75,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() {
         super.internalCleanup();
     }
@@ -107,19 +111,16 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(CONSUME_TOPIC, false).get().get();
-        TransactionBuffer transactionBuffer = persistentTopic.getTransactionBuffer(true).get();
         log.info("transactionBuffer init finish.");
 
         List<String> sendMessageList = new ArrayList<>();
         sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
-        // append messages to TB
-        List<PulsarApi.MessageIdData> txnMessageIdList =
-                appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt, sendMessageList);
+        appendTransactionMessages(txnID, persistentTopic, transactionMessageCnt, sendMessageList);
         sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn, sendMessageList);
 
         Message<byte[]> message;
         for (int i = 0; i < totalMsgCnt; i++) {
-            if (i < (messageCntBeforeTxn + messageCntAfterTxn)) {
+            if (i < messageCntBeforeTxn) {
                 // receive normal messages successfully
                 message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
@@ -129,21 +130,21 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 log.info("Receive shared normal msg: {}" + new String(message.getData(), UTF_8));
             } else {
                 // can't receive transaction messages before commit
-                message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+                message = exclusiveConsumer.receive(500, TimeUnit.MILLISECONDS);
                 Assert.assertNull(message);
                 log.info("exclusive consumer can't receive message before commit.");
 
-                message = sharedConsumer.receive(2, TimeUnit.SECONDS);
+                message = sharedConsumer.receive(500, TimeUnit.MILLISECONDS);
                 Assert.assertNull(message);
                 log.info("shared consumer can't receive message before commit.");
             }
         }
 
-        transactionBuffer.commitTxn(txnID, txnMessageIdList).get();
+        persistentTopic.endTxn(txnID, TxnAction.COMMIT_VALUE, 0L).get();
         log.info("Commit txn.");
 
         // receive transaction messages successfully after commit
-        for (int i = 0; i < transactionMessageCnt; i++) {
+        for (int i = 0; i < transactionMessageCnt + messageCntAfterTxn; i++) {
             message = exclusiveConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
@@ -186,15 +187,12 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(CONSUME_TOPIC, false).get().get();
-        TransactionBuffer transactionBuffer = persistentTopic.getTransactionBuffer(true).get();
-        log.info("transactionBuffer init finish.");
 
         List<String> sendMessageList = new ArrayList<>();
         sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
         // append messages to TB
-        List<PulsarApi.MessageIdData> txnMessageIdList =
-                appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt, sendMessageList);
-        transactionBuffer.commitTxn(txnID, txnMessageIdList).get();
+        appendTransactionMessages(txnID, persistentTopic, transactionMessageCnt, sendMessageList);
+        persistentTopic.endTxn(txnID, TxnAction.COMMIT_VALUE, 0L).get();
         log.info("Commit txn.");
         sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn, sendMessageList);
 
@@ -222,26 +220,69 @@ public class TransactionConsumeTest extends TransactionTestBase {
         }
     }
 
-    private List<PulsarApi.MessageIdData> appendTransactionMessages(
-            TxnID txnID, TransactionBuffer tb, int transactionMsgCnt,
-            List<String> sendMessageList) throws ExecutionException, InterruptedException {
-        List<PulsarApi.MessageIdData> positionList = new ArrayList<>();
+    private List<MessageIdData> appendTransactionMessages(
+            TxnID txnID, PersistentTopic topic, int transactionMsgCnt, List<String> sendMessageList)
+            throws ExecutionException, InterruptedException {
+        List<MessageIdData> positionList = new ArrayList<>();
         for (int i = 0; i < transactionMsgCnt; i++) {
-            PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
-            builder.setProducerName("producerName");
-            builder.setSequenceId(i);
-            builder.setTxnidMostBits(txnID.getMostSigBits());
-            builder.setTxnidLeastBits(txnID.getLeastSigBits());
-            builder.setPublishTime(System.currentTimeMillis());
+            final int j = i;
+            MessageMetadata metadata = new MessageMetadata()
+                    .setProducerName("producerName")
+                    .setSequenceId(i)
+                    .setTxnidMostBits(txnID.getMostSigBits())
+                    .setTxnidLeastBits(txnID.getLeastSigBits())
+                    .setPublishTime(System.currentTimeMillis());
 
             String msg = TXN_MSG_CONTENT + i;
             sendMessageList.add(msg);
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
-                    Commands.ChecksumType.Crc32c, builder.build(),
+                    Commands.ChecksumType.Crc32c, metadata,
                     Unpooled.copiedBuffer(msg.getBytes(UTF_8)));
-            PositionImpl position = (PositionImpl) tb.appendBufferToTxn(txnID, i, headerAndPayload).get();
-            positionList.add(PulsarApi.MessageIdData.newBuilder()
-                    .setLedgerId(position.getLedgerId()).setEntryId(position.getEntryId()).build());
+            CompletableFuture<PositionImpl> completableFuture = new CompletableFuture<>();
+            topic.publishTxnMessage(txnID, headerAndPayload, new Topic.PublishContext() {
+
+                @Override
+                public String getProducerName() {
+                    return "test";
+                }
+
+                public long getSequenceId() {
+                    return j + 30;
+                }
+
+                /**
+                 * Return the producer name for the original producer.
+                 *
+                 * For messages published locally, this will return the same local producer name, though in case of replicated
+                 * messages, the original producer name will differ
+                 */
+                public String getOriginalProducerName() {
+                    return "test";
+                }
+
+                public long getOriginalSequenceId() {
+                    return j + 30;
+                }
+
+                public long getHighestSequenceId() {
+                    return  j + 30;
+                }
+
+                public long getOriginalHighestSequenceId() {
+                    return  j + 30;
+                }
+
+                public long getNumberOfMessages() {
+                    return  j + 30;
+                }
+
+                @Override
+                public void completed(Exception e, long ledgerId, long entryId) {
+                    completableFuture.complete(PositionImpl.get(ledgerId, entryId));
+                }
+            });
+            positionList.add(new MessageIdData().setLedgerId(completableFuture.get()
+                    .getLedgerId()).setEntryId(completableFuture.get().getEntryId()));
         }
         log.info("append messages to TB finish.");
         return positionList;

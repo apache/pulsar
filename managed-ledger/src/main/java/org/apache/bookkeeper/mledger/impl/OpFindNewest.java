@@ -23,14 +23,17 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 
+@Slf4j
 class OpFindNewest implements ReadEntryCallback {
     private final ManagedCursorImpl cursor;
+    private final ManagedLedgerImpl ledger;
     private final PositionImpl startPosition;
     private final FindEntryCallback callback;
     private final Predicate<Entry> condition;
@@ -49,6 +52,23 @@ class OpFindNewest implements ReadEntryCallback {
     public OpFindNewest(ManagedCursorImpl cursor, PositionImpl startPosition, Predicate<Entry> condition,
             long numberOfEntries, FindEntryCallback callback, Object ctx) {
         this.cursor = cursor;
+        this.ledger = cursor.ledger;
+        this.startPosition = startPosition;
+        this.callback = callback;
+        this.condition = condition;
+        this.ctx = ctx;
+
+        this.min = 0;
+        this.max = numberOfEntries;
+
+        this.searchPosition = startPosition;
+        this.state = State.checkFirst;
+    }
+
+    public OpFindNewest(ManagedLedgerImpl ledger, PositionImpl startPosition, Predicate<Entry> condition,
+                        long numberOfEntries, FindEntryCallback callback, Object ctx) {
+        this.cursor = null;
+        this.ledger = ledger;
         this.startPosition = startPosition;
         this.callback = callback;
         this.condition = condition;
@@ -74,10 +94,16 @@ class OpFindNewest implements ReadEntryCallback {
                 return;
             } else {
                 lastMatchedPosition = position;
-
                 // check last entry
                 state = State.checkLast;
-                searchPosition = cursor.ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
+                PositionImpl lastPosition = ledger.getLastPosition();
+                searchPosition = ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
+                if (lastPosition.compareTo(searchPosition) < 0) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("first position {} matches, last should be {}, but moving to lastPos {}", position, searchPosition, lastPosition);
+                    }
+                    searchPosition = lastPosition;
+                }
                 find();
             }
             break;
@@ -88,7 +114,7 @@ class OpFindNewest implements ReadEntryCallback {
             } else {
                 // start binary search
                 state = State.searching;
-                searchPosition = cursor.ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
+                searchPosition = ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
                 find();
             }
             break;
@@ -106,7 +132,7 @@ class OpFindNewest implements ReadEntryCallback {
                 callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
                 return;
             }
-            searchPosition = cursor.ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
+            searchPosition = ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
             find();
         }
     }
@@ -117,8 +143,8 @@ class OpFindNewest implements ReadEntryCallback {
     }
 
     public void find() {
-        if (cursor.hasMoreEntries(searchPosition)) {
-            cursor.ledger.asyncReadEntry(searchPosition, this, null);
+        if (cursor != null ? cursor.hasMoreEntries(searchPosition) : ledger.hasMoreEntries(searchPosition)) {
+            ledger.asyncReadEntry(searchPosition, this, null);
         } else {
             callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
         }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.avro.Conversions;
 import org.apache.avro.data.JodaTimeConversions;
 import org.apache.avro.data.TimeConversions;
@@ -26,9 +27,9 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.impl.schema.reader.AvroReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.reader.MultiVersionAvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
-import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
@@ -36,21 +37,31 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
+
 /**
  * An AVRO schema implementation.
  */
 @Slf4j
-public class AvroSchema<T> extends StructSchema<T> {
+public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     private static final Logger LOG = LoggerFactory.getLogger(AvroSchema.class);
-
+    private boolean isCustomReaderAndWriter;
     private ClassLoader pojoClassLoader;
 
     private AvroSchema(SchemaInfo schemaInfo, ClassLoader pojoClassLoader) {
         super(schemaInfo);
         this.pojoClassLoader = pojoClassLoader;
         boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
-        setReader(new AvroReader<>(schema, pojoClassLoader, jsr310ConversionEnabled));
+        setReader(new MultiVersionAvroReader<>(schema, pojoClassLoader, getJsr310ConversionEnabledFromSchemaInfo(schemaInfo)));
         setWriter(new AvroWriter<>(schema, jsr310ConversionEnabled));
+    }
+
+    private AvroSchema(SchemaReader<T> reader, SchemaWriter<T> writer, SchemaInfo schemaInfo) {
+        super(schemaInfo);
+        setReader(reader);
+        setWriter(writer);
+        isCustomReaderAndWriter = true;
     }
 
     @Override
@@ -60,6 +71,9 @@ public class AvroSchema<T> extends StructSchema<T> {
 
     @Override
     public Schema<T> clone() {
+        if (isCustomReaderAndWriter) {
+            return new AvroSchema<>(reader, writer, schemaInfo);
+        }
         Schema<T> schema = new AvroSchema<>(schemaInfo, pojoClassLoader);
         if (schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(schemaInfoProvider);
@@ -68,6 +82,10 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
+        if (schemaDefinition.getSchemaReaderOpt().isPresent() && schemaDefinition.getSchemaWriterOpt().isPresent()) {
+            return new AvroSchema<>(schemaDefinition.getSchemaReaderOpt().get(),
+                    schemaDefinition.getSchemaWriterOpt().get(), parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
+        }
         ClassLoader pojoClassLoader = null;
         if (schemaDefinition.getPojo() != null) {
             pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
@@ -86,31 +104,6 @@ public class AvroSchema<T> extends StructSchema<T> {
         }
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
-    }
-
-    @Override
-    protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
-        SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
-        if (schemaInfo != null) {
-            log.info("Load schema reader for version({}), schema is : {}, schemaInfo: {}",
-                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                schemaInfo.getSchemaDefinition(), schemaInfo.toString());
-            boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
-            return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema, pojoClassLoader, jsr310ConversionEnabled);
-        } else {
-            log.warn("No schema found for version({}), use latest schema : {}",
-                SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                this.schemaInfo.getSchemaDefinition());
-            return reader;
-        }
-    }
-
-    private static boolean getJsr310ConversionEnabledFromSchemaInfo(SchemaInfo schemaInfo) {
-        if (schemaInfo != null) {
-            return Boolean.parseBoolean(schemaInfo.getProperties()
-                    .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "false"));
-        }
-        return false;
     }
 
     public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled) {

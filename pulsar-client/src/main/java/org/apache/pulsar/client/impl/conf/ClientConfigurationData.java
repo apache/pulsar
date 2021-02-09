@@ -33,6 +33,7 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.util.Secret;
 
 /**
  * This is a simple holder of the client configuration values.
@@ -51,9 +52,9 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private Authentication authentication = AuthenticationDisabled.INSTANCE;
     private String authPluginClassName;
 
-    @JsonIgnore
+    @Secret
     private String authParams;
-    @JsonIgnore
+    @Secret
     private Map<String, String> authParamMap;
 
     private long operationTimeoutMs = 30000;
@@ -90,6 +91,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String tlsTrustStorePassword = null;
     private Set<String> tlsCiphers = Sets.newTreeSet();
     private Set<String> tlsProtocols = Sets.newTreeSet();
+
+    private long memoryLimitBytes = 0;
 
     /** proxyServiceUrl and proxyProtocol must be mutually inclusive **/
     private String proxyServiceUrl;

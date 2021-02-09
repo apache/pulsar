@@ -20,12 +20,15 @@ package org.apache.pulsar.client.api.schema;
 
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Interface for schema definition.
  */
+@InterfaceAudience.Public
+@InterfaceStability.Stable
 public interface SchemaDefinition<T> {
 
     /**

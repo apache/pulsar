@@ -32,7 +32,9 @@ public enum PolicyName {
     DEDUPLICATION,
     MAX_CONSUMERS,
     MAX_PRODUCERS,
+    DEDUPLICATION_SNAPSHOT,
     MAX_UNACKED,
+    MAX_SUBSCRIPTIONS,
     OFFLOAD,
     PERSISTENCE,
     RATE,
@@ -43,4 +45,5 @@ public enum PolicyName {
     SUBSCRIPTION_AUTH_MODE,
     ENCRYPTION,
     TTL,
+    MAX_TOPICS
 }

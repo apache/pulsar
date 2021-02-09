@@ -51,7 +51,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
     }
 
     @Override
-    @AfterClass(timeOut = 300000)
+    @AfterClass(alwaysRun = true, timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
     }

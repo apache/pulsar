@@ -62,9 +62,13 @@ import org.slf4j.LoggerFactory;
  * and invalidated by the ZNode path. For the data cache, ZNode data parsing is done at request time with the given
  * {@link Deserializer} argument.
  *
- * @param <T>
  */
 public abstract class ZooKeeperCache implements Watcher {
+
+    /**
+     *
+     * @param <T> the type of zookeeper content
+     */
     public static interface Deserializer<T> {
         T deserialize(String key, byte[] content) throws Exception;
     }
@@ -396,7 +400,7 @@ public abstract class ZooKeeperCache implements Watcher {
         if (result != null && result.isDone()) {
             Pair<Entry<Object, Stat>, Long> entryPair = result.getNow(null);
             if (entryPair != null && entryPair.getRight() != null) {
-                if ((System.nanoTime() - entryPair.getRight()) > TimeUnit.SECONDS.toMillis(cacheExpirySeconds)) {
+                if ((System.nanoTime() - entryPair.getRight()) > TimeUnit.SECONDS.toNanos(cacheExpirySeconds)) {
                     this.zkSession.get().getData(path, this, (rc, path1, ctx, content, stat) -> {
                         if (rc != Code.OK.intValue()) {
                             log.warn("Failed to refresh zookeeper-cache for {} due to {}", path, rc);

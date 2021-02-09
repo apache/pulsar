@@ -27,7 +27,6 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.client.ClientBuilder;
-
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -73,6 +72,8 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private int bookkeeperThrottleValue = 0;
     private int bookkeeperNumIOThreads = 2 * Runtime.getRuntime().availableProcessors();
     private int bookkeeperNumWorkerThreads = Runtime.getRuntime().availableProcessors();
+    private boolean bookkeeperUseV2Protocol = true;
+    private int bookkeeperExplicitInterval = 0;
 
     // --- ManagedLedger
     private long managedLedgerCacheSizeMB = 0L;
@@ -332,6 +333,26 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.bookkeeper-num-worker-threads")
     public PulsarConnectorConfig setBookkeeperNumWorkerThreads(int bookkeeperNumWorkerThreads) {
         this.bookkeeperNumWorkerThreads = bookkeeperNumWorkerThreads;
+        return this;
+    }
+
+    public boolean getBookkeeperUseV2Protocol() {
+        return bookkeeperUseV2Protocol;
+    }
+
+    @Config("pulsar.bookkeeper-use-v2-protocol")
+    public PulsarConnectorConfig setBookkeeperUseV2Protocol(boolean bookkeeperUseV2Protocol) {
+        this.bookkeeperUseV2Protocol = bookkeeperUseV2Protocol;
+        return this;
+    }
+
+    public int getBookkeeperExplicitInterval() {
+        return bookkeeperExplicitInterval;
+    }
+
+    @Config("pulsar.bookkeeper-explicit-interval")
+    public PulsarConnectorConfig setBookkeeperExplicitInterval(int bookkeeperExplicitInterval) {
+        this.bookkeeperExplicitInterval = bookkeeperExplicitInterval;
         return this;
     }
 

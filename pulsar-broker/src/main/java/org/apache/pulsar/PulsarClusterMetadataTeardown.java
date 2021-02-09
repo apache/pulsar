@@ -21,6 +21,9 @@ package org.apache.pulsar;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -37,12 +40,8 @@ import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-
 /**
- * Teardown the metadata for a existed Pulsar cluster
+ * Teardown the metadata for a existed Pulsar cluster.
  */
 public class PulsarClusterMetadataTeardown {
 
@@ -56,7 +55,7 @@ public class PulsarClusterMetadataTeardown {
         }, description = "Local zookeeper session timeout ms")
         private int zkSessionTimeoutMillis = 30000;
 
-        @Parameter(names = { "-c", "-cluster" }, description = "Cluster name")
+        @Parameter(names = { "-c", "-cluster", "--cluster" }, description = "Cluster name")
         private String cluster;
 
         @Parameter(names = { "-cs", "--configuration-store" }, description = "Configuration Store connection string")
@@ -88,7 +87,8 @@ public class PulsarClusterMetadataTeardown {
         }
 
         if (arguments.bkMetadataServiceUri != null) {
-            BookKeeper bookKeeper = new BookKeeper(new ClientConfiguration().setMetadataServiceUri(arguments.bkMetadataServiceUri));
+            BookKeeper bookKeeper =
+                    new BookKeeper(new ClientConfiguration().setMetadataServiceUri(arguments.bkMetadataServiceUri));
             ZooKeeper localZk = initZk(arguments.zookeeper, arguments.zkSessionTimeoutMillis);
             ManagedLedgerFactory managedLedgerFactory = new ManagedLedgerFactoryImpl(bookKeeper, localZk);
 

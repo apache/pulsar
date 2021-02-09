@@ -32,10 +32,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 import lombok.Cleanup;
@@ -48,21 +45,13 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.BatcherBuilder;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.RawMessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -95,7 +84,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -121,23 +110,21 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                         List<MessageIdData> idsInGap = new ArrayList<MessageIdData>();
                         if (r.nextInt(10) == 1) {
                             long delta = r.nextInt(10) + 1;
-                            idsInGap.add(MessageIdData.newBuilder()
+                            idsInGap.add(new MessageIdData()
                                          .setLedgerId(ledgerIds.get())
-                                         .setEntryId(entryIds.get() + 1)
-                                         .build());
+                                         .setEntryId(entryIds.get() + 1));
                             ledgerIds.addAndGet(delta);
                             entryIds.set(0);
                         }
                         long delta = r.nextInt(5);
                         if (delta != 0) {
-                            idsInGap.add(MessageIdData.newBuilder()
+                            idsInGap.add(new MessageIdData()
                                          .setLedgerId(ledgerIds.get())
-                                         .setEntryId(entryIds.get() + 1)
-                                         .build());
+                                         .setEntryId(entryIds.get() + 1));
                         }
-                        MessageIdData id = MessageIdData.newBuilder()
+                        MessageIdData id = new MessageIdData()
                             .setLedgerId(ledgerIds.get())
-                            .setEntryId(entryIds.addAndGet(delta + 1)).build();
+                            .setEntryId(entryIds.addAndGet(delta + 1));
 
                         @Cleanup
                         RawMessage m = new RawMessageImpl(id, Unpooled.EMPTY_BUFFER);

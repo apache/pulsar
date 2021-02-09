@@ -79,7 +79,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         super.init();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -134,7 +134,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
             authParams.put(AuthenticationKeyStoreTls.KEYSTORE_PW, CLIENT_KEYSTORE_PW);
             clientBuilder.authentication(AuthenticationKeyStoreTls.class.getName(), authParams);
         }
-        pulsarClient = clientBuilder.build();
+        replacePulsarClient(clientBuilder);
     }
 
     protected void internalSetUpForNamespace() throws Exception {

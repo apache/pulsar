@@ -19,50 +19,51 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import org.apache.pulsar.broker.service.DistributedIdGenerator;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 public class DistributedIdGeneratorTest {
 
-    private MockZooKeeper zkc;
+    private MetadataStoreExtended store;
+    private CoordinationService coordinationService;
 
-    @BeforeClass
+    @BeforeMethod
     public void setup() throws Exception {
-        zkc = MockZooKeeper.newInstance();
+        store  = MetadataStoreExtended.create("memory://local", MetadataStoreConfig.builder().build());
+        coordinationService = new CoordinationServiceImpl(store);
     }
 
-    @AfterClass
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        zkc.shutdown();
+        coordinationService.close();
+        store.close();
     }
 
     @Test
     public void simple() throws Exception {
-        DistributedIdGenerator gen1 = new DistributedIdGenerator(zkc, "/my/test/simple", "p");
+        DistributedIdGenerator gen1 = new DistributedIdGenerator(coordinationService, "/my/test/simple", "p");
 
         assertEquals(gen1.getNextId(), "p-0-0");
         assertEquals(gen1.getNextId(), "p-0-1");
         assertEquals(gen1.getNextId(), "p-0-2");
         assertEquals(gen1.getNextId(), "p-0-3");
 
-        DistributedIdGenerator gen2 = new DistributedIdGenerator(zkc, "/my/test/simple", "p");
+        DistributedIdGenerator gen2 = new DistributedIdGenerator(coordinationService, "/my/test/simple", "p");
         assertEquals(gen2.getNextId(), "p-1-0");
         assertEquals(gen2.getNextId(), "p-1-1");
 
@@ -87,7 +88,7 @@ public class DistributedIdGeneratorTest {
         for (int i = 0; i < Threads; i++) {
             executor.execute(() -> {
                 try {
-                    DistributedIdGenerator gen = new DistributedIdGenerator(zkc, "/my/test/concurrent", "prefix");
+                    DistributedIdGenerator gen = new DistributedIdGenerator(coordinationService, "/my/test/concurrent", "prefix");
 
                     barrier.await();
 
@@ -116,9 +117,9 @@ public class DistributedIdGeneratorTest {
 
     @Test
     public void invalidZnode() throws Exception {
-        zkc.create("/my/test/invalid", "invalid-number".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        store.put("/my/test/invalid", "invalid-number".getBytes(), Optional.of(-1L));
 
-        DistributedIdGenerator gen = new DistributedIdGenerator(zkc, "/my/test/invalid", "p");
+        DistributedIdGenerator gen = new DistributedIdGenerator(coordinationService, "/my/test/invalid", "p");
 
         // It should not get exception if content is there
         assertEquals(gen.getNextId(), "p-0-0");

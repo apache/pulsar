@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
@@ -43,7 +42,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
-import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
@@ -131,24 +129,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
     }
 
-    private static int getErrorCode(Exception e) {
-        if (e instanceof IllegalArgumentException) {
-            return HttpServletResponse.SC_BAD_REQUEST;
-        } else if (e instanceof ConsumerBusyException) {
-            return HttpServletResponse.SC_CONFLICT;
-        } else {
-            return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-        }
-    }
-
-    private static String getErrorMessage(Exception e) {
-        if (e instanceof IllegalArgumentException) {
-            return "Invalid query params: " + e.getMessage();
-        } else {
-            return "Failed to subscribe: " + e.getMessage();
-        }
-    }
-
     private void receiveMessage() {
         if (log.isDebugEnabled()) {
             log.debug("[{}:{}] [{}] [{}] Receive next message", request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
@@ -165,6 +145,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             dm.payload = Base64.getEncoder().encodeToString(msg.getData());
             dm.properties = msg.getProperties();
             dm.publishTime = DateFormatter.format(msg.getPublishTime());
+            dm.redeliveryCount = msg.getRedeliveryCount();
             if (msg.getEventTime() != 0) {
                 dm.eventTime = DateFormatter.format(msg.getEventTime());
             }
@@ -329,7 +310,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         numBytesDelivered.add(msgSize);
     }
 
-    private ConsumerBuilder<byte[]> getConsumerConfiguration(PulsarClient client) {
+    protected ConsumerBuilder<byte[]> getConsumerConfiguration(PulsarClient client) {
         ConsumerBuilder<byte[]> builder = client.newConsumer();
 
         if (queryParams.containsKey("ackTimeoutMillis")) {
@@ -363,8 +344,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         if (queryParams.containsKey("maxRedeliverCount") || queryParams.containsKey("deadLetterTopic")) {
             DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder();
             if (queryParams.containsKey("maxRedeliverCount")) {
-                dlpBuilder.maxRedeliverCount(Integer.parseInt(queryParams.get("maxRedeliverCount")))
-                        .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription));
+                dlpBuilder.maxRedeliverCount(Integer.parseInt(queryParams.get("maxRedeliverCount")));
+            }
+
+            // Don't provide a default DLQ to Key_Shared sub type as DLQ can't guarantee order.
+            if (!queryParams.containsKey("subscriptionType") ||
+                queryParams.containsKey("subscriptionType") &&
+                SubscriptionType.valueOf(queryParams.get("subscriptionType")) != SubscriptionType.Key_Shared) {
+                dlpBuilder.deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription));
             }
 
             if (queryParams.containsKey("deadLetterTopic")) {

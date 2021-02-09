@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -27,11 +31,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
+
+    private AtomicInteger testId = new AtomicInteger(0);
 
     @BeforeClass
     @Override
@@ -39,13 +41,13 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanupTest() throws Exception {
         pulsar.getAdminClient().namespaces().removeAutoSubscriptionCreation("prop/ns-abc");
     }
@@ -54,7 +56,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
     public void testAutoSubscriptionCreationDisable() throws Exception {
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
 
-        final String topicName = "persistent://prop/ns-abc/test-subtopic";
+        final String topicName = "persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
         final String subscriptionName = "test-subtopic-sub";
 
         admin.topics().createNonPartitionedTopic(topicName);
@@ -72,7 +74,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
     public void testSubscriptionCreationWithAutoCreationDisable() throws Exception {
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
 
-        final String topicName = "persistent://prop/ns-abc/test-subtopic";
+        final String topicName = "persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
         final String subscriptionName = "test-subtopic-sub-1";
 
         admin.topics().createNonPartitionedTopic(topicName);
@@ -88,7 +90,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
     @Test
     public void testAutoSubscriptionCreationNamespaceAllowOverridesBroker() throws Exception {
-        final String topic = "persistent://prop/ns-abc/test-subtopic";
+        final String topic = "persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
         final String subscriptionName = "test-subtopic-sub-2";
         final TopicName topicName = TopicName.get(topic);
 
@@ -105,7 +107,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
     @Test
     public void testAutoSubscriptionCreationNamespaceDisallowOverridesBroker() throws Exception {
-        final String topic = "persistent://prop/ns-abc/test-subtopic";
+        final String topic = "persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
         final String subscriptionName = "test-subtopic-sub-3";
         final TopicName topicName = TopicName.get(topic);
 

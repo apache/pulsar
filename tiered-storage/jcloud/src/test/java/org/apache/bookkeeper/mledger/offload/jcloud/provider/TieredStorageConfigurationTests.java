@@ -23,7 +23,9 @@ import static org.testng.Assert.assertEquals;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
 
+import org.jclouds.domain.Credentials;
 import org.testng.annotations.Test;
 
 public class TieredStorageConfigurationTests {
@@ -53,23 +55,23 @@ public class TieredStorageConfigurationTests {
         TieredStorageConfiguration config = new TieredStorageConfiguration(map);
         List<String> keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_BUCKET);
         assertEquals(keys.get(0), BC_S3_BUCKET);
-        assertEquals(keys.get(1), "managedLedgerOffload.bucket");
+        assertEquals(keys.get(1), "managedLedgerOffloadBucket");
         
         keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_REGION);
         assertEquals(keys.get(0), BC_S3_REGION);
-        assertEquals(keys.get(1), "managedLedgerOffload.region");
+        assertEquals(keys.get(1), "managedLedgerOffloadRegion");
         
         keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_ENDPOINT);
         assertEquals(keys.get(0), BC_S3_ENDPOINT);
-        assertEquals(keys.get(1), "managedLedgerOffload.serviceEndpoint");
+        assertEquals(keys.get(1), "managedLedgerOffloadServiceEndpoint");
         
         keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE);
         assertEquals(keys.get(0), BC_S3_MAX_BLOCK_SIZE);
-        assertEquals(keys.get(1), "managedLedgerOffload.maxBlockSizeInBytes");
+        assertEquals(keys.get(1), "managedLedgerOffloadMaxBlockSizeInBytes");
         
         keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_READ_BUFFER_SIZE);
         assertEquals(keys.get(0), BC_S3_READ_BUFFER_SIZE);
-        assertEquals(keys.get(1), "managedLedgerOffload.readBufferSizeInBytes");
+        assertEquals(keys.get(1), "managedLedgerOffloadReadBufferSizeInBytes");
     }
     
     /**
@@ -79,11 +81,11 @@ public class TieredStorageConfigurationTests {
     public final void awsS3PropertiesTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
-        map.put("managedLedgerOffload.region", "us-east-1");
-        map.put("managedLedgerOffload.bucket", "test bucket");
-        map.put("managedLedgerOffload.maxBlockSizeInBytes", "1");
-        map.put("managedLedgerOffload.readBufferSizeInBytes", "500");
-        map.put("managedLedgerOffload.serviceEndpoint", "http://some-url:9093");
+        map.put("managedLedgerOffloadRegion", "us-east-1");
+        map.put("managedLedgerOffloadBucket", "test bucket");
+        map.put("managedLedgerOffloadMaxBlockSizeInBytes", "1");
+        map.put("managedLedgerOffloadReadBufferSizeInBytes", "500");
+        map.put("managedLedgerOffloadServiceEndpoint", "http://some-url:9093");
         TieredStorageConfiguration config = new TieredStorageConfiguration(map);
         
         assertEquals(config.getRegion(), "us-east-1");
@@ -113,7 +115,36 @@ public class TieredStorageConfigurationTests {
         assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
         assertEquals(config.getServiceEndpoint(), "http://some-url:9093");
     }
-    
+
+    /**
+     * Confirm that with AWS we create different instances of the credentials
+     * object each time we call the supplier, this ensure that we get fresh credentials
+     * if the aws credential provider changes
+     */
+    @Test
+    public final void awsS3CredsProviderTest() {
+        Map<String, String> map = new HashMap<>();
+        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
+        TieredStorageConfiguration config = new TieredStorageConfiguration(map);
+
+        // set the aws properties with fake creds so the defaultProviderChain works
+        System.setProperty("aws.accessKeyId", "fakeid1");
+        System.setProperty("aws.secretKey", "fakekey1");
+        Credentials creds1 = config.getProviderCredentials().get();
+        assertEquals(creds1.identity, "fakeid1");
+        assertEquals(creds1.credential, "fakekey1");
+
+        // reset the properties and ensure we get different values by re-evaluating the chain
+        System.setProperty("aws.accessKeyId", "fakeid2");
+        System.setProperty("aws.secretKey", "fakekey2");
+        Credentials creds2 = config.getProviderCredentials().get();
+        assertEquals(creds2.identity, "fakeid2");
+        assertEquals(creds2.credential, "fakekey2");
+
+        System.clearProperty("aws.accessKeyId");
+        System.clearProperty("aws.secretKey");
+    }
+
     /**
      * Confirm that both property options are available for GCS
      */
@@ -124,19 +155,19 @@ public class TieredStorageConfigurationTests {
         TieredStorageConfiguration config = new TieredStorageConfiguration(map);
         List<String> keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_BUCKET);
         assertEquals(keys.get(0), BC_GCS_BUCKET);
-        assertEquals(keys.get(1), "managedLedgerOffload.bucket");
+        assertEquals(keys.get(1), "managedLedgerOffloadBucket");
         
         keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_REGION);
         assertEquals(keys.get(0), BC_GCS_REGION);
-        assertEquals(keys.get(1), "managedLedgerOffload.region");
+        assertEquals(keys.get(1), "managedLedgerOffloadRegion");
         
         keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE);
         assertEquals(keys.get(0), BC_GCS_MAX_BLOCK_SIZE);
-        assertEquals(keys.get(1), "managedLedgerOffload.maxBlockSizeInBytes");
+        assertEquals(keys.get(1), "managedLedgerOffloadMaxBlockSizeInBytes");
         
         keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_READ_BUFFER_SIZE);
         assertEquals(keys.get(0), BC_GCS_READ_BUFFER_SIZE);
-        assertEquals(keys.get(1), "managedLedgerOffload.readBufferSizeInBytes");
+        assertEquals(keys.get(1), "managedLedgerOffloadReadBufferSizeInBytes");
     }
     
     /**
@@ -146,11 +177,11 @@ public class TieredStorageConfigurationTests {
     public final void gcsPropertiesTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());
-        map.put("managedLedgerOffload.region", "us-east-1");
-        map.put("managedLedgerOffload.bucket", "test bucket");
-        map.put("managedLedgerOffload.maxBlockSizeInBytes", "1");
-        map.put("managedLedgerOffload.readBufferSizeInBytes", "500");
-        map.put("managedLedgerOffload.serviceEndpoint", "http://some-url:9093");
+        map.put("managedLedgerOffloadRegion", "us-east-1");
+        map.put("managedLedgerOffloadBucket", "test bucket");
+        map.put("managedLedgerOffloadMaxBlockSizeInBytes", "1");
+        map.put("managedLedgerOffloadReadBufferSizeInBytes", "500");
+        map.put("managedLedgerOffloadServiceEndpoint", "http://some-url:9093");
         TieredStorageConfiguration config = new TieredStorageConfiguration(map);
         
         assertEquals(config.getRegion(), "us-east-1");
@@ -176,26 +207,5 @@ public class TieredStorageConfigurationTests {
         assertEquals(config.getBucket(), "test bucket");
         assertEquals(config.getMaxBlockSizeInBytes(), new Integer(12));
         assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
-    }
-    
-    /**
-     * Confirm that we can configure AWS using the old properties
-     */
-    @Test
-    public final void s3BackwardCompatiblePropertiesTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
-        map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
-        map.put(BC_S3_BUCKET, "test bucket");
-        map.put(BC_S3_ENDPOINT, "http://some-url:9093");
-        map.put(BC_S3_MAX_BLOCK_SIZE, "12");
-        map.put(BC_S3_READ_BUFFER_SIZE, "500");
-        map.put(BC_S3_REGION, "test region");
-        TieredStorageConfiguration config = new TieredStorageConfiguration(map);
-        
-        assertEquals(config.getRegion(), "test region");
-        assertEquals(config.getBucket(), "test bucket");
-        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(12));
-        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
-        assertEquals(config.getServiceEndpoint(), "http://some-url:9093");
     }
 }

@@ -18,10 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
-
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.lang.reflect.Field;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadFactory;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -33,16 +43,6 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ThreadFactory;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 /**
  * Unit Tests of {@link PartitionedProducerImpl}.
@@ -61,7 +61,7 @@ public class PartitionedProducerImplTest {
         client = mock(PulsarClientImpl.class);
         schema = mock(Schema.class);
         producerInterceptors = mock(ProducerInterceptors.class);
-        producerCreatedFuture = mock(CompletableFuture.class);
+        producerCreatedFuture = new CompletableFuture<>();
         ClientConfigurationData clientConfigurationData = mock(ClientConfigurationData.class);
         Timer timer = mock(Timer.class);
 
@@ -70,6 +70,13 @@ public class PartitionedProducerImplTest {
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.timer()).thenReturn(timer);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
+        when(client.newProducerImpl(anyString(), anyInt(), any(), any(), any(), any()))
+                .thenAnswer(invocationOnMock -> {
+            return new ProducerImpl<>(client, invocationOnMock.getArgument(0),
+                    invocationOnMock.getArgument(2), invocationOnMock.getArgument(5),
+                    invocationOnMock.getArgument(1), invocationOnMock.getArgument(3),
+                    invocationOnMock.getArgument(4));
+        });
     }
 
     @Test
