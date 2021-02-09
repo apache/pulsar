@@ -24,6 +24,7 @@ bool NamedEntity::checkName(const std::string& name) {
             case '=':
             case ':':
             case ' ':
+            case '!':
             case '\t':
             case '\r':
             case '\n':
