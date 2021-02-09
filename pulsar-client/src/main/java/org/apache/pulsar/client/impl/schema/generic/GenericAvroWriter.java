@@ -23,7 +23,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
@@ -33,17 +32,16 @@ import java.io.ByteArrayOutputStream;
 public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
 
     private final GenericDatumWriter<org.apache.avro.generic.GenericRecord> writer;
-    private BinaryEncoder encoder;
+    private final BinaryEncoder encoder;
     private final ByteArrayOutputStream byteArrayOutputStream;
-    private final Schema schema;
+
     private final GenericRecordAdapter adapter;
 
     public GenericAvroWriter(Schema schema) {
-        this.schema = schema;
         this.writer = new GenericDatumWriter<>(schema);
         this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
-        this.adapter = new GenericRecordAdapter();
+        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, null);
+        this.adapter = new GenericRecordAdapter(schema);
     }
 
     @Override
@@ -71,8 +69,12 @@ public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
     /**
      * This is an adapter from Pulsar GenericRecord to Avro classes.
      */
-    private class GenericRecordAdapter extends SpecificRecordBase {
+    private static class GenericRecordAdapter implements org.apache.avro.generic.GenericRecord {
         private GenericRecord message;
+        private final Schema schema;
+        GenericRecordAdapter (Schema schema) {
+            this.schema = schema;
+        }
 
         void setCurrentMessage(GenericRecord message) {
             this.message = message;
@@ -88,8 +90,20 @@ public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
         }
 
         @Override
+        public Object get(String key) {
+            return message.getField(key);
+        }
+
+        @Override
         public void put(int field, Object value) {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public void put(String key, Object v) {
+            throw new UnsupportedOperationException();
+        }
+
     }
+
 }
