@@ -245,6 +245,9 @@ public class ThreadRuntime implements Runtime {
 
     @Override
     public String getPrometheusMetrics() throws IOException {
+        if (javaInstanceRunnable == null) {
+            throw new RuntimeException("javaInstanceRunnable is not initialized");
+        }
         return javaInstanceRunnable.getStatsAsString();
     }
 
