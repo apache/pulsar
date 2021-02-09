@@ -151,7 +151,7 @@ dependencies {
 <tr><td>long</td><td><code>operationTimeoutMs</code></td><td>Operation timeout</td><td>30000</td></tr>
 <tr><td>long</td><td><code>statsIntervalSeconds</code></td><td>Interval between each stats info<br/><br/>Stats is activated with positive <code>statsInterval</code><br/><br/>Set <code>statsIntervalSeconds</code> to 1 second at least</td><td>60</td></tr>
 <tr><td>int</td><td><code>numIoThreads</code></td><td>The number of threads used for handling connections to brokers</td><td>1</td></tr>
-<tr><td>int</td><td><code>numListenerThreads</code></td><td>The number of threads used for handling message listeners</td><td>1</td></tr>
+<tr><td>int</td><td><code>numListenerThreads</code></td><td>The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the &quot;listener&quot; model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a <a href="https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared"><code>shared</code></a> subscription and multiple consumers for this subscription. This does not ensure ordering.</td><td>1</td></tr>
 <tr><td>boolean</td><td><code>useTcpNoDelay</code></td><td>Whether to use TCP no-delay flag on the connection to disable Nagle algorithm</td><td>true</td></tr>
 <tr><td>boolean</td><td><code>useTls</code></td><td>Whether to use TLS encryption on the connection</td><td>false</td></tr>
 <tr><td>string</td><td><code>tlsTrustCertsFilePath</code></td><td>Path to the trusted TLS certificate file</td><td>None</td></tr>
