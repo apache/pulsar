@@ -1603,6 +1603,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSubscriptionTypesEnabled() throws PulsarAdminException, PulsarClientException {
         conf.setTopicLevelPoliciesEnabled(false);
+        conf.setAuthenticationEnabled(false);
         String namespace = this.testTenant + "/namespace-" + System.nanoTime();
         String topic = namespace + "/test";
         admin.namespaces().createNamespace(namespace);
