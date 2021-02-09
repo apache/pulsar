@@ -170,8 +170,8 @@ public class Policies {
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
                     && Objects.equals(max_producers_per_topic, other.max_producers_per_topic)
                     && Objects.equals(max_consumers_per_topic, other.max_consumers_per_topic)
+                    && Objects.equals(max_unacked_messages_per_consumer, other.max_unacked_messages_per_consumer)
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
-                    && max_unacked_messages_per_consumer == other.max_unacked_messages_per_consumer
                     && max_unacked_messages_per_subscription == other.max_unacked_messages_per_subscription
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold

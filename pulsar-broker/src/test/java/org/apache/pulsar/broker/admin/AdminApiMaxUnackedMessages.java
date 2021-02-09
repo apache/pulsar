@@ -52,7 +52,7 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
     public void testMaxUnackedMessagesOnConsumers() throws Exception {
         admin.namespaces().createNamespace("max-unacked-messages/default-on-consumers");
         String namespace = "max-unacked-messages/default-on-consumers";
-        assertEquals(50000, admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
+        assertNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace));
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 2*50000);
         assertEquals(2*50000, admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
     }

@@ -2847,6 +2847,21 @@ public interface Namespaces {
     CompletableFuture<Void> setMaxUnackedMessagesPerConsumerAsync(String namespace, int maxUnackedMessagesPerConsumer);
 
     /**
+     * Remove maxUnackedMessagesPerConsumer for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesPerConsumer(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Remove maxUnackedMessagesPerConsumer for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesPerConsumerAsync(
+            String namespace);
+    /**
      * Get the maxUnackedMessagesPerSubscription for a namespace.
      * <p/>
      * Response example:
