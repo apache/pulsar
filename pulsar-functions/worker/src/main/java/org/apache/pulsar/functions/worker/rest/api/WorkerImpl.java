@@ -208,7 +208,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
         }
 
-        return this.worker().getConnectorsManager().getConnectors();
+        return this.worker().getConnectorsManager().getConnectorDefinitions();
     }
 
     public void rebalance(final URI uri, final String clientRole) {
