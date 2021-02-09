@@ -864,9 +864,13 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             Message<byte[]> message = getTopics().getMessageById(persistentTopic, ledgerId, entryId);
-
-            ByteBuf date = Unpooled.wrappedBuffer(message.getData());
-            System.out.println(ByteBufUtil.prettyHexDump(date));
+            if (message == null) {
+                System.out.println("Cannot find any messages based on ledgerId:"
+                        + ledgerId + " entryId:" + entryId);
+            } else {
+                ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+                System.out.println(ByteBufUtil.prettyHexDump(date));
+            }
         }
     }
 
