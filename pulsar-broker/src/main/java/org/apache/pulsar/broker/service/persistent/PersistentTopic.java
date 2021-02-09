@@ -2746,6 +2746,9 @@ public class PersistentTopic extends AbstractTopic
             if (topicPolicies == null) {
                 return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
             } else {
+                if (topicPolicies.getSubscriptionTypesEnabled().isEmpty()) {
+                    return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+                }
                 return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
             }
         } else {
