@@ -628,14 +628,25 @@ class SchemaTest(TestCase):
         class MapArray(Record):
             values = Map(Array(Integer()))
 
+        class MapMap(Record):
+            values = Map(Map(Integer()))
+
         class ArrayMap(Record):
             values = Array(Map(Integer()))
 
+        class ArrayArray(Record):
+            values = Array(Array(Integer()))
+
+        topic_prefix = "my-avro-map-array-topic-"
         data_list = (
-            ("my-avro-map-array-topic-0", AvroSchema(MapArray),
+            (topic_prefix + "0", AvroSchema(MapArray),
                 MapArray(values={"A": [1, 2], "B": [3]})),
-            ("my-avro-map-array-topic-1", AvroSchema(ArrayMap),
+            (topic_prefix + "1", AvroSchema(MapMap),
+                MapMap(values={"A": {"B": 2},})),
+            (topic_prefix + "2", AvroSchema(ArrayMap),
                 ArrayMap(values=[{"A": 1}, {"B": 2}, {"C": 3}])),
+            (topic_prefix + "3", AvroSchema(ArrayArray),
+                ArrayArray(values=[[1, 2, 3], [4]])),
         )
 
         client = pulsar.Client(self.serviceUrl)
