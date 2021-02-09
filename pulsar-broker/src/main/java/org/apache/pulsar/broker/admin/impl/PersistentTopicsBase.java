@@ -463,11 +463,21 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         try {
+            Optional<Topic> existedTopic = pulsar().getBrokerService().getTopicIfExists(topicName.toString()).get();
+            if (existedTopic.isPresent()) {
+                log.error("[{}] Topic {} already exists", clientAppId(), topicName);
+                throw new RestException(Status.CONFLICT, "This topic already exists");
+            }
+
             Topic createdTopic = getOrCreateTopic(topicName);
             log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), createdTopic);
         } catch (Exception e) {
-            log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
+            if (e instanceof RestException) {
+                throw (RestException) e;
+            } else {
+                log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
+                throw new RestException(e);
+            }
         }
     }
 
@@ -1139,14 +1149,15 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog) {
+    protected TopicStats internalGetStats(boolean authoritative, boolean getPreciseBacklog,
+                                          boolean subscriptionBacklogSize) {
         validateAdminAndClientPermission();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         validateTopicOwnership(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return topic.getStats(getPreciseBacklog);
+        return topic.getStats(getPreciseBacklog, subscriptionBacklogSize);
     }
 
     protected PersistentTopicInternalStats internalGetInternalStats(boolean authoritative, boolean metadata) {
@@ -1267,7 +1278,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative,
-            boolean perPartition, boolean getPreciseBacklog) {
+            boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
         if (topicName.isGlobal()) {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
@@ -1289,7 +1300,8 @@ public class PersistentTopicsBase extends AdminResource {
                 try {
                     topicStatsFutureList
                             .add(pulsar().getAdminClient().topics().getStatsAsync(
-                                    (topicName.getPartition(i).toString()), getPreciseBacklog));
+                                    (topicName.getPartition(i).toString()), getPreciseBacklog,
+                                    subscriptionBacklogSize));
                 } catch (PulsarServerException e) {
                     asyncResponse.resume(new RestException(e));
                     return;
@@ -2010,7 +2022,7 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
         }
-        final MessageIdImpl targetMessageId = messageId == null ? (MessageIdImpl) MessageId.earliest : messageId;
+        final MessageIdImpl targetMessageId = messageId == null ? (MessageIdImpl) MessageId.latest : messageId;
         log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), topicName, subscriptionName,
                 targetMessageId);
         // If the topic name is a partition name, no need to get partition topic metadata again

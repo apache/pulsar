@@ -725,7 +725,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
         cmdTopics.run(split("stats persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false, false);
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
@@ -734,7 +734,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
-        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false);
+        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false, false);
 
         cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");

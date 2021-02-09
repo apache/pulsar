@@ -90,6 +90,8 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
+import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
@@ -279,6 +281,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return op == MockZooKeeper.Op.GET_CHILDREN
                     && path.equals("/admin/policies/my-tenant");
             });
+        // clear caches to load data from metadata-store again
+        MetadataCacheImpl<TenantInfo> tenantCache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
+                .getTenatResources().getCache();
+        AbstractMetadataStore store = (AbstractMetadataStore) tenantCache.getStore();
+        tenantCache.invalidateAll();
+        store.invalidateAll();
         try {
             namespaces.getTenantNamespaces(this.testTenant);
             fail("should have failed");
@@ -525,17 +533,24 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockZooKeeperGlobal.unsetAlwaysFail();
         }
 
-        mockZooKeeperGlobal.failConditional(Code.BADVERSION, (op, path) -> {
+        // clear caches to load data from metadata-store again
+        MetadataCacheImpl<Policies> policiesCache = (MetadataCacheImpl<Policies>) pulsar.getPulsarResources()
+                .getNamespaceResources().getCache();
+        AbstractMetadataStore store = (AbstractMetadataStore) policiesCache.getStore();
+
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.SET
                     && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
             });
 
+        policiesCache.invalidateAll();
+        store.invalidateAll();
         try {
             namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
                     this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
             fail("should have failed");
         } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
+            assertEquals(e.getResponse().getStatus(), 500);
         }
 
         try {
@@ -560,6 +575,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         pulsar.getConfigurationCache().policiesCache().clear();
 
+        policiesCache.invalidateAll();
+        store.invalidateAll();
         // ensure the ZooKeeper read happens, bypassing the cache
         try {
             namespaces.getNamespaceReplicationClusters(this.testTenant, "global",

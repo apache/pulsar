@@ -621,10 +621,8 @@ public class PersistentTopic extends AbstractTopic
 
         if (replicatedSubscriptionState
                 && !brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
-            future.completeExceptionally(
-                    new NotAllowedException("Replicated Subscriptions is disabled by broker.")
-            );
-            return future;
+            log.warn("Replicated Subscription is disabled by broker.");
+            replicatedSubscriptionState = false;
         }
 
         if (subType == SubType.Key_Shared
@@ -1633,7 +1631,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public TopicStats getStats(boolean getPreciseBacklog) {
+    public TopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
 
         TopicStats stats = new TopicStats();
 
@@ -1658,7 +1656,7 @@ public class PersistentTopic extends AbstractTopic
         stats.waitingPublishers = getWaitingProducersCount();
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
+            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
