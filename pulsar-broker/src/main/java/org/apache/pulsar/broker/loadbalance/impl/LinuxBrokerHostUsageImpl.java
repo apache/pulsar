@@ -75,8 +75,6 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
         this.overrideBrokerNicSpeedGbps = overrideBrokerNicSpeedGbps;
-        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, 0,
-                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
 
         boolean isCGroupsEnabled = false;
         try {
@@ -84,9 +82,10 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         } catch (Exception e) {
             log.warn("Failed to check cgroup CPU usage file: {}", e.getMessage());
         }
-
         this.isCGroupsEnabled = isCGroupsEnabled;
-        calculateBrokerHostUsage();
+
+        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, 0,
+                hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
     @Override
