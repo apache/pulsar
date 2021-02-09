@@ -22,7 +22,6 @@
 
 DECLARE_LOG_OBJECT()
 
-
 #include "../lib/Future.h"
 #include "../lib/Utils.h"
 

@@ -251,9 +251,9 @@ ConsumerImplPtr PartitionedConsumerImpl::newInternalConsumer(unsigned int partit
                                                    internalListenerExecutor_, true, Partitioned);
 
     const auto shared_this = const_cast<PartitionedConsumerImpl*>(this)->shared_from_this();
-    consumer->getConsumerCreatedFuture().addListener(std::bind(
-        &PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_this, std::placeholders::_1,
-        std::placeholders::_2, partition));
+    consumer->getConsumerCreatedFuture().addListener(
+        std::bind(&PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_this,
+                  std::placeholders::_1, std::placeholders::_2, partition));
     consumer->setPartitionIndex(partition);
 
     LOG_DEBUG("Creating Consumer for single Partition - " << topicPartitionName << "SubName - "
