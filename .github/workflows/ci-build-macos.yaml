@@ -60,4 +60,4 @@ jobs:
           java-version: 1.8
 
       - name: build package
-        run: mvn clean install -DskipTests
+        run: mvn -B clean install -DskipTests

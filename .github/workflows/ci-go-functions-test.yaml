@@ -53,21 +53,13 @@ jobs:
           fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
-
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: steps.docs.outputs.changed_only == 'no'
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: Run tests
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
           go test -v $(go list ./... | grep -v examples)
