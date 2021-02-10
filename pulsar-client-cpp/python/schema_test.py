@@ -660,7 +660,6 @@ class SchemaTest(TestCase):
 
             producer.send(record)
             msg = consumer.receive()
-            print("Receive {} from {}", msg.value().values, msg.topic_name())
             self.assertEqual(msg.value().values, record.values)
             consumer.acknowledge(msg)
             consumer.close()
