@@ -153,6 +153,7 @@
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
+                  <include>org.apache.bookkeeper:bookkeeper-common</include>
                   <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
                   <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
@@ -313,6 +314,10 @@
                 <relocation>
                   <pattern>org.tukaani</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.bookkeeper</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>
