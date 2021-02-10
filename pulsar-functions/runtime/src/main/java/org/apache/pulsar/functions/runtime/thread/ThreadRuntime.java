@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -174,6 +175,9 @@ public class ThreadRuntime implements Runtime {
 
     @Override
     public String getPrometheusMetrics() throws IOException {
+        if (javaInstanceRunnable == null) {
+            throw new PulsarServerException("javaInstanceRunnable is not initialized");
+        }
         return javaInstanceRunnable.getStatsAsString();
     }
 
