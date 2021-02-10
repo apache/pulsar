@@ -483,4 +483,26 @@ public class FunctionCommon {
     public static String capFirstLetter(Enum en) {
         return StringUtils.capitalize(en.toString().toLowerCase());
     }
+
+    public static boolean isFunctionCodeBuiltin(org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails) {
+        if (functionDetails.hasSource()) {
+            org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = functionDetails.getSource();
+            if (!isEmpty(sourceSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        if (functionDetails.hasSink()) {
+            org.apache.pulsar.functions.proto.Function.SinkSpec sinkSpec = functionDetails.getSink();
+            if (!isEmpty(sinkSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        if (!isEmpty(functionDetails.getBuiltin())) {
+            return true;
+        }
+
+        return false;
+    }
 }
