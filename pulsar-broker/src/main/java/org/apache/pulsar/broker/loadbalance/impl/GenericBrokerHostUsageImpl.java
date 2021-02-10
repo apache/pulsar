@@ -66,11 +66,9 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
         return usage;
     }
 
-    private void checkCpuLoad() {
-        synchronized (this) {
-            cpuUsageSum += systemBean.getSystemCpuLoad();
-            cpuUsageCount++;
-        }
+    private synchronized void checkCpuLoad() {
+        cpuUsageSum += systemBean.getSystemCpuLoad();
+        cpuUsageCount++;
     }
 
     @Override
@@ -91,19 +89,17 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
         return 100 * Runtime.getRuntime().availableProcessors();
     }
 
-    private double getTotalCpuUsage() {
-        synchronized (this) {
-            double cpuUsage = cpuUsageSum / cpuUsageCount;
-            cpuUsageSum = 0d;
-            this.cpuUsageCount = 0;
-            return cpuUsage;
+    private synchronized double getTotalCpuUsage() {
+        if (cpuUsageCount == 0) {
+            return 0;
         }
+        double cpuUsage = cpuUsageSum / cpuUsageCount;
+        cpuUsageSum = 0d;
+        cpuUsageCount = 0;
+        return cpuUsage;
     }
 
     private ResourceUsage getCpuUsage() {
-        if (cpuUsageCount == 0) {
-            return new ResourceUsage(0, totalCpuLimit);
-        }
         return new ResourceUsage(getTotalCpuUsage() * totalCpuLimit, totalCpuLimit);
     }
 
