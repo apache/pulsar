@@ -109,6 +109,9 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
+    // pointer to the exclusive producer
+    private volatile Producer exclusiveProducer;
+
     private final Queue<Pair<Producer, CompletableFuture<Optional<Long>>>> waitingExclusiveProducers =
             new ConcurrentLinkedQueue<>();
 
@@ -382,8 +385,8 @@ public abstract class AbstractTopic implements Topic {
             switch (producer.getAccessMode()) {
             case Shared:
                 if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
-                    return FutureUtil.failedFuture(new ProducerBusyException(
-                            "Topic has an existing exclusive producer: " + producers.keys().nextElement()));
+                    return FutureUtil.failedFuture(
+                            new ProducerFencedException("Topic has an existing exclusive producer: " + exclusiveProducer));
                 } else {
                     // Normal producer getting added, we don't need a new epoch
                     return CompletableFuture.completedFuture(topicEpoch);
@@ -391,8 +394,8 @@ public abstract class AbstractTopic implements Topic {
 
             case Exclusive:
                 if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
-                    return FutureUtil.failedFuture(new ProducerFencedException(
-                            "Topic has an existing exclusive producer: " + producers.keys().nextElement()));
+                    return FutureUtil.failedFuture(
+                            new ProducerFencedException("Topic has an existing exclusive producer: " + exclusiveProducer));
                 } else if (!producers.isEmpty()) {
                     return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing shared producers"));
                 } else if (producer.getTopicEpoch().isPresent()
@@ -405,6 +408,7 @@ public abstract class AbstractTopic implements Topic {
                 } else {
                     // There are currently no existing producers
                     hasExclusiveProducer = true;
+                    exclusiveProducer = producer;
 
                     CompletableFuture<Long> future;
                     if (producer.getTopicEpoch().isPresent()) {
@@ -414,6 +418,7 @@ public abstract class AbstractTopic implements Topic {
                     }
                     future.exceptionally(ex -> {
                         hasExclusiveProducer = false;
+                        exclusiveProducer = null;
                         return null;
                     });
 
@@ -440,6 +445,7 @@ public abstract class AbstractTopic implements Topic {
                 } else {
                     // There are currently no existing producers
                     hasExclusiveProducer = true;
+                    exclusiveProducer = producer;
 
                     CompletableFuture<Long> future;
                     if (producer.getTopicEpoch().isPresent()) {
@@ -449,6 +455,7 @@ public abstract class AbstractTopic implements Topic {
                     }
                     future.exceptionally(ex -> {
                         hasExclusiveProducer = false;
+                        exclusiveProducer = null;
                         return null;
                     });
 
@@ -464,6 +471,9 @@ public abstract class AbstractTopic implements Topic {
                         new BrokerServiceException("Invalid producer access mode: " + producer.getAccessMode()));
             }
 
+        } catch (Exception e) {
+            log.error("Encountered unexpected error during exclusive producer creation", e);
+            return FutureUtil.failedFuture(new BrokerServiceException(e));
         } finally {
             lock.writeLock().unlock();
         }
@@ -619,17 +629,21 @@ public abstract class AbstractTopic implements Topic {
 
     protected void handleProducerRemoved(Producer producer) {
         // decrement usage only if this was a valid producer close
-        long newCount = USAGE_COUNT_UPDATER.decrementAndGet(this);
-        if (newCount == 0) {
+        USAGE_COUNT_UPDATER.decrementAndGet(this);
+        // this conditional check is an optimization so we don't have acquire the write lock
+        // and execute following routine if there are no exclusive producers
+        if (hasExclusiveProducer) {
             lock.writeLock().lock();
             try {
                 hasExclusiveProducer = false;
+                exclusiveProducer = null;
                 Pair<Producer, CompletableFuture<Optional<Long>>> nextWaitingProducer =
                         waitingExclusiveProducers.poll();
                 if (nextWaitingProducer != null) {
                     Producer nextProducer = nextWaitingProducer.getKey();
                     CompletableFuture<Optional<Long>> producerFuture = nextWaitingProducer.getValue();
                     hasExclusiveProducer = true;
+                    exclusiveProducer = nextProducer;
 
                     CompletableFuture<Long> future;
                     if (nextProducer.getTopicEpoch().isPresent()) {
@@ -643,6 +657,7 @@ public abstract class AbstractTopic implements Topic {
                         producerFuture.complete(topicEpoch);
                     }).exceptionally(ex -> {
                         hasExclusiveProducer = false;
+                        exclusiveProducer = null;
                         producerFuture.completeExceptionally(ex);
                         return null;
                     });
