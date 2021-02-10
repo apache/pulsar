@@ -16,16 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef _PULSAR_NAMED_ENTITY_HEADER_
-#define _PULSAR_NAMED_ENTITY_HEADER_
+#pragma once
 
-#include <boost/regex.hpp>
+#include <string>
 
 class NamedEntity {
-   private:
-    static const boost::regex pattern;
-
    public:
     static bool checkName(const std::string& name);
 };
-#endif
