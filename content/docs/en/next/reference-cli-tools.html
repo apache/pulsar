@@ -341,6 +341,10 @@
 <tr><td><code>-m</code>, <code>--messages</code></td><td>Comma-separated string of messages to send; either -m or -f must be specified</td><td>[]</td></tr>
 <tr><td><code>-n</code>, <code>--num-produce</code></td><td>The number of times to send the message(s); the count of messages/files * num-produce should be below 1000</td><td>1</td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible</td><td>0.0</td></tr>
+<tr><td><code>-c</code>, <code>--chunking</code></td><td>Split the message and publish in chunks if the message size is larger than the allowed max size</td><td>false</td></tr>
+<tr><td><code>-s</code>, <code>--separator</code></td><td>Character to split messages string with.</td><td>&quot;,&quot;</td></tr>
+<tr><td><code>-k</code>, <code>--key</code></td><td>Message key to add</td><td>key=value string, like k1=v1,k2=v2.</td></tr>
+<tr><td><code>-p</code>, <code>--properties</code></td><td>Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. <code>k1=v1,k2=v2</code>.</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consume"></a><a href="#consume" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>consume</code></h3>
@@ -361,6 +365,10 @@
 <tr><td><code>-s</code>, <code>--subscription-name</code></td><td>Subscription name</td><td></td></tr>
 <tr><td><code>-t</code>, <code>--subscription-type</code></td><td>The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.</td><td>Exclusive</td></tr>
 <tr><td><code>-p</code>, <code>--subscription-position</code></td><td>The position of the subscription. Possible values: Latest, Earliest.</td><td>Latest</td></tr>
+<tr><td><code>-m</code>, <code>--subscription-mode</code></td><td>Subscription mode.</td><td>Durable</td></tr>
+<tr><td><code>-q</code>, <code>--queue-size</code></td><td>The size of consumer's receiver queue.</td><td>0</td></tr>
+<tr><td><code>-mc</code>, <code>--max_chunked_msg</code></td><td>Max pending chunk messages.</td><td>0</td></tr>
+<tr><td><code>-ac</code>, <code>--auto_ack_chunk_q_full</code></td><td>Auto ack for the oldest message in consumer's receiver queue if the queue full.</td><td>false</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-daemon"></a><a href="#pulsar-daemon" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-daemon</code></h2>

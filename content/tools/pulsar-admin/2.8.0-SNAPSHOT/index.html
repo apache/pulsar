@@ -6255,13 +6255,23 @@
 </thead>
 <tbody>
 <tr>
+<td><code>-e, --exclude-reset-position</code></td>
+<td>Exclude the reset position, start consume messages from the next position.</td>
+<td>false</td>
+</tr>
+<tr>
 <td><code>-t, --expireTime</code></td>
 <td>Expire messages older than time in seconds</td>
-<td>0</td>
+<td>-1</td>
 </tr>
 <tr>
 <td><code>-s, --subscription</code></td>
 <td>Subscription to be skip messages on</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--position, -p</code></td>
+<td>message position to reset back to (ledgerId:entryId)</td>
 <td>null</td>
 </tr>
 </tbody>
