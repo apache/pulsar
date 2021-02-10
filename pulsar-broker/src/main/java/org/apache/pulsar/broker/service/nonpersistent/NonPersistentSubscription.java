@@ -431,6 +431,12 @@ public class NonPersistentSubscription implements Subscription {
         // No-op
     }
 
+    @Override
+    public void expireMessages(Position position) {
+        throw new UnsupportedOperationException("Expire message by position is not supported for"
+                + " non-persistent topic.");
+    }
+
     public NonPersistentSubscriptionStats getStats() {
         NonPersistentSubscriptionStats subStats = new NonPersistentSubscriptionStats();
 
