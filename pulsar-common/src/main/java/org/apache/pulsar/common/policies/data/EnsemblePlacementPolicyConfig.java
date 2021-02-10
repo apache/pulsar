@@ -69,11 +69,25 @@ public class EnsemblePlacementPolicyConfig {
         return false;
     }
 
-    public byte[] encode() throws JsonProcessingException {
-        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(this).getBytes(StandardCharsets.UTF_8);
+    public byte[] encode() throws ParseEnsemblePlacementPolicyConfigException {
+        try {
+            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(this).getBytes(StandardCharsets.UTF_8);
+        } catch (JsonProcessingException e) {
+            throw new ParseEnsemblePlacementPolicyConfigException("Failed to encode to json", e);
+        }
     }
 
-    public static EnsemblePlacementPolicyConfig decode(byte[] data) throws JsonProcessingException {
-        return mapper.readValue(new String(data, StandardCharsets.UTF_8), EnsemblePlacementPolicyConfig.class);
+    public static EnsemblePlacementPolicyConfig decode(byte[] data) throws ParseEnsemblePlacementPolicyConfigException {
+        try {
+            return mapper.readValue(new String(data, StandardCharsets.UTF_8), EnsemblePlacementPolicyConfig.class);
+        } catch (JsonProcessingException e) {
+            throw new ParseEnsemblePlacementPolicyConfigException("Failed to decode from json", e);
+        }
+    }
+
+    public static class ParseEnsemblePlacementPolicyConfigException extends Exception {
+        ParseEnsemblePlacementPolicyConfigException(String message, Throwable throwable) {
+            super(message, throwable);
+        }
     }
 }
