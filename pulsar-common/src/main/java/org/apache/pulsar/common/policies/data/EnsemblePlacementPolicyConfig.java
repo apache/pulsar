@@ -19,8 +19,8 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Objects;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -30,8 +30,6 @@ public class EnsemblePlacementPolicyConfig {
     public static final String ENSEMBLE_PLACEMENT_POLICY_CONFIG = "EnsemblePlacementPolicyConfig";
     private final Class policyClass;
     private final Map<String, Object> properties;
-
-    private static ObjectMapper mapper = new ObjectMapper();
 
     // Add a default constructor for decode data from bytes to construct this.
     private EnsemblePlacementPolicyConfig() {
@@ -71,7 +69,10 @@ public class EnsemblePlacementPolicyConfig {
 
     public byte[] encode() throws ParseEnsemblePlacementPolicyConfigException {
         try {
-            return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(this).getBytes(StandardCharsets.UTF_8);
+            return ObjectMapperFactory.getThreadLocal()
+                .writerWithDefaultPrettyPrinter()
+                .writeValueAsString(this)
+                .getBytes(StandardCharsets.UTF_8);
         } catch (JsonProcessingException e) {
             throw new ParseEnsemblePlacementPolicyConfigException("Failed to encode to json", e);
         }
@@ -79,7 +80,8 @@ public class EnsemblePlacementPolicyConfig {
 
     public static EnsemblePlacementPolicyConfig decode(byte[] data) throws ParseEnsemblePlacementPolicyConfigException {
         try {
-            return mapper.readValue(new String(data, StandardCharsets.UTF_8), EnsemblePlacementPolicyConfig.class);
+            return ObjectMapperFactory.getThreadLocal()
+                .readValue(new String(data, StandardCharsets.UTF_8), EnsemblePlacementPolicyConfig.class);
         } catch (JsonProcessingException e) {
             throw new ParseEnsemblePlacementPolicyConfigException("Failed to decode from json", e);
         }
