@@ -1169,7 +1169,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             schemaVersionFuture.exceptionally(exception -> {
                                 String message = exception.getMessage();
                                 if (exception.getCause() != null) {
-                                    message += (" caused by " + exception.getCause().toString());
+                                    message += (" caused by " + exception.getCause());
                                 }
                                 commandSender.sendErrorResponse(requestId,
                                         BrokerServiceException.getClientErrorCode(exception),
@@ -1733,7 +1733,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
                     String message = ex.getMessage();
                     if (ex.getCause() != null) {
-                        message += (" caused by " + ex.getCause().toString());
+                        message += (" caused by " + ex.getCause());
                     }
                     commandSender.sendGetOrCreateSchemaErrorResponse(requestId, errorCode, message);
                     return null;
