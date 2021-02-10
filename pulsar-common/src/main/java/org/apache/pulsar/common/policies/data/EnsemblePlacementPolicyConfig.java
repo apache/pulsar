@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Objects;
-import org.apache.bookkeeper.common.util.JsonUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -29,6 +30,8 @@ public class EnsemblePlacementPolicyConfig {
     public static final String ENSEMBLE_PLACEMENT_POLICY_CONFIG = "EnsemblePlacementPolicyConfig";
     private final Class policyClass;
     private final Map<String, Object> properties;
+
+    private static ObjectMapper mapper = new ObjectMapper();
 
     // Add a default constructor for decode data from bytes to construct this.
     private EnsemblePlacementPolicyConfig() {
@@ -66,11 +69,11 @@ public class EnsemblePlacementPolicyConfig {
         return false;
     }
 
-    public byte[] encode() throws JsonUtil.ParseJsonException {
-        return JsonUtil.toJson(this).getBytes(StandardCharsets.UTF_8);
+    public byte[] encode() throws JsonProcessingException {
+        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(this).getBytes(StandardCharsets.UTF_8);
     }
 
-    public static EnsemblePlacementPolicyConfig decode(byte[] data) throws JsonUtil.ParseJsonException {
-        return JsonUtil.fromJson(new String(data, StandardCharsets.UTF_8), EnsemblePlacementPolicyConfig.class);
+    public static EnsemblePlacementPolicyConfig decode(byte[] data) throws JsonProcessingException {
+        return mapper.readValue(new String(data, StandardCharsets.UTF_8), EnsemblePlacementPolicyConfig.class);
     }
 }
