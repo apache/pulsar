@@ -314,10 +314,6 @@
                   <pattern>org.tukaani</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
                 </relocation>
-                <relocation>
-                  <pattern>org.apache.bookkeeper</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
-                </relocation>
               </relocations>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
