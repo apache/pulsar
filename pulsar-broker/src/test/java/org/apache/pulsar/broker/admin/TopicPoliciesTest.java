@@ -1620,6 +1620,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
         pulsarClient.newConsumer().topic(topic)
                 .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe().close();
+
+        // test namespace and topic policy
+        subscriptionTypeSet.add(SubscriptionType.Shared);
+        admin.namespaces().setSubscriptionTypesEnabled(myNamespace, subscriptionTypeSet);
+
+        subscriptionTypeSet.clear();
+        subscriptionTypeSet.add(SubscriptionType.Failover);
+        admin.topics().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
+
+        try {
+            pulsarClient.newConsumer().topic(topic)
+                    .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
     }
 
 }
