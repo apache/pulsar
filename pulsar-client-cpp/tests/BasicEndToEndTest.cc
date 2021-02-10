@@ -1285,7 +1285,6 @@ TEST(BasicEndToEndTest, testRSAEncryption) {
     ClientConfiguration config;
     Client client(lookupUrl);
     std::string topicNames[] = {"my-rsaenctopic", "persistent://public/default-4/my-rsaenctopic"};
-    //    std::string topicOfEncryptionRequired = "persistent://public/default-4/" + topicName;
     std::string subName = "my-sub-name";
     Producer producer;
 
