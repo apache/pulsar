@@ -16,11 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#pragma once
+package org.apache.pulsar.metadata.api.extended;
 
-#include <string>
+/**
+ * An event regarding a session of MetadataStore
+ */
+public enum SessionEvent {
 
-class NamedEntity {
-   public:
-    static bool checkName(const std::string& name);
-};
+    /**
+     * The client is temporarily disconnected, although the session is still valid
+     */
+    ConnectionLost,
+
+    /**
+     * The client was able to successfully reconnect
+     */
+    Reconnected,
+
+    /**
+     * The session was lost, all the ephemeral keys created on the store within the current session might have been
+     * already expired.
+     */
+    SessionLost,
+
+    /**
+     * The session was established
+     */
+    SessionReestablished,
+}

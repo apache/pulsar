@@ -207,7 +207,6 @@ This package is statically linked with libraries with the following licenses:
 
 MIT:
  * Boost https://www.boost.org -- LICENSE-boost.txt
- * JsonCpp -- https://github.com/open-source-parsers/jsoncpp -- LICENSE-jsoncpp.txt
  * Libcurl -- https://curl.haxx.se -- LICENSE-libcurl.txt
 
 ZLib -- ZLib license -- LICENSE-zlib.txt
