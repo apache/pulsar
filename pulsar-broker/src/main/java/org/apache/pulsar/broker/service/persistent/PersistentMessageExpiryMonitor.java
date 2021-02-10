@@ -28,6 +28,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.stats.Rate;
@@ -91,6 +92,32 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
             }
         }
     }
+
+    public void expireMessages(Position messagePosition) {
+        // If it's beyond last position of this topic, do nothing.
+        if (((PositionImpl) subscription.getTopic().getLastPosition()).compareTo((PositionImpl) messagePosition) < 0) {
+            return;
+        }
+        if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
+            log.info("[{}][{}] Starting message expiry check, position= {} seconds", topicName, subName,
+                    messagePosition);
+
+            cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
+                try {
+                    // If given position larger than entry position.
+                    return ((PositionImpl) entry.getPosition()).compareTo((PositionImpl) messagePosition) <= 0;
+                } finally {
+                    entry.release();
+                }
+            }, this, null);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Ignore expire-message scheduled task, last check is still running", topicName,
+                        subName);
+            }
+        }
+    }
+
 
     public void updateRates() {
         msgExpired.calculateRate();

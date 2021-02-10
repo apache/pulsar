@@ -712,6 +712,18 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         }
     }
 
+    public void expireMessages(Position position) {
+        if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
+                || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+                && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
+            // don't do anything for almost caught-up connected subscriptions
+            return;
+        }
+        if (expiryMonitor != null) {
+            expiryMonitor.expireMessages(messageTTLInSeconds);
+        }
+    }
+
     @Override
     public Optional<DispatchRateLimiter> getRateLimiter() {
         return dispatchRateLimiter;

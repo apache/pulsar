@@ -86,6 +86,8 @@ public interface Subscription {
 
     void expireMessages(int messageTTLInSeconds);
 
+    void expireMessages(Position position);
+
     void redeliverUnacknowledgedMessages(Consumer consumer);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
