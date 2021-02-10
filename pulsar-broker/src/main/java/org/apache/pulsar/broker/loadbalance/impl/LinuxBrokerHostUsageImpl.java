@@ -84,7 +84,9 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         }
         this.isCGroupsEnabled = isCGroupsEnabled;
 
-        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, 0,
+        // Call now to initialize values before the constructor returns
+        calculateBrokerHostUsage();
+        executorService.scheduleAtFixedRate(this::calculateBrokerHostUsage, hostUsageCheckIntervalMin,
                 hostUsageCheckIntervalMin, TimeUnit.MINUTES);
     }
 
