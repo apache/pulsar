@@ -395,7 +395,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Properties properties = new Properties();
 
     public boolean getTlsEnabled() {
-    	return tlsEnabled || workerPortTls != null;
+    	return tlsEnabled && workerPortTls != null;
     }
 
     /******** security settings for pulsar broker client **********/
@@ -530,6 +530,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public String getWorkerWebAddress() {
         return String.format("http://%s:%d", this.getWorkerHostname(), this.getWorkerPort());
+    }
+
+    public String getWorkerWebAddressTls() {
+        return String.format("https://%s:%d", this.getWorkerHostname(), this.getWorkerPortTls());
     }
 
     public static String unsafeLocalhostResolve() {
