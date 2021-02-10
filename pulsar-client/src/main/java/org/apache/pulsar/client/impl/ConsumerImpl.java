@@ -35,7 +35,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1703,7 +1702,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(messageId);
         }
         CompletableFuture<Boolean> result = new CompletableFuture<>();
-        result.complete(false);
         if (deadLetterMessages != null) {
             initDeadLetterProducerIfNeeded();
             List<MessageImpl<T>> finalDeadLetterMessages = deadLetterMessages;
@@ -1725,15 +1723,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     }
                                 });
                             }).exceptionally(ex -> {
-                        log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
-                                topicName, subscription, consumerName, finalMessageId, ex);
-                        return null;
+                                log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                                        topicName, subscription, consumerName, finalMessageId, ex);
+                                result.complete(false);
+                                return null;
                     });
                 }
             }).exceptionally(ex -> {
                 deadLetterProducer = null;
+                result.complete(false);
                 return null;
             });
+        } else {
+            result.complete(false);
         }
         return result;
     }
