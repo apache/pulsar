@@ -204,8 +204,6 @@ public class PulsarFunctionTlsTest {
         }
         leaderPulsar = pulsarServices[0];
         leaderAdmin = pulsarAdmins[0];
-        Thread.sleep(1000);
-
 
         TenantInfo tenantInfo = new TenantInfo();
         tenantInfo.setAllowedClusters(Sets.newHashSet(testCluster));

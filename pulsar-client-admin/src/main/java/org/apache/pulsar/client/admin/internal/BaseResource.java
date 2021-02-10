@@ -204,7 +204,8 @@ public abstract class BaseResource {
             if (e instanceof ServerErrorException) {
                 ServerErrorException see = (ServerErrorException) e;
                 if (((ServerErrorException) e).getResponse().hasEntity()) {
-                    return new ServerSideErrorException(see, e.getMessage() + ((ServerErrorException) e).getResponse().getEntity().toString());
+                    return new ServerSideErrorException(see, e.getMessage()
+                        + ((ServerErrorException) e).getResponse().getEntity().toString());
                 }
                 return new ServerSideErrorException(see, e.getMessage());
             } else if (e instanceof ClientErrorException) {
