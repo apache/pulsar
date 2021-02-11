@@ -110,7 +110,7 @@ public abstract class AbstractTopic implements Topic {
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
     // pointer to the exclusive producer
-    private volatile Producer exclusiveProducer;
+    private volatile String exclusiveProducerName;
 
     private final Queue<Pair<Producer, CompletableFuture<Optional<Long>>>> waitingExclusiveProducers =
             new ConcurrentLinkedQueue<>();
@@ -386,7 +386,7 @@ public abstract class AbstractTopic implements Topic {
             case Shared:
                 if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
                     return FutureUtil.failedFuture(
-                            new ProducerBusyException("Topic has an existing exclusive producer: " + exclusiveProducer));
+                            new ProducerBusyException("Topic has an existing exclusive producer: " + exclusiveProducerName));
                 } else {
                     // Normal producer getting added, we don't need a new epoch
                     return CompletableFuture.completedFuture(topicEpoch);
@@ -395,7 +395,7 @@ public abstract class AbstractTopic implements Topic {
             case Exclusive:
                 if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
                     return FutureUtil.failedFuture(
-                            new ProducerFencedException("Topic has an existing exclusive producer: " + exclusiveProducer));
+                            new ProducerFencedException("Topic has an existing exclusive producer: " + exclusiveProducerName));
                 } else if (!producers.isEmpty()) {
                     return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing shared producers"));
                 } else if (producer.getTopicEpoch().isPresent()
@@ -408,7 +408,7 @@ public abstract class AbstractTopic implements Topic {
                 } else {
                     // There are currently no existing producers
                     hasExclusiveProducer = true;
-                    exclusiveProducer = producer;
+                    exclusiveProducerName = producer.getProducerName();
 
                     CompletableFuture<Long> future;
                     if (producer.getTopicEpoch().isPresent()) {
@@ -418,7 +418,7 @@ public abstract class AbstractTopic implements Topic {
                     }
                     future.exceptionally(ex -> {
                         hasExclusiveProducer = false;
-                        exclusiveProducer = null;
+                        exclusiveProducerName = null;
                         return null;
                     });
 
@@ -445,7 +445,7 @@ public abstract class AbstractTopic implements Topic {
                 } else {
                     // There are currently no existing producers
                     hasExclusiveProducer = true;
-                    exclusiveProducer = producer;
+                    exclusiveProducerName = producer.getProducerName();
 
                     CompletableFuture<Long> future;
                     if (producer.getTopicEpoch().isPresent()) {
@@ -455,7 +455,7 @@ public abstract class AbstractTopic implements Topic {
                     }
                     future.exceptionally(ex -> {
                         hasExclusiveProducer = false;
-                        exclusiveProducer = null;
+                        exclusiveProducerName = null;
                         return null;
                     });
 
@@ -636,14 +636,14 @@ public abstract class AbstractTopic implements Topic {
             lock.writeLock().lock();
             try {
                 hasExclusiveProducer = false;
-                exclusiveProducer = null;
+                exclusiveProducerName = null;
                 Pair<Producer, CompletableFuture<Optional<Long>>> nextWaitingProducer =
                         waitingExclusiveProducers.poll();
                 if (nextWaitingProducer != null) {
                     Producer nextProducer = nextWaitingProducer.getKey();
                     CompletableFuture<Optional<Long>> producerFuture = nextWaitingProducer.getValue();
                     hasExclusiveProducer = true;
-                    exclusiveProducer = nextProducer;
+                    exclusiveProducerName = nextProducer.getProducerName();
 
                     CompletableFuture<Long> future;
                     if (nextProducer.getTopicEpoch().isPresent()) {
@@ -657,7 +657,7 @@ public abstract class AbstractTopic implements Topic {
                         producerFuture.complete(topicEpoch);
                     }).exceptionally(ex -> {
                         hasExclusiveProducer = false;
-                        exclusiveProducer = null;
+                        exclusiveProducerName = null;
                         producerFuture.completeExceptionally(ex);
                         return null;
                     });
