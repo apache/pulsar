@@ -29,7 +29,7 @@ RUN chmod -R g=u /connectors /offloaders
 
 FROM apachepulsar/pulsar:latest
 
-# Need permission to create directories and update file permiassions
+# Need permission to create directories and update file permissions
 USER root
 
 RUN mkdir /pulsar/connectors /pulsar/offloaders && \
