@@ -122,9 +122,8 @@ public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType, Puls
             LOG.info("Starting kafka source on {}", kafkaSourceConfig.getTopic());
             consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
-            ConsumerRecords<String, KafkaValueType> consumerRecords;
             while (running) {
-                consumerRecords = consumer.poll(1000);
+                ConsumerRecords<String, KafkaValueType> consumerRecords = consumer.poll(1000);
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
                 for (ConsumerRecord<String, KafkaValueType> consumerRecord : consumerRecords) {

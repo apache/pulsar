@@ -189,7 +189,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         return kafkaContainerName +":2181";
     }
 
-    private <T extends GenericContainer> void testSource()  throws Exception {
+    private void testSource()  throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "test-source-connector-"
