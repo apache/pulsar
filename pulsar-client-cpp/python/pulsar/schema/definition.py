@@ -355,7 +355,8 @@ class Map(Field):
         super(Map, self).validate_type(name, val)
 
         for k, v in val.items():
-            if type(k) != str:
+            # Make it compatible with Python2, where key may be `unicode` type
+            if type(k) != str and type(k.encode()) != str:
                 raise TypeError('Map keys for field ' + name + '  should all be strings')
             if type(v) != self.value_type.python_type():
                 raise TypeError('Map values for field ' + name + ' should all be of type '
