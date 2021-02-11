@@ -46,6 +46,10 @@ endif()
 
 # Try all possible boost-python variable namings
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY}
+                        ${Boost_PYTHON-PY35_LIBRARY}
+                        ${Boost_PYTHON-PY36_LIBRARY}
+                        ${Boost_PYTHON-PY37_LIBRARY}
+                        ${Boost_PYTHON-PY38_LIBRARY}
                         ${Boost_PYTHON37-MT_LIBRARY}
                         ${Boost_PYTHON34_LIBRARY} ${Boost_PYTHON35_LIBRARY}
                         ${Boost_PYTHON36_LIBRARY} ${Boost_PYTHON38_LIBRARY})
