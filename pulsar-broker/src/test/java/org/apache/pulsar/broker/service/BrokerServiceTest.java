@@ -1005,4 +1005,33 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
         Assert.assertTrue(sb.toString().contains("test_metrics"));
     }
+
+    @Test(timeOut = 20000L)
+    public void shouldNotPreventCreatingTopicWhenNonexistingTopicIsCached() throws Exception {
+        // run multiple iterations to increase the chance of reproducing a race condition in the topic cache
+        for (int i = 0; i < 100; i++) {
+            final String topicName = "persistent://prop/ns-abc/topic-caching-test-topic" + i;
+            CountDownLatch latch = new CountDownLatch(1);
+            Thread getStatsThread = new Thread(() -> {
+                try {
+                    latch.countDown();
+                    // create race condition with a short delay
+                    // the bug might not reproduce in all environments, this works at least on i7-10750H CPU
+                    Thread.sleep(1);
+                    admin.topics().getStats(topicName);
+                    fail("The topic should not exist yet.");
+                } catch (PulsarAdminException.NotFoundException e) {
+                    // expected exception
+                } catch (PulsarAdminException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            });
+            getStatsThread.start();
+            latch.await();
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+            assertNotNull(producer);
+            getStatsThread.join();
+        }
+    }
 }
