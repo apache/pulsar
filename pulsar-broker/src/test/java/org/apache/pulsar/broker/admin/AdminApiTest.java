@@ -2129,7 +2129,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(subStats3.msgBacklog, 10);
         assertEquals(subStats3.lastMarkDeleteAdvancedTimestamp, 0L);
 
-        admin.topics().expireMessagesForAllSubscriptions("persistent://prop-xyz/ns1/ds2", 1);
+        try {
+            admin.topics().expireMessagesForAllSubscriptions("persistent://prop-xyz/ns1/ds2", 1);
+        } catch (Exception e) {
+            // my-sub1 has no msg backlog, so expire message won't be issued on that subscription
+            assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
+        }
         // Wait at most 2 seconds for sub3's message to expire.
         Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
                 admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub3").lastMarkDeleteAdvancedTimestamp > 0L));
