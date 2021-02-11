@@ -386,7 +386,8 @@ public abstract class AbstractTopic implements Topic {
             case Shared:
                 if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
                     return FutureUtil.failedFuture(
-                            new ProducerBusyException("Topic has an existing exclusive producer: " + exclusiveProducerName));
+                            new ProducerBusyException(
+                                    "Topic has an existing exclusive producer: " + exclusiveProducerName));
                 } else {
                     // Normal producer getting added, we don't need a new epoch
                     return CompletableFuture.completedFuture(topicEpoch);
@@ -395,7 +396,8 @@ public abstract class AbstractTopic implements Topic {
             case Exclusive:
                 if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
                     return FutureUtil.failedFuture(
-                            new ProducerFencedException("Topic has an existing exclusive producer: " + exclusiveProducerName));
+                            new ProducerFencedException(
+                                    "Topic has an existing exclusive producer: " + exclusiveProducerName));
                 } else if (!producers.isEmpty()) {
                     return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing shared producers"));
                 } else if (producer.getTopicEpoch().isPresent()
