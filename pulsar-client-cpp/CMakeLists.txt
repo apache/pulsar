@@ -159,11 +159,7 @@ endif (LINK_STATIC)
 
 find_package(Boost)
 
-# Different versions of CMake are using different namings for the Boost variables
-if ( (Boost_MAJOR_VERSION EQUAL 1 AND Boost_MINOR_VERSION GREATER_EQUAL 69)
-        OR (Boost_VERSION_MAJOR EQUAL 1 AND Boost_VERSION_MINOR GREATER_EQUAL 69))
-    MESSAGE(STATUS "No need to link with Boost:System")
-else()
+if (Boost_MAJOR_VERSION EQUAL 1 AND Boost_MINOR_VERSION LESS 69)
     # Boost System does not require linking since 1.69
     set(BOOST_COMPONENTS ${BOOST_COMPONENTS} system)
     MESSAGE(STATUS "Linking with Boost:System")
