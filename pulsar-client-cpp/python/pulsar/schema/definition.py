@@ -355,8 +355,11 @@ class Map(Field):
         super(Map, self).validate_type(name, val)
 
         for k, v in val.items():
-            # Make it compatible with Python2, where key may be `unicode` type
-            if type(k) != str and type(k.encode()) != str:
+            # Make it compatible with Python2, where key may be `unicode` type. There's no `unicode` type in Python3. 
+            # Therefore here we use the `encode` method to try to convert `k` to `str`.
+            #   1. `unicode` type: type(k.encode()) == str.
+            #   2. Other types like `int`: dir(k).count('encode') == 0.
+            if type(k) != str and (dir(k).count('encode') == 0 or type(k.encode()) != str):
                 raise TypeError('Map keys for field ' + name + '  should all be strings')
             if type(v) != self.value_type.python_type():
                 raise TypeError('Map values for field ' + name + ' should all be of type '
