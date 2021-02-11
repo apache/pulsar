@@ -159,11 +159,10 @@ endif (LINK_STATIC)
 
 find_package(Boost)
 
-if (NOT Boost_VERSION_MAJOR OR
-        (Boost_VERSION_MAJOR EQUAL 1 AND Boost_VERSION_MINOR LESS 69)
-        )
+if (Boost_MAJOR_VERSION EQUAL 1 AND Boost_MINOR_VERSION LESS 69)
     # Boost System does not require linking since 1.69
     set(BOOST_COMPONENTS ${BOOST_COMPONENTS} system)
+    MESSAGE(STATUS "Linking with Boost:System")
 endif()
 
 if (MSVC)
