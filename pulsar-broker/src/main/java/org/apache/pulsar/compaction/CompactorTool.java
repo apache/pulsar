@@ -81,9 +81,9 @@ public class CompactorTool {
 
         if (isBlank(brokerConfig.getZookeeperServers())) {
             throw new IllegalArgumentException(
-                    String.format("Need to specify `zookeeperServers` in configuration file \n" +
-                                    "or specify configuration file path from command line.\n" +
-                                    "now configuration file path is=[%s]\n",
+                    String.format("Need to specify `zookeeperServers` in configuration file \n"
+                                    + "or specify configuration file path from command line.\n"
+                                    + "now configuration file path is=[%s]\n",
                             arguments.brokerConfigFile)
             );
         }
@@ -97,6 +97,8 @@ public class CompactorTool {
 
 
         if (brokerConfig.getBrokerServicePortTls().isPresent()) {
+            log.info("Found `brokerServicePortTls` in configuration file. \n"
+                    + "Will connect pulsar use TLS.");
             clientBuilder
                     .serviceUrl(PulsarService.brokerUrlTls(PulsarService.advertisedAddress(brokerConfig),
                             brokerConfig.getBrokerServicePortTls().get()))
