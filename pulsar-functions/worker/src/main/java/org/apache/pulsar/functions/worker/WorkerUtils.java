@@ -67,8 +67,9 @@ public final class WorkerUtils {
     private WorkerUtils(){}
 
     public static void uploadFileToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace) throws IOException {
-        FileInputStream uploadedInputStream = new FileInputStream(sourceFile);
-        uploadToBookeeper(dlogNamespace, uploadedInputStream, packagePath);
+        try (FileInputStream uploadedInputStream = new FileInputStream(sourceFile)) {
+            uploadToBookeeper(dlogNamespace, uploadedInputStream, packagePath);
+        }
     }
 
     public static void uploadToBookeeper(Namespace dlogNamespace,
