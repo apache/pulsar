@@ -756,7 +756,24 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     // Exceptional topics should be recreated.
                     topics.remove(topic, topicFuture);
                 } else {
-                    return topicFuture;
+                    // a non-existing topic in the cache shouldn't prevent creating a topic
+                    if (createIfMissing) {
+                        if (topicFuture.isDone() && topicFuture.getNow(Optional.empty()).isPresent()) {
+                            return topicFuture;
+                        } else {
+                            return topicFuture.thenCompose(value -> {
+                                if (!value.isPresent()) {
+                                    // retry and create topic
+                                    return getTopic(topic, createIfMissing);
+                                } else {
+                                    // in-progress future completed successfully
+                                    return CompletableFuture.completedFuture(value);
+                                }
+                            });
+                        }
+                    } else {
+                        return topicFuture;
+                    }
                 }
             }
             final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
