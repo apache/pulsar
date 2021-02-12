@@ -1004,7 +1004,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Assert.assertTrue(sb.toString().contains("test_metrics"));
     }
 
-    @Test(timeOut = 20000L)
+    @Test
     public void shouldNotPreventCreatingTopicWhenNonexistingTopicIsCached() throws Exception {
         // run multiple iterations to increase the chance of reproducing a race condition in the topic cache
         for (int i = 0; i < 100; i++) {
@@ -1021,9 +1021,9 @@ public class BrokerServiceTest extends BrokerTestBase {
                 } catch (PulsarAdminException.NotFoundException e) {
                     // expected exception
                 } catch (PulsarAdminException | InterruptedException e) {
-                    log.error("Exception in getStatsThread", e);
+                    log.error("Exception in {}", Thread.currentThread().getName(), e);
                 }
-            });
+            }, "getStatsThread#" + i);
             getStatsThread.start();
             latch.await();
             @Cleanup
