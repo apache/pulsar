@@ -543,7 +543,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertNotNull(topicRef);
 
             rolloverPerIntervalStats();
-            stats = topicRef.getStats(false);
+            stats = topicRef.getStats(false, false);
             subStats = stats.subscriptions.values().iterator().next();
 
             // subscription stats
@@ -561,7 +561,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Thread.sleep(timeWaitToSync);
 
             rolloverPerIntervalStats();
-            stats = topicRef.getStats(false);
+            stats = topicRef.getStats(false, false);
             subStats = stats.subscriptions.values().iterator().next();
 
             assertTrue(subStats.msgBacklog > 0);
@@ -620,6 +620,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         int receivedMsgCount = 0;
         for (int i = 0; i < totalProducedMsgs; i++) {
             Message<?> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
+            assertTrue(msg != null);
             if (!unackMessages.contains(i)) {
                 consumer.acknowledge(msg);
             }

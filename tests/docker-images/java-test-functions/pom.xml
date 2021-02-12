@@ -75,6 +75,26 @@
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                 </transformer>
                             </transformers>
+                            <artifactSet>
+                                <includes>
+                                    <include>org.apache.pulsar:pulsar-client-original</include>
+                                    <include>org.apache.pulsar:pulsar-client-api</include>
+                                    <include>org.apache.pulsar:pulsar-client-admin-api</include>
+                                    <include>org.apache.pulsar:pulsar-functions-api-examples</include>
+                                </includes>
+                            </artifactSet>
+                            <filters>
+                                <filter>
+                                    <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                    <excludes>
+                                        <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                                        <exclude>org/bouncycastle/**</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
                     </execution>
                 </executions>

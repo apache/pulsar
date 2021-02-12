@@ -25,6 +25,7 @@ import (
 	"math"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
@@ -193,11 +194,22 @@ func TestMetricsServer(t *testing.T) {
 	metricsServicer := NewMetricsServicer(gi)
 	metricsServicer.serve()
 	gi.stats.incrTotalReceived()
+	time.Sleep(time.Second * 1)
 
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/", gi.context.GetMetricsPort()))
 	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
 	assert.Equal(t, 200, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	assert.NotEmpty(t, body)
+	resp.Body.Close()
+
+	resp, err = http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err = ioutil.ReadAll(resp.Body)
 	assert.Equal(t, nil, err)
 	assert.NotEmpty(t, body)
 	resp.Body.Close()

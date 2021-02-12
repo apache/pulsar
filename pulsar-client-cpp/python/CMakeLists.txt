@@ -52,22 +52,14 @@ endif()
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY}
                         ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY}
                         ${Boost_PYTHON34_LIBRARY} ${Boost_PYTHON35_LIBRARY}
-                        ${Boost_PYTHON36_LIBRARY} ${Boost_PYTHON38_LIBRARY})
+                        ${Boost_PYTHON36_LIBRARY} ${Boost_PYTHON38_LIBRARY}
+                        ${Boost_PYTHON39_LIBRARY})
 
 if (APPLE)
     set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS}
                          ${Boost_PYTHON27-MT_LIBRARY_RELEASE}
                          ${Boost_PYTHON37-MT_LIBRARY_RELEASE}
                          ${Boost_PYTHON38-MT_LIBRARY_RELEASE})
-
-    if (LINK_STATIC)
-        # When linking statically on MacOS, include also libicu since it's now required by boost::regex
-        find_library(ICU_DATA REQUIRED NAMES libicudata.a PATHS /usr/local/opt/icu4c/lib)
-        find_library(ICU_I18N REQUIRED NAMES libicui18n.a PATHS /usr/local/opt/icu4c/lib)
-        find_library(ICU_UUC REQUIRED NAMES libicuuc.a PATHS /usr/local/opt/icu4c/lib)
-
-        set(ICU_LIBS ${ICU_DATA} ${ICU_I18N} ${ICU_UUC})
-    endif ()
 endif()
 
 message(STATUS "Using Boost Python libs: ${PYTHON_WRAPPER_LIBS}")
