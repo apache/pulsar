@@ -18,8 +18,6 @@
  */
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
-#include <boost/date_time/posix_time/ptime.hpp>
-#include <boost/bind.hpp>
 #include <lib/LogUtils.h>
 
 DECLARE_LOG_OBJECT()

@@ -231,7 +231,8 @@ public class BrokerBookieIsolationTest {
         // validate ledgers' ensemble with affinity bookies
         assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
 
-        ManagedLedgerClientFactory mlFactory = pulsarService.getManagedLedgerClientFactory();
+        ManagedLedgerClientFactory mlFactory =
+            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
         Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
                 .getBkEnsemblePolicyToBookKeeperMap();
 
@@ -364,7 +365,8 @@ public class BrokerBookieIsolationTest {
         // validate ledgers' ensemble with affinity bookies
         assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
 
-        ManagedLedgerClientFactory mlFactory = pulsarService.getManagedLedgerClientFactory();
+        ManagedLedgerClientFactory mlFactory =
+            (ManagedLedgerClientFactory) pulsarService.getManagedLedgerClientFactory();
         Map<EnsemblePlacementPolicyConfig, BookKeeper> bkPlacementPolicyToBkClientMap = mlFactory
                 .getBkEnsemblePolicyToBookKeeperMap();
 

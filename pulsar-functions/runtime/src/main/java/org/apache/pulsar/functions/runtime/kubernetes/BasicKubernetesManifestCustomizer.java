@@ -21,12 +21,18 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 import com.google.gson.Gson;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.models.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +45,7 @@ import java.util.Map;
  * modify (for example, a service account must have permissions in the specified jobNamespace)
  *
  */
+@Slf4j
 public class BasicKubernetesManifestCustomizer implements KubernetesManifestCustomizer {
 
     private static final String RESOURCE_CPU = "cpu";
@@ -48,7 +55,9 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @Getter
     @Setter
     @NoArgsConstructor
-    static private class RuntimeOpts {
+    @AllArgsConstructor
+    @Builder(toBuilder = true)
+    static public class RuntimeOpts {
         private String jobNamespace;
         private String jobName;
         private Map<String, String> extraLabels;
@@ -58,13 +67,25 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         private List<V1Toleration> tolerations;
     }
 
+    @Getter
+    private RuntimeOpts runtimeOpts = new RuntimeOpts();
+
     @Override
     public void initialize(Map<String, Object> config) {
+        if (config != null) {
+            RuntimeOpts opts = ObjectMapperFactory.getThreadLocal().convertValue(config, RuntimeOpts.class);
+            if (opts != null) {
+                runtimeOpts = opts.toBuilder().build();
+            }
+        } else {
+            log.warn("initialize with null config");
+        }
     }
 
     @Override
     public String customizeNamespace(Function.FunctionDetails funcDetails, String currentNamespace) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);
+        opts = mergeRuntimeOpts(runtimeOpts, opts);
         if (!StringUtils.isEmpty(opts.getJobNamespace())) {
             return opts.getJobNamespace();
         } else {
@@ -75,6 +96,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @Override
     public String customizeName(Function.FunctionDetails funcDetails, String currentName) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);
+        opts = mergeRuntimeOpts(runtimeOpts, opts);
         if (!StringUtils.isEmpty(opts.getJobName())) {
             return opts.getJobName();
         } else {
@@ -85,24 +107,27 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @Override
     public V1Service customizeService(Function.FunctionDetails funcDetails, V1Service service) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);
+        opts = mergeRuntimeOpts(runtimeOpts, opts);
         service.setMetadata(updateMeta(opts, service.getMetadata()));
         return service;
     }
 
     @Override
     public V1StatefulSet customizeStatefulSet(Function.FunctionDetails funcDetails, V1StatefulSet statefulSet) {
-        RuntimeOpts opts = getOptsFromDetails(funcDetails);
+        RuntimeOpts opts = mergeRuntimeOpts(runtimeOpts, getOptsFromDetails(funcDetails));
         statefulSet.setMetadata(updateMeta(opts, statefulSet.getMetadata()));
         V1PodTemplateSpec pt = statefulSet.getSpec().getTemplate();
         pt.setMetadata(updateMeta(opts, pt.getMetadata()));
         V1PodSpec ps = pt.getSpec();
-        if (opts.getNodeSelectorLabels() != null && opts.getNodeSelectorLabels().size() > 0) {
-            opts.getNodeSelectorLabels().forEach(ps::putNodeSelectorItem);
+        if (ps != null) {
+            if (opts.getNodeSelectorLabels() != null && opts.getNodeSelectorLabels().size() > 0) {
+                opts.getNodeSelectorLabels().forEach(ps::putNodeSelectorItem);
+            }
+            if (opts.getTolerations() != null && opts.getTolerations().size() > 0) {
+                opts.getTolerations().forEach(ps::addTolerationsItem);
+            }
+            ps.getContainers().forEach(container -> updateContainerResources(container, opts));
         }
-        if (opts.getTolerations() != null && opts.getTolerations().size() > 0) {
-            opts.getTolerations().forEach(ps::addTolerationsItem);
-        }
-        ps.getContainers().forEach(container -> updateContainerResources(container, opts));
         return statefulSet;
     }
 
@@ -113,10 +138,10 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
             Map<String, Quantity> limits = resourceRequirements.getLimits();
             Map<String, Quantity> requests = resourceRequirements.getRequests();
             for (String resource : RESOURCES) {
-                if (limits.containsKey(resource)) {
+                if (limits != null && limits.containsKey(resource)) {
                     containerResources.putLimitsItem(resource, limits.get(resource));
                 }
-                if (requests.containsKey(resource)) {
+                if (requests != null && requests.containsKey(resource)) {
                     containerResources.putRequestsItem(resource, requests.get(resource));
                 }
             }
@@ -141,6 +166,78 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
             opts.getExtraLabels().forEach(meta::putLabelsItem);
         }
         return meta;
+    }
+
+    public static RuntimeOpts mergeRuntimeOpts(RuntimeOpts oriOpts, RuntimeOpts newOpts) {
+        RuntimeOpts mergedOpts = oriOpts.toBuilder().build();
+        if (mergedOpts.getExtraLabels() == null) {
+            mergedOpts.setExtraLabels(new HashMap<>());
+        }
+        if (mergedOpts.getExtraAnnotations() == null) {
+            mergedOpts.setExtraAnnotations(new HashMap<>());
+        }
+        if (mergedOpts.getNodeSelectorLabels() == null) {
+            mergedOpts.setNodeSelectorLabels(new HashMap<>());
+        }
+        if (mergedOpts.getTolerations() == null) {
+            mergedOpts.setTolerations(new ArrayList<>());
+        }
+        if (mergedOpts.getResourceRequirements() == null) {
+            mergedOpts.setResourceRequirements(new V1ResourceRequirements());
+        }
+
+        if (!StringUtils.isEmpty(newOpts.getJobName())) {
+            mergedOpts.setJobName(newOpts.getJobName());
+        }
+        if (!StringUtils.isEmpty(newOpts.getJobNamespace())) {
+            mergedOpts.setJobNamespace(newOpts.getJobNamespace());
+        }
+        if (newOpts.getExtraLabels() != null && !newOpts.getExtraLabels().isEmpty()) {
+            newOpts.getExtraLabels().forEach((key, labelsItem) -> {
+                if (!mergedOpts.getExtraLabels().containsKey(key)) {
+                    log.debug("extra label {} has been changed to {}", key, labelsItem);
+                }
+                mergedOpts.getExtraLabels().put(key, labelsItem);
+            });
+        }
+        if (newOpts.getExtraAnnotations() != null && !newOpts.getExtraAnnotations().isEmpty()) {
+            newOpts.getExtraAnnotations().forEach((key, annotationsItem) -> {
+                if (!mergedOpts.getExtraAnnotations().containsKey(key)) {
+                    log.debug("extra annotation {} has been changed to {}", key, annotationsItem);
+                }
+                mergedOpts.getExtraAnnotations().put(key, annotationsItem);
+            });
+        }
+        if (newOpts.getNodeSelectorLabels() != null && !newOpts.getNodeSelectorLabels().isEmpty()) {
+            newOpts.getNodeSelectorLabels().forEach((key, nodeSelectorItem) -> {
+                if (!mergedOpts.getNodeSelectorLabels().containsKey(key)) {
+                    log.debug("node selector label {} has been changed to {}", key, nodeSelectorItem);
+                }
+                mergedOpts.getNodeSelectorLabels().put(key, nodeSelectorItem);
+            });
+        }
+
+        if (newOpts.getResourceRequirements() != null) {
+            V1ResourceRequirements mergedResourcesRequirements = mergedOpts.getResourceRequirements();
+            V1ResourceRequirements newResourcesRequirements = newOpts.getResourceRequirements();
+
+            Map<String, Quantity> limits = newResourcesRequirements.getLimits();
+            Map<String, Quantity> requests = newResourcesRequirements.getRequests();
+            for (String resource : RESOURCES) {
+                if (limits != null && limits.containsKey(resource)) {
+                    mergedResourcesRequirements.putLimitsItem(resource, limits.get(resource));
+                }
+                if (requests != null && requests.containsKey(resource)) {
+                    mergedResourcesRequirements.putRequestsItem(resource, requests.get(resource));
+                }
+            }
+            mergedOpts.setResourceRequirements(mergedResourcesRequirements);
+        }
+
+        if (newOpts.getTolerations() != null && !newOpts.getTolerations().isEmpty()) {
+            mergedOpts.getTolerations().addAll(newOpts.getTolerations());
+        }
+        return mergedOpts;
     }
 
 }
