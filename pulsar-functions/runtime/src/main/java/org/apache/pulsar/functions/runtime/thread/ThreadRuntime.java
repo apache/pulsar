@@ -23,13 +23,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -42,7 +42,6 @@ import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
-import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
 
 /**
@@ -245,6 +244,9 @@ public class ThreadRuntime implements Runtime {
 
     @Override
     public String getPrometheusMetrics() throws IOException {
+        if (javaInstanceRunnable == null) {
+            throw new PulsarServerException("javaInstanceRunnable is not initialized");
+        }
         return javaInstanceRunnable.getStatsAsString();
     }
 
