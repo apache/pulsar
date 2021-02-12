@@ -29,6 +29,12 @@ endif(CCACHE_PROGRAM)
 
 MESSAGE(STATUS "ARCHITECTURE: ${CMAKE_SYSTEM_PROCESSOR}")
 
+option(BUILD_DYNAMIC_LIB "Build dynamic lib" ON)
+MESSAGE(STATUS "BUILD_DYNAMIC_LIB:  " ${BUILD_DYNAMIC_LIB})
+
+option(BUILD_STATIC_LIB "Build static lib" ON)
+MESSAGE(STATUS "BUILD_STATIC_LIB:  " ${BUILD_STATIC_LIB})
+
 option(BUILD_TESTS "Build tests" ON)
 MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 
@@ -348,7 +354,10 @@ add_subdirectory(lib)
 if(BUILD_PERF_TOOLS)
     add_subdirectory(perf)
 endif(BUILD_PERF_TOOLS)
-add_subdirectory(examples)
+
+if (BUILD_DYNAMIC_LIB)
+    add_subdirectory(examples)
+endif()
 
 if (BUILD_TESTS)
     add_subdirectory(tests)
