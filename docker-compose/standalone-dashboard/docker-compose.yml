@@ -25,7 +25,7 @@ services:
     image: apachepulsar/pulsar
     expose:
       - 8080
-      - 6650 
+      - 6650
     environment:
       - BOOKIE_MEM=" -Xms512m -Xmx512m -XX:MaxDirectMemorySize=1g"
     command: >
