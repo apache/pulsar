@@ -31,6 +31,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
@@ -53,29 +54,8 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
-import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
-import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
-import org.apache.pulsar.common.policies.data.BookieInfo;
-import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
-import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.policies.data.ResourceQuota;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -419,6 +399,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-retention myprop/clust/ns1"));
         verify(mockNamespaces).getRetention("myprop/clust/ns1");
 
+        namespaces.run(split("remove-retention myprop/clust/ns1"));
+        verify(mockNamespaces).removeRetention("myprop/clust/ns1");
+
         namespaces.run(split("set-delayed-delivery myprop/clust/ns1 -e -t 1s"));
         verify(mockNamespaces).setDelayedDeliveryMessages("myprop/clust/ns1", new DelayedDeliveryPolicies(1000, true));
 
@@ -722,7 +705,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
         cmdTopics.run(split("stats persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false, false);
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
@@ -731,7 +714,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
-        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false);
+        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false, false);
 
         cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
@@ -744,6 +727,11 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("expire-messages persistent://myprop/clust/ns1/ds1 -s sub1 -t 100"));
         verify(mockTopics).expireMessages("persistent://myprop/clust/ns1/ds1", "sub1", 100);
+
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("expire-messages persistent://myprop/clust/ns1/ds1 -s sub1 -p 1:1 -e"));
+        verify(mockTopics).expireMessages(eq("persistent://myprop/clust/ns1/ds1"), eq("sub1"), eq(new MessageIdImpl(1, 1, -1)), eq(true));
 
         cmdTopics.run(split("expire-messages-all-subscriptions persistent://myprop/clust/ns1/ds1 -t 100"));
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
@@ -795,7 +783,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics, times(2)).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("remove-offload-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
@@ -846,6 +834,14 @@ public class PulsarAdminToolTest {
         verify(mockTopics).removeMaxMessageSize("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-max-message-size persistent://myprop/clust/ns1/ds1 -m 99"));
         verify(mockTopics).setMaxMessageSize("persistent://myprop/clust/ns1/ds1", 99);
+
+        cmdTopics.run(split("get-retention persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getRetention("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M"));
+        verify(mockTopics).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(10, 20));
+        cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeRetention("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-max-producers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getMaxProducers("persistent://myprop/clust/ns1/ds1", false);
@@ -923,6 +919,8 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("get-message-ttl persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getMessageTTL("persistent://myprop/clust/ns1/ds1", true);
 
+        cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1", true);
 
         cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1", true);
@@ -1049,11 +1047,16 @@ public class PulsarAdminToolTest {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Bookies mockBookies = mock(Bookies.class);
         doReturn(mockBookies).when(admin).bookies();
+        doReturn(new BookiesClusterInfo(Collections.emptyList())).when(mockBookies).getBookies();
+        doReturn(new BookiesRackConfiguration()).when(mockBookies).getBookiesRackInfo();
 
         CmdBookies bookies = new CmdBookies(() -> admin);
 
         bookies.run(split("racks-placement"));
         verify(mockBookies).getBookiesRackInfo();
+
+        bookies.run(split("list-bookies"));
+        verify(mockBookies).getBookies();
 
         bookies.run(split("get-bookie-rack --bookie my-bookie:3181"));
         verify(mockBookies).getBookieRackInfo("my-bookie:3181");

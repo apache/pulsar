@@ -23,6 +23,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Worker information.
@@ -31,6 +32,7 @@ import lombok.ToString;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @ToString
+@Slf4j
 public class WorkerInfo {
     private String workerId;
     private String workerHostname;
@@ -48,8 +50,13 @@ public class WorkerInfo {
 
         String workerId = tokens[0];
         String workerHostname = tokens[1];
-        int port = Integer.parseInt(tokens[2]);
+        try {
+            int port = Integer.parseInt(tokens[2]);
 
-        return new WorkerInfo(workerId, workerHostname, port);
+            return new WorkerInfo(workerId, workerHostname, port);
+        } catch (NumberFormatException nfe) {
+            log.warn("Invalid worker info : {}", str);
+            throw nfe;
+        }
     }
 }

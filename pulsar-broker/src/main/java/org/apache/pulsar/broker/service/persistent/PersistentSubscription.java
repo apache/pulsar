@@ -514,7 +514,9 @@ public class PersistentSubscription implements Subscription {
                     log.debug("[{}][{}] Backlog size after clearing: {}", topicName, subName,
                             cursor.getNumberOfEntriesInBacklog(false));
                 }
-                dispatcher.clearDelayedMessages();
+                if (dispatcher != null) {
+                    dispatcher.clearDelayedMessages();
+                }
                 future.complete(null);
             }
 
@@ -902,6 +904,11 @@ public class PersistentSubscription implements Subscription {
         expiryMonitor.expireMessages(messageTTLInSeconds);
     }
 
+    @Override
+    public void expireMessages(Position position) {
+        expiryMonitor.expireMessages(position);
+    }
+
     public double getExpiredMessageRate() {
         return expiryMonitor.getMessageExpiryRate();
     }
@@ -910,7 +917,7 @@ public class PersistentSubscription implements Subscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStats getStats(Boolean getPreciseBacklog) {
+    public SubscriptionStats getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -954,6 +961,10 @@ public class PersistentSubscription implements Subscription {
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
+        if (subscriptionBacklogSize) {
+            subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
+                    .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+        }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();

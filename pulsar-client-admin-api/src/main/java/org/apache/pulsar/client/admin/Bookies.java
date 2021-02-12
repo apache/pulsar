@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 
 /**
@@ -36,6 +37,16 @@ public interface Bookies {
      * Gets the rack placement information for all the bookies in the cluster asynchronously.
      */
     CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync();
+
+    /**
+     * Gets discovery information for all the bookies in the cluster.
+     */
+    BookiesClusterInfo getBookies() throws PulsarAdminException;
+
+    /**
+     * Gets discovery information for all the bookies in the cluster asynchronously.
+     */
+    CompletableFuture<BookiesClusterInfo> getBookiesAsync();
 
     /**
      * Gets the rack placement information for a specific bookie in the cluster.
