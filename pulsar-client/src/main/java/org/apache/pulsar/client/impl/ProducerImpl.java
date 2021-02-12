@@ -365,6 +365,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
+    /**
+     * Compress the payload if compression is configured
+     * @param payload
+     * @return a new payload
+     */
+    private ByteBuf applyCompression(ByteBuf payload) {
+        ByteBuf compressedPayload = compressor.encode(payload);
+        payload.release();
+        return compressedPayload;
+    }
+
     public void sendAsync(Message<?> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
 
@@ -383,11 +394,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         // If compression is enabled, we are compressing, otherwise it will simply use the same buffer
         ByteBuf compressedPayload = payload;
+        boolean compressed = false;
         // Batch will be compressed when closed
         // If a message has a delayed delivery time, we'll always send it individually
         if (!isBatchMessagingEnabled() || msgMetadata.hasDeliverAtTime()) {
-            compressedPayload = compressor.encode(payload);
-            payload.release();
+            compressedPayload = applyCompression(payload);
+            compressed = true;
 
             // validate msg-size (For batching this will be check at the batch completion size)
             int compressedSize = compressedPayload.readableBytes();
@@ -442,7 +454,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
                 for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
-                            readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload,
+                            readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload, compressed,
                             compressedPayload.readableBytes(), uncompressedSize, callback);
                     readStartIndex = ((chunkId + 1) * ClientCnx.getMaxMessageSize());
                 }
@@ -457,7 +469,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private void serializeAndSendMessage(MessageImpl<?> msg, ByteBuf payload,
             long sequenceId, String uuid, int chunkId, int totalChunks, int readStartIndex, int chunkMaxSizeInBytes, ByteBuf compressedPayload,
-            int compressedPayloadSize,
+            boolean compressed, int compressedPayloadSize,
             int uncompressedSize, SendCallback callback) throws IOException, InterruptedException {
         ByteBuf chunkPayload = compressedPayload;
         MessageMetadata msgMetadata = msg.getMessageBuilder();
@@ -524,6 +536,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 doBatchSendAndAdd(msg, callback, payload);
             }
         } else {
+            // in this case compression has not been applied by the caller
+            // but we have to compress the payload if compression is configured
+            if (!compressed) {
+                chunkPayload = applyCompression(chunkPayload);
+            }
             ByteBuf encryptedPayload = encryptMessage(msgMetadata, chunkPayload);
 
             // When publishing during replication, we need to set the correct number of message in batch

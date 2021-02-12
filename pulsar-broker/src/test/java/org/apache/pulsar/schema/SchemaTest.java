@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.schema;
 
-import com.google.common.collect.Sets;
-import lombok.extern.slf4j.Slf4j;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+
+import java.util.Collections;
+
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -35,11 +41,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
+import com.google.common.collect.Sets;
 
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
-import static org.junit.Assert.assertEquals;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SchemaTest extends MockedPulsarServiceBaseTest {

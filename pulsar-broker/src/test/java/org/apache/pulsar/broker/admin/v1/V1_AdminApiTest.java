@@ -102,6 +102,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -634,6 +635,8 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             // Ok, got the non authorized exception since usc cluster is not in the allowed clusters list.
         }
 
+        // no need to clear cache once authorization-provide also start using metadata-store
+        clearCache();
         admin.namespaces().grantPermissionOnNamespace("prop-xyz/use/ns1", "my-role", EnumSet.allOf(AuthAction.class));
 
         Policies policies = new Policies();
@@ -2040,5 +2043,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             LongRunningProcessStatus.Status.ERROR);
         assertTrue(admin.topics().compactionStatus(topicName)
             .lastError.contains("Failed at something"));
+    }
+
+    private void clearCache() {
+        ((MetadataCacheImpl) pulsar.getPulsarResources().getNamespaceResources().getCache()).invalidateAll();
     }
 }
