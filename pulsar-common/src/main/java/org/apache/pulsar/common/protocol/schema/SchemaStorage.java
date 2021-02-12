@@ -32,6 +32,8 @@ public interface SchemaStorage {
 
     CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
 
+    CompletableFuture<SchemaVersion> delete(String key, boolean forcefully);
+
     CompletableFuture<SchemaVersion> delete(String key);
 
     SchemaVersion versionFromBytes(byte[] version);

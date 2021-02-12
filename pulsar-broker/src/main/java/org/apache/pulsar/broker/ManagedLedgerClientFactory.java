@@ -20,7 +20,6 @@ package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
@@ -36,23 +35,24 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ManagedLedgerClientFactory implements Closeable {
+public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerClientFactory.class);
 
-    private final ManagedLedgerFactory managedLedgerFactory;
-    private final BookKeeper defaultBkClient;
+    private ManagedLedgerFactory managedLedgerFactory;
+    private BookKeeper defaultBkClient;
     private final Map<EnsemblePlacementPolicyConfig, BookKeeper>
             bkEnsemblePolicyToBkClientMap = Maps.newConcurrentMap();
     private StatsProvider statsProvider = new NullStatsProvider();
 
-    public ManagedLedgerClientFactory(ServiceConfiguration conf, ZooKeeper zkClient,
-                                      BookKeeperClientFactory bookkeeperProvider) throws Exception {
+    public void initialize(ServiceConfiguration conf, ZooKeeper zkClient,
+                           BookKeeperClientFactory bookkeeperProvider) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
@@ -125,12 +125,18 @@ public class ManagedLedgerClientFactory implements Closeable {
     @Override
     public void close() throws IOException {
         try {
-            managedLedgerFactory.shutdown();
-            log.info("Closed managed ledger factory");
+            if (null != managedLedgerFactory) {
+                managedLedgerFactory.shutdown();
+                log.info("Closed managed ledger factory");
+            }
 
-            statsProvider.stop();
+            if (null != statsProvider) {
+                statsProvider.stop();
+            }
             try {
-                defaultBkClient.close();
+                if (null != defaultBkClient) {
+                    defaultBkClient.close();
+                }
             } catch (RejectedExecutionException ree) {
                 // when closing bookkeeper client, it will error outs all pending metadata operations.
                 // those callbacks of those operations will be triggered, and submitted to the scheduler

@@ -43,6 +43,7 @@ import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.lang.reflect.Field;
@@ -52,6 +53,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
 /**
@@ -97,6 +99,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private Integer metricsPort;
     private String narExtractionDirectory;
     private String functionInstanceClassPath;
+    private String downloadDirectory;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -129,6 +132,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
+                           ConnectorsManager connectorsManager,
                            Optional<FunctionAuthProvider> functionAuthProvider,
                            Optional<RuntimeCustomizer> runtimeCustomizer) {
 
@@ -166,6 +170,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.configAdminCLI = factoryConfig.getConfigAdminCLI();
         } else {
             this.configAdminCLI = "/bin/pulsar-admin";
+        }
+        this.downloadDirectory = isNotEmpty(workerConfig.getDownloadDirectory()) ?
+                workerConfig.getDownloadDirectory() : this.pulsarRootDir; // for backward comp
+        if (!Paths.get(this.downloadDirectory).isAbsolute()) {
+            this.downloadDirectory = this.pulsarRootDir + "/" + this.downloadDirectory;
         }
 
         this.submittingInsidePod = factoryConfig.getSubmittingInsidePod();
@@ -309,7 +318,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             metricsPort,
             narExtractionDirectory,
             manifestCustomizer,
-            functionInstanceClassPath);
+            functionInstanceClassPath,
+            downloadDirectory);
     }
 
     @Override

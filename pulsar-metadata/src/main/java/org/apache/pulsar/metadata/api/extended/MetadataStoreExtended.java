@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.api.extended;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -71,4 +72,12 @@ public interface MetadataStoreExtended extends MetadataStore {
      */
     CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
             EnumSet<CreateOption> options);
+
+    /**
+     * Register a session listener that will get notified of changes in status of the current session.
+     *
+     * @param listener
+     *            the session listener
+     */
+    void registerSessionListener(Consumer<SessionEvent> listener);
 }

@@ -62,7 +62,7 @@ module.exports = [
     {
         name: 'The Hut Group',
         url: 'https://www.thg.com',
-        logo: 'https://media-exp1.licdn.com/dms/image/C4D0BAQFTQW37dNzMJQ/company-logo_200_200/0?e=1608768000&v=beta&t=jX_8bxciHMwoiJcGbxlPW-FBlF6YYjGVBOOKm-N2gls'
+        logo: 'https://1000logos.net/wp-content/uploads/2020/09/THG-Logo-1024x640.png'
     },
     {
         name: 'Turtlequeue',
@@ -98,7 +98,8 @@ module.exports = [
     {
         name: 'EMQ',
         url: 'https://www.emqx.io/',
-        logo: 'https://www.emqx.io/static/img/logo.svg'
+        logo: 'https://www.emqx.io/static/img/logo.svg',
+        logo_white: true
     },
     {
         name: 'Tencent',
@@ -242,7 +243,7 @@ module.exports = [
     {
         name: 'Keytop',
         url: 'https://www.ikeytop.com/',
-        logo: 'https://static.wixstatic.com/media/ecbdea_434ae22f85ed4e93ba3fdc39c7141c3f~mv2.png/v1/fill/w_424,h_116,al_c,q_85,usm_0.66_1.00_0.01/Keytop_logo.webp',
+        logo: 'https://static.wixstatic.com/media/ecbdea_434ae22f85ed4e93ba3fdc39c7141c3f~mv2.png/v1/fill/w_424,h_116,al_c,usm_0.66_1.00_0.01/Keytop_logo.png',
     },
     {
         name: 'Zhihu',
@@ -283,6 +284,13 @@ module.exports = [
         name: 'Ge Tui',
         url: 'https://www.getui.com',
         logo: 'https://gt-static.getui.com/getui_pc/client/img/e33ecd9.svg',
+        logo_white: true
+    },
+    {
+        name: 'DataStax',
+        url: 'https://datastax.com',
+        logo: 'https://www.datastax.com/sites/default/files/inline-images/datastax-logotype-negative.png',
+        logo_white: false
     },
     {
         name: 'KAISA',
@@ -293,6 +301,7 @@ module.exports = [
         name: 'Bairong.Inc',
         url: 'http://www.brgroup.com',
         logo: 'http://www.brgroup.com/_nuxt/img/logo.d2a976e.png',
+          logo_white: true
     },
     {
         name: 'Itcast.cn',
@@ -303,5 +312,10 @@ module.exports = [
         name: 'Appen',
         url: 'https://www.appen.com.cn/',
         logo: 'https://resources.appen.com/wp-content/uploads/2020/03/no-tagline.svg',
+    },
+    {
+        name: 'Pandio',
+        url: 'https://pandio.com',
+        logo: 'https://pandio-public-assets.s3-us-west-2.amazonaws.com/pandio_225-05.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);
