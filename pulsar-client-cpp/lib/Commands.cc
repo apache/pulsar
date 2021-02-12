@@ -321,7 +321,7 @@ SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId
                                    const std::string& producerName, uint64_t requestId,
                                    const std::map<std::string, std::string>& metadata,
                                    const SchemaInfo& schemaInfo, uint64_t epoch,
-                                   bool userProvidedProducerName) {
+                                   bool userProvidedProducerName, bool encrypted) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
@@ -330,6 +330,7 @@ SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId
     producer->set_request_id(requestId);
     producer->set_epoch(epoch);
     producer->set_user_provided_producer_name(userProvidedProducerName);
+    producer->set_encrypted(encrypted);
 
     for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
          it++) {

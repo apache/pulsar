@@ -16,11 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#pragma once
+package org.apache.pulsar.common.policies.data;
 
-#include <string>
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
-class NamedEntity {
-   public:
-    static bool checkName(const std::string& name);
-};
+/**
+ * Bookie information.
+ */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
+public class RawBookieInfo {
+    private String bookieId;
+}
