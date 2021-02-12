@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -197,10 +198,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
-        pulsarClient = PulsarClient.builder()
+        replacePulsarClient(PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
-                .authentication(authentication)
-                .build();
+                .authentication(authentication));
+
         // (1) Create subscription name
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscribe();
@@ -210,6 +211,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.topics().skipAllMessages(topicName, subscriptionName);
         tenantAdmin.topics().skipMessages(topicName, subscriptionName, 1);
         tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
+        tenantAdmin.topics().expireMessages(topicName, subscriptionName, new MessageIdImpl(-1, -1, -1), true);
         tenantAdmin.topics().peekMessages(topicName, subscriptionName, 1);
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, 10);
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
@@ -271,10 +273,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         Authentication authentication = new ClientAuthentication(clientRole);
 
-        pulsarClient = PulsarClient.builder()
+        replacePulsarClient(PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
-                .authentication(authentication)
-                .build();
+                .authentication(authentication));
+
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 

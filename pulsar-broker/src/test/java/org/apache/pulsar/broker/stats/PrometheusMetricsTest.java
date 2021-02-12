@@ -23,22 +23,36 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
+import java.util.Date;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
+import javax.crypto.SecretKey;
+import javax.naming.AuthenticationException;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -48,14 +62,10 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 
 public class PrometheusMetricsTest extends BrokerTestBase {
 
@@ -528,6 +538,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     if (!typeDefs.containsKey(summaryMetricName)) {
                         fail("Metric " + metricName + " does not have a corresponding summary type definition");
                     }
+                } else if (metricName.endsWith("_bucket")) {
+                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_bucket"));
+                    if (!typeDefs.containsKey(summaryMetricName)) {
+                        fail("Metric " + metricName + " does not have a corresponding summary type definition");
+                    }
                 } else {
                     fail("Metric " + metricName + " does not have a type definition");
                 }
@@ -692,6 +707,176 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         p1.close();
         p2.close();
+    }
+
+    @Test
+    public void testAuthMetrics() throws IOException, AuthenticationException {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String authExceptionMessage = "";
+
+        try {
+            provider.authenticate(new AuthenticationDataSource() {
+            });
+            fail("Should have failed");
+        } catch (AuthenticationException e) {
+            // expected, no credential passed
+            authExceptionMessage = e.getMessage();
+        }
+
+        String token = AuthTokenUtils.createToken(secretKey, "subject", Optional.empty());
+
+        // Pulsar protocol auth
+        String subject = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_authentication_success_count");
+        boolean haveSucceed = false;
+        for (Metric metric : cm) {
+            if (Objects.equals(metric.tags.get("auth_method"), "token")
+                    && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
+                haveSucceed = true;
+            }
+        }
+        Assert.assertTrue(haveSucceed);
+
+        cm = (List<Metric>) metrics.get("pulsar_authentication_failures_count");
+
+        boolean haveFailed = false;
+        for (Metric metric : cm) {
+            if (Objects.equals(metric.tags.get("auth_method"), "token")
+                    && Objects.equals(metric.tags.get("reason"), authExceptionMessage)
+                    && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
+                haveFailed = true;
+            }
+        }
+        Assert.assertTrue(haveFailed);
+    }
+
+    @Test
+    public void testExpiredTokenMetrics() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        Date expiredDate = new Date(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1));
+        String expiredToken = AuthTokenUtils.createToken(secretKey, "subject", Optional.of(expiredDate));
+
+        try {
+            provider.authenticate(new AuthenticationDataSource() {
+                @Override
+                public boolean hasDataFromCommand() {
+                    return true;
+                }
+
+                @Override
+                public String getCommandData() {
+                    return expiredToken;
+                }
+            });
+            fail("Should have failed");
+        } catch (AuthenticationException e) {
+            // expected, token was expired
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_expired_token_count");
+        assertEquals(cm.size(), 1);
+
+        provider.close();
+    }
+
+    @Test
+    public void testExpiringTokenMetrics() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        int[] tokenRemainTime = new int[]{3, 7, 40, 100, 400};
+
+        for (int remainTime : tokenRemainTime) {
+            Date expiredDate = new Date(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(remainTime));
+            String expiringToken = AuthTokenUtils.createToken(secretKey, "subject", Optional.of(expiredDate));
+            provider.authenticate(new AuthenticationDataSource() {
+                @Override
+                public boolean hasDataFromCommand() {
+                    return true;
+                }
+
+                @Override
+                public String getCommandData() {
+                    return expiringToken;
+                }
+            });
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        Metric countMetric = ((List<Metric>) metrics.get("pulsar_expiring_token_minutes_count")).get(0);
+        assertEquals(countMetric.value, tokenRemainTime.length);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_expiring_token_minutes_bucket");
+        assertEquals(cm.size(), 5);
+        cm.forEach((e) -> {
+            switch (e.tags.get("le")) {
+                case "5.0":
+                    assertEquals(e.value, 1);
+                    break;
+                case "10.0":
+                    assertEquals(e.value, 2);
+                    break;
+                case "60.0":
+                    assertEquals(e.value, 3);
+                    break;
+                case "240.0":
+                    assertEquals(e.value, 4);
+                    break;
+                default:
+                    assertEquals(e.value, 5);
+                    break;
+            }
+        });
+        provider.close();
     }
 
     /**

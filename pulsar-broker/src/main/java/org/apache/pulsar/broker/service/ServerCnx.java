@@ -552,7 +552,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void completeConnect(int clientProtoVersion, String clientVersion) {
         ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
         state = State.Connected;
-        remoteEndpointProtocolVersion = clientProtoVersion;
+        setRemoteEndpointProtocolVersion(clientProtoVersion);
         if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {
             this.clientVersion = clientVersion.intern();
         }
@@ -662,7 +662,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             try {
                 AuthData brokerData = authState.refreshAuthentication();
 
-                ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, remoteEndpointProtocolVersion));
+                ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData,
+                        getRemoteEndpointProtocolVersion()));
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Sent auth challenge to client to refresh credentials with method: {}.",
                         remoteAddress, authMethod);
@@ -689,7 +690,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 remoteAddress,
                 service.isAuthenticationEnabled(),
                 connect.hasOriginalPrincipal(),
-                connect.getOriginalPrincipal());
+                connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null);
         }
 
         String clientVersion = connect.getClientVersion();
@@ -1166,9 +1167,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
 
                             schemaVersionFuture.exceptionally(exception -> {
+                                String message = exception.getMessage();
+                                if (exception.getCause() != null) {
+                                    message += (" caused by " + exception.getCause());
+                                }
                                 commandSender.sendErrorResponse(requestId,
                                         BrokerServiceException.getClientErrorCode(exception),
-                                        exception.getMessage());
+                                        message);
                                 producers.remove(producerId, producerFuture);
                                 return null;
                             });
@@ -1325,8 +1330,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("[{}] Received send message request. producer: {}:{} {}:{} size: {},"
                             + " partition key is: {}, ordering key is {}",
                     remoteAddress, send.getProducerId(), send.getSequenceId(), msgMetadata.getProducerName(),
-                    msgMetadata.getSequenceId(), headersAndPayload.readableBytes(), msgMetadata.getPartitionKey(),
-                    msgMetadata.getOrderingKey());
+                    msgMetadata.getSequenceId(), headersAndPayload.readableBytes(),
+                    msgMetadata.hasPartitionKey() ? msgMetadata.getPartitionKey() : null,
+                    msgMetadata.hasOrderingKey() ? msgMetadata.getOrderingKey() : null);
         }
     }
 
@@ -1725,7 +1731,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
                 schemaVersionFuture.exceptionally(ex -> {
                     ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
-                    commandSender.sendGetOrCreateSchemaErrorResponse(requestId, errorCode, ex.getMessage());
+                    String message = ex.getMessage();
+                    if (ex.getCause() != null) {
+                        message += (" caused by " + ex.getCause());
+                    }
+                    commandSender.sendGetOrCreateSchemaErrorResponse(requestId, errorCode, message);
                     return null;
                 }).thenAccept(schemaVersion -> {
                     commandSender.sendGetOrCreateSchemaResponse(requestId, schemaVersion);
@@ -1804,7 +1814,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         service.pulsar().getTransactionMetadataStoreService()
                 .endTransaction(txnID, txnAction)
                 .thenRun(() -> ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
-                        txnID.getLeastSigBits(), txnID.getMostSigBits()))).exceptionally(throwable -> {
+                        txnID.getLeastSigBits(), txnID.getMostSigBits())))
+                .exceptionally(throwable -> {
                     log.error("Send response error for end txn request.", throwable);
                     ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
                             BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
@@ -1957,7 +1968,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void closeProducer(Producer producer) {
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
-        if (remoteEndpointProtocolVersion >= v5.getValue()) {
+        if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             ctx.writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
         } else {
             close();
@@ -1969,7 +1980,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void closeConsumer(Consumer consumer) {
         // removes consumer-connection from map and send close command to consumer
         safelyRemoveConsumer(consumer);
-        if (remoteEndpointProtocolVersion >= v5.getValue()) {
+        if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             ctx.writeAndFlush(Commands.newCloseConsumer(consumer.consumerId(), -1L));
         } else {
             close();
@@ -2223,7 +2234,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public boolean isBatchMessageCompatibleVersion() {
-        return remoteEndpointProtocolVersion >= ProtocolVersion.v4.getValue();
+        return getRemoteEndpointProtocolVersion() >= ProtocolVersion.v4.getValue();
     }
 
     boolean supportsAuthenticationRefresh() {

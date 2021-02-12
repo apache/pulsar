@@ -686,6 +686,19 @@ public class Namespaces extends NamespacesBase {
         internalSetRetention(retention);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/retention")
+    @ApiOperation(value = " Remove retention configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
+    public void removeRetention(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
+        validateNamespaceName(tenant, namespace);
+        internalSetRetention(null);
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/persistence")
     @ApiOperation(value = "Set the persistence configuration for all the topics on a namespace.")
@@ -903,6 +916,17 @@ public class Namespaces extends NamespacesBase {
                                                    DelayedDeliveryPolicies deliveryPolicies) {
         validateNamespaceName(tenant, namespace);
         internalSetDelayedDelivery(deliveryPolicies);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/delayedDelivery")
+    @ApiOperation(value = "Delete delayed delivery messages config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"), })
+    public void removeDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetDelayedDelivery(null);
     }
 
     @GET

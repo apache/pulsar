@@ -50,6 +50,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.DefaultCryptoKeyReader;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -118,25 +119,35 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
-        if(conf.isRetryEnable() && conf.getTopicNames().size() > 0 ) {
+        if (conf.isRetryEnable() && conf.getTopicNames().size() > 0 ) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
             String retryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
             String deadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
             if(conf.getDeadLetterPolicy() == null) {
-                conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
-                                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
-                                        .retryLetterTopic(retryLetterTopic)
-                                        .deadLetterTopic(deadLetterTopic)
-                                        .build());
+                DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder()
+                        .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
+                        .retryLetterTopic(retryLetterTopic);
+                // Don't set DLQ for key shared subType since it requires msg to be ordered for key.
+                if (conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
+                    dlpBuilder.deadLetterTopic(deadLetterTopic);
+                }
+                conf.setDeadLetterPolicy(dlpBuilder.build());
             } else {
                 if (StringUtils.isBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
                     conf.getDeadLetterPolicy().setRetryLetterTopic(retryLetterTopic);
                 }
-                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
+                if (StringUtils.isBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())
+                        && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
                     conf.getDeadLetterPolicy().setDeadLetterTopic(deadLetterTopic);
                 }
             }
             conf.getTopicNames().add(conf.getDeadLetterPolicy().getRetryLetterTopic());
+        }
+        if (conf.getDeadLetterPolicy() != null && StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())
+                && conf.getSubscriptionType() == SubscriptionType.Key_Shared) {
+            return FutureUtil
+                    .failedFuture(new InvalidConfigurationException("DeadLetterQueue is not supported for" +
+                            " Key_Shared subscription type since DLQ can't guarantee message ordering."));
         }
         return interceptorList == null || interceptorList.size() == 0 ?
                 client.subscribeAsync(conf, schema, null) :
@@ -243,6 +254,18 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> defaultCryptoKeyReader(String privateKey) {
+        checkArgument(StringUtils.isNotBlank(privateKey), "privateKey cannot be blank");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().defaultPrivateKey(privateKey).build());
+    }
+
+    @Override
+    public ConsumerBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> privateKeys) {
+        checkArgument(!privateKeys.isEmpty(), "privateKeys cannot be empty");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().privateKeys(privateKeys).build());
     }
 
     @Override

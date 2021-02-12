@@ -108,8 +108,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T>, Consumer<Notification>
                             log.warn("Exception in state change listener", t);
                         }
                     }
+                    return CompletableFuture.completedFuture(leaderElectionState);
                 }
-                return CompletableFuture.completedFuture(leaderElectionState);
             } else {
                 return tryToBecomeLeader();
             }
@@ -143,8 +143,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T>, Consumer<Notification>
                                                     log.warn("Exception in state change listener", t);
                                                 }
                                             }
+                                            result.complete(leaderElectionState);
                                         }
-                                        result.complete(leaderElectionState);
                                     }).exceptionally(ex -> {
                                         // We fail to do the get(), so clean up the leader election fail the whole
                                         // operation
@@ -171,6 +171,12 @@ class LeaderElectionImpl<T> implements LeaderElection<T>, Consumer<Notification>
                     if (ex.getCause() instanceof BadVersionException) {
                         // There was a conflict between 2 participants trying to become leaders at same time. Retry
                         // to fetch info on new leader.
+
+                        // We force the invalidation of the cache entry. Since we received a BadVersion error, we
+                        // already know that the entry is out of date. If we don't invalidate, we'd be retrying the
+                        // leader election many times until we finally receive the notification that invalidates the
+                        // cache.
+                        cache.invalidate(path);
                         elect()
                             .thenAccept(lse -> result.complete(lse))
                             .exceptionally(ex2 -> {
@@ -259,10 +265,12 @@ class LeaderElectionImpl<T> implements LeaderElection<T>, Consumer<Notification>
                                         log.warn("Exception in state change listener", t);
                                     }
 
-                                    executor.schedule(() -> {
-                                        log.info("Retrying Leader election for path {}");
-                                        elect();
-                                    }, LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
+                                    if (internalState != InternalState.Closed) {
+                                        executor.schedule(() -> {
+                                            log.info("Retrying Leader election for path {}");
+                                            elect();
+                                        }, LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
+                                    }
                                 }
                                 return null;
                             });

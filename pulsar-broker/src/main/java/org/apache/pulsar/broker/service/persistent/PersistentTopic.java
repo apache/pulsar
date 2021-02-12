@@ -449,12 +449,13 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public void addComplete(Position pos, Object ctx) {
+    public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         PublishContext publishContext = (PublishContext) ctx;
         PositionImpl position = (PositionImpl) pos;
 
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
+        publishContext.setMetadataFromEntryData(entryData);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         // in order to sync the max position when cursor read entries
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
@@ -618,10 +619,8 @@ public class PersistentTopic extends AbstractTopic
 
         if (replicatedSubscriptionState
                 && !brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
-            future.completeExceptionally(
-                    new NotAllowedException("Replicated Subscriptions is disabled by broker.")
-            );
-            return future;
+            log.warn("Replicated Subscription is disabled by broker.");
+            replicatedSubscriptionState = false;
         }
 
         if (subType == SubType.Key_Shared
@@ -1630,7 +1629,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public TopicStats getStats(boolean getPreciseBacklog) {
+    public TopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
 
         TopicStats stats = new TopicStats();
 
@@ -1655,7 +1654,7 @@ public class PersistentTopic extends AbstractTopic
         stats.waitingPublishers = getWaitingProducersCount();
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
+            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -1689,6 +1688,7 @@ public class PersistentTopic extends AbstractTopic
         stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
+        stats.offloadedStorageSize = ledger.getOffloadedSize();
         return stats;
     }
 

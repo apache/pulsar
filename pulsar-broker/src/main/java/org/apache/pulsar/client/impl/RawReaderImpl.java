@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
@@ -49,7 +50,8 @@ public class RawReaderImpl implements RawReader {
     private RawConsumerImpl consumer;
 
     public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
-                         CompletableFuture<Consumer<byte[]>> consumerFuture) {
+                         CompletableFuture<Consumer<byte[]>> consumerFuture)
+            throws PulsarClientException.InvalidConfigurationException {
         consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(topic);
         consumerConfiguration.setSubscriptionName(subscription);
@@ -107,7 +109,8 @@ public class RawReaderImpl implements RawReader {
         final Queue<CompletableFuture<RawMessage>> pendingRawReceives;
 
         RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> conf,
-                CompletableFuture<Consumer<byte[]>> consumerFuture) {
+                CompletableFuture<Consumer<byte[]>> consumerFuture)
+                throws PulsarClientException.InvalidConfigurationException {
             super(client,
                     conf.getSingleTopic(),
                     conf,
