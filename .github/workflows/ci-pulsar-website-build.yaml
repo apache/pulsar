@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: build
-        run: mvn clean package -DskipTests -Pswagger
+        run: mvn -B clean package -DskipTests -Pswagger
 
       - name: clean disk
         run: |
