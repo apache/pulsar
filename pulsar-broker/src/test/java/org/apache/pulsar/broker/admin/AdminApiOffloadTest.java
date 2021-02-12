@@ -1,3 +1,4 @@
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -33,7 +34,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -203,6 +203,53 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testOffloadPoliciesAppliedApi() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topicName, 3);
+        pulsarClient.newProducer().topic(topicName).create().close();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
+        OffloadPolicies offloadPolicies = admin.topics().getOffloadPolicies(topicName, true);
+        OffloadPolicies brokerPolicies = OffloadPolicies
+                .mergeConfiguration(null,null, pulsar.getConfiguration().getProperties());
+
+        assertEquals(offloadPolicies, brokerPolicies);
+        //Since off loader is not really set, avoid code exceptions
+        LedgerOffloader topicOffloaded = mock(LedgerOffloader.class);
+        when(topicOffloaded.getOffloadDriverName()).thenReturn("mock");
+        doReturn(topicOffloaded).when(pulsar).createManagedLedgerOffloader(any());
+
+        OffloadPolicies namespacePolicies = new OffloadPolicies();
+        namespacePolicies.setManagedLedgerOffloadThresholdInBytes(100L);
+        namespacePolicies.setManagedLedgerOffloadDeletionLagInMillis(200L);
+        namespacePolicies.setManagedLedgerOffloadDriver("s3");
+        namespacePolicies.setManagedLedgerOffloadBucket("buck");
+        admin.namespaces().setOffloadPolicies(myNamespace, namespacePolicies);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.namespaces().getOffloadPolicies(myNamespace), namespacePolicies));
+        assertEquals(
+                admin.topics().getOffloadPolicies(topicName, true), namespacePolicies);
+
+        OffloadPolicies topicPolicies = new OffloadPolicies();
+        topicPolicies.setManagedLedgerOffloadThresholdInBytes(200L);
+        topicPolicies.setManagedLedgerOffloadDeletionLagInMillis(400L);
+        topicPolicies.setManagedLedgerOffloadDriver("s3");
+        topicPolicies.setManagedLedgerOffloadBucket("buck2");
+
+        admin.topics().setOffloadPolicies(topicName, topicPolicies);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.topics().getOffloadPolicies(topicName, true), topicPolicies));
+
+        admin.topics().removeOffloadPolicies(topicName);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.topics().getOffloadPolicies(topicName, true), namespacePolicies));
+
+        admin.namespaces().removeOffloadPolicies(myNamespace);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.topics().getOffloadPolicies(topicName, true), brokerPolicies));
+    }
+
+    @Test
     public void testTopicLevelOffloadPartitioned() throws Exception {
         testOffload(true);
     }
@@ -250,6 +297,9 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
         when(topicOffloader.getOffloadDriverName()).thenReturn("mock");
         doReturn(topicOffloader).when(pulsar).createManagedLedgerOffloader(any());
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
 
         //4 set topic level offload policies
         admin.topics().setOffloadPolicies(topicName, offloadPolicies);

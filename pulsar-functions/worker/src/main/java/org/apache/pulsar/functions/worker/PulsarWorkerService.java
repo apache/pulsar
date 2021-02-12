@@ -387,6 +387,18 @@ public class PulsarWorkerService implements WorkerService {
         LOG.info("Function worker service setup completed");
     }
 
+    private void tryCreateNonPartitionedTopic(final String topic) throws PulsarAdminException {
+        try {
+            getBrokerAdmin().topics().createNonPartitionedTopic(topic);
+        } catch (PulsarAdminException e) {
+            if (e instanceof PulsarAdminException.ConflictException) {
+                log.warn("Failed to create topic '{}': {}", topic, e.getMessage());
+            } else {
+                throw e;
+            }
+        }
+    }
+
     @Override
     public void start(AuthenticationService authenticationService,
                       AuthorizationService authorizationService,
@@ -428,15 +440,16 @@ public class PulsarWorkerService implements WorkerService {
 
             final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
                     ? workerConfig.getFunctionWebServiceUrl()
-                    : workerConfig.getWorkerWebAddress();
+                    : (workerConfig.getTlsEnabled()
+                        ? workerConfig.getWorkerWebAddressTls() : workerConfig.getWorkerWebAddress());
 
             this.brokerAdmin = clientCreator.newPulsarAdmin(workerConfig.getPulsarWebServiceUrl(), workerConfig);
             this.functionAdmin = clientCreator.newPulsarAdmin(functionWebServiceUrl, workerConfig);
             this.client = clientCreator.newPulsarClient(workerConfig.getPulsarServiceUrl(), workerConfig);
 
-            getBrokerAdmin().topics().createNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
-            getBrokerAdmin().topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
-            getBrokerAdmin().topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
+            tryCreateNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
+            tryCreateNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
+            tryCreateNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
             this.schedulerManager = new SchedulerManager(workerConfig, client, getBrokerAdmin(), workerStatsManager, errorNotifier);
 

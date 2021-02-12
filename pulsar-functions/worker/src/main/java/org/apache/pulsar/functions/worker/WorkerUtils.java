@@ -194,6 +194,11 @@ public final class WorkerUtils {
     public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams,
                                                    String tlsTrustCertsFilePath, Boolean allowTlsInsecureConnection,
                                                    Boolean enableTlsHostnameVerificationEnable) {
+        log.info("Create Pulsar Admin to service url {}: "
+            + "authPlugin = {}, authParams = {}, "
+            + "tlsTrustCerts = {}, allowTlsInsecureConnector = {}, enableTlsHostnameVerification = {}",
+            pulsarWebServiceUrl, authPlugin, authParams,
+            tlsTrustCertsFilePath, allowTlsInsecureConnection, enableTlsHostnameVerificationEnable);
         try {
             PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (isNotBlank(authPlugin) && isNotBlank(authParams)) {
@@ -307,28 +312,6 @@ public final class WorkerUtils {
         } catch (IOException e) {
             throw new RuntimeException("Cannot create a temporary file", e);
         }
-    }
-
-    public static boolean isFunctionCodeBuiltin(Function.FunctionDetailsOrBuilder functionDetails) {
-        if (functionDetails.hasSource()) {
-            Function.SourceSpec sourceSpec = functionDetails.getSource();
-            if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
-                return true;
-            }
-        }
-
-        if (functionDetails.hasSink()) {
-            Function.SinkSpec sinkSpec = functionDetails.getSink();
-            if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
-                return true;
-            }
-        }
-
-        if (!StringUtils.isEmpty(functionDetails.getBuiltin())) {
-            return true;
-        }
-
-        return false;
     }
 
     public static Reader<byte[]> createReader(ReaderBuilder readerBuilder,

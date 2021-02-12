@@ -215,7 +215,7 @@ internalListenerName|Specify the internal listener name for the broker.<br><br>*
 |brokerClientTlsTrustStorePassword| TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers ||
 |brokerClientTlsCiphers| Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]||
 |brokerClientTlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g.  [TLSv1.2, TLSv1.1, TLSv1] ||
-|ttlDurationDefaultInSeconds|  The default ttl for namespaces if ttl is not configured at namespace policies.  |0|
+|ttlDurationDefaultInSeconds|The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:;base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:;base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`||
 |tokenPublicAlg| Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (https://github.com/jwtk/jjwt#signature-algorithms-keys) |RS256|
@@ -392,6 +392,8 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 
 ## Log4j
 
+You can set the log level and configuration in the  [log4j2.yaml](https://github.com/apache/pulsar/blob/d557e0aa286866363bc6261dec87790c055db1b0/conf/log4j2.yaml#L155) file. The following logging configuration parameters are available.
+
 |Name|Default|
 |---|---|
 |pulsar.root.logger|  WARN,CONSOLE|
@@ -457,7 +459,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |backlogQuotaCheckEnabled|  Enable the backlog quota check, which enforces a specified action when the quota is reached.  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the backlog quota.  |60|
 |backlogQuotaDefaultLimitGB| The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1. |-1|
-|ttlDurationDefaultInSeconds|  The default ttl for namespaces if ttl is not configured at namespace policies.  |0|
+|ttlDurationDefaultInSeconds|The default Time to Live (TTL) for namespaces if the TTL is not configured at namespace policies. When the value is set to `0`, TTL is disabled. By default, TTL is disabled. |0|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics, in seconds. |60|
 | maxPendingPublishdRequestsPerConnection | Maximum pending publish requests per connection to avoid keeping large number of pending requests in memory | 1000|
@@ -501,6 +503,7 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 |dispatcherMinReadBatchSize|The minimum number of entries to read from BookKeeper. By default, it is 1 entry. When there is an error occurred on reading entries from bookkeeper, the broker will backoff the batch size to this minimum number.|1|
 |dispatcherMaxRoundRobinBatchSize|The maximum number of entries to dispatch for a shared subscription. By default, it is 20 entries.|20|
 | preciseDispatcherFlowControl | Precise dispathcer flow control according to history message number of each entry. | false |
+| streamingDispatch | Whether to use streaming read dispatcher. It can be useful when there's a huge backlog to drain and instead of read with micro batch we can streamline the read from bookkeeper to make the most of consumer capacity till we hit bookkeeper read limit or consumer process limit, then we can use consumer flow control to tune the speed. This feature is currently in preview and can be changed in subsequent release. | false |
 | maxConcurrentLookupRequest | Maximum number of concurrent lookup request that the broker allows to throttle heavy incoming lookup traffic. | 50000 |
 | maxConcurrentTopicLoadRequest | Maximum number of concurrent topic loading request that the broker allows to control the number of zk-operations. | 5000 |
 | maxConcurrentNonPersistentMessagePerConnection | Maximum number of concurrent non-persistent message that can be processed per connection. | 1000 |

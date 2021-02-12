@@ -18,61 +18,53 @@
  */
 package org.apache.pulsar.tests.integration.presto;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.tests.integration.containers.S3Container;
-import org.apache.pulsar.tests.integration.docker.ContainerExecException;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.shaded.org.apache.commons.lang.StringUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.assertj.core.api.Assertions.assertThat;
-
+/**
+ * Test presto query from tiered storage.
+ */
 @Slf4j
-public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
+public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
 
-    private final static int ENTRIES_PER_LEDGER = 1024;
-    private final static String OFFLOAD_DRIVER = "s3";
-    private final static String BUCKET = "pulsar-integtest";
-    private final static String ENDPOINT = "http://" + S3Container.NAME + ":9090";
+    private final String TENANT = "presto";
+    private final String NAMESPACE = "ts";
 
     private S3Container s3Container;
 
-    @Override
-    protected void beforeStartCluster() throws Exception {
-        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
-            getEnv().forEach(brokerContainer::withEnv);
-        }
-    }
-
     @BeforeClass
-    public void setupPresto() throws Exception {
+    public void setupExtraContainers() throws Exception {
+        log.info("[TestPrestoQueryTieredStorage] setupExtraContainers...");
+        pulsarCluster.runAdminCommandOnAnyBroker( "tenants",
+                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
+                "--admin-roles", "offload-admin", TENANT);
+
+        pulsarCluster.runAdminCommandOnAnyBroker(
+                "namespaces",
+                "create", "--clusters", pulsarCluster.getClusterName(),
+                NamespaceName.get(TENANT, NAMESPACE).toString());
+
         s3Container = new S3Container(
                 pulsarCluster.getClusterName(),
                 S3Container.NAME)
@@ -80,11 +72,12 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
                 .withNetworkAliases(S3Container.NAME);
         s3Container.start();
 
-        log.info("[setupPresto] prestoWorker: " + pulsarCluster.getPrestoWorkerContainer());
-        pulsarCluster.startPrestoWorker(OFFLOAD_DRIVER, getOffloadProperties(BUCKET, null, ENDPOINT));
+        String offloadProperties = getOffloadProperties(BUCKET, null, ENDPOINT);
+        pulsarCluster.startPrestoWorker(OFFLOAD_DRIVER, offloadProperties);
+        pulsarCluster.startPrestoFollowWorkers(1, OFFLOAD_DRIVER, offloadProperties);
     }
 
-    public String getOffloadProperties(String bucket, String region, String endpoint) {
+    private String getOffloadProperties(String bucket, String region, String endpoint) {
         checkNotNull(bucket);
         StringBuilder sb = new StringBuilder();
         sb.append("{");
@@ -99,10 +92,9 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
         return sb.toString();
     }
 
-
     @AfterClass
     public void teardownPresto() {
-        log.info("tearing down...");
+        log.info("[TestPrestoQueryTieredStorage] tearing down...");
         if (null != s3Container) {
             s3Container.stop();
         }
@@ -110,213 +102,91 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
         pulsarCluster.stopPrestoWorker();
     }
 
-    // Flaky Test: https://github.com/apache/pulsar/issues/7750
-    // @Test
+    @Test
     public void testQueryTieredStorage1() throws Exception {
-        testSimpleSQLQuery(false);
+        TopicName topicName = TopicName.get(
+                TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_nons_" + randomName(5));
+        pulsarSQLBasicTest(topicName, false, false);
     }
 
-    // Flaky Test: https://github.com/apache/pulsar/issues/7750
-    // @Test
+    @Test
     public void testQueryTieredStorage2() throws Exception {
-        testSimpleSQLQuery(true);
+        TopicName topicName = TopicName.get(
+                TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_ns_" + randomName(5));
+        pulsarSQLBasicTest(topicName, false, true);
     }
 
-    public void testSimpleSQLQuery(boolean isNamespaceOffload) throws Exception {
-
-        // wait until presto worker started
-        ContainerExecResult result;
-        do {
-            try {
-                result = execQuery("show catalogs;");
-                assertThat(result.getExitCode()).isEqualTo(0);
-                assertThat(result.getStdout()).contains("pulsar", "system");
-                break;
-            } catch (ContainerExecException cee) {
-                if (cee.getResult().getStderr().contains("Presto server is still initializing")) {
-                    Thread.sleep(10000);
-                } else {
-                    throw cee;
-                }
-            }
-        } while (true);
-
+    @Override
+    protected int prepareData(TopicName topicName, boolean isBatch, boolean useNsOffloadPolices) throws Exception {
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
-                                    .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                                    .build();
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
 
-        String stocksTopic = "stocks-" + randomName(5);
+        @Cleanup
+        Consumer<Stock> consumer = pulsarClient.newConsumer(JSONSchema.of(Stock.class))
+                .topic(topicName.toString())
+                .subscriptionName("test")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
 
         @Cleanup
         Producer<Stock> producer = pulsarClient.newProducer(JSONSchema.of(Stock.class))
-                .topic(stocksTopic)
+                .topic(topicName.toString())
                 .create();
 
         long firstLedgerId = -1;
-        long currentLedgerId = -1;
         int sendMessageCnt = 0;
-        while (currentLedgerId <= firstLedgerId) {
-            sendMessageCnt ++;
-            final Stock stock = new Stock(sendMessageCnt,"STOCK_" + sendMessageCnt , 100.0 + sendMessageCnt * 10);
+        while (true) {
+            Stock stock = new Stock(
+                    sendMessageCnt,"STOCK_" + sendMessageCnt , 100.0 + sendMessageCnt * 10);
             MessageIdImpl messageId = (MessageIdImpl) producer.send(stock);
+            sendMessageCnt ++;
             if (firstLedgerId == -1) {
                 firstLedgerId = messageId.getLedgerId();
             }
-            currentLedgerId = messageId.getLedgerId();
-            log.info("firstLedgerId: {}, currentLedgerId: {}", firstLedgerId, currentLedgerId);
+            if (messageId.getLedgerId() > firstLedgerId) {
+                log.info("ledger rollover firstLedgerId: {}, currentLedgerId: {}",
+                        firstLedgerId, messageId.getLedgerId());
+                break;
+            }
             Thread.sleep(100);
         }
-        producer.flush();
 
-        offloadAndDeleteFromBK(isNamespaceOffload, stocksTopic);
-
-        // check schema
-        result = execQuery("show schemas in pulsar;");
-        assertThat(result.getExitCode()).isEqualTo(0);
-        assertThat(result.getStdout()).contains("public/default");
-
-        // check table
-        result = execQuery("show tables in pulsar.\"public/default\";");
-        assertThat(result.getExitCode()).isEqualTo(0);
-        assertThat(result.getStdout()).contains(stocksTopic);
-
-        // check query
-        ContainerExecResult containerExecResult = execQuery(String.format("select * from pulsar.\"public/default\".%s order by entryid;", stocksTopic));
-        assertThat(containerExecResult.getExitCode()).isEqualTo(0);
-        log.info("select sql query output \n{}", containerExecResult.getStdout());
-        String[] split = containerExecResult.getStdout().split("\n");
-        assertThat(split.length).isGreaterThan(sendMessageCnt - 2);
-
-        String[] split2 = containerExecResult.getStdout().split("\n|,");
-
-        for (int i = 0; i < sendMessageCnt - 2; ++i) {
-            assertThat(split2).contains("\"" + i + "\"");
-            assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
-            assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
-        }
-
-        // test predicate pushdown
-
-        String url = String.format("jdbc:presto://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
-        Connection connection = DriverManager.getConnection(url, "test", null);
-
-        String query = String.format("select * from pulsar" +
-                ".\"public/default\".%s order by __publish_time__", stocksTopic);
-        log.info("Executing query: {}", query);
-        ResultSet res = connection.createStatement().executeQuery(query);
-
-        List<Timestamp> timestamps = new LinkedList<>();
-        while (res.next()) {
-            printCurrent(res);
-            timestamps.add(res.getTimestamp("__publish_time__"));
-        }
-
-        assertThat(timestamps.size()).isGreaterThan(sendMessageCnt - 2);
-
-        query = String.format("select * from pulsar" +
-                ".\"public/default\".%s where __publish_time__ > timestamp '%s' order by __publish_time__", stocksTopic, timestamps.get(timestamps.size() / 2));
-        log.info("Executing query: {}", query);
-        res = connection.createStatement().executeQuery(query);
-
-        List<Timestamp> returnedTimestamps = new LinkedList<>();
-        while (res.next()) {
-            printCurrent(res);
-            returnedTimestamps.add(res.getTimestamp("__publish_time__"));
-        }
-
-        assertThat(returnedTimestamps.size()).isEqualTo(timestamps.size() / 2);
-
-        // Try with a predicate that has a earlier time than any entry
-        // Should return all rows
-        query = String.format("select * from pulsar" +
-                ".\"public/default\".%s where __publish_time__ > from_unixtime(%s) order by __publish_time__", stocksTopic, 0);
-        log.info("Executing query: {}", query);
-        res = connection.createStatement().executeQuery(query);
-
-        returnedTimestamps = new LinkedList<>();
-        while (res.next()) {
-            printCurrent(res);
-            returnedTimestamps.add(res.getTimestamp("__publish_time__"));
-        }
-
-        assertThat(returnedTimestamps.size()).isEqualTo(timestamps.size());
-
-        // Try with a predicate that has a latter time than any entry
-        // Should return no rows
-
-        query = String.format("select * from pulsar" +
-                ".\"public/default\".%s where __publish_time__ > from_unixtime(%s) order by __publish_time__", stocksTopic, 99999999999L);
-        log.info("Executing query: {}", query);
-        res = connection.createStatement().executeQuery(query);
-
-        returnedTimestamps = new LinkedList<>();
-        while (res.next()) {
-            printCurrent(res);
-            returnedTimestamps.add(res.getTimestamp("__publish_time__"));
-        }
-
-        assertThat(returnedTimestamps.size()).isEqualTo(0);
+        offloadAndDeleteFromBK(useNsOffloadPolices, topicName);
+        return sendMessageCnt;
     }
 
-    @AfterSuite
-    @Override
-    public void tearDownCluster() {
-        super.tearDownCluster();
-    }
-
-    public static ContainerExecResult execQuery(final String query) throws Exception {
-        ContainerExecResult containerExecResult;
-
-        containerExecResult = pulsarCluster.getPrestoWorkerContainer()
-                .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
-
-        return containerExecResult;
-
-    }
-
-    private static void printCurrent(ResultSet rs) throws SQLException {
-        ResultSetMetaData rsmd = rs.getMetaData();
-        int columnsNumber = rsmd.getColumnCount();
-        for (int i = 1; i <= columnsNumber; i++) {
-            if (i > 1) System.out.print(",  ");
-            String columnValue = rs.getString(i);
-            System.out.print(columnValue + " " + rsmd.getColumnName(i));
-        }
-        System.out.println("");
-
-    }
-
-    private void offloadAndDeleteFromBK(boolean isNamespaceOffload, String stocksTopic) {
+    private void offloadAndDeleteFromBK(boolean useNsOffloadPolices, TopicName topicName) {
         String adminUrl = pulsarCluster.getHttpServiceUrl();
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
             // read managed ledger info, check ledgers exist
-            long firstLedger = admin.topics().getInternalStats(stocksTopic).ledgers.get(0).ledgerId;
+            long firstLedger = admin.topics().getInternalStats(topicName.toString()).ledgers.get(0).ledgerId;
 
             String output = "";
 
-            if (isNamespaceOffload) {
+            if (useNsOffloadPolices) {
                 pulsarCluster.runAdminCommandOnAnyBroker(
                         "namespaces", "set-offload-policies",
                         "--bucket", "pulsar-integtest",
-                        "--driver", "s3",
+                        "--driver", OFFLOAD_DRIVER,
                         "--endpoint", "http://" + S3Container.NAME + ":9090",
                         "--offloadAfterElapsed", "1000",
-                        "public/default");
+                        topicName.getNamespace());
 
                 output = pulsarCluster.runAdminCommandOnAnyBroker(
-                        "namespaces", "get-offload-policies").getStdout();
+                        "namespaces", "get-offload-policies", topicName.getNamespace()).getStdout();
                 Assert.assertTrue(output.contains("pulsar-integtest"));
-                Assert.assertTrue(output.contains("s3"));
+                Assert.assertTrue(output.contains(OFFLOAD_DRIVER));
             }
 
             // offload with a low threshold
             output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "offload", "--size-threshold", "1M", stocksTopic).getStdout();
+                    "offload", "--size-threshold", "0", topicName.toString()).getStdout();
             Assert.assertTrue(output.contains("Offload triggered"));
 
             output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                    "offload-status", "-w", stocksTopic).getStdout();
+                    "offload-status", "-w", topicName.toString()).getStdout();
             Assert.assertTrue(output.contains("Offload was a success"));
 
             // delete the first ledger, so that we cannot possibly read from it
@@ -330,21 +200,10 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
             }
 
             // Unload topic to clear all caches, open handles, etc
-            admin.topics().unload(stocksTopic);
+            admin.topics().unload(topicName.toString());
         } catch (Exception e) {
             Assert.fail("Failed to deleteOffloadedDataFromBK.");
         }
-    }
-
-    protected Map<String, String> getEnv() {
-        Map<String, String> result = new HashMap<>();
-        result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
-        result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
-        result.put("managedLedgerOffloadDriver", OFFLOAD_DRIVER);
-        result.put("s3ManagedLedgerOffloadBucket", BUCKET);
-        result.put("s3ManagedLedgerOffloadServiceEndpoint", ENDPOINT);
-
-        return result;
     }
 
 }

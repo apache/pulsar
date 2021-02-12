@@ -69,6 +69,7 @@ import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.ZookeeperSessionExpiredHandlers;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.impl.PulsarResources;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -91,6 +92,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
@@ -157,7 +159,7 @@ public class PulsarService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private ServiceConfiguration config = null;
     private NamespaceService nsService = null;
-    private ManagedLedgerClientFactory managedLedgerClientFactory = null;
+    private ManagedLedgerStorage managedLedgerClientFactory = null;
     private LeaderElectionService leaderElectionService = null;
     private BrokerService brokerService = null;
     private WebService webService = null;
@@ -220,6 +222,8 @@ public class PulsarService implements AutoCloseable {
     private MetadataStoreExtended localMetadataStore;
     private CoordinationService coordinationService;
 
+    private MetadataStoreExtended configurationMetadataStore;
+    private PulsarResources pulsarResources;
 
     public enum State {
         Init, Started, Closed
@@ -279,6 +283,14 @@ public class PulsarService implements AutoCloseable {
         this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
                 new DefaultThreadFactory("zk-cache-callback"));
         }
+
+    public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
+        return MetadataStoreExtended.create(config.getConfigurationStoreServers(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
+                        .allowReadOnlyOperations(false)
+                        .build());
+    }
 
     /**
      * Close the current pulsar service. All resources are released.
@@ -396,6 +408,9 @@ public class PulsarService implements AutoCloseable {
             if (localMetadataStore != null) {
                 localMetadataStore.close();
             }
+            if (configurationMetadataStore != null) {
+                configurationMetadataStore.close();
+            }
 
             state = State.Closed;
             isClosedCondition.signalAll();
@@ -467,8 +482,10 @@ public class PulsarService implements AutoCloseable {
             }
 
             localMetadataStore = createLocalMetadataStore();
-
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
+
+            configurationMetadataStore = createConfigurationMetadataStore();
+            pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore);
 
             orderedExecutor = OrderedExecutor.newBuilder()
                     .numThreads(config.getNumOrderedExecutorThreads())
@@ -500,7 +517,9 @@ public class PulsarService implements AutoCloseable {
             this.startZkCacheService();
 
             this.bkClientFactory = newBookKeeperClientFactory();
-            managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(), bkClientFactory);
+            managedLedgerClientFactory = ManagedLedgerStorage.create(
+                config, getZkClient(), bkClientFactory
+            );
 
             this.brokerService = new BrokerService(this);
 
@@ -711,8 +730,10 @@ public class PulsarService implements AutoCloseable {
                                     resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
                         }
                     } else {
-                        LOG.info("This broker is a follower. Current leader is {}",
-                                leaderElectionService.getCurrentLeader());
+                        if (leaderElectionService != null) {
+                            LOG.info("This broker is a follower. Current leader is {}",
+                                    leaderElectionService.getCurrentLeader());
+                        }
                         if (loadSheddingTask != null) {
                             loadSheddingTask.cancel(false);
                             loadSheddingTask = null;
@@ -957,7 +978,7 @@ public class PulsarService implements AutoCloseable {
         return managedLedgerClientFactory.getManagedLedgerFactory();
     }
 
-    public ManagedLedgerClientFactory getManagedLedgerClientFactory() {
+    public ManagedLedgerStorage getManagedLedgerClientFactory() {
         return managedLedgerClientFactory;
     }
 
@@ -1022,17 +1043,12 @@ public class PulsarService implements AutoCloseable {
         }
     }
 
-    private SchemaStorage createAndStartSchemaStorage() {
-        SchemaStorage schemaStorage = null;
-        try {
-            final Class<?> storageClass = Class.forName(config.getSchemaRegistryStorageClassName());
-            Object factoryInstance = storageClass.newInstance();
-            Method createMethod = storageClass.getMethod("create", PulsarService.class);
-            schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this);
-            schemaStorage.start();
-        } catch (Exception e) {
-            LOG.warn("Unable to create schema registry storage");
-        }
+    private SchemaStorage createAndStartSchemaStorage() throws Exception {
+        final Class<?> storageClass = Class.forName(config.getSchemaRegistryStorageClassName());
+        Object factoryInstance = storageClass.newInstance();
+        Method createMethod = storageClass.getMethod("create", PulsarService.class);
+        SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this);
+        schemaStorage.start();
         return schemaStorage;
     }
 
@@ -1306,14 +1322,21 @@ public class PulsarService implements AutoCloseable {
                                     AuthorizationService authorizationService)
             throws Exception {
         if (functionWorkerService.isPresent()) {
-            LOG.info("Starting function worker service");
             if (workerConfig.isUseTls()) {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrlTls);
                 workerConfig.setPulsarWebServiceUrl(webServiceAddressTls);
+                workerConfig.setFunctionWebServiceUrl(webServiceAddressTls);
             } else {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrl);
                 workerConfig.setPulsarWebServiceUrl(webServiceAddress);
+                workerConfig.setFunctionWebServiceUrl(webServiceAddress);
             }
+
+            LOG.info("Starting function worker service: serviceUrl = {},"
+                + " webServiceUrl = {}, functionWebServiceUrl = {}",
+                workerConfig.getPulsarServiceUrl(),
+                workerConfig.getPulsarWebServiceUrl(),
+                workerConfig.getFunctionWebServiceUrl());
 
             functionWorkerService.get().initInBroker(
                 config,
@@ -1371,19 +1394,19 @@ public class PulsarService implements AutoCloseable {
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
+
+        brokerConfig.getWebServicePort()
+            .map(port -> workerConfig.setWorkerPort(port));
+        brokerConfig.getWebServicePortTls()
+            .map(port -> workerConfig.setWorkerPortTls(port));
+
         // worker talks to local broker
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
             brokerConfig.getAdvertisedAddress());
         workerConfig.setWorkerHostname(hostname);
-        workerConfig.setWorkerPort(brokerConfig.getWebServicePort().get());
-        workerConfig.setWorkerId(
-            "c-" + brokerConfig.getClusterName()
-                + "-fw-" + hostname
-                + "-" + workerConfig.getWorkerPort());
         // inherit broker authorization setting
         workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());
         workerConfig.setAuthenticationProviders(brokerConfig.getAuthenticationProviders());
-
         workerConfig.setAuthorizationEnabled(brokerConfig.isAuthorizationEnabled());
         workerConfig.setAuthorizationProvider(brokerConfig.getAuthorizationProvider());
         workerConfig.setConfigurationStoreServers(brokerConfig.getConfigurationStoreServers());
@@ -1391,6 +1414,7 @@ public class PulsarService implements AutoCloseable {
         workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
         workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
+        workerConfig.setTlsEnabled(brokerConfig.isTlsEnabled());
         workerConfig.setTlsEnableHostnameVerification(false);
         workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
 
@@ -1406,6 +1430,12 @@ public class PulsarService implements AutoCloseable {
             workerConfig.setFunctionsWorkerServiceNarPackage(
                 brokerConfig.getFunctionsWorkerServiceNarPackage());
         }
+
+        workerConfig.setWorkerId(
+                "c-" + brokerConfig.getClusterName()
+                        + "-fw-" + hostname
+                        + "-" + (workerConfig.getTlsEnabled()
+                        ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
     }
 }

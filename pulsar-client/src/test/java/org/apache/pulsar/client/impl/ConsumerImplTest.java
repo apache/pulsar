@@ -50,7 +50,7 @@ public class ConsumerImplTest {
     private ConsumerConfigurationData consumerConf;
 
     @BeforeMethod
-    public void setUp() {
+    public void setUp() throws PulsarClientException.InvalidConfigurationException {
         consumerConf = new ConsumerConfigurationData<>();
         PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock();
         ClientConfigurationData clientConf = client.getConfiguration();

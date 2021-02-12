@@ -55,6 +55,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -71,6 +72,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -152,6 +154,7 @@ public class KubernetesRuntime implements Runtime {
     private String narExtractionDirectory;
     private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
     private String functionInstanceClassPath;
+    private String downloadDirectory;
 
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
@@ -187,7 +190,8 @@ public class KubernetesRuntime implements Runtime {
                       Integer metricsPort,
                       String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer,
-                      String functinoInstanceClassPath) throws Exception {
+                      String functinoInstanceClassPath,
+                      String downloadDirectory) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -200,7 +204,8 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarRootDir = pulsarRootDir;
         this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
-        this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
+        this.downloadDirectory = StringUtils.isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
+        this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
@@ -271,7 +276,8 @@ public class KubernetesRuntime implements Runtime {
                         metricsPort,
                         narExtractionDirectory,
                         functinoInstanceClassPath,
-                        true));
+                        true,
+                        pulsarAdminUrl));
 
         doChecks(instanceConfig.getFunctionDetails(), this.jobName);
     }
