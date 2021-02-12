@@ -20,9 +20,6 @@ package org.apache.pulsar.common.stats;
 
 import com.google.common.collect.Maps;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
@@ -33,7 +30,7 @@ import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"restriction", "checkstyle:JavadocType"})
+@SuppressWarnings({"checkstyle:JavadocType"})
 public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
 
     private static final Logger log = LoggerFactory.getLogger(JvmDefaultGCMetricsLogger.class);
