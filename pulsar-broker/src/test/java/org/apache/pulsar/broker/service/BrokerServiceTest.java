@@ -109,6 +109,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    // method for resetting state explicitly
+    // this is required since setup & cleanup are using BeforeClass & AfterClass
+    private void resetState() throws Exception {
+        cleanup();
+        setup();
+    }
+
     @Test
     public void testOwnedNsCheck() throws Exception {
         final String topic = "persistent://prop/ns-abc/successTopic";
@@ -145,6 +152,9 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testBrokerServicePersistentTopicStats() throws Exception {
+        // this test might fail if there are stats from other tests
+        resetState();
+
         final String topicName = "persistent://prop/ns-abc/successTopic";
         final String subName = "successSub";
 
@@ -243,6 +253,9 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testBrokerServicePersistentRedeliverTopicStats() throws Exception {
+        // this test might fail if there are stats from other tests
+        resetState();
+
         final String topicName = "persistent://prop/ns-abc/successSharedTopic";
         final String subName = "successSharedSub";
 
@@ -380,6 +393,9 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testBrokerServiceNamespaceStats() throws Exception {
+        // this test fails if there is state from other tests
+        resetState();
+
         final int numBundles = 4;
         final String ns1 = "prop/stats1";
         final String ns2 = "prop/stats2";
