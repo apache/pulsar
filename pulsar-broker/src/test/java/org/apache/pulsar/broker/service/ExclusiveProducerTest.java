@@ -76,6 +76,10 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     @Test(dataProvider = "topics")
     public void simpleTest(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
+        simpleTest(topic);
+    }
+
+    private void simpleTest(String topic) throws Exception {
 
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
@@ -285,6 +289,18 @@ public class ExclusiveProducerTest extends BrokerTestBase {
 
         // Now P2 should get created
         fp2.get(1, TimeUnit.SECONDS);
+    }
+
+    @Test(dataProvider = "topics")
+    public void exclusiveWithConsumers(String type, boolean partitioned) throws Exception {
+        String topic = newTopic(type, partitioned);
+
+        pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        simpleTest(topic);
     }
 
     private String newTopic(String type, boolean isPartitioned) throws Exception {

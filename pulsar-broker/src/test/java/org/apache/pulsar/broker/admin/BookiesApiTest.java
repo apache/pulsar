@@ -24,9 +24,11 @@ import static org.testng.Assert.fail;
 
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -109,6 +111,10 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
         conf = admin.bookies().getBookiesRackInfo();
         assertTrue(conf.isEmpty());
+
+        BookiesClusterInfo bookies = admin.bookies().getBookies();
+        log.info("bookies info {}", bookies);
+        assertEquals(bookies.getBookies().size(), pulsar.getBookKeeperClient().getMetadataClientDriver().getRegistrationClient().getAllBookies().get().getValue().size());
     }
 
 }
