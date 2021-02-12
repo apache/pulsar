@@ -173,6 +173,34 @@ public class AuthenticationProviderTokenTest {
         });
         assertEquals(subject, SUBJECT);
 
+        /**
+         * HEADER:ALGORITHM & TOKEN TYPE
+         * {
+         *   "alg": "none"
+         * }
+         * PAYLOAD:DATA
+         * {
+         *   "sub": "test-user"
+         * }
+         */
+        String tokenWithNoneAlg = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.";
+        try {
+            provider.authenticate(new AuthenticationDataSource() {
+                @Override
+                public boolean hasDataFromCommand() {
+                    return true;
+                }
+
+                @Override
+                public String getCommandData() {
+                    return tokenWithNoneAlg;
+                }
+            });
+            fail("Should have failed");
+        } catch (AuthenticationException e) {
+            // expected, Unsigned Claims JWTs are not supported.
+        }
+
         // Expired token. This should be rejected by the authentication provider
         String expiredToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
                 Optional.of(new Date(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1))));

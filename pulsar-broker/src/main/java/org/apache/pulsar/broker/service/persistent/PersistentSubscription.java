@@ -181,19 +181,24 @@ public class PersistentSubscription implements Subscription {
 
         if (dispatcher == null || !dispatcher.isConsumerConnected()) {
             Dispatcher previousDispatcher = null;
-
+            boolean useStreamingDispatcher = topic.getBrokerService().getPulsar()
+                                                    .getConfiguration().isStreamingDispatch();
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor,
-                            SubType.Exclusive, 0, topic, this);
+                    dispatcher = useStreamingDispatcher ? new PersistentStreamingDispatcherSingleActiveConsumer(cursor,
+                            SubType.Exclusive, 0, topic, this) :
+                            new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Exclusive, 0,
+                                    topic, this);
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                    dispatcher = useStreamingDispatcher ? new PersistentStreamingDispatcherMultipleConsumers(topic,
+                            cursor, this) : new PersistentDispatcherMultipleConsumers(topic,
+                            cursor, this);
                 }
                 break;
             case Failover:
@@ -206,8 +211,10 @@ public class PersistentSubscription implements Subscription {
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     previousDispatcher = dispatcher;
-                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor,
-                            SubType.Failover, partitionIndex, topic, this);
+                    dispatcher = useStreamingDispatcher ? new PersistentStreamingDispatcherSingleActiveConsumer(cursor,
+                            SubType.Failover, partitionIndex, topic, this) :
+                            new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
+                                    partitionIndex, topic, this);
                 }
                 break;
             case Key_Shared:
@@ -507,7 +514,9 @@ public class PersistentSubscription implements Subscription {
                     log.debug("[{}][{}] Backlog size after clearing: {}", topicName, subName,
                             cursor.getNumberOfEntriesInBacklog(false));
                 }
-                dispatcher.clearDelayedMessages();
+                if (dispatcher != null) {
+                    dispatcher.clearDelayedMessages();
+                }
                 future.complete(null);
             }
 
@@ -895,6 +904,11 @@ public class PersistentSubscription implements Subscription {
         expiryMonitor.expireMessages(messageTTLInSeconds);
     }
 
+    @Override
+    public void expireMessages(Position position) {
+        expiryMonitor.expireMessages(position);
+    }
+
     public double getExpiredMessageRate() {
         return expiryMonitor.getMessageExpiryRate();
     }
@@ -903,7 +917,7 @@ public class PersistentSubscription implements Subscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStats getStats(Boolean getPreciseBacklog) {
+    public SubscriptionStats getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
         SubscriptionStats subStats = new SubscriptionStats();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -947,6 +961,10 @@ public class PersistentSubscription implements Subscription {
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
+        if (subscriptionBacklogSize) {
+            subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
+                    .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+        }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();

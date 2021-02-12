@@ -16,24 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils.io;
+package org.apache.pulsar.common.policies.data;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
-import org.apache.pulsar.common.io.ConfigFieldDefinition;
-import org.apache.pulsar.common.io.ConnectorDefinition;
-
+/**
+ * Bookie information.
+ */
 @Data
-public class Connectors {
-    final List<ConnectorDefinition> connectors = new ArrayList<>();
-    final Map<String, Path> sources = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sourceConfigDefinitions = new TreeMap<>();
-    final Map<String, Path> sinks = new TreeMap<>();
-    final Map<String, List<ConfigFieldDefinition>> sinkConfigDefinitions = new TreeMap<>();
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
+public class RawBookieInfo {
+    private String bookieId;
 }

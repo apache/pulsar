@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function;
@@ -45,6 +46,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @UtilityClass
@@ -156,6 +158,12 @@ public class InstanceUtils {
     }
 
     public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig) throws PulsarClientException {
+        return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty());
+    }
+
+    public static PulsarClient createPulsarClient(String pulsarServiceUrl,
+                                                  AuthenticationConfig authConfig,
+                                                  Optional<Long> memoryLimit) throws PulsarClientException {
         ClientBuilder clientBuilder = null;
         if (isNotBlank(pulsarServiceUrl)) {
             clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
@@ -169,6 +177,9 @@ public class InstanceUtils {
                 clientBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
                 clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
                 clientBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
+            }
+            if (memoryLimit.isPresent()) {
+                clientBuilder.memoryLimit(memoryLimit.get(), SizeUnit.BYTES);
             }
             clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
             return clientBuilder.build();
