@@ -63,7 +63,8 @@ public class NamespaceStatsAggregator {
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
                     getTopicStats(topic, topicStats, includeConsumerMetrics,
-                            pulsar.getConfiguration().isExposePreciseBacklogInPrometheus());
+                            pulsar.getConfiguration().isExposePreciseBacklogInPrometheus(),
+                            pulsar.getConfiguration().isExposeSubscriptionBacklogSizeInPrometheus());
 
                     if (includeTopicMetrics) {
                         topicsCount.add(1);
@@ -85,7 +86,7 @@ public class NamespaceStatsAggregator {
     }
 
     private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics,
-                                      boolean getPreciseBacklog) {
+                                      boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
         stats.reset();
 
         if (topic instanceof PersistentTopic) {
@@ -110,7 +111,8 @@ public class NamespaceStatsAggregator {
             stats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
-        org.apache.pulsar.common.policies.data.TopicStats tStatus = topic.getStats(getPreciseBacklog);
+        org.apache.pulsar.common.policies.data.TopicStats tStatus = topic.getStats(getPreciseBacklog,
+                subscriptionBacklogSize);
         stats.msgInCounter = tStatus.msgInCounter;
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
@@ -140,10 +142,14 @@ public class NamespaceStatsAggregator {
                     .computeIfAbsent(subName, k -> new AggregatedSubscriptionStats());
             subsStats.msgBacklog = subscriptionStats.msgBacklog;
             subsStats.msgDelayed = subscriptionStats.msgDelayed;
-            subsStats.lastExpireTimestamp = subscriptionStats.lastExpireTimestamp;
             subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
             subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
             subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
+            subsStats.lastExpireTimestamp = subscriptionStats.lastExpireTimestamp;
+            subsStats.lastAckedTimestamp = subscriptionStats.lastAckedTimestamp;
+            subsStats.lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
+            subsStats.lastConsumedTimestamp = subscriptionStats.lastConsumedTimestamp;
+            subsStats.lastMarkDeleteAdvancedTimestamp = subscriptionStats.lastMarkDeleteAdvancedTimestamp;
             subscriptionStats.consumers.forEach(cStats -> {
                 stats.consumersCount++;
                 subsStats.unackedMessages += cStats.unackedMessages;

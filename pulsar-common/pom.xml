@@ -57,18 +57,6 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>protobuf-shaded</artifactId>
-      <version>${pulsar.protobuf.shaded.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
@@ -187,6 +175,19 @@
 
   <build>
   <plugins>
+	<plugin>
+		<groupId>com.github.splunk.lightproto</groupId>
+		<artifactId>lightproto-maven-plugin</artifactId>
+		<version>${lightproto-maven-plugin.version}</version>
+		<executions>
+			<execution>
+				<goals>
+					<goal>generate</goal>
+				</goals>
+			</execution>
+		</executions>
+	</plugin>
+
     <plugin>
         <groupId>pl.project13.maven</groupId>
         <artifactId>git-commit-id-plugin</artifactId>
@@ -210,7 +211,7 @@
           </gitDescribe>
         </configuration>
     </plugin>
-      
+
     <plugin>
       <groupId>org.codehaus.mojo</groupId>
       <artifactId>templating-maven-plugin</artifactId>
@@ -224,8 +225,23 @@
         </execution>
       </executions>
     </plugin>
-
-
+    <plugin>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-maven-plugin</artifactId>
+      <version>${spotbugs-maven-plugin.version}</version>
+      <executions>
+        <execution>
+          <id>spotbugs</id>
+          <phase>verify</phase>
+          <goals>
+            <goal>check</goal>
+          </goals>
+        </execution>
+      </executions>
+      <configuration>
+        <excludeFilterFile>${basedir}/src/main/resources/findbugsExclude.xml</excludeFilterFile>
+      </configuration>
+    </plugin>
   </plugins>
   </build>
 </project>

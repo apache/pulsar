@@ -21,11 +21,9 @@ package org.apache.pulsar.broker.auth;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -40,7 +38,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
@@ -53,10 +50,12 @@ import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
@@ -68,10 +67,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Base class for all tests that need a Pulsar instance without a ZK and BK cluster
+ * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
  */
 @PowerMockIgnore(value = {"org.slf4j.*", "com.sun.org.apache.xerces.*" })
 public abstract class MockedPulsarServiceBaseTest {
+
+    protected final String DUMMY_VALUE = "DUMMY_VALUE";
+    protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
 
     protected ServiceConfiguration conf;
     protected PulsarService pulsar;
@@ -83,6 +85,7 @@ public abstract class MockedPulsarServiceBaseTest {
     protected URI lookupUrl;
 
     protected MockZooKeeper mockZooKeeper;
+    protected MockZooKeeper mockZooKeeperGlobal;
     protected NonClosableMockBookKeeper mockBookKeeper;
     protected boolean isTcpLookup = false;
     protected static final String configClusterName = "test";
@@ -112,17 +115,29 @@ public abstract class MockedPulsarServiceBaseTest {
         internalSetup();
     }
 
-    protected final void internalSetup(boolean isPreciseDispatcherFlowControl) throws Exception {
-        init(isPreciseDispatcherFlowControl);
-        lookupUrl = new URI(brokerUrl.toString());
-        if (isTcpLookup) {
-            lookupUrl = new URI(pulsar.getBrokerServiceUrl());
-        }
-        pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+    protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
+        ClientBuilder clientBuilder =
+                PulsarClient.builder()
+                        .serviceUrl(url)
+                        .statsInterval(intervalInSecs, TimeUnit.SECONDS);
+        customizeNewPulsarClientBuilder(clientBuilder);
+        return createNewPulsarClient(clientBuilder);
     }
 
-    protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
-        return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+
+    }
+
+    protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
+        return clientBuilder.build();
+    }
+
+    protected PulsarClient replacePulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
+        pulsarClient = createNewPulsarClient(clientBuilder);
+        return pulsarClient;
     }
 
     protected final void internalSetupForStatsTest() throws Exception {
@@ -152,27 +167,7 @@ public abstract class MockedPulsarServiceBaseTest {
                     .build());
 
         mockZooKeeper = createMockZooKeeper();
-        mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
-
-        startBroker();
-    }
-
-    protected final void init(boolean isPreciseDispatcherFlowControl) throws Exception {
-        this.conf.setBrokerServicePort(Optional.of(0));
-        this.conf.setBrokerServicePortTls(Optional.of(0));
-        this.conf.setAdvertisedAddress("localhost");
-        this.conf.setWebServicePort(Optional.of(0));
-        this.conf.setWebServicePortTls(Optional.of(0));
-        this.conf.setPreciseDispatcherFlowControl(isPreciseDispatcherFlowControl);
-        this.conf.setNumExecutorThreadPoolSize(5);
-
-        sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
-        bkExecutor = Executors.newSingleThreadExecutor(
-                new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
-                .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
-                .build());
-
-        mockZooKeeper = createMockZooKeeper();
+        mockZooKeeperGlobal = createMockZooKeeperGlobal();
         mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
 
         startBroker();
@@ -190,12 +185,16 @@ public abstract class MockedPulsarServiceBaseTest {
             pulsarClient = null;
         }
         if (pulsar != null) {
-            pulsar.close();
+            stopBroker();
             pulsar = null;
         }
         if (mockBookKeeper != null) {
             mockBookKeeper.reallyShutdown();
             mockBookKeeper = null;
+        }
+        if (mockZooKeeperGlobal != null) {
+            mockZooKeeperGlobal.shutdown();
+            mockZooKeeperGlobal = null;
         }
         if (mockZooKeeper != null) {
             mockZooKeeper.shutdown();
@@ -221,7 +220,7 @@ public abstract class MockedPulsarServiceBaseTest {
             }
             bkExecutor = null;
         }
-        
+
     }
 
     protected abstract void setup() throws Exception;
@@ -234,6 +233,8 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected void stopBroker() throws Exception {
+        log.info("Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
+                pulsar.getWebServiceAddress());
         pulsar.close();
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
@@ -264,6 +265,8 @@ public abstract class MockedPulsarServiceBaseTest {
         conf.setAuthorizationEnabled(true);
         pulsar.start();
         conf.setAuthorizationEnabled(isAuthorizationEnabled);
+        log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
+                pulsar.getWebServiceAddress());
 
         return pulsar;
     }
@@ -272,6 +275,8 @@ public abstract class MockedPulsarServiceBaseTest {
         // Override default providers with mocked ones
         doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createLocalMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(pulsar).createConfigurationMetadataStore();
 
         Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
@@ -315,6 +320,10 @@ public abstract class MockedPulsarServiceBaseTest {
         return zk;
     }
 
+    public static MockZooKeeper createMockZooKeeperGlobal() throws Exception {
+        return  MockZooKeeper.newInstanceForGlobalZK(MoreExecutors.newDirectExecutorService());
+    }
+
     public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper,
                                                                  ExecutorService executor) throws Exception {
         return spy(new NonClosableMockBookKeeper(zookeeper, executor));
@@ -347,7 +356,13 @@ public abstract class MockedPulsarServiceBaseTest {
         @Override
         public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
                 int zkSessionTimeoutMillis) {
-            // Always return the same instance (so that we don't loose the mock ZK content on broker restart
+
+            if (serverList != null
+                    && (serverList.equalsIgnoreCase(conf.getConfigurationStoreServers())
+                    || serverList.equalsIgnoreCase(GLOBAL_DUMMY_VALUE))) {
+                return CompletableFuture.completedFuture(mockZooKeeperGlobal);
+            }
+
             return CompletableFuture.completedFuture(mockZooKeeper);
         }
     };
@@ -387,7 +402,8 @@ public abstract class MockedPulsarServiceBaseTest {
         return false;
     }
 
-    public static void setFieldValue(Class<?> clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
+    public static void setFieldValue(Class<?> clazz, Object classObj, String fieldName,
+                                     Object fieldValue) throws Exception {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(classObj, fieldValue);
@@ -397,7 +413,8 @@ public abstract class MockedPulsarServiceBaseTest {
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setAdvertisedAddress("localhost");
         configuration.setClusterName(configClusterName);
-        configuration.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
+        // there are TLS tests in here, they need to use localhost because of the certificate
+        configuration.setAdvertisedAddress("localhost");
         configuration.setManagedLedgerCacheSizeMB(8);
         configuration.setActiveConsumerFailoverDelayTimeMillis(0);
         configuration.setDefaultNumberOfNamespaceBundles(1);

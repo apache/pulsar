@@ -20,8 +20,12 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
+
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,8 +53,8 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
@@ -74,7 +78,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ConsumerInterceptors<T> interceptors;
     protected final BatchReceivePolicy batchReceivePolicy;
     protected ConcurrentLinkedQueue<OpBatchReceive<T>> pendingBatchReceives;
-    protected static final AtomicLongFieldUpdater<ConsumerBase> INCOMING_MESSAGES_SIZE_UPDATER = AtomicLongFieldUpdater
+    private static final AtomicLongFieldUpdater<ConsumerBase> INCOMING_MESSAGES_SIZE_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ConsumerBase.class, "incomingMessagesSize");
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
@@ -368,8 +372,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages) {
         try {
-            messages.forEach(this::acknowledgeAsync);
-            return CompletableFuture.completedFuture(null);
+            List<MessageId> messageIds = new ArrayList<>();
+            messages.forEach(message -> messageIds.add(message.getMessageId()));
+            return acknowledgeAsync(messageIds);
         } catch (NullPointerException npe) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
         }
@@ -664,8 +669,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
-            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(
-                    this, message.getData() == null ? 0 : message.getData().length);
+            increaseIncomingMessageSize(message);
         }
         return hasEnoughMessagesForBatchReceive();
     }
@@ -675,7 +679,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return false;
         }
         return (batchReceivePolicy.getMaxNumMessages() > 0 && incomingMessages.size() >= batchReceivePolicy.getMaxNumMessages())
-                || (batchReceivePolicy.getMaxNumBytes() > 0 && INCOMING_MESSAGES_SIZE_UPDATER.get(this) >= batchReceivePolicy.getMaxNumBytes());
+                || (batchReceivePolicy.getMaxNumBytes() > 0 && getIncomingMessageSize() >= batchReceivePolicy.getMaxNumBytes());
     }
 
     private void verifyConsumerState() throws PulsarClientException {
@@ -845,6 +849,24 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected boolean hasPendingBatchReceive() {
         return pendingBatchReceives != null && peekNextBatchReceive() != null;
+    }
+
+    protected void increaseIncomingMessageSize(final Message<?> message) {
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(
+                this, message.getData() == null ? 0 : message.getData().length);
+    }
+
+    protected void resetIncomingMessageSize() {
+        INCOMING_MESSAGES_SIZE_UPDATER.set(this, 0);
+    }
+
+    protected void decreaseIncomingMessageSize(final Message<?> message) {
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this,
+                (message.getData() != null) ? -message.getData().length : 0);
+    }
+
+    public long getIncomingMessageSize() {
+        return INCOMING_MESSAGES_SIZE_UPDATER.get(this);
     }
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);

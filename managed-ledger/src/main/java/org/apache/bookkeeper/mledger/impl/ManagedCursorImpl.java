@@ -547,7 +547,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 counter.countDown();
             }
 
-        }, null);
+        }, null, PositionImpl.latest);
 
         counter.await();
 
@@ -560,15 +560,23 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncReadEntries(final int numberOfEntriesToRead, final ReadEntriesCallback callback,
-            final Object ctx) {
+            final Object ctx, PositionImpl maxPosition) {
+        asyncReadEntries(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx, maxPosition);
+    }
+
+    @Override
+    public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                 Object ctx, PositionImpl maxPosition) {
         checkArgument(numberOfEntriesToRead > 0);
         if (isClosed()) {
             callback.readEntriesFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
         }
 
+        int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
+
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
-        OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback, ctx);
+        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition);
         ledger.asyncReadEntries(op);
     }
 
@@ -669,7 +677,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 counter.countDown();
             }
 
-        }, null);
+        }, null, PositionImpl.latest);
 
         counter.await();
 
@@ -681,12 +689,14 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
-        asyncReadEntriesOrWait(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx);
+    public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                                       PositionImpl maxPosition) {
+        asyncReadEntriesOrWait(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx, maxPosition);
     }
 
     @Override
-    public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx) {
+    public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
+                                       PositionImpl maxPosition) {
         checkArgument(maxEntries > 0);
         if (isClosed()) {
             callback.readEntriesFailed(new CursorAlreadyClosedException("Cursor was already closed"), ctx);
@@ -700,10 +710,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Read entries immediately", ledger.getName(), name);
             }
-            asyncReadEntries(numberOfEntriesToRead, callback, ctx);
+            asyncReadEntries(numberOfEntriesToRead, callback, ctx, maxPosition);
         } else {
             OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
-                    ctx);
+                    ctx, maxPosition);
 
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
                 callback.readEntriesFailed(new ManagedLedgerException("We can only have a single waiting callback"),
@@ -2471,6 +2481,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             for (long l : array) {
                 deleteSet.add(l);
             }
+            batchDeletedIndexInfoBuilder.clearDeleteSet();
             batchDeletedIndexInfoBuilder.addAllDeleteSet(deleteSet);
             result.add(batchDeletedIndexInfoBuilder.build());
         }

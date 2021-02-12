@@ -59,7 +59,7 @@
       <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-metadata</artifactId>
@@ -84,7 +84,16 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
-
+    <dependency>
+       <groupId>io.dropwizard.metrics</groupId>
+       <artifactId>metrics-core</artifactId>
+       <scope>test</scope>
+    </dependency>
+    <dependency>
+       <groupId>org.xerial.snappy</groupId>
+       <artifactId>snappy-java</artifactId>
+       <scope>test</scope>
+    </dependency>
     <!--
         junit is a runtime dependency of zookeeper tests, so only
         add this dependency here.
@@ -93,6 +102,12 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.12</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
 

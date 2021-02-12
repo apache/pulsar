@@ -397,8 +397,21 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Properties properties = new Properties();
 
     public boolean getTlsEnabled() {
-    	return tlsEnabled || workerPortTls != null;
+    	return tlsEnabled && workerPortTls != null;
     }
+
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Whether to initialize distributed log metadata in runtime"
+    )
+    private Boolean initializedDlogMetadata = false;
+
+    public Boolean isInitializedDlogMetadata() {
+        if (this.initializedDlogMetadata == null){
+            return false;
+        }
+        return this.initializedDlogMetadata;
+    };
 
     /******** security settings for pulsar broker client **********/
 
@@ -514,6 +527,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String functionsWorkerServiceNarPackage = "";
 
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Enable to expose Pulsar Admin Client from Function Context, default is disabled"
+    )
+    private boolean exposeAdminClientEnabled = false;
+
     public static WorkerConfig load(String yamlFile) throws IOException {
         if (isBlank(yamlFile)) {
             return new WorkerConfig();
@@ -550,6 +569,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public String getWorkerWebAddress() {
         return String.format("http://%s:%d", this.getWorkerHostname(), this.getWorkerPort());
+    }
+
+    public String getWorkerWebAddressTls() {
+        return String.format("https://%s:%d", this.getWorkerHostname(), this.getWorkerPortTls());
     }
 
     public static String unsafeLocalhostResolve() {

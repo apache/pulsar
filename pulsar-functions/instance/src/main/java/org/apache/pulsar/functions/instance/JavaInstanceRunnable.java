@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -40,6 +41,7 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -72,6 +74,7 @@ import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
+import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 import org.slf4j.Logger;
@@ -84,11 +87,10 @@ import org.slf4j.LoggerFactory;
 public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private final InstanceConfig instanceConfig;
-    private final FunctionCacheManager fnCache;
-    private final String jarFile;
 
     // input topic consumer & output topic producer
     private final PulsarClientImpl client;
+    private final PulsarAdmin pulsarAdmin;
 
     private LogAppender logAppender;
 
@@ -122,7 +124,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private final ClassLoader instanceClassLoader;
     private ClassLoader functionClassLoader;
-    private String narExtractionDirectory;
 
     // a flog to determine if member variables have been initialized as part of setup().
     // used for out of band API calls like operations involving stats
@@ -132,21 +133,19 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private ReadWriteLock statsLock = new ReentrantReadWriteLock();
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
-                                FunctionCacheManager fnCache,
-                                String jarFile,
                                 PulsarClient pulsarClient,
+                                PulsarAdmin pulsarAdmin,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
                                 CollectorRegistry collectorRegistry,
-                                String narExtractionDirectory) {
+                                ClassLoader functionClassLoader) {
         this.instanceConfig = instanceConfig;
-        this.fnCache = fnCache;
-        this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
+        this.pulsarAdmin = pulsarAdmin;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
-        this.narExtractionDirectory = narExtractionDirectory;
+        this.functionClassLoader = functionClassLoader;
         this.metricsLabels = new String[]{
                 instanceConfig.getFunctionDetails().getTenant(),
                 String.format("%s/%s", instanceConfig.getFunctionDetails().getTenant(),
@@ -193,9 +192,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         log.info("Starting Java Instance {} : \n Details = {}",
             instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
 
-        // start the function thread
-        functionClassLoader = loadJars();
-
         Object object;
         if (instanceConfig.getFunctionDetails().getClassName().equals(org.apache.pulsar.functions.windowing.WindowFunctionExecutor.class.getName())) {
             object = Reflections.createInstance(
@@ -231,10 +227,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     ContextImpl setupContext() {
-        Logger instanceLog = LoggerFactory.getLogger(
+        Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager);
+                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
+                pulsarAdmin);
     }
 
     /**
@@ -298,35 +295,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             log.info("Closing instance");
             close();
         }
-    }
-
-    private ClassLoader loadJars() throws Exception {
-        ClassLoader fnClassLoader;
-        try {
-            log.info("Load JAR: {}", jarFile);
-            // Let's first try to treat it as a nar archive
-            fnCache.registerFunctionInstanceWithArchive(
-                instanceConfig.getFunctionId(),
-                instanceConfig.getInstanceName(),
-                jarFile, narExtractionDirectory);
-        } catch (FileNotFoundException e) {
-            // create the function class loader
-            fnCache.registerFunctionInstance(
-                    instanceConfig.getFunctionId(),
-                    instanceConfig.getInstanceName(),
-                    Arrays.asList(jarFile),
-                    Collections.emptyList());
-        }
-
-        log.info("Initialize function class loader for function {} at function cache manager, functionClassLoader: {}",
-                instanceConfig.getFunctionDetails().getName(), fnCache.getClassLoader(instanceConfig.getFunctionId()));
-
-        fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
-        if (null == fnClassLoader) {
-            throw new Exception("No function class loader available.");
-        }
-
-        return fnClassLoader;
     }
 
     private void setupStateStore() throws Exception {
@@ -470,13 +438,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stateStoreProvider.close();
         }
 
-        if (instanceCache != null) {
-            // once the thread quits, clean up the instance
-            fnCache.unregisterFunctionInstance(
-                    instanceConfig.getFunctionId(),
-                    instanceConfig.getInstanceName());
-            log.info("Unloading JAR files for function {}", instanceConfig);
-            instanceCache = null;
+        instanceCache = null;
+
+        if (logAppender != null) {
+            removeLogTopicAppender(LoggerContext.getContext());
+            removeLogTopicAppender(LoggerContext.getContext(false));
+            logAppender.stop();
+            logAppender = null;
         }
     }
 
@@ -600,28 +568,37 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             logAppender = new LogAppender(client, instanceConfig.getFunctionDetails().getLogTopic(),
                     FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
             logAppender.start();
+            setupLogTopicAppender(LoggerContext.getContext());
         }
     }
 
     private void addLogTopicHandler() {
         if (logAppender == null) return;
-        LoggerContext context = LoggerContext.getContext(false);
+        setupLogTopicAppender(LoggerContext.getContext(false));
+    }
+
+    private void setupLogTopicAppender(LoggerContext context) {
         Configuration config = context.getConfiguration();
         config.addAppender(logAppender);
         for (final LoggerConfig loggerConfig : config.getLoggers().values()) {
             loggerConfig.addAppender(logAppender, null, null);
         }
         config.getRootLogger().addAppender(logAppender, null, null);
+        context.updateLoggers();
     }
 
     private void removeLogTopicHandler() {
         if (logAppender == null) return;
-        LoggerContext context = LoggerContext.getContext(false);
+        removeLogTopicAppender(LoggerContext.getContext(false));
+    }
+
+    private void removeLogTopicAppender(LoggerContext context) {
         Configuration config = context.getConfiguration();
         for (final LoggerConfig loggerConfig : config.getLoggers().values()) {
             loggerConfig.removeAppender(logAppender.getName());
         }
         config.getRootLogger().removeAppender(logAppender.getName());
+        context.updateLoggers();
     }
 
     private void setupInput(ContextImpl contextImpl) throws Exception {

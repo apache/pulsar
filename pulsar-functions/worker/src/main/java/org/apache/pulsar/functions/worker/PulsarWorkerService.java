@@ -266,14 +266,21 @@ public class PulsarWorkerService implements WorkerService {
         }
 
         // initialize the dlog namespace
-        // TODO: move this as part of pulsar cluster initialization later
+        URI dlogURI;
         try {
-            return WorkerUtils.initializeDlogNamespace(internalConf);
+            if (workerConfig.isInitializedDlogMetadata()) {
+                dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getZookeeperServers());
+            } else {
+                dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
+            }
         } catch (IOException ioe) {
-            log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing function packages",
-                internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
+            log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing " +
+                            "function packages", internalConf.getZookeeperServers(),
+                    internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
+
+        return dlogURI;
     }
 
     @Override
@@ -363,9 +370,14 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             // initializing dlog namespace for function worker
-            dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
+            if (workerConfig.isInitializedDlogMetadata()){
+                dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getZookeeperServers());
+            } else {
+                dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
+            }
         } catch (IOException ioe) {
-            LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for storing function packages",
+            LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for " +
+                            "storing function packages",
                 internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
@@ -373,6 +385,18 @@ public class PulsarWorkerService implements WorkerService {
         init(workerConfig, dlogURI, false);
 
         LOG.info("Function worker service setup completed");
+    }
+
+    private void tryCreateNonPartitionedTopic(final String topic) throws PulsarAdminException {
+        try {
+            getBrokerAdmin().topics().createNonPartitionedTopic(topic);
+        } catch (PulsarAdminException e) {
+            if (e instanceof PulsarAdminException.ConflictException) {
+                log.warn("Failed to create topic '{}': {}", topic, e.getMessage());
+            } else {
+                throw e;
+            }
+        }
     }
 
     @Override
@@ -416,15 +440,16 @@ public class PulsarWorkerService implements WorkerService {
 
             final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
                     ? workerConfig.getFunctionWebServiceUrl()
-                    : workerConfig.getWorkerWebAddress();
+                    : (workerConfig.getTlsEnabled()
+                        ? workerConfig.getWorkerWebAddressTls() : workerConfig.getWorkerWebAddress());
 
             this.brokerAdmin = clientCreator.newPulsarAdmin(workerConfig.getPulsarWebServiceUrl(), workerConfig);
             this.functionAdmin = clientCreator.newPulsarAdmin(functionWebServiceUrl, workerConfig);
             this.client = clientCreator.newPulsarClient(workerConfig.getPulsarServiceUrl(), workerConfig);
 
-            getBrokerAdmin().topics().createNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
-            getBrokerAdmin().topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
-            getBrokerAdmin().topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
+            tryCreateNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
+            tryCreateNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
+            tryCreateNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
             this.schedulerManager = new SchedulerManager(workerConfig, client, getBrokerAdmin(), workerStatsManager, errorNotifier);
 

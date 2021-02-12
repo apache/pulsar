@@ -38,10 +38,10 @@ import org.assertj.core.util.Files;
 
 @Slf4j
 public class TestZKServer implements AutoCloseable {
-
-    private final ZooKeeperServer zks;
+    protected ZooKeeperServer zks;
     private final File zkDataDir;
-    private final ServerCnxnFactory serverFactory;
+    private ServerCnxnFactory serverFactory;
+    private int zkPort = 0;
 
     public TestZKServer() throws Exception {
         this.zkDataDir = Files.newTemporaryFolder();
@@ -50,28 +50,44 @@ public class TestZKServer implements AutoCloseable {
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");
         // disable the admin server as to not have any port conflicts
         System.setProperty("zookeeper.admin.enableServer", "false");
+        start();
+    }
+
+    public void start() throws Exception {
         this.zks = new ZooKeeperServer(zkDataDir, zkDataDir, ZooKeeperServer.DEFAULT_TICK_TIME);
         this.serverFactory = new NIOServerCnxnFactory();
-        this.serverFactory.configure(new InetSocketAddress(0), 1000);
+        this.serverFactory.configure(new InetSocketAddress(zkPort), 1000);
         this.serverFactory.startup(zks, true);
 
-        log.info("Started test ZK server on port {}", getPort());
+        this.zkPort = serverFactory.getLocalPort();
+        log.info("Started test ZK server on port {}", zkPort);
 
         boolean zkServerReady = waitForServerUp(this.getConnectionString(), 30_000);
         assertTrue(zkServerReady);
     }
 
-    @Override
-    public void close() throws Exception {
-        zks.shutdown();
-        serverFactory.shutdown();
-        FileUtils.deleteDirectory(zkDataDir);
+    public void stop() throws Exception {
+        if (zks != null) {
+            zks.shutdown();
+            zks = null;
+        }
 
+        if (serverFactory != null) {
+            serverFactory.shutdown();
+            serverFactory = null;
+        }
         log.info("Stopped test ZK server");
     }
 
+
+    @Override
+    public void close() throws Exception {
+        stop();
+        FileUtils.deleteDirectory(zkDataDir);
+    }
+
     public int getPort() {
-        return serverFactory.getLocalPort();
+        return zkPort;
     }
 
     public String getConnectionString() {

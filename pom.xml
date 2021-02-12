@@ -92,14 +92,14 @@ flexible messaging model and an intuitive client API.</description>
     <testRetryCount>1</testRetryCount>
     <docker.organization>apachepulsar</docker.organization>
 
-    <!-- pin the protobuf-shaded version to make the pulsar build friendly to intellij -->
-    <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
-
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.12.0</bookkeeper.version>
-    <zookeeper.version>3.5.7</zookeeper.version>
+    <bookkeeper.version>4.12.1</bookkeeper.version>
+    <zookeeper.version>3.6.2</zookeeper.version>
+    <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
+    <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
+    <curator.version>5.1.0</curator.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.33.Final</netty-tc-native.version>
     <jetty.version>9.4.35.v20201120</jetty.version>
@@ -112,7 +112,7 @@ flexible messaging model and an intuitive client API.</description>
     <slf4j.version>1.7.25</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.14.0</log4j2.version>
-    <bouncycastle.version>1.66</bouncycastle.version>
+    <bouncycastle.version>1.68</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.11.1</jackson.version>
     <jackson.databind.version>2.11.1</jackson.databind.version>
@@ -121,7 +121,6 @@ flexible messaging model and an intuitive client API.</description>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
-    <protobuf2.version>2.4.1</protobuf2.version>
     <protobuf3.version>3.11.4</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.18.0</grpc.version>
@@ -182,11 +181,12 @@ flexible messaging model and an intuitive client API.</description>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.3</cron-utils.version>
     <spring-context.version>5.3.1</spring-context.version>
+    <docker-java.version>3.2.7</docker-java.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.14.3</testcontainers.version>
+    <testcontainers.version>1.15.1</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
     <mockito.version>3.0.0</mockito.version>
@@ -226,7 +226,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone.version>2.4.0</errorprone.version>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
-
+    <lightproto-maven-plugin.version>0.2</lightproto-maven-plugin.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -299,7 +299,31 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-
+      <dependency>
+        <groupId>org.apache.zookeeper</groupId>
+        <artifactId>zookeeper-jute</artifactId>
+        <version>${zookeeper.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-core</artifactId>
+        <version>${dropwizardmetrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-graphite</artifactId>
+        <version>${dropwizardmetrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-jvm</artifactId>
+        <version>${dropwizardmetrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
@@ -344,6 +368,18 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>netty-*</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      
+      <dependency>
+         <groupId>org.apache.curator</groupId>
+         <artifactId>curator-recipes</artifactId>
+         <version>${curator.version}</version>
+         <exclusions>
+             <exclusion>
+                 <groupId>org.apache.zookeeper</groupId>
+                 <artifactId>*</artifactId>
+             </exclusion>
+         </exclusions>
       </dependency>
 
       <dependency>
@@ -603,6 +639,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna</artifactId>
         <version>${jna.version}</version>
+      </dependency>
+      
+      <dependency>
+         <groupId>com.github.docker-java</groupId>
+         <artifactId>docker-java-core</artifactId>
+         <version>${docker-java.version}</version>
       </dependency>
 
       <dependency>
@@ -1175,6 +1217,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>logs/**</exclude>
                 <exclude>**/circe/**</exclude>
                 <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
+                <exclude>pulsar-client-cpp/include/gtest/gtest_prod.h</exclude>
                 <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
                 <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
                 <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
@@ -1246,10 +1289,6 @@ flexible messaging model and an intuitive client API.</description>
             <!-- These files are generated automatically by the Protobuf compiler
                  and are included in source tree for convenience -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/transaction/coordinator/proto/PulsarTransactionMetadata.java</exclude>
-            <exclude>src/test/java/org/apache/pulsar/common/api/proto/TestApi.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarMarkers.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
 
@@ -1266,10 +1305,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
-
-            <!-- These files are BSD licensed files -->
-            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedInputStream.java</exclude>
-            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedOutputStream.java</exclude>
 
             <!-- Imported from Netty - Apache License v2 -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/util/AbstractCASReferenceCounted.java</exclude>
@@ -1351,6 +1386,40 @@ flexible messaging model and an intuitive client API.</description>
               </configuration>
             </execution>
         </executions>
+      </plugin>
+      <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>${maven-assembly-plugin.version}</version>
+          <dependencies>
+              <dependency>
+                  <groupId>org.apache.apache.resources</groupId>
+                  <artifactId>apache-source-release-assembly-descriptor</artifactId>
+                  <version>1.0.6</version>
+              </dependency>
+          </dependencies>
+          <executions>
+              <execution>
+                  <id>source-release-assembly-tar-gz</id>
+                  <phase>generate-sources</phase>
+                  <goals>
+                      <goal>single</goal>
+                  </goals>
+                  <configuration>
+                      <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
+                      <descriptorRefs>
+                          <!-- defined in Apache Parent Pom -->
+                          <descriptorRef>${sourceReleaseAssemblyDescriptor}</descriptorRef>
+                      </descriptorRefs>
+                      <finalName>apache-pulsar-${project.version}-src</finalName>
+                      <appendAssemblyId>false</appendAssemblyId>
+                      <formats>
+                          <format>tar.gz</format>
+                      </formats>
+                      <tarLongFileMode>posix</tarLongFileMode>
+                  </configuration>
+              </execution>
+          </executions>
       </plugin>
     </plugins>
 
@@ -1626,6 +1695,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client</module>
         <module>pulsar-client-shaded</module>
         <module>pulsar-client-1x-base</module>
+        <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
         <module>pulsar-client-admin-shaded</module>
         <module>pulsar-client-tools</module>
@@ -1687,6 +1757,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-broker</module>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
+        <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
         <module>pulsar-client-tools</module>
         <module>pulsar-client-tools-test</module>
@@ -1861,14 +1932,9 @@ flexible messaging model and an intuitive client API.</description>
       <url>https://yahoo.bintray.com/maven</url>
     </repository>
     <repository>
-      <id>spring-plugins-release</id>
-      <url>https://repo.spring.io/plugins-release/</url>
-    </repository>
-    <repository>
       <id>confluent</id>
       <url>http://packages.confluent.io/maven/</url>
     </repository>
   </repositories>
 
 </project>
-

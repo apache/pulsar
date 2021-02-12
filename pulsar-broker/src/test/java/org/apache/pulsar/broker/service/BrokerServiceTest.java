@@ -57,12 +57,12 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -161,13 +161,16 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // subscription stats
         assertEquals(stats.subscriptions.keySet().size(), 1);
         assertEquals(subStats.msgBacklog, 0);
         assertEquals(subStats.consumers.size(), 1);
+
+        // storage stats
+        assertEquals(stats.offloadedStorageSize, 0);
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
@@ -179,7 +182,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // publisher stats
@@ -206,6 +209,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(stats.msgRateOut, subStats.consumers.get(0).msgRateOut);
         assertEquals(stats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
         assertNotNull(subStats.consumers.get(0).getClientVersion());
+        assertEquals(stats.offloadedStorageSize, 0);
 
         Message<byte[]> msg;
         for (int i = 0; i < 10; i++) {
@@ -216,8 +220,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
+        assertEquals(stats.offloadedStorageSize, 0);
 
         assertEquals(subStats.msgBacklog, 0);
     }
@@ -229,13 +234,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         assertNotNull(topicRef);
-        assertEquals(topicRef.getStats(false).storageSize, 0);
+        assertEquals(topicRef.getStats(false, false).storageSize, 0);
 
         for (int i = 0; i < 10; i++) {
             producer.send(new byte[10]);
         }
 
-        assertTrue(topicRef.getStats(false).storageSize > 0);
+        assertTrue(topicRef.getStats(false, false).storageSize > 0);
     }
 
     @Test
@@ -254,7 +259,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // subscription stats
@@ -272,7 +277,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // publisher stats
@@ -307,7 +312,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
         assertTrue(subStats.msgRateRedeliver > 0.0);
         assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
@@ -321,7 +326,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         assertEquals(subStats.msgBacklog, 0);
@@ -780,7 +785,11 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Test
     public void testTopicLoadingOnDisableNamespaceBundle() throws Exception {
         final String namespace = "prop/disableBundle";
-        admin.namespaces().createNamespace(namespace);
+        try {
+            admin.namespaces().createNamespace(namespace);
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok.. (if test fails intermittently and namespace is already created)
+        }
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
 
         // own namespace bundle

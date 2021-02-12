@@ -23,7 +23,7 @@ import com.google.common.collect.Lists;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 /**
  * Statistics about subscription.
@@ -49,6 +49,9 @@ public class SubscriptionStats {
 
     /** Number of messages in the subscription backlog. */
     public long msgBacklog;
+
+    /** Size of backlog in byte. **/
+    public long backlogSize;
 
     /** Number of messages in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
@@ -86,6 +89,9 @@ public class SubscriptionStats {
     /** Last acked message timestamp. */
     public long lastAckedTimestamp;
 
+    /** Last MarkDelete position advanced timesetamp. */
+    public long lastMarkDeleteAdvancedTimestamp;
+
     /** List of connected consumers on this subscription w/ their stats. */
     public List<ConsumerStats> consumers;
 
@@ -116,11 +122,13 @@ public class SubscriptionStats {
         msgOutCounter = 0;
         msgRateRedeliver = 0;
         msgBacklog = 0;
+        backlogSize = 0;
         msgBacklogNoDelayed = 0;
         unackedMessages = 0;
         msgRateExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
+        lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
         consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
@@ -137,7 +145,9 @@ public class SubscriptionStats {
         this.msgOutCounter += stats.msgOutCounter;
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.msgBacklog += stats.msgBacklog;
+        this.backlogSize += stats.backlogSize;
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
+        this.msgDelayed += stats.msgDelayed;
         this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
         this.totalMsgExpired += stats.totalMsgExpired;

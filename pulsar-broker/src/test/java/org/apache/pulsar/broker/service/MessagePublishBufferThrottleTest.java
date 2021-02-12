@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
 
 /**
  */
@@ -43,6 +43,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
     }
 
     @Test
@@ -107,7 +108,8 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         for (CompletableFuture<MessageId> future : futures) {
             Assert.assertNotNull(future.get());
         }
-        Assert.assertEquals(pulsar.getBrokerService().getCurrentMessagePublishBufferSize(), 0L);
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertEquals(pulsar.getBrokerService().getCurrentMessagePublishBufferSize(), 0L));
     }
 
     @Test
@@ -152,6 +154,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         for (CompletableFuture<MessageId> future : futures) {
             Assert.assertNotNull(future.get());
         }
-        Assert.assertEquals(pulsar.getBrokerService().getCurrentMessagePublishBufferSize(), 0L);
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertEquals(pulsar.getBrokerService().getCurrentMessagePublishBufferSize(), 0L));
     }
 }

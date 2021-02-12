@@ -60,9 +60,7 @@ public class EntryCacheManager {
 
     private static final double evictionTriggerThresholdPercent = 0.98;
 
-    /**
-     *
-     */
+
     public EntryCacheManager(ManagedLedgerFactoryImpl factory) {
         this.maxSize = factory.getConfig().getMaxCacheSize();
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);

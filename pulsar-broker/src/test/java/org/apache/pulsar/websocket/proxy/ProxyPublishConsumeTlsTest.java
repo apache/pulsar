@@ -70,6 +70,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         config.setConfigurationStoreServers("dummy-zk-servers");
         config.setBrokerClientAuthenticationParameters("tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);

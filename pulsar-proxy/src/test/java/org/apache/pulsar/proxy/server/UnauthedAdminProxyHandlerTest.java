@@ -44,7 +44,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
     private final String STATUS_FILE_PATH = "./src/test/resources/vip_status.html";
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private WebServer webServer;
@@ -70,7 +69,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setBrokerWebServiceURL(brokerUrl.toString());
         proxyConfig.setStatusFilePath(STATUS_FILE_PATH);
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setGlobalZookeeperServers(GLOBAL_DUMMY_VALUE);
 
         webServer = new WebServer(proxyConfig, new AuthenticationService(
                                           PulsarConfigurationLoader.convertFrom(proxyConfig)));

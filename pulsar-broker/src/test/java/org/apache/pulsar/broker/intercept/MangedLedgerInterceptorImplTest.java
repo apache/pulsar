@@ -27,7 +27,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.protocol.Commands;
@@ -72,7 +72,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         assertEquals(19, ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex());
         List<Entry> entryList = cursor.readEntries(numberOfEntries);
         for (int i = 0 ; i < numberOfEntries; i ++) {
-            PulsarApi.BrokerEntryMetadata metadata =
+            BrokerEntryMetadata metadata =
                     Commands.parseBrokerEntryMetadataIfExist(entryList.get(i).getDataBuffer());
             assertNotNull(metadata);
             assertEquals(metadata.getIndex(), (i + 1) * MOCK_BATCH_SIZE - 1);
@@ -206,7 +206,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         @Override
         public boolean apply(@Nullable Entry entry) {
             try {
-                PulsarApi.BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+                BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
                 return brokerEntryMetadata.getIndex() < indexToSearch;
             } catch (Exception e) {
                 log.error("Error deserialize message for message position find", e);
