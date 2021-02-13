@@ -161,17 +161,17 @@
     ],
     "2.6.0": [
         {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
-            ]
-        },
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
             ]
         }
     ],
@@ -218,9 +218,9 @@
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
+                "swaggerpackages",
                 "swaggersink",
-                "swaggersource",
-                "swaggerpackages"
+                "swaggersource"
             ]
         }
     ],
