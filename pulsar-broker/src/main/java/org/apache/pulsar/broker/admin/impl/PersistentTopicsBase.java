@@ -3052,7 +3052,7 @@ public class PersistentTopicsBase extends AdminResource {
                         subName);
             } else {
                 if (log.isDebugEnabled()) {
-                    log.info("Expire message by timestamp not issued on topic {} for subscription {} due to ongoing "
+                    log.debug("Expire message by timestamp not issued on topic {} for subscription {} due to ongoing "
                             + "message expiration not finished or subscription almost catch up. If it's performed on "
                             + "a partitioned topic operation might succeeded on other partitions, please check "
                             + "stats of individual partition.", topicName, subName);
@@ -3136,7 +3136,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     topicName, subName);
                         } else {
                             if (log.isDebugEnabled()) {
-                                log.info("Expire message by position not issued on topic {} for subscription {} "
+                                log.debug("Expire message by position not issued on topic {} for subscription {} "
                                         + "due to ongoing message expiration not finished or subscription "
                                         + "almost catch up.", topicName, subName);
                             }
