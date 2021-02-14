@@ -1167,9 +1167,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
 
                             schemaVersionFuture.exceptionally(exception -> {
+                                String message = exception.getMessage();
+                                if (exception.getCause() != null) {
+                                    message += (" caused by " + exception.getCause());
+                                }
                                 commandSender.sendErrorResponse(requestId,
                                         BrokerServiceException.getClientErrorCode(exception),
-                                        exception.getMessage());
+                                        message);
                                 producers.remove(producerId, producerFuture);
                                 return null;
                             });
@@ -1727,7 +1731,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
                 schemaVersionFuture.exceptionally(ex -> {
                     ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
-                    commandSender.sendGetOrCreateSchemaErrorResponse(requestId, errorCode, ex.getMessage());
+                    String message = ex.getMessage();
+                    if (ex.getCause() != null) {
+                        message += (" caused by " + ex.getCause());
+                    }
+                    commandSender.sendGetOrCreateSchemaErrorResponse(requestId, errorCode, message);
                     return null;
                 }).thenAccept(schemaVersion -> {
                     commandSender.sendGetOrCreateSchemaResponse(requestId, schemaVersion);
