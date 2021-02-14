@@ -2760,13 +2760,13 @@ public class PersistentTopic extends AbstractTopic
         if (policies.isPresent()) {
             if (policies.get().subscription_types_enabled.isEmpty()) {
                 return getBrokerService().getPulsar().getConfiguration()
-                        .getSubscriptionTypesEnable().contains(subType.name());
+                        .getSubscriptionTypesEnabled().contains(subType.name());
             } else {
                 return policies.get().subscription_types_enabled.contains(subType);
             }
         } else {
             return getBrokerService().getPulsar().getConfiguration()
-                    .getSubscriptionTypesEnable().contains(subType.name());
+                    .getSubscriptionTypesEnabled().contains(subType.name());
         }
     }
 
