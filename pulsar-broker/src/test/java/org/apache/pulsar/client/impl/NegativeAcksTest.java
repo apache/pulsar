@@ -152,4 +152,46 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
     }
+
+    @Test
+    public void testNegativeAckDisabledForKeySharedSubType()
+            throws Exception {
+        String topic = "testNegativeAcks-" + System.nanoTime();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .ackTimeout(1005, TimeUnit.MILLISECONDS)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        Set<String> sentMessages = new HashSet<>();
+
+        final int N = 10;
+        for (int i = 0; i < N; i++) {
+            String value = "test-" + i;
+            producer.sendAsync(value);
+            sentMessages.add(value);
+        }
+        producer.flush();
+
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer.receive();
+            consumer.negativeAcknowledge(msg);
+        }
+
+        assertEquals(((ConsumerImpl)consumer).getUnAckedMessageTracker().size(), N);
+
+        // There should be no more messages
+        assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+        consumer.close();
+        producer.close();
+    }
 }

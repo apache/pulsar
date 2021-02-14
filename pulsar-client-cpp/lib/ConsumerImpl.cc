@@ -855,8 +855,10 @@ void ConsumerImpl::doAcknowledgeCumulative(const MessageId& messageId, ResultCal
 }
 
 void ConsumerImpl::negativeAcknowledge(const MessageId& messageId) {
-    unAckedMessageTrackerPtr_->remove(messageId);
-    negativeAcksTracker_.add(messageId);
+    if (config_.getConsumerType() != ConsumerKeyShared) {
+        unAckedMessageTrackerPtr_->remove(messageId);
+        negativeAcksTracker_.add(messageId);
+    }
 }
 
 void ConsumerImpl::disconnectConsumer() {

@@ -3110,6 +3110,53 @@ TEST(BasicEndToEndTest, testNegativeAcksWithPartitions) {
     testNegativeAcks(topicName, true);
 }
 
+TEST(BasicEndToEndTest, testNegativeAcksDisabledForKeySharedSubType) {
+    Client client(lookupUrl);
+    Consumer consumer;
+    ConsumerConfiguration conf;
+    std::string topicName = "testNegativeAcksDisabledForKeySharedSubType-" + std::to_string(time(nullptr));
+    conf.setConsumerType(ConsumerKeyShared);
+    Result result = client.subscribe(topicName, "test", conf, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Producer producer;
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingEnabled(false);
+    result = client.createProducer(topicName, producerConf, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    for (int i = 0; i < 10; i++) {
+        Message msg = MessageBuilder().setContent("test-" + std::to_string(i)).build();
+        producer.sendAsync(msg, nullptr);
+    }
+
+    producer.flush();
+
+    std::vector<MessageId> toNeg;
+    for (int i = 0; i < 10; i++) {
+        Message msg;
+        consumer.receive(msg);
+
+        LOG_INFO("Received message " << msg.getDataAsString());
+        ASSERT_EQ(msg.getDataAsString(), "test-" + std::to_string(i));
+        toNeg.push_back(msg.getMessageId());
+    }
+    // No more messages expected
+    expectTimeoutOnRecv(consumer);
+
+    PulsarFriend::setNegativeAckEnabled(consumer, false);
+    // negatively acknowledge all at once
+    for (auto &&msgId : toNeg) {
+        consumer.negativeAcknowledge(msgId);
+    }
+    PulsarFriend::setNegativeAckEnabled(consumer, true);
+
+    // No more messages expected
+    expectTimeoutOnRecv(consumer);
+
+    client.shutdown();
+}
+
 static long regexTestMessagesReceived = 0;
 
 static void regexMessageListenerFunction(Consumer consumer, const Message &msg) {

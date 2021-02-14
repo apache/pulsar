@@ -82,6 +82,7 @@ import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -672,10 +673,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void negativeAcknowledge(MessageId messageId) {
-        negativeAcksTracker.add(messageId);
+        if (getSubType() != SubType.Key_Shared) {
+            negativeAcksTracker.add(messageId);
 
-        // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
-        unAckedMessageTracker.remove(messageId);
+            // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
+            unAckedMessageTracker.remove(messageId);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("NegativeAcknowledge for Key_Shared subscription type for message {} is ignored as this will" +
+                        " break the ordering guarantee for Key_Shared sub type.", messageId);
+            }
+        }
     }
 
     @Override
