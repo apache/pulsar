@@ -1658,7 +1658,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         consumerBuilder.subscriptionType(SubscriptionType.Shared);
         HashSet<String> subscriptions = new HashSet<>();
         subscriptions.add("Failover");
-        conf.setSubscriptionTypesEnable(subscriptions);
+        conf.setSubscriptionTypesEnabled(subscriptions);
         try {
             consumerBuilder.subscribe().close();
             fail();
@@ -1668,7 +1668,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // add shared to broker.conf and sub with shared will success
         subscriptions.add("Shared");
-        conf.setSubscriptionTypesEnable(subscriptions);
+        conf.setSubscriptionTypesEnabled(subscriptions);
         consumerBuilder.subscribe().close();
     }
 
