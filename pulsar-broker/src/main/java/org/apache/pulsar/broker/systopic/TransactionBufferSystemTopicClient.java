@@ -59,7 +59,7 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
     protected CompletableFuture<Reader<TransactionBufferSnapshot>> newReaderAsyncInternal() {
         return client.newReader(Schema.AVRO(TransactionBufferSnapshot.class))
                 .topic(topicName.toString())
-                .startMessageId(MessageId.latest)
+                .startMessageId(MessageId.earliest)
                 .readCompacted(true)
                 .createAsync()
                 .thenCompose(reader -> {

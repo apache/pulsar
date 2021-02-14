@@ -94,7 +94,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.topic.getBrokerService().getPulsar().getTransactionExecutor()
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
-                    public void replayComplete() {
+                    public void recoverComplete() {
                         if (!changeToReadyState()) {
                             log.error("[{}]Transaction buffer recover fail", topic.getName());
                         } else {
@@ -317,9 +317,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             + "messageId : {}", topic.getName(), messageId);
                 }
             }).exceptionally(e -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
-                }
+                log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
                 return null;
             });
         });
@@ -386,6 +384,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
+    // we store the maxReadPosition from snapshot then open the non-durable cursor by this topic's manageLedger.
+    // the non-durable cursor will read to lastConfirmedEntry.
     static class TopicTransactionBufferRecover implements Runnable {
 
         private final PersistentTopic topic;
@@ -484,7 +484,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 }
 
                 closeCursor(managedCursor);
-                callBack.replayComplete();
+                callBack.recoverComplete();
             }).exceptionally(e -> {
                 log.error("[{}]Transaction buffer new snapshot reader fail!", topic.getName(), e);
                 return null;

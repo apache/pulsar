@@ -26,7 +26,7 @@ public interface TopicTransactionBufferRecoverCallBack {
     /**
      * Topic transaction buffer recover complete.
      */
-    void replayComplete();
+    void recoverComplete();
 
     /**
      * Handle transactionBufferSnapshot.
@@ -36,7 +36,7 @@ public interface TopicTransactionBufferRecoverCallBack {
     void handleSnapshot(TransactionBufferSnapshot snapshot);
 
     /**
-     * Handle transaction entry.
+     * Handle transaction entry beyond the snapshot.
      *
      * @param entry the transaction message entry
      */
