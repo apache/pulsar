@@ -78,8 +78,6 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
         Object value = consumerRecord.value();
         if (value instanceof BytesWithAvroPulsarSchema) {
             return ((BytesWithAvroPulsarSchema) value).getPulsarSchema();
-        } else if (value instanceof String) {
-            return org.apache.pulsar.client.api.Schema.STRING;
         } else {
             return org.apache.pulsar.client.api.Schema.BYTES;
         }
