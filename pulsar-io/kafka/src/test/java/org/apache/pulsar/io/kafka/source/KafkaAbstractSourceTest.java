@@ -51,12 +51,12 @@ public class KafkaAbstractSourceTest {
     private static class DummySource extends KafkaAbstractSource<String> {
 
         @Override
-        public Object convert(ConsumerRecord<String, Object> record) {
-            return new String((byte[]) record.value());
+        public Object extractValue(ConsumerRecord<String, Object> consumerRecord) {
+            return new String((byte[]) consumerRecord.value());
         }
 
         @Override
-        public Schema<?> extractSchema(Object value) {
+        public Schema<?> extractSchema(ConsumerRecord<String, Object> consumerRecord) {
             return Schema.STRING;
         }
     }

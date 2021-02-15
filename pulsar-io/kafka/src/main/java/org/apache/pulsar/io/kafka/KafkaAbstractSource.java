@@ -127,8 +127,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
                 for (ConsumerRecord<String, Object> consumerRecord : consumerRecords) {
-                    Object converted = convert(consumerRecord);
-                    KafkaRecord record = new KafkaRecord(consumerRecord, extractValue(converted), extractSchema(converted));
+                    KafkaRecord record = new KafkaRecord(consumerRecord, extractValue(consumerRecord), extractSchema(consumerRecord));
                     consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;
@@ -151,13 +150,11 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         runnerThread.start();
     }
 
-    public abstract Object convert(ConsumerRecord<String, Object> record);
-
-    public Object extractValue(Object value) {
-        return value;
+    public Object extractValue(ConsumerRecord<String, Object> consumerRecord) {
+        return consumerRecord.value();
     }
 
-    public abstract Schema<?> extractSchema(Object value);
+    public abstract Schema<?> extractSchema(ConsumerRecord<String, Object> consumerRecord);
 
     @Slf4j
     static private class KafkaRecord<V> implements Record<V> {

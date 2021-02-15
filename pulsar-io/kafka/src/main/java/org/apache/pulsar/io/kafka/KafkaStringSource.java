@@ -27,14 +27,14 @@ import org.apache.pulsar.client.api.Schema;
  * as Strings
  */
 public class KafkaStringSource extends KafkaAbstractSource<String> {
-    
+
     @Override
-    public Object convert(ConsumerRecord<String, Object> record) {
-        return new String((byte[]) record.value());
+    public Object extractValue(ConsumerRecord<String, Object> consumerRecord) {
+        return new String((byte[]) consumerRecord.value());
     }
 
     @Override
-    public Schema<?> extractSchema(Object value) {
+    public Schema<?> extractSchema(ConsumerRecord<String, Object> consumerRecord) {
         return Schema.STRING;
     }
 }

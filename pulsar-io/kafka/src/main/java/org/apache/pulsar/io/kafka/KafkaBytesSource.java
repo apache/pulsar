@@ -31,7 +31,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -54,7 +53,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
     protected Properties beforeCreateConsumer(Properties props) {
         props.putIfAbsent("schema.registry.url", "http://localhost:8081");
         props.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, BytesDeserializer.class.getName());
+        props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
 
         String currentValue = props.getProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
 
@@ -67,20 +66,9 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
         return props;
     }
 
-
     @Override
-    public Object convert(ConsumerRecord<String, Object> record) {
-        Object value = record.value();
-        if (value instanceof RecordWithSchema) {
-            RecordWithSchema recordWithSchema = (RecordWithSchema) record.value();
-            return new BytesWithAvroPulsarSchema(recordWithSchema.getSchema(), recordWithSchema.getValue(), schemaCache);
-        } else {
-            return value;
-        }
-    }
-
-    @Override
-    public Object extractValue(Object value) {
+    public Object extractValue(ConsumerRecord<String, Object> consumerRecord) {
+        Object value = consumerRecord.value();
         if (value instanceof BytesWithAvroPulsarSchema) {
             return ((BytesWithAvroPulsarSchema) value).getValue();
         }
@@ -88,7 +76,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
     }
 
     @Override
-    public org.apache.pulsar.client.api.Schema<?> extractSchema(Object value) {
+    public org.apache.pulsar.client.api.Schema<?> extractSchema(ConsumerRecord<String, Object> consumerRecord) {
+        Object value = consumerRecord.value();
         if (value instanceof BytesWithAvroPulsarSchema) {
             return ((BytesWithAvroPulsarSchema) value).getPulsarSchema();
         } else if (value instanceof String) {
@@ -98,16 +87,9 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
         }
     }
 
-    private final PulsarSchemaCache<GenericRecord> schemaCache = new PulsarSchemaCache<>();
-
-    @AllArgsConstructor
-    @Getter
-    private static class RecordWithSchema {
-        byte[] value;
-        Schema schema;
-    }
-
     public static class NoCopyKafkaAvroDeserializer extends KafkaAvroDeserializer {
+
+        private final PulsarSchemaCache<GenericRecord> schemaCache = new PulsarSchemaCache<>();
 
         @Override
         protected Object deserialize(boolean includeSchemaAndVersion, String topic, Boolean isKey, byte[] payload, Schema readerSchema) throws SerializationException {
@@ -123,10 +105,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
                     Schema schema = this.schemaRegistry.getBySubjectAndId(subject, id);
                     byte[] avroEncodedData = new byte[buffer.remaining()];
                     buffer.get(avroEncodedData);
-                    return new RecordWithSchema(
-                            avroEncodedData,
-                            schema
-                    );
+                    return new BytesWithAvroPulsarSchema(schema, avroEncodedData, schemaCache);
                 } catch (Exception err) {
                     throw new SerializationException("Error deserializing Avro message for id " + id, err);
                 }
