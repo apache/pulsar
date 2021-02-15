@@ -19,12 +19,21 @@
 
 package org.apache.pulsar.io.kafka;
 
+import java.nio.ByteBuffer;
 import java.util.Properties;
+
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
@@ -39,18 +48,72 @@ import org.apache.pulsar.io.core.annotations.IOType;
     configClass = KafkaSourceConfig.class
 )
 @Slf4j
-public class KafkaBytesSource extends KafkaAbstractSource<byte[], byte[], byte[]> {
+public class KafkaBytesSource extends KafkaAbstractSource<Object, byte[]> {
+
+
+    private final PulsarSchemaCache<GenericRecord> schemaCache = new PulsarSchemaCache<>();
+
+    @AllArgsConstructor
+    @Getter
+    private static class RecordWithSchema {
+        byte[] value;
+        Schema schema;
+    }
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+        props.putIfAbsent("schema.registry.url", "http://localhost:8081");
+        props.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, BytesDeserializer.class.getName());
+
+        String currentValue = props.getProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
+
+        // replace KafkaAvroDeserializer with our custom implementation
+        if (currentValue != null && currentValue.equals(KafkaAvroDeserializer.class.getName())) {
+            props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, NoCopyKafkaAvroDeserializer.class.getName());
+        }
+
         log.info("Created kafka consumer config : {}", props);
         return props;
     }
 
+
     @Override
-    public byte[] extractValue(ConsumerRecord<String, byte[]> record) {
-        return record.value();
+    public Object extractValue(ConsumerRecord<String, Object> record) {
+        Object value = record.value();
+        if (value instanceof RecordWithSchema) {
+            RecordWithSchema recordWithSchema = (RecordWithSchema) record.value();
+            return new BytesWithAvroPulsarSchema(recordWithSchema.getSchema(), recordWithSchema.getValue(), schemaCache);
+        } else {
+            return value;
+        }
     }
+
+    public static class NoCopyKafkaAvroDeserializer extends KafkaAvroDeserializer {
+
+        @Override
+        protected Object deserialize(boolean includeSchemaAndVersion, String topic, Boolean isKey, byte[] payload, Schema readerSchema) throws SerializationException {
+            if (payload == null) {
+                return null;
+            } else {
+                int id = -1;
+                try {
+                    ByteBuffer buffer = ByteBuffer.wrap(payload);
+                    buffer.get(); // magic number
+                    id = buffer.getInt();
+                    String subject = getSubjectName(topic, isKey != null ? isKey : false);
+                    Schema schema = this.schemaRegistry.getBySubjectAndId(subject, id);
+                    byte[] avroEncodedData = new byte[buffer.remaining()];
+                    buffer.get(avroEncodedData);
+                    return new RecordWithSchema(
+                            avroEncodedData,
+                            schema
+                    );
+                } catch (Exception err) {
+                    throw new SerializationException("Error deserializing Avro message for id " + id, err);
+                }
+            }
+        }
+    }
+
 }

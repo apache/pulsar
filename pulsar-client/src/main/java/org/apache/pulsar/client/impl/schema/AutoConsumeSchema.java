@@ -82,10 +82,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             try {
                 schemaInfo = schemaInfoProvider.getLatestSchema().get();
             } catch (InterruptedException | ExecutionException e ) {
+                log.info("Latest schema for topic {} is {}", topicName, schemaInfo);
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
                 }
-                log.error("Con't get last schema for topic {} use AutoConsumeSchema", topicName);
+                log.error("Can't get last schema for topic {} use AutoConsumeSchema", topicName);
                 throw new SchemaSerializationException(e.getCause());
             }
             schema = generateSchema(schemaInfo);

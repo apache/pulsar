@@ -43,7 +43,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic.
  */
-public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType, PulsarSerializedType> extends PushSource<PulsarSchemaType> {
+public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType> extends PushSource<PulsarSchemaType> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
@@ -150,7 +150,7 @@ public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType, Puls
         runnerThread.start();
     }
 
-    public abstract PulsarSerializedType extractValue(ConsumerRecord<String, KafkaValueType> record);
+    public abstract Object extractValue(ConsumerRecord<String, KafkaValueType> record);
 
     @Slf4j
     static private class KafkaRecord<V> implements Record<V> {
@@ -180,6 +180,7 @@ public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType, Puls
 
         @Override
         public V getValue() {
+            log.info("getalue from {}", value);
             if (value instanceof BytesWithAvroPulsarSchema) {
                 return (V) ((BytesWithAvroPulsarSchema) value).getValue();
             }
@@ -193,6 +194,7 @@ public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType, Puls
 
         @Override
         public Schema<V> getSchema() {
+            log.info("getSchema from {}", value);
             if (value instanceof BytesWithAvroPulsarSchema) {
                 return (Schema) ((BytesWithAvroPulsarSchema) value).getPulsarSchema();
             } else if (value instanceof String) {
