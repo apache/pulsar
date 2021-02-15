@@ -81,8 +81,12 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.cleanup();
-        service.close();
-        proxyServer.stop();
+        if (service != null) {
+            service.close();
+        }
+        if (proxyServer != null) {
+            proxyServer.stop();
+        }
         log.info("Finished Cleaning Up Test setup");
 
     }

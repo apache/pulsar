@@ -123,7 +123,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         newPulsarClient.close();
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 30000)
     public void testDLQDisabledForKeySharedSubtype() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 
