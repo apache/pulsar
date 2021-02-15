@@ -74,6 +74,7 @@ Result DefaultCryptoKeyReader::getPrivateKey(const std::string& keyName,
     return ResultOk;
 }
 
-CryptoKeyReaderPtr create(const std::string& publicKeyPath, const std::string& privateKeyPath) {
+CryptoKeyReaderPtr DefaultCryptoKeyReader::create(const std::string& publicKeyPath,
+                                                  const std::string& privateKeyPath) {
     return CryptoKeyReaderPtr(new DefaultCryptoKeyReader(publicKeyPath, privateKeyPath));
 }

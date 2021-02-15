@@ -142,6 +142,7 @@ void export_config() {
             .def("property", &ProducerConfiguration::setProperty, return_self<>())
             .def("batching_type", &ProducerConfiguration::setBatchingType, return_self<>())
             .def("batching_type", &ProducerConfiguration::getBatchingType)
+            .def("encryption_key", &ProducerConfiguration::addEncryptionKey, return_self<>())
             .def("crypto_key_reader", &ProducerConfiguration_setCryptoKeyReader, return_self<>())
             ;
 
@@ -170,6 +171,7 @@ void export_config() {
             .def("property", &ConsumerConfiguration::setProperty, return_self<>())
             .def("subscription_initial_position", &ConsumerConfiguration::getSubscriptionInitialPosition)
             .def("subscription_initial_position", &ConsumerConfiguration::setSubscriptionInitialPosition)
+            .def("crypto_key_reader", &ConsumerConfiguration_setCryptoKeyReader, return_self<>())
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")
