@@ -43,11 +43,11 @@ import java.util.concurrent.ExecutionException;
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic.
  */
-public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType> extends PushSource<PulsarSchemaType> {
+public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
-    private volatile Consumer<String, KafkaValueType> consumer;
+    private volatile Consumer<String, Object> consumer;
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
@@ -123,10 +123,10 @@ public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType> exte
             consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
             while (running) {
-                ConsumerRecords<String, KafkaValueType> consumerRecords = consumer.poll(1000);
+                ConsumerRecords<String, Object> consumerRecords = consumer.poll(1000);
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
-                for (ConsumerRecord<String, KafkaValueType> consumerRecord : consumerRecords) {
+                for (ConsumerRecord<String, Object> consumerRecord : consumerRecords) {
                     KafkaRecord record = new KafkaRecord(consumerRecord, extractValue(consumerRecord));
                     consume(record);
                     futures[index] = record.getCompletableFuture();
@@ -150,7 +150,7 @@ public abstract class KafkaAbstractSource<KafkaValueType, PulsarSchemaType> exte
         runnerThread.start();
     }
 
-    public abstract Object extractValue(ConsumerRecord<String, KafkaValueType> record);
+    public abstract Object extractValue(ConsumerRecord<String, Object> record);
 
     @Slf4j
     static private class KafkaRecord<V> implements Record<V> {
