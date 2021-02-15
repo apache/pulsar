@@ -127,6 +127,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         sourceConfig.put("sessionTimeoutMs", 10000L);
         sourceConfig.put("heartbeatIntervalMs", 5000L);
         sourceConfig.put("topic", kafkaTopicName);
+        sourceConfig.put("valueDeserializationClass", "io.confluent.kafka.serializers.KafkaAvroDeserializer");
         sourceConfig.put("consumerConfigProperties",
                 ImmutableMap.of("schema.registry.url", getRegistryAddressInDockerNetwork())
         );
@@ -322,7 +323,6 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 "--tenant", tenant,
                 "--namespace", namespace,
                 "--name", sourceName,
-                "--classname", "org.apache.pulsar.io.kafka.KafkaAvroRecordSource",
                 "--source-type", SOURCE_TYPE,
                 "--sourceConfig", new Gson().toJson(sourceConfig),
                 "--destinationTopicName", outputTopicName

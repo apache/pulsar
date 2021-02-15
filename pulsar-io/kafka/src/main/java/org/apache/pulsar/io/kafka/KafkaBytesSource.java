@@ -23,8 +23,6 @@ import java.nio.ByteBuffer;
 import java.util.Properties;
 
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
