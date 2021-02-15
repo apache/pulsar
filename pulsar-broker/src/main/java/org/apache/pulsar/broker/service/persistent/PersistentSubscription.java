@@ -883,20 +883,21 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public void expireMessages(int messageTTLInSeconds) {
-        this.lastExpireTimestamp = System.currentTimeMillis();
+    public boolean expireMessages(int messageTTLInSeconds) {
         if ((getNumberOfEntriesInBacklog(false) == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
                 && getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                 && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
-            return;
+            return false;
         }
-        expiryMonitor.expireMessages(messageTTLInSeconds);
+        this.lastExpireTimestamp = System.currentTimeMillis();
+        return expiryMonitor.expireMessages(messageTTLInSeconds);
     }
 
     @Override
-    public void expireMessages(Position position) {
-        expiryMonitor.expireMessages(position);
+    public boolean expireMessages(Position position) {
+        this.lastExpireTimestamp = System.currentTimeMillis();
+        return expiryMonitor.expireMessages(position);
     }
 
     public double getExpiredMessageRate() {

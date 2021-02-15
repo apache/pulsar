@@ -2849,18 +2849,32 @@ public class PersistentTopicsBase extends AdminResource {
 
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         try {
+            boolean issued;
             if (subName.startsWith(topic.getReplicatorPrefix())) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                 PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
                 checkNotNull(repl);
-                repl.expireMessages(expireTimeInSeconds);
+                issued = repl.expireMessages(expireTimeInSeconds);
             } else {
                 PersistentSubscription sub = topic.getSubscription(subName);
                 checkNotNull(sub);
-                sub.expireMessages(expireTimeInSeconds);
+                issued = sub.expireMessages(expireTimeInSeconds);
             }
-            log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, topicName,
-                    subName);
+            if (issued) {
+                log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, topicName,
+                        subName);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("Expire message by timestamp not issued on topic {} for subscription {} due to ongoing "
+                            + "message expiration not finished or subscription almost catch up. If it's performed on "
+                            + "a partitioned topic operation might succeeded on other partitions, please check "
+                            + "stats of individual partition.", topicName, subName);
+                }
+                throw new RestException(Status.CONFLICT, "Expire message by timestamp not issued on topic "
+                + topicName + " for subscription " + subName + " due to ongoing message expiration not finished or "
+                + " subscription almost catch up. If it's performed on a partitioned topic operation might succeeded "
+                + "on other partitions, please check stats of individual partition.");
+            }
         } catch (NullPointerException npe) {
             throw new RestException(Status.NOT_FOUND, "Subscription not found");
         } catch (Exception exception) {
@@ -2918,19 +2932,31 @@ public class PersistentTopicsBase extends AdminResource {
                 getEntryBatchSize(batchSizeFuture, topic, messageId, batchIndex);
                 batchSizeFuture.thenAccept(bi -> {
                     PositionImpl position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
+                    boolean issued;
                     try {
                         if (subName.startsWith(topic.getReplicatorPrefix())) {
                             String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                             PersistentReplicator repl = (PersistentReplicator)
                                     topic.getPersistentReplicator(remoteCluster);
                             checkNotNull(repl);
-                            repl.expireMessages(position);
+                            issued = repl.expireMessages(position);
                         } else {
                             checkNotNull(sub);
-                            sub.expireMessages(position);
+                            issued = sub.expireMessages(position);
                         }
-                        log.info("[{}] Message expire issued up to {} on {} {}", clientAppId(), position, topicName,
-                                subName);
+                        if (issued) {
+                            log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), position,
+                                    topicName, subName);
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Expire message by position not issued on topic {} for subscription {} "
+                                        + "due to ongoing message expiration not finished or subscription "
+                                        + "almost catch up.", topicName, subName);
+                            }
+                            throw new RestException(Status.CONFLICT, "Expire message by position not issued on topic "
+                                    + topicName + " for subscription " + subName + " due to ongoing message expiration"
+                                    + " not finished or invalid message position provided.");
+                        }
                     } catch (NullPointerException npe) {
                         throw new RestException(Status.NOT_FOUND, "Subscription not found");
                     } catch (Exception exception) {
