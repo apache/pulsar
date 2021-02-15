@@ -110,8 +110,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.setPulsar(pulsar);
         doReturn(mockZooKeeperGlobal).when(persistentTopics).globalZk();
         doReturn(mockZooKeeper).when(persistentTopics).localZk();
-        doReturn(pulsar.getConfigurationCache().propertiesCache()).when(persistentTopics).tenantsCache();
-        doReturn(pulsar.getConfigurationCache().policiesCache()).when(persistentTopics).policiesCache();
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
         doReturn("test").when(persistentTopics).clientAppId();
@@ -124,8 +122,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         nonPersistentTopic.setPulsar(pulsar);
         doReturn(mockZooKeeperGlobal).when(nonPersistentTopic).globalZk();
         doReturn(mockZooKeeper).when(nonPersistentTopic).localZk();
-        doReturn(pulsar.getConfigurationCache().propertiesCache()).when(nonPersistentTopic).tenantsCache();
-        doReturn(pulsar.getConfigurationCache().policiesCache()).when(nonPersistentTopic).policiesCache();
         doReturn(false).when(nonPersistentTopic).isRequestHttps();
         doReturn(null).when(nonPersistentTopic).originalPrincipal();
         doReturn("test").when(nonPersistentTopic).clientAppId();

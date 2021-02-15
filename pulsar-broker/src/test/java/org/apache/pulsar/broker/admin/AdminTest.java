@@ -148,8 +148,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         namespaces.setPulsar(pulsar);
         doReturn(mockZooKeeperGlobal).when(namespaces).globalZk();
         doReturn(mockZooKeeper).when(namespaces).localZk();
-        doReturn(configurationCache.propertiesCache()).when(namespaces).tenantsCache();
-        doReturn(configurationCache.policiesCache()).when(namespaces).policiesCache();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
         doNothing().when(namespaces).validateAdminAccessForTenant("my-tenant");
@@ -169,8 +167,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         persistentTopics.setPulsar(pulsar);
         doReturn(mockZooKeeperGlobal).when(persistentTopics).globalZk();
         doReturn(mockZooKeeper).when(persistentTopics).localZk();
-        doReturn(configurationCache.propertiesCache()).when(persistentTopics).tenantsCache();
-        doReturn(configurationCache.policiesCache()).when(persistentTopics).policiesCache();
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn("persistent").when(persistentTopics).domain();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc"))).when(persistentTopics).clusters();
@@ -181,18 +177,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         resourceQuotas = spy(new ResourceQuotas());
         resourceQuotas.setServletContext(new MockServletContext());
         resourceQuotas.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(resourceQuotas).globalZk();
-        doReturn(mockZooKeeper).when(resourceQuotas).localZk();
-        doReturn(configurationCache.propertiesCache()).when(resourceQuotas).tenantsCache();
-        doReturn(configurationCache.policiesCache()).when(resourceQuotas).policiesCache();
 
         brokerStats = spy(new BrokerStats());
         brokerStats.setServletContext(new MockServletContext());
         brokerStats.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(brokerStats).globalZk();
-        doReturn(mockZooKeeper).when(brokerStats).localZk();
-        doReturn(configurationCache.propertiesCache()).when(brokerStats).tenantsCache();
-        doReturn(configurationCache.policiesCache()).when(brokerStats).policiesCache();
 
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
@@ -202,10 +190,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         schemasResource = spy(new SchemasResource(mockClock));
         schemasResource.setServletContext(new MockServletContext());
         schemasResource.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(schemasResource).globalZk();
-        doReturn(mockZooKeeper).when(schemasResource).localZk();
-        doReturn(configurationCache.propertiesCache()).when(schemasResource).tenantsCache();
-        doReturn(configurationCache.policiesCache()).when(schemasResource).policiesCache();
     }
 
     @Override

@@ -302,7 +302,7 @@ public abstract class NamespacesBase extends AdminResource {
                 final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
                 try {
-                    namespaceResources().getLocalPolicies().delete(lcaolZkPolicyPath);
+                    getLocalPolicies().delete(lcaolZkPolicyPath);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
@@ -451,7 +451,7 @@ public abstract class NamespacesBase extends AdminResource {
                 namespaceResources().delete(globalZkPolicyPath);
 
                 try {
-                    namespaceResources().getLocalPolicies().delete(lcaolZkPolicyPath);
+                    getLocalPolicies().delete(lcaolZkPolicyPath);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
@@ -736,6 +736,12 @@ public abstract class NamespacesBase extends AdminResource {
             }
             validatePeerClusterConflict(clusterId, replicationClusterSet);
         }
+        for (String clusterId : replicationClusterSet) {
+            if (!clusters.contains(clusterId)) {
+                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
+            }
+            validatePeerClusterConflict(clusterId, replicationClusterSet);
+        }
 
         for (String clusterId : replicationClusterSet) {
             validateClusterForTenant(namespaceName.getTenant(), clusterId);
@@ -918,7 +924,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
         try {
-            namespaceResources().getLocalPolicies().setWithCreate(path, (oldPolicies) -> {
+            getLocalPolicies().setWithCreate(path, (oldPolicies) -> {
                 LocalPolicies localPolicies = oldPolicies.orElse(new LocalPolicies());
                 localPolicies.bookieAffinityGroup = bookieAffinityGroup;
                 log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
@@ -952,7 +958,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
         String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
         try {
-            final BookieAffinityGroupData bookkeeperAffinityGroup = namespaceResources().getLocalPolicies().get(path)
+            final BookieAffinityGroupData bookkeeperAffinityGroup = getLocalPolicies().get(path)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Namespace local-policies does not exist")).bookieAffinityGroup;
             if (bookkeeperAffinityGroup == null) {
@@ -1690,7 +1696,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
-            namespaceResources().getLocalPolicies().setWithCreate(path, (lp)->{
+            getLocalPolicies().setWithCreate(path, (lp)->{
                 LocalPolicies localPolicies = lp.orElse(new LocalPolicies());
                 localPolicies.namespaceAntiAffinityGroup = antiAffinityGroup;
                 return localPolicies;
@@ -1708,7 +1714,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
 
         try {
-            return namespaceResources().getLocalPolicies()
+            return getLocalPolicies()
                     .get(AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString()))
                     .orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
         } catch (Exception e) {
@@ -1725,7 +1731,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             final String path = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-            namespaceResources().getLocalPolicies().set(path, (policies)->{
+            getLocalPolicies().set(path, (policies)->{
                 policies.namespaceAntiAffinityGroup = null;
                 return policies;
             });
@@ -1756,7 +1762,7 @@ public abstract class NamespacesBase extends AdminResource {
             return namespaces.stream().filter(ns -> {
                 Optional<LocalPolicies> policies;
                 try {
-                    policies = namespaceResources().getLocalPolicies()
+                    policies = getLocalPolicies()
                             .get(AdminResource.joinPath(LOCAL_POLICIES_ROOT, ns));
                 } catch (Exception e) {
                     throw new RuntimeException(e);
