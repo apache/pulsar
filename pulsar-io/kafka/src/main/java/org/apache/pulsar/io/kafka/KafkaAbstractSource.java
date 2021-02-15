@@ -127,7 +127,8 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
                 for (ConsumerRecord<String, Object> consumerRecord : consumerRecords) {
-                    KafkaRecord record = new KafkaRecord(consumerRecord, extractValue(consumerRecord));
+                    Object converted = convert(consumerRecord);
+                    KafkaRecord record = new KafkaRecord(consumerRecord, extractValue(converted), extractSchema(converted));
                     consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;
@@ -150,18 +151,27 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         runnerThread.start();
     }
 
-    public abstract Object extractValue(ConsumerRecord<String, Object> record);
+    public abstract Object convert(ConsumerRecord<String, Object> record);
+
+    public Object extractValue(Object value) {
+        return value;
+    }
+
+    public abstract Schema<?> extractSchema(Object value);
 
     @Slf4j
     static private class KafkaRecord<V> implements Record<V> {
         private final ConsumerRecord<String, ?> record;
         private final V value;
+        private final Schema<V> schema;
+
         @Getter
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public KafkaRecord(ConsumerRecord<String,?> record, V value) {
+        public KafkaRecord(ConsumerRecord<String,?> record, V value, Schema<V> schema) {
             this.record = record;
             this.value = value;
+            this.schema = schema;
         }
         @Override
         public Optional<String> getPartitionId() {
@@ -180,10 +190,6 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
         @Override
         public V getValue() {
-            log.info("getalue from {}", value);
-            if (value instanceof BytesWithAvroPulsarSchema) {
-                return (V) ((BytesWithAvroPulsarSchema) value).getValue();
-            }
             return value;
         }
 
@@ -194,14 +200,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
         @Override
         public Schema<V> getSchema() {
-            log.info("getSchema from {}", value);
-            if (value instanceof BytesWithAvroPulsarSchema) {
-                return (Schema) ((BytesWithAvroPulsarSchema) value).getPulsarSchema();
-            } else if (value instanceof String) {
-                return (Schema) Schema.STRING;
-            } else {
-                return (Schema) Schema.BYTES;
-            }
+            return schema;
         }
     }
 }

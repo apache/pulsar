@@ -20,14 +20,21 @@
 package org.apache.pulsar.io.kafka;
 
 import org.apache.kafka.clients.consumer.*;
+import org.apache.pulsar.client.api.Schema;
 
 /**
  * Simple Kafka Source that just transfers the value part of the kafka records
  * as Strings
  */
 public class KafkaStringSource extends KafkaAbstractSource<String> {
+    
     @Override
-    public Object extractValue(ConsumerRecord<String, Object> record) {
+    public Object convert(ConsumerRecord<String, Object> record) {
         return new String((byte[]) record.value());
+    }
+
+    @Override
+    public Schema<?> extractSchema(Object value) {
+        return Schema.STRING;
     }
 }

@@ -50,16 +50,6 @@ import org.apache.pulsar.io.core.annotations.IOType;
 @Slf4j
 public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
 
-
-    private final PulsarSchemaCache<GenericRecord> schemaCache = new PulsarSchemaCache<>();
-
-    @AllArgsConstructor
-    @Getter
-    private static class RecordWithSchema {
-        byte[] value;
-        Schema schema;
-    }
-
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
         props.putIfAbsent("schema.registry.url", "http://localhost:8081");
@@ -79,7 +69,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
 
 
     @Override
-    public Object extractValue(ConsumerRecord<String, Object> record) {
+    public Object convert(ConsumerRecord<String, Object> record) {
         Object value = record.value();
         if (value instanceof RecordWithSchema) {
             RecordWithSchema recordWithSchema = (RecordWithSchema) record.value();
@@ -87,6 +77,34 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
         } else {
             return value;
         }
+    }
+
+    @Override
+    public Object extractValue(Object value) {
+        if (value instanceof BytesWithAvroPulsarSchema) {
+            return ((BytesWithAvroPulsarSchema) value).getValue();
+        }
+        return value;
+    }
+
+    @Override
+    public org.apache.pulsar.client.api.Schema<?> extractSchema(Object value) {
+        if (value instanceof BytesWithAvroPulsarSchema) {
+            return ((BytesWithAvroPulsarSchema) value).getPulsarSchema();
+        } else if (value instanceof String) {
+            return org.apache.pulsar.client.api.Schema.STRING;
+        } else {
+            return org.apache.pulsar.client.api.Schema.BYTES;
+        }
+    }
+
+    private final PulsarSchemaCache<GenericRecord> schemaCache = new PulsarSchemaCache<>();
+
+    @AllArgsConstructor
+    @Getter
+    private static class RecordWithSchema {
+        byte[] value;
+        Schema schema;
     }
 
     public static class NoCopyKafkaAvroDeserializer extends KafkaAvroDeserializer {
