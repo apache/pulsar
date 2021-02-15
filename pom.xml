@@ -1923,18 +1923,24 @@ flexible messaging model and an intuitive client API.</description>
       <id>central</id>
       <layout>default</layout>
       <url>https://repo1.maven.org/maven2</url>
-    </repository>
-    <repository>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
+    </repository>
+    <repository>
       <id>bintray-yahoo-maven</id>
       <name>bintray</name>
       <url>https://yahoo.bintray.com/maven</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </repository>
     <repository>
       <id>confluent</id>
       <url>http://packages.confluent.io/maven/</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </repository>
   </repositories>
 
