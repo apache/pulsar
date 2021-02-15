@@ -24,7 +24,6 @@ import java.nio.charset.StandardCharsets;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -45,6 +44,7 @@ import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 import org.apache.pulsar.functions.instance.SinkRecord;
@@ -96,7 +96,7 @@ public class PulsarSink<T> implements Sink<T> {
     private abstract class PulsarSinkProcessorBase implements PulsarSinkProcessor<T> {
         protected Map<String, Producer<T>> publishProducers = new ConcurrentHashMap<>();
         protected Schema schema;
-        protected  Crypto crypto;
+        protected Crypto crypto;
 
         protected PulsarSinkProcessorBase(Schema schema, Crypto crypto) {
             this.schema = schema;
@@ -209,13 +209,21 @@ public class PulsarSink<T> implements Sink<T> {
     class PulsarSinkAtMostOnceProcessor extends PulsarSinkProcessorBase {
         public PulsarSinkAtMostOnceProcessor(Schema schema, Crypto crypto) {
             super(schema, crypto);
-            // initialize default topic
-            try {
-                publishProducers.put(pulsarSinkConfig.getTopic(),
+            if (SchemaType.AUTO_CONSUME != schema.getSchemaInfo().getType()) {
+                // initialize default topic
+                try {
+                    publishProducers.put(pulsarSinkConfig.getTopic(),
                         createProducer(client, pulsarSinkConfig.getTopic(), null, schema));
-            } catch (PulsarClientException e) {
-                log.error("Failed to create Producer while doing user publish", e);
-                throw new RuntimeException(e);            }
+                } catch (PulsarClientException e) {
+                    log.error("Failed to create Producer while doing user publish", e);
+                    throw new RuntimeException(e);
+                }
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("The Pulsar producer is not initialized until the first record is"
+                        + " published for `AUTO_CONSUME` schema.");
+                }
+            }
         }
 
         @Override
