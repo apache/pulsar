@@ -27,7 +27,7 @@
   </parent>
   <artifactId>pulsar-io-elastic-search</artifactId>
   <name>Pulsar IO :: ElasticSearch</name>
-  
+
   <repositories>
     <repository>
         <id>jcenter</id>
@@ -36,33 +36,37 @@
   </repositories>
 
   <dependencies>
-   
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
+      <scope>provided</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
+      <scope>provided</scope>
     </dependency>
 
   	<dependency>
   		<groupId>org.elasticsearch.client</groupId>
   		<artifactId>elasticsearch-rest-high-level-client</artifactId>
   	</dependency>
-  	
+
   	<dependency>
         <groupId>net.andreinc.mockneat</groupId>
         <artifactId>mockneat</artifactId>
@@ -76,7 +80,7 @@
   		<scope>test</scope>
   	</dependency>
   </dependencies>
-  
+
   <build>
     <plugins>
       <plugin>
@@ -85,5 +89,5 @@
       </plugin>
     </plugins>
   </build>
-  
+
 </project>
