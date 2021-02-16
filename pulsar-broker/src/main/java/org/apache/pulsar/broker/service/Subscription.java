@@ -83,9 +83,9 @@ public interface Subscription {
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
 
-    void expireMessages(int messageTTLInSeconds);
+    boolean expireMessages(int messageTTLInSeconds);
 
-    void expireMessages(Position position);
+    boolean expireMessages(Position position);
 
     void redeliverUnacknowledgedMessages(Consumer consumer);
 

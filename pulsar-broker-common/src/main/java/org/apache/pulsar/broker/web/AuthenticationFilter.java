@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
 
+import javax.naming.AuthenticationException;
+
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -93,7 +95,11 @@ public class AuthenticationFilter implements Filter {
         } catch (Exception e) {
             HttpServletResponse httpResponse = (HttpServletResponse) response;
             httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
-            LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), e.getMessage());
+            if (e instanceof AuthenticationException) {
+                LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), e.getMessage());
+            } else {
+                LOG.error("[{}] Error performing authentication for HTTP", request.getRemoteAddr(), e);
+            }
             return;
         }
     }

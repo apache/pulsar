@@ -715,28 +715,24 @@ public class PersistentReplicator extends AbstractReplicator
         return 0L;
     }
 
-    public void expireMessages(int messageTTLInSeconds) {
+    public boolean expireMessages(int messageTTLInSeconds) {
         if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
                 || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
-            return;
+            return false;
         }
         if (expiryMonitor != null) {
-            expiryMonitor.expireMessages(messageTTLInSeconds);
+            return expiryMonitor.expireMessages(messageTTLInSeconds);
         }
+        return false;
     }
 
-    public void expireMessages(Position position) {
-        if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
-                || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
-                && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
-            // don't do anything for almost caught-up connected subscriptions
-            return;
-        }
+    public boolean expireMessages(Position position) {
         if (expiryMonitor != null) {
-            expiryMonitor.expireMessages(messageTTLInSeconds);
+            return expiryMonitor.expireMessages(position);
         }
+        return false;
     }
 
     @Override

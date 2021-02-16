@@ -133,13 +133,25 @@
       <version>${project.version}</version>
     </dependency>
 
+    <!-- zookeeper server -->
+    <dependency>
+       <groupId>io.dropwizard.metrics</groupId>
+       <artifactId>metrics-core</artifactId>
+    </dependency>
+    
+    <!-- zookeeper server -->
+    <dependency>
+       <groupId>org.xerial.snappy</groupId>
+       <artifactId>snappy-java</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-zookeeper-utils</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
-    </dependency>
+    </dependency>   
 
     <!-- functions related dependencies (begin) -->
 

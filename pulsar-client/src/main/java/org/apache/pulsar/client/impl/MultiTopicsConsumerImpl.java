@@ -191,8 +191,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 subscribeFuture().complete(MultiTopicsConsumerImpl.this);
             })
             .exceptionally(ex -> {
-                log.warn("[{}] Failed to subscribe topics: {}", topic, ex.getMessage());
-                subscribeFuture.completeExceptionally(ex);
+                log.warn("[{}] Failed to subscribe topics: {}, closing consumer", topic, ex.getMessage());
+                closeAsync().whenComplete((res, closeEx) -> {
+                    if (closeEx != null) {
+                        log.error("[{}] Failed to unsubscribe after failed consumer creation: {}", topic, closeEx.getMessage());
+                    }
+                    subscribeFuture.completeExceptionally(ex);
+                });
                 return null;
             });
     }

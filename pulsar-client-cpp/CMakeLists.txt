@@ -29,6 +29,12 @@ endif(CCACHE_PROGRAM)
 
 MESSAGE(STATUS "ARCHITECTURE: ${CMAKE_SYSTEM_PROCESSOR}")
 
+option(BUILD_DYNAMIC_LIB "Build dynamic lib" ON)
+MESSAGE(STATUS "BUILD_DYNAMIC_LIB:  " ${BUILD_DYNAMIC_LIB})
+
+option(BUILD_STATIC_LIB "Build static lib" ON)
+MESSAGE(STATUS "BUILD_STATIC_LIB:  " ${BUILD_STATIC_LIB})
+
 option(BUILD_TESTS "Build tests" ON)
 MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 
@@ -159,11 +165,10 @@ endif (LINK_STATIC)
 
 find_package(Boost)
 
-if (NOT Boost_VERSION_MAJOR OR
-        (Boost_VERSION_MAJOR EQUAL 1 AND Boost_VERSION_MINOR LESS 69)
-        )
+if (Boost_MAJOR_VERSION EQUAL 1 AND Boost_MINOR_VERSION LESS 69)
     # Boost System does not require linking since 1.69
     set(BOOST_COMPONENTS ${BOOST_COMPONENTS} system)
+    MESSAGE(STATUS "Linking with Boost:System")
 endif()
 
 if (MSVC)
@@ -196,7 +201,7 @@ if (BUILD_PYTHON_WRAPPER)
         list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
         set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
         # For python3 the lib name is boost_python3
-        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
+        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python39;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
     else ()
         # Regular boost_python
         set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
@@ -349,7 +354,10 @@ add_subdirectory(lib)
 if(BUILD_PERF_TOOLS)
     add_subdirectory(perf)
 endif(BUILD_PERF_TOOLS)
-add_subdirectory(examples)
+
+if (BUILD_DYNAMIC_LIB)
+    add_subdirectory(examples)
+endif()
 
 if (BUILD_TESTS)
     add_subdirectory(tests)
