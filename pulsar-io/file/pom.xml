@@ -28,36 +28,41 @@
 
   <artifactId>pulsar-io-file</artifactId>
   <name>Pulsar IO :: File</name>
-  
+
   <dependencies>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
     	<groupId>com.fasterxml.jackson.core</groupId>
     	<artifactId>jackson-databind</artifactId>
+      <scope>provided</scope>
     </dependency>
-    
+
     <dependency>
     	<groupId>commons-io</groupId>
     	<artifactId>commons-io</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
     	<groupId>org.apache.commons</groupId>
     	<artifactId>commons-lang3</artifactId>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
-  
+
   <build>
     <plugins>
       <plugin>
@@ -66,5 +71,5 @@
       </plugin>
     </plugins>
   </build>
-  
+
 </project>

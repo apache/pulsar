@@ -36,16 +36,19 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -53,23 +56,24 @@
       <artifactId>hbc-core</artifactId>
       <version>${hbc-core.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>commons-collections</groupId>
       <artifactId>commons-collections</artifactId>
-      <version>${commons.collections.version}</version>
+      <scope>provided</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
-      <version>3.4</version>
+      <scope>provided</scope>
     </dependency>
-    
+
     <dependency>
        <groupId>${project.groupId}</groupId>
        <artifactId>pulsar-io-common</artifactId>
        <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
   </dependencies>

@@ -26,7 +26,7 @@
     <artifactId>pulsar-io</artifactId>
     <version>2.8.0-SNAPSHOT</version>
   </parent>
- 
+
   <artifactId>pulsar-io-nsq</artifactId>
   <name>Pulsar IO :: NSQ</name>
 
@@ -35,6 +35,7 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -46,19 +47,20 @@
     <dependency>
       <groupId>commons-collections</groupId>
       <artifactId>commons-collections</artifactId>
-      <version>${commons.collections.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
-      <version>3.4</version>
+      <scope>provided</scope>
     </dependency>
- 
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-common</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
   </dependencies>
