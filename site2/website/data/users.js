@@ -317,5 +317,10 @@ module.exports = [
         name: 'Pandio',
         url: 'https://pandio.com',
         logo: 'https://pandio-public-assets.s3-us-west-2.amazonaws.com/pandio_225-05.png',
+    },
+    {
+        name: 'Deposit-Solutions',
+        url: 'https://www.deposit-solutions.com/',
+        logo: 'https://www.deposit-solutions.com/wp-content/uploads/2017/05/cropped-DS_Favicon-180x180.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);
