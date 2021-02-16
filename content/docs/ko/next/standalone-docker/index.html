@@ -88,7 +88,7 @@ apachepulsar/pulsar:2.7.0 \
 bin/pulsar standalone
 </code></pre></li>
 </ul>
-<p>이 명령에 대해 몇 가지 참고 할 사항: * 컨테이너를 다시 시작할 때마다 &quot;새로&quot; 시작하지 않도록, data와 metadata 및 configuration이 Docker 볼륨에 유지되도록 합니다. 볼륨에 대한 자세한 내용은 <code>docker volume inspect &lt;sourcename&gt;</code>을 사용 할 수 있습니다. * Windows의 Docker인 경우 Linux 컨테이너를 사용하도록 구성하십시오.</p>
+<p>이 명령에 대해 몇 가지 참고 할 사항: * 컨테이너를 다시 시작할 때마다 &quot;새로&quot; 시작하지 않도록, data와 metadata 및 configuration이 Docker 볼륨에 유지되도록 합니다. For details on the volumes you can use <code>docker volume inspect &lt;sourcename&gt;</code> * The pulsar docker image runs as user 10000, by default. In order for the pulsar process to access the mounted volumes, the host volumes (<code>pulsardata</code> and <code>pulsarconf</code> in this example) must give user 10000 read and write permissions. Alternatively, you can specify the user to run with and then make sure that the host volume gives that user read and write permissions. Otherwise, the process will fail due to insufficient permissions. * For Docker on Windows make sure to configure it to use Linux containers</p>
 <p>Pulsar가 성공적으로 시작하면, 다음과 같은 <code>INFO</code>level 로그 메시지가 표시됩니다.</p>
 <pre><code class="hljs">2017-08-09 22:34:04,030 - INFO  - [main:WebService@213] - Web Service started at http://127.0.0.1:8080
 2017-08-09 22:34:04,038 - INFO  - [main:PulsarService@335] - messaging service is ready, bootstrap service on port=8080, broker url=pulsar://127.0.0.1:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@4db60246
