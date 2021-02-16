@@ -521,6 +521,11 @@ class Client:
             (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
             batched into single batch message:
             [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
+        * encryption_key:
+           The key used for symmetric encryption, configured on the producer side
+        * crypto_key_reader:
+           Symmetric encryption class implementation, configuring public key encryption messages for the producer
+           and private key decryption messages for the consumer
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -658,6 +663,9 @@ class Client:
           Set the initial position of a consumer  when subscribing to the topic.
           It could be either: `InitialPosition.Earliest` or `InitialPosition.Latest`.
           Default: `Latest`.
+        * crypto_key_reader:
+           Symmetric encryption class implementation, configuring public key encryption messages for the producer
+           and private key decryption messages for the consumer
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
