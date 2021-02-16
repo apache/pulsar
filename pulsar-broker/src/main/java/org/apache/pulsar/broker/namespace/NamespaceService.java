@@ -937,8 +937,12 @@ public class NamespaceService implements AutoCloseable {
         // object copy to avoid concurrent modify LocalPolicy
         // cause data not equals nsBundles after serialization.
         local = policies.map(
-                localPolicies -> new LocalPolicies(bundlesData, localPolicies.bookieAffinityGroup, localPolicies.namespaceAntiAffinityGroup))
-                .orElseGet(() -> new LocalPolicies(bundlesData, null, null));
+                localPolicies -> new LocalPolicies(bundlesData,
+                        localPolicies.bookieAffinityGroup,
+                        localPolicies.namespaceAntiAffinityGroup))
+                .orElseGet(() -> new LocalPolicies(bundlesData,
+                        null,
+                        null));
 
         byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(local);
 
