@@ -175,8 +175,10 @@ public class LocalZooKeeperCacheService {
             configurationCacheService.policiesCache().getAsync(globalPath).thenAccept(policies -> {
                 if (policies.isPresent()) {
                     // Copying global bundles information to local policies
-                    LocalPolicies localPolicies = new LocalPolicies();
-                    localPolicies.bundles = policies.get().bundles;
+                    LocalPolicies localPolicies = new LocalPolicies(policies.get().bundles,
+                            null,
+                            null);
+
                     readFromGlobalFuture.complete(Optional.of(localPolicies));
                 } else {
                     // Policies are not present in global zk

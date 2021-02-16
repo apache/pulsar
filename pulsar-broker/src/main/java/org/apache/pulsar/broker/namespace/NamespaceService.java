@@ -929,8 +929,16 @@ public class NamespaceService {
         }
 
         long version = nsBundles.getVersion();
-        LocalPolicies local = policies.orElse(new LocalPolicies());
-        local.bundles = getBundlesData(nsBundles);
+
+        LocalPolicies local;
+        BundlesData bundlesData = getBundlesData(nsBundles);
+
+        // object copy to avoid concurrent modify LocalPolicy
+        // cause data not equals nsBundles after serialization.
+        local = policies.map(
+                localPolicies -> new LocalPolicies(bundlesData, localPolicies.bookieAffinityGroup, localPolicies.namespaceAntiAffinityGroup))
+                .orElseGet(() -> new LocalPolicies(bundlesData, null, null));
+
         byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(local);
 
         this.pulsar.getLocalZkCache().getZooKeeper()

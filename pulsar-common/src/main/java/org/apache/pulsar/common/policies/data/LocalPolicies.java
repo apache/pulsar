@@ -26,14 +26,22 @@ import com.google.common.base.Objects;
  */
 public class LocalPolicies {
 
-    public BundlesData bundles;
+    public final BundlesData bundles;
     // bookie affinity group for bookie-isolation
-    public BookieAffinityGroupData bookieAffinityGroup;
+    public final BookieAffinityGroupData bookieAffinityGroup;
     // namespace anti-affinity-group
-    public String namespaceAntiAffinityGroup;
+    public final String namespaceAntiAffinityGroup;
 
     public LocalPolicies() {
         bundles = defaultBundle();
+        bookieAffinityGroup = null;
+        namespaceAntiAffinityGroup = "";
+    }
+
+    public LocalPolicies(BundlesData data,BookieAffinityGroupData bookieAffinityGroup,String namespaceAntiAffinityGroup) {
+        bundles = data;
+        this.bookieAffinityGroup = bookieAffinityGroup;
+        this.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
     }
 
     @Override
@@ -52,4 +60,12 @@ public class LocalPolicies {
         return false;
     }
 
+    @Override
+    public String toString() {
+        return "LocalPolicies{" +
+                "bundles=" + bundles +
+                ", bookieAffinityGroup=" + bookieAffinityGroup +
+                ", namespaceAntiAffinityGroup='" + namespaceAntiAffinityGroup + '\'' +
+                '}';
+    }
 }

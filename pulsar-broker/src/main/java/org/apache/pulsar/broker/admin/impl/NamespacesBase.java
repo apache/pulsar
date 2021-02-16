@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.admin.impl;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
 import static org.apache.pulsar.common.policies.data.Policies.getBundles;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -919,8 +920,14 @@ public abstract class NamespacesBase extends AdminResource {
         String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
         try {
             namespaceResources().getLocalPolicies().setWithCreate(path, (oldPolicies) -> {
-                LocalPolicies localPolicies = oldPolicies.orElse(new LocalPolicies());
-                localPolicies.bookieAffinityGroup = bookieAffinityGroup;
+                LocalPolicies localPolicies = oldPolicies.map(
+                        policies -> new LocalPolicies(policies.bundles,
+                                bookieAffinityGroup,
+                                policies.namespaceAntiAffinityGroup))
+                        .orElseGet(() -> new LocalPolicies(defaultBundle(),
+                                bookieAffinityGroup,
+                                null));
+
                 log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
                         namespaceName, localPolicies);
                 return localPolicies;
@@ -1690,11 +1697,14 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
-            namespaceResources().getLocalPolicies().setWithCreate(path, (lp)->{
-                LocalPolicies localPolicies = lp.orElse(new LocalPolicies());
-                localPolicies.namespaceAntiAffinityGroup = antiAffinityGroup;
-                return localPolicies;
-            });
+            namespaceResources().getLocalPolicies().setWithCreate(path, (oldPolicies) ->
+                    oldPolicies.map(
+                            policies -> new LocalPolicies(policies.bundles,
+                                    policies.bookieAffinityGroup,
+                                    antiAffinityGroup))
+                            .orElseGet(() -> new LocalPolicies(defaultBundle(),
+                                    null, antiAffinityGroup))
+            );
             log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
                     namespaceName, antiAffinityGroup);
         } catch (Exception e) {
@@ -1725,10 +1735,11 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             final String path = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-            namespaceResources().getLocalPolicies().set(path, (policies)->{
-                policies.namespaceAntiAffinityGroup = null;
-                return policies;
-            });
+            namespaceResources().getLocalPolicies().set(path, (policies) ->
+                    new LocalPolicies(policies.bundles,
+                            policies.bookieAffinityGroup,
+                            null)
+            );
             log.info("[{}] Successfully removed anti-affinity group for a namespace={}", clientAppId(), namespaceName);
         } catch (Exception e) {
             log.error("[{}] Failed to remove anti-affinity group for namespace {}", clientAppId(), namespaceName, e);
