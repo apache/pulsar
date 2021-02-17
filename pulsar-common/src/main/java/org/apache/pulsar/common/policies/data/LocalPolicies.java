@@ -19,11 +19,14 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
-import com.google.common.base.Objects;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Local policies.
  */
+@ToString
+@EqualsAndHashCode
 public class LocalPolicies {
 
     public final BundlesData bundles;
@@ -38,34 +41,12 @@ public class LocalPolicies {
         namespaceAntiAffinityGroup = "";
     }
 
-    public LocalPolicies(BundlesData data,BookieAffinityGroupData bookieAffinityGroup,String namespaceAntiAffinityGroup) {
+    public LocalPolicies(BundlesData data,
+                         BookieAffinityGroupData bookieAffinityGroup,
+                         String namespaceAntiAffinityGroup) {
         bundles = data;
         this.bookieAffinityGroup = bookieAffinityGroup;
         this.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(bundles, bookieAffinityGroup);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof LocalPolicies) {
-            LocalPolicies other = (LocalPolicies) obj;
-            return Objects.equal(bundles, other.bundles)
-                    && Objects.equal(bookieAffinityGroup, other.bookieAffinityGroup)
-                    && Objects.equal(namespaceAntiAffinityGroup, other.namespaceAntiAffinityGroup);
-        }
-        return false;
-    }
-
-    @Override
-    public String toString() {
-        return "LocalPolicies{" +
-                "bundles=" + bundles +
-                ", bookieAffinityGroup=" + bookieAffinityGroup +
-                ", namespaceAntiAffinityGroup='" + namespaceAntiAffinityGroup + '\'' +
-                '}';
-    }
 }
