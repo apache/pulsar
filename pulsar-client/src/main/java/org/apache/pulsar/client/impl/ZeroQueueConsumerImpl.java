@@ -30,13 +30,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
@@ -49,11 +49,11 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private volatile boolean waitingOnListenerForZeroQueueSize = false;
 
     public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-             OrderedScheduler listenerExecutor, int partitionIndex, boolean hasParentConsumer,
+             ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
              CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId, Schema<T> schema,
              ConsumerInterceptors<T> interceptors,
              boolean createTopicIfDoesNotExist) throws PulsarClientException.InvalidConfigurationException {
-        super(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
+        super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, subscribeFuture,
                 startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
                 createTopicIfDoesNotExist);
     }
@@ -152,7 +152,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         checkNotNull(listener, "listener can't be null");
         checkNotNull(message, "unqueued message can't be null");
 
-        listenerExecutor.executeOrdered(this, () -> {
+        pingedExecutor.execute(() -> {
             stats.updateNumMsgsReceived(message);
             try {
                 if (log.isDebugEnabled()) {

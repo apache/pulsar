@@ -50,7 +50,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import lombok.Getter;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -422,14 +421,13 @@ public class PulsarClientImpl implements PulsarClient {
             }
 
             ConsumerBase<T> consumer;
-            OrderedScheduler listenerThread = externalExecutorProvider.getOrderedScheduler();
             if (metadata.partitions > 0) {
                 consumer = MultiTopicsConsumerImpl.createPartitionedConsumer(PulsarClientImpl.this, conf,
-                    listenerThread, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
+                        externalExecutorProvider, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
             } else {
                 int partitionIndex = TopicName.getPartitionIndex(topic);
                 try {
-                    consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, listenerThread, partitionIndex, false,
+                    consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, externalExecutorProvider, partitionIndex, false,
                             consumerSubscribedFuture,null, schema, interceptors,
                             true /* createTopicIfDoesNotExist */);
                     consumers.add(consumer);
@@ -453,7 +451,7 @@ public class PulsarClientImpl implements PulsarClient {
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
         ConsumerBase<T> consumer = new MultiTopicsConsumerImpl<>(PulsarClientImpl.this, conf,
-                externalExecutorProvider.getOrderedScheduler(), consumerSubscribedFuture, schema, interceptors,
+                externalExecutorProvider, consumerSubscribedFuture, schema, interceptors,
                 true /* createTopicIfDoesNotExist */);
 
         consumers.add(consumer);
@@ -486,7 +484,7 @@ public class PulsarClientImpl implements PulsarClient {
                 ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<T>(conf.getTopicsPattern(),
                     PulsarClientImpl.this,
                     conf,
-                    externalExecutorProvider.getOrderedScheduler(),
+                    externalExecutorProvider,
                     consumerSubscribedFuture,
                     schema, subscriptionMode, interceptors);
 
@@ -556,16 +554,15 @@ public class PulsarClientImpl implements PulsarClient {
                 return;
             }
             CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
-            OrderedScheduler listenerThread = externalExecutorProvider.getOrderedScheduler();
             Reader<T> reader = null;
             ConsumerBase<T> consumer = null;
             if (metadata.partitions > 0) {
                 reader = new MultiTopicsReaderImpl<>(PulsarClientImpl.this,
-                        conf, listenerThread, consumerSubscribedFuture, schema);
+                        conf, externalExecutorProvider, consumerSubscribedFuture, schema);
                 consumer = ((MultiTopicsReaderImpl<T>) reader).getMultiTopicsConsumer();
             } else {
                 try {
-                    reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
+                    reader = new ReaderImpl<>(PulsarClientImpl.this, conf, externalExecutorProvider, consumerSubscribedFuture, schema);
                     consumer = ((ReaderImpl<T>) reader).getConsumer();
                 } catch (PulsarClientException.InvalidConfigurationException e) {
                     if (log.isDebugEnabled()) {

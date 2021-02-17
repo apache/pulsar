@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Sets;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
@@ -29,6 +28,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.Test;
@@ -65,7 +65,7 @@ public class MultiTopicsConsumerImplTest {
 
         ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
-        OrderedScheduler listenerExecutor = OrderedScheduler.newSchedulerBuilder().threadFactory(threadFactory).numThreads(1).build();
+        ExecutorProvider executorProvider = new ExecutorProvider(1, threadFactory);
 
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
@@ -76,7 +76,7 @@ public class MultiTopicsConsumerImplTest {
 
         MultiTopicsConsumerImpl impl = new MultiTopicsConsumerImpl(
             clientImpl, consumerConfData,
-            listenerExecutor, null, null, null, true);
+            executorProvider, null, null, null, true);
 
         impl.getStats();
     }
@@ -103,7 +103,7 @@ public class MultiTopicsConsumerImplTest {
     }
 
     private MultiTopicsConsumerImpl<byte[]> createMultiTopicsConsumer() {
-        OrderedScheduler listenerExecutor = mock(OrderedScheduler.class);
+        ExecutorProvider executorProvider = mock(ExecutorProvider.class);
         ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
         consumerConfData.setSubscriptionName("subscriptionName");
         int completionDelayMillis = 100;
@@ -113,7 +113,7 @@ public class MultiTopicsConsumerImplTest {
                 new PartitionedTopicMetadata(), completionDelayMillis));
         when(clientMock.<byte[]>preProcessSchemaBeforeSubscribe(any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(schema));
-        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<byte[]>(clientMock, consumerConfData, listenerExecutor,
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<byte[]>(clientMock, consumerConfData, executorProvider,
             new CompletableFuture<>(), schema, null, true);
         return impl;
     }
@@ -144,7 +144,7 @@ public class MultiTopicsConsumerImplTest {
 
     @Test
     public void testConsumerCleanupOnSubscribeFailure() throws InterruptedException, TimeoutException, ExecutionException {
-        OrderedScheduler listenerExecutor = mock(OrderedScheduler.class);
+        ExecutorProvider executorProvider = mock(ExecutorProvider.class);
         ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
         consumerConfData.setSubscriptionName("subscriptionName");
         consumerConfData.setTopicNames(new HashSet<>(Arrays.asList("a", "b", "c")));
@@ -154,7 +154,7 @@ public class MultiTopicsConsumerImplTest {
         when(clientMock.getPartitionedTopicMetadata(any())).thenAnswer(invocation -> createExceptionFuture(
                 new PulsarClientException.InvalidConfigurationException("a mock exception"), completionDelayMillis));
         CompletableFuture<Consumer<byte[]>> completeFuture = new CompletableFuture<>();
-        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<byte[]>(clientMock, consumerConfData, listenerExecutor,
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<byte[]>(clientMock, consumerConfData, executorProvider,
                 completeFuture, schema, null, true);
         // assert that we don't start in closed, then we move to closed and get an exception
         // indicating that closeAsync was called

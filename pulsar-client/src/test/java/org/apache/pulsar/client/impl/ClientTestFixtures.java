@@ -83,7 +83,7 @@ class ClientTestFixtures {
         return mock(ExecutorService.class);
     }
 
-    public static OrderedScheduler createMockOrderedScheduler() {
-        return mock(OrderedScheduler.class);
+    public static ExecutorProvider createMockedExecutorProvider() {
+        return mock(ExecutorProvider.class);
     }
 }

@@ -44,7 +44,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,7 +52,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
@@ -67,6 +65,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -110,31 +109,33 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final long startMessageRollbackDurationInSec;
 
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
-            OrderedScheduler listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+            ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
-        this(client, DUMMY_TOPIC_NAME_PREFIX + ConsumerName.generateRandomName(), conf, listenerExecutor,
+        this(client, DUMMY_TOPIC_NAME_PREFIX + ConsumerName.generateRandomName(), conf, executorProvider,
                 subscribeFuture, schema, interceptors, createTopicIfDoesNotExist);
     }
 
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
-                            OrderedScheduler listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
-                            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
-                            long startMessageRollbackDurationInSec) {
-        this(client, DUMMY_TOPIC_NAME_PREFIX + ConsumerName.generateRandomName(), conf, listenerExecutor,
-                subscribeFuture, schema, interceptors, createTopicIfDoesNotExist, startMessageId, startMessageRollbackDurationInSec);
+            ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
+            long startMessageRollbackDurationInSec) {
+        this(client, DUMMY_TOPIC_NAME_PREFIX + ConsumerName.generateRandomName(), conf, executorProvider,
+                subscribeFuture, schema, interceptors, createTopicIfDoesNotExist, startMessageId,
+                startMessageRollbackDurationInSec);
     }
 
     MultiTopicsConsumerImpl(PulsarClientImpl client, String singleTopic, ConsumerConfigurationData<T> conf,
-                            OrderedScheduler listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
-                            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
-        this(client, singleTopic, conf, listenerExecutor, subscribeFuture, schema, interceptors, createTopicIfDoesNotExist, null, 0);
+            ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
+        this(client, singleTopic, conf, executorProvider, subscribeFuture, schema, interceptors,
+                createTopicIfDoesNotExist, null, 0);
     }
 
     MultiTopicsConsumerImpl(PulsarClientImpl client, String singleTopic, ConsumerConfigurationData<T> conf,
-                            OrderedScheduler listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
-                            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
-                            long startMessageRollbackDurationInSec) {
-        super(client, singleTopic, conf, Math.max(2, conf.getReceiverQueueSize()), listenerExecutor, subscribeFuture,
+            ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
+            long startMessageRollbackDurationInSec) {
+        super(client, singleTopic, conf, Math.max(2, conf.getReceiverQueueSize()), executorProvider, subscribeFuture,
                 schema, interceptors);
 
         checkArgument(conf.getReceiverQueueSize() > 0,
@@ -572,7 +573,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void failPendingReceive() {
-        if (listenerExecutor != null && !listenerExecutor.isShutdown()) {
+        if (pingedExecutor != null && !pingedExecutor.isShutdown()) {
             failPendingReceives(pendingReceives);
             failPendingBatchReceives(pendingBatchReceives);
         }
@@ -831,7 +832,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // first create a consumer with no topic, then do subscription for already know partitionedTopic.
     public static <T> MultiTopicsConsumerImpl<T> createPartitionedConsumer(PulsarClientImpl client,
                                                                            ConsumerConfigurationData<T> conf,
-                                                                           OrderedScheduler listenerExecutor,
+                                                                           ExecutorProvider executorProvider,
                                                                            CompletableFuture<Consumer<T>> subscribeFuture,
                                                                            int numPartitions,
                                                                            Schema<T> schema, ConsumerInterceptors<T> interceptors) {
@@ -843,7 +844,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         cloneConf.getTopicNames().remove(topicName);
 
         CompletableFuture<Consumer> future = new CompletableFuture<>();
-        MultiTopicsConsumerImpl consumer = new MultiTopicsConsumerImpl(client, topicName, cloneConf, listenerExecutor,
+        MultiTopicsConsumerImpl consumer = new MultiTopicsConsumerImpl(client, topicName, cloneConf, executorProvider,
                 future, schema, interceptors, true /* createTopicIfDoesNotExist */);
 
         future.thenCompose(c -> ((MultiTopicsConsumerImpl)c).subscribeAsync(topicName, numPartitions))
@@ -929,7 +930,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = null;
                         try {
                             newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
-                                    configurationData, client.externalExecutorProvider().getOrderedScheduler(),
+                                    configurationData, client.externalExecutorProvider(),
                                     partitionIndex, true, subFuture,
                                     startMessageId, schema, interceptors,
                                     createIfDoesNotExist, startMessageRollbackDurationInSec);
@@ -958,7 +959,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             ConsumerImpl<T> newConsumer = null;
             try {
                 newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
-                        client.externalExecutorProvider().getOrderedScheduler(), -1,
+                        client.externalExecutorProvider(), -1,
                         true, subFuture, null, schema, interceptors,
                         createIfDoesNotExist);
                 consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
@@ -1244,7 +1245,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         try {
                             newConsumer = ConsumerImpl.newConsumerImpl(
                                 client, partitionName, configurationData,
-                                client.externalExecutorProvider().getOrderedScheduler(),
+                                client.externalExecutorProvider(),
                                 partitionIndex, true, subFuture, null, schema, interceptors,
                                 true /* createTopicIfDoesNotExist */);
                         } catch (PulsarClientException.InvalidConfigurationException e) {

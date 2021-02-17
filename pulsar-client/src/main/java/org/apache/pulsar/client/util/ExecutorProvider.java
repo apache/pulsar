@@ -29,16 +29,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.collect.Lists;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 
 @Slf4j
 public class ExecutorProvider {
     private final int numThreads;
     private final List<ExecutorService> executors;
     private final AtomicInteger currentThread = new AtomicInteger(0);
-    private OrderedScheduler orderedScheduler = null;
+    private volatile boolean isShutdown;
 
     public ExecutorProvider(int numThreads, ThreadFactory threadFactory) {
         checkArgument(numThreads > 0);
@@ -48,21 +46,19 @@ public class ExecutorProvider {
         for (int i = 0; i < numThreads; i++) {
             executors.add(Executors.newSingleThreadScheduledExecutor(threadFactory));
         }
+        isShutdown = false;
     }
 
     public ExecutorService getExecutor() {
         return executors.get((currentThread.getAndIncrement() & Integer.MAX_VALUE) % numThreads);
     }
 
-    public synchronized OrderedScheduler getOrderedScheduler() {
-        if (this.orderedScheduler == null) {
-            this.orderedScheduler = OrderedScheduler.newSchedulerBuilder()
-                    .threadFactory(new DefaultThreadFactory("pulsar-client-ordered-listener",
-                            Thread.currentThread().isDaemon()))
-                    .numThreads(numThreads)
-                    .build();
-        }
-        return this.orderedScheduler;
+    public ExecutorService getExecutor(Object object) {
+        return getExecutor(object == null ? -1 : object.hashCode() & Integer.MAX_VALUE);
+    }
+    
+    public ExecutorService getExecutor(int hash) {
+        return executors.get((hash & Integer.MAX_VALUE) % numThreads);
     }
 
     public void shutdownNow() {
@@ -74,5 +70,10 @@ public class ExecutorProvider {
                 log.warn("Shutdown of thread pool was interrupted");
             }
         });
+        isShutdown = true;
+    }
+
+    public boolean isShutdown() {
+        return isShutdown;
     }
 }

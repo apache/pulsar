@@ -67,11 +67,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>bookkeeper-common</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-codec-http</artifactId>
     </dependency>

@@ -114,7 +114,7 @@ public class RawReaderImpl implements RawReader {
             super(client,
                     conf.getSingleTopic(),
                     conf,
-                    client.externalExecutorProvider().getOrderedScheduler(),
+                    client.externalExecutorProvider(),
                     TopicName.getPartitionIndex(conf.getSingleTopic()),
                     false,
                     consumerFuture,

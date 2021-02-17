@@ -23,7 +23,7 @@ import com.google.common.collect.Sets;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -519,7 +520,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         when(mockClient.eventLoopGroup()).thenReturn(new NioEventLoopGroup());
         try {
             ConsumerImpl consumer = new ConsumerImpl(mockClient, "my-topic", consumerConfig,
-                    OrderedScheduler.newSchedulerBuilder().numThreads(1).build(), 0,
+                    new ExecutorProvider(1, new DefaultThreadFactory("test")), 0,
                     false, new CompletableFuture<>(),
             MessageId.earliest, 100, Schema.BYTES,
                     new ConsumerInterceptors(Collections.emptyList()), false);

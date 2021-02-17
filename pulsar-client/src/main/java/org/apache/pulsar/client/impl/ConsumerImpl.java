@@ -55,7 +55,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -76,6 +75,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -187,7 +187,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
-                                               OrderedScheduler listenerExecutor,
+                                               ExecutorProvider executorProvider,
                                                int partitionIndex,
                                                boolean hasParentConsumer,
                                                CompletableFuture<Consumer<T>> subscribeFuture,
@@ -196,14 +196,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist)
             throws PulsarClientException.InvalidConfigurationException {
-        return newConsumerImpl(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
+        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, subscribeFuture,
                 startMessageId, schema, interceptors, createTopicIfDoesNotExist, 0);
     }
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
-                                               OrderedScheduler listenerExecutor,
+                                               ExecutorProvider executorProvider,
                                                int partitionIndex,
                                                boolean hasParentConsumer,
                                                CompletableFuture<Consumer<T>> subscribeFuture,
@@ -214,23 +214,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                long startMessageRollbackDurationInSec)
             throws PulsarClientException.InvalidConfigurationException {
         if (conf.getReceiverQueueSize() == 0) {
-            return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
+            return new ZeroQueueConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     subscribeFuture,
                     startMessageId, schema, interceptors,
                     createTopicIfDoesNotExist);
         } else {
-            return new ConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
+            return new ConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     subscribeFuture, startMessageId, startMessageRollbackDurationInSec /* rollback time in sec to start msgId */,
                     schema, interceptors, createTopicIfDoesNotExist);
         }
     }
 
     protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-           OrderedScheduler listenerExecutor, int partitionIndex, boolean hasParentConsumer,
+           ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
            CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId,
            long startMessageRollbackDurationInSec, Schema<T> schema, ConsumerInterceptors<T> interceptors,
            boolean createTopicIfDoesNotExist) throws PulsarClientException.InvalidConfigurationException {
-        super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture, schema, interceptors);
+        super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema, interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = conf.getSubscriptionMode();
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl((MessageIdImpl) startMessageId) : null;
@@ -946,7 +946,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private void failPendingReceive() {
         lock.readLock().lock();
         try {
-            if (listenerExecutor != null && !listenerExecutor.isShutdown()) {
+            if (pingedExecutor != null && !pingedExecutor.isShutdown()) {
                 failPendingReceives(this.pendingReceives);
                 failPendingBatchReceives(this.pendingBatchReceives);
             }
@@ -960,7 +960,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        listenerExecutor.executeOrdered(this, () -> {
+        pingedExecutor.execute(() -> {
             if (isActive) {
                 consumerEventListener.becameActive(this, partitionIndex);
             } else {
@@ -1089,7 +1089,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // Lazy task scheduling to expire incomplete chunk message
         if (!expireChunkMessageTaskScheduled && expireTimeOfIncompleteChunkedMessageMillis > 0) {
-            listenerExecutor.scheduleAtFixedRateOrdered(this, () -> {
+            pingedExecutor.scheduleAtFixedRate(() -> {
                 removeExpireIncompleteChunkedMessages();
             }, expireTimeOfIncompleteChunkedMessageMillis, expireTimeOfIncompleteChunkedMessageMillis,
                     TimeUnit.MILLISECONDS);
@@ -1183,13 +1183,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (exception != null) {
-            listenerExecutor.executeOrdered(this, () -> receivedFuture.completeExceptionally(exception));
+            pingedExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
             return;
         }
 
         if (message == null) {
             IllegalStateException e = new IllegalStateException("received message can't be null");
-            listenerExecutor.executeOrdered(this, () -> receivedFuture.completeExceptionally(e));
+            pingedExecutor.execute(() -> receivedFuture.completeExceptionally(e));
             return;
         }
 
@@ -2010,9 +2010,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            listenerExecutor.schedule(() -> {
+            pingedExecutor.schedule(() -> {
                 log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
-                    topic, getHandlerName(), nextDelay);
+                        topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);
                 internalGetLastMessageIdAsync(backoff, remainingTime, future);
             }, nextDelay, TimeUnit.MILLISECONDS);

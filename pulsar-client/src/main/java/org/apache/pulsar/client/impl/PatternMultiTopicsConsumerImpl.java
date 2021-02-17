@@ -32,10 +32,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -53,10 +53,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
                                           PulsarClientImpl client,
                                           ConsumerConfigurationData<T> conf,
-                                          OrderedScheduler listenerExecutor,
+                                          ExecutorProvider executorProvider,
                                           CompletableFuture<Consumer<T>> subscribeFuture,
                                           Schema<T> schema, Mode subscriptionMode, ConsumerInterceptors<T> interceptors) {
-        super(client, conf, listenerExecutor, subscribeFuture, schema, interceptors,
+        super(client, conf, executorProvider, subscribeFuture, schema, interceptors,
                 false /* createTopicIfDoesNotExist */);
         this.topicsPattern = topicsPattern;
         this.subscriptionMode = subscriptionMode;
