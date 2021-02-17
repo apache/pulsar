@@ -85,6 +85,7 @@ RUN git clone https://github.com/google/protobuf.git /pulsar/protobuf && \
 # Installation
 ARG MAVEN_VERSION=3.6.3
 ARG MAVEN_FILENAME="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+ARG MAVEN_HOME=/opt/maven
 ARG MAVEN_URL="http://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/${MAVEN_FILENAME}"
 ARG MAVEN_TMP="/tmp/${MAVEN_FILENAME}"
 RUN wget --no-verbose -O ${MAVEN_TMP} ${MAVEN_URL} 
