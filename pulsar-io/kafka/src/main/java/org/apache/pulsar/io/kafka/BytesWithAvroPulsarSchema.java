@@ -21,7 +21,6 @@ package org.apache.pulsar.io.kafka;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 
-import java.nio.ByteBuffer;
 import org.apache.pulsar.client.api.schema.*;
 
 
@@ -33,7 +32,7 @@ public class BytesWithAvroPulsarSchema {
     private final byte[] value;
     private final Schema<GenericRecord> schema;
 
-    public BytesWithAvroPulsarSchema(org.apache.avro.Schema schema, byte[] value, PulsarSchemaCache<GenericRecord> schemaCache) {
+    public BytesWithAvroPulsarSchema(org.apache.avro.Schema schema, byte[] value, AvroSchemaCache<GenericRecord> schemaCache) {
         this.schema = schemaCache.get(schema);
         this.value = value;
     }

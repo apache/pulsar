@@ -29,7 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.IdentityHashMap;
 
 @Slf4j
-class PulsarSchemaCache<T> {
+class AvroSchemaCache<T> {
     // we are using the Object identity as key of the cache
     // we do not want to perform costly operations in order to lookup into the cache
     private IdentityHashMap<org.apache.avro.Schema, Schema<T>> cache = new IdentityHashMap<>();

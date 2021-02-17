@@ -47,7 +47,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
-    private volatile Consumer<String, Object> consumer;
+    private volatile Consumer<Object, Object> consumer;
     private volatile boolean running = false;
     private KafkaSourceConfig kafkaSourceConfig;
     private Thread runnerThread;
@@ -123,11 +123,14 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             consumer.subscribe(Collections.singletonList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
             while (running) {
-                ConsumerRecords<String, Object> consumerRecords = consumer.poll(1000);
+                ConsumerRecords<Object, Object> consumerRecords = consumer.poll(1000);
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
-                for (ConsumerRecord<String, Object> consumerRecord : consumerRecords) {
-                    KafkaRecord record = new KafkaRecord(consumerRecord, extractValue(consumerRecord), extractSchema(consumerRecord));
+                for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
+                    KafkaRecord record = new KafkaRecord(consumerRecord,
+                            extractKey(consumerRecord),
+                            extractValue(consumerRecord),
+                            extractSchema(consumerRecord));
                     consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;
@@ -150,23 +153,30 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         runnerThread.start();
     }
 
-    public Object extractValue(ConsumerRecord<String, Object> consumerRecord) {
+    public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
         return consumerRecord.value();
     }
 
-    public abstract Schema<?> extractSchema(ConsumerRecord<String, Object> consumerRecord);
+    public Optional<String> extractKey(ConsumerRecord<Object, Object> consumerRecord) {
+        // we are currently supporting only String keys
+        return Optional.ofNullable((String) consumerRecord.key());
+    }
+
+    public abstract Schema<?> extractSchema(ConsumerRecord<Object, Object> consumerRecord);
 
     @Slf4j
     static private class KafkaRecord<V> implements Record<V> {
         private final ConsumerRecord<String, ?> record;
         private final V value;
         private final Schema<V> schema;
+        private final Optional<String> key;
 
         @Getter
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public KafkaRecord(ConsumerRecord<String,?> record, V value, Schema<V> schema) {
+        public KafkaRecord(ConsumerRecord<String,?> record, Optional<String> key, V value, Schema<V> schema) {
             this.record = record;
+            this.key = key;
             this.value = value;
             this.schema = schema;
         }
@@ -182,7 +192,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
         @Override
         public Optional<String> getKey() {
-            return Optional.ofNullable(record.key());
+            return key;
         }
 
         @Override

@@ -29,12 +29,12 @@ import org.apache.pulsar.client.api.Schema;
 public class KafkaStringSource extends KafkaAbstractSource<String> {
 
     @Override
-    public Object extractValue(ConsumerRecord<String, Object> consumerRecord) {
+    public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
         return new String((byte[]) consumerRecord.value());
     }
 
     @Override
-    public Schema<?> extractSchema(ConsumerRecord<String, Object> consumerRecord) {
+    public Schema<?> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
         return Schema.STRING;
     }
 }

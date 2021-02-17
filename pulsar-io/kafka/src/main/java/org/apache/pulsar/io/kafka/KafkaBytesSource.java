@@ -20,6 +20,9 @@
 package org.apache.pulsar.io.kafka;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Properties;
 
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
@@ -47,25 +50,37 @@ import org.apache.pulsar.io.core.annotations.IOType;
 @Slf4j
 public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
 
+    private static final Collection<String> SUPPORTED_KEY_DESERIALIZERS =
+            Collections.unmodifiableCollection(Arrays.asList(StringDeserializer.class.getName()));
+
+    private static final Collection<String> SUPPORTED_VALUE_DESERIALIZERS =
+            Collections.unmodifiableCollection(Arrays.asList(ByteArrayDeserializer.class.getName(), KafkaAvroDeserializer.class.getName()));
+
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
-        props.putIfAbsent("schema.registry.url", "http://localhost:8081");
         props.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+        log.info("Created kafka consumer config : {}", props);
 
-        String currentValue = props.getProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
-
-        // replace KafkaAvroDeserializer with our custom implementation
-        if (currentValue != null && currentValue.equals(KafkaAvroDeserializer.class.getName())) {
-            props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, NoCopyKafkaAvroDeserializer.class.getName());
+        String currentKeyDeserializer = props.getProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
+        if (!SUPPORTED_KEY_DESERIALIZERS.contains(currentKeyDeserializer)) {
+            throw new IllegalArgumentException("Unsupported key deserializer: "+currentKeyDeserializer+", only " + SUPPORTED_KEY_DESERIALIZERS);
         }
 
-        log.info("Created kafka consumer config : {}", props);
+        String currentValueDeserializer = props.getProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
+        if (!SUPPORTED_VALUE_DESERIALIZERS.contains(currentValueDeserializer)) {
+            throw new IllegalArgumentException("Unsupported value deserializer: " + currentValueDeserializer + ", only " + SUPPORTED_VALUE_DESERIALIZERS);
+        }
+
+        // replace KafkaAvroDeserializer with our custom implementation
+        if (currentValueDeserializer != null && currentValueDeserializer.equals(KafkaAvroDeserializer.class.getName())) {
+            props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, NoCopyKafkaAvroDeserializer.class.getName());
+        }
         return props;
     }
 
     @Override
-    public Object extractValue(ConsumerRecord<String, Object> consumerRecord) {
+    public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
         if (value instanceof BytesWithAvroPulsarSchema) {
             return ((BytesWithAvroPulsarSchema) value).getValue();
@@ -74,7 +89,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
     }
 
     @Override
-    public org.apache.pulsar.client.api.Schema<?> extractSchema(ConsumerRecord<String, Object> consumerRecord) {
+    public org.apache.pulsar.client.api.Schema<?> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
         if (value instanceof BytesWithAvroPulsarSchema) {
             return ((BytesWithAvroPulsarSchema) value).getPulsarSchema();
@@ -85,7 +100,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
 
     public static class NoCopyKafkaAvroDeserializer extends KafkaAvroDeserializer {
 
-        private final PulsarSchemaCache<GenericRecord> schemaCache = new PulsarSchemaCache<>();
+        private final AvroSchemaCache<GenericRecord> schemaCache = new AvroSchemaCache<>();
 
         @Override
         protected Object deserialize(boolean includeSchemaAndVersion, String topic, Boolean isKey, byte[] payload, Schema readerSchema) throws SerializationException {
