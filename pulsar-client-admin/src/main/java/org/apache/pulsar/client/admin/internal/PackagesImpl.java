@@ -172,9 +172,11 @@ public class PackagesImpl extends ComponentResource implements Packages {
             @Override
             public void completed(Response response) {
                 if (response.getStatusInfo().equals(Response.Status.OK)) {
-                    InputStream inputStream = response.readEntity(InputStream.class);
-                    Path destinyPath = Paths.get(path);
-                    try {
+                    try (InputStream inputStream = response.readEntity(InputStream.class)) {
+                        Path destinyPath = Paths.get(path);
+                        if (destinyPath.getParent() != null) {
+                            Files.createDirectories(destinyPath.getParent());
+                        }
                         Files.copy(inputStream, destinyPath);
                         future.complete(null);
                     } catch (IOException e) {

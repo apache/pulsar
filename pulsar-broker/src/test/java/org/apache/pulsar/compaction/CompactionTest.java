@@ -97,7 +97,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         super.internalCleanup();
 
-        compactionScheduler.shutdownNow();
+        if (compactionScheduler != null) {
+            compactionScheduler.shutdownNow();
+        }
     }
 
     @Test

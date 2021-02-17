@@ -1828,6 +1828,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeConsumerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "If true, export producer level metrics otherwise namespace level"
+    )
+    private boolean exposeProducerLevelMetricsInPrometheus = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 
@@ -1838,6 +1843,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             " this would be more efficient but may be inaccurate. Default is false."
     )
     private boolean exposePreciseBacklogInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable expose the backlog size for each subscription when generating stats.\n" +
+                    " Locking is used for fetching the status so default to false."
+    )
+    private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(

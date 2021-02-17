@@ -39,6 +39,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -47,6 +49,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -534,10 +537,15 @@ public class CmdTopics extends CmdBase {
             "--get-precise-backlog" }, description = "Set true to get precise backlog")
         private boolean getPreciseBacklog = false;
 
+        @Parameter(names = { "-sbs",
+                "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
+        + ", locking required.")
+        private boolean subscriptionBacklogSize = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(getTopics().getStats(topic, getPreciseBacklog));
+            print(getTopics().getStats(topic, getPreciseBacklog, subscriptionBacklogSize));
         }
     }
 
@@ -584,10 +592,15 @@ public class CmdTopics extends CmdBase {
             "--get-precise-backlog" }, description = "Set true to get precise backlog")
         private boolean getPreciseBacklog = false;
 
+        @Parameter(names = { "-sbs",
+                "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
+                + ", locking required.")
+        private boolean subscriptionBacklogSize = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(getTopics().getPartitionedStats(topic, perPartition, getPreciseBacklog));
+            print(topics.getPartitionedStats(topic, perPartition, getPreciseBacklog, subscriptionBacklogSize));
         }
     }
 
@@ -647,13 +660,35 @@ public class CmdTopics extends CmdBase {
                 "--subscription" }, description = "Subscription to be skip messages on", required = true)
         private String subName;
 
-        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds", required = true)
-        private long expireTimeInSeconds;
+        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds")
+        private long expireTimeInSeconds = -1;
+
+        @Parameter(names = { "--position",
+                "-p" }, description = "message position to reset back to (ledgerId:entryId)", required = false)
+        private String messagePosition;
+
+        @Parameter(names = { "-e", "--exclude-reset-position" },
+                description = "Exclude the reset position, start consume messages from the next position.", required = false)
+        private boolean excludeResetPosition = false;
 
         @Override
         void run() throws PulsarAdminException {
+            if (expireTimeInSeconds >= 0 && isNotBlank(messagePosition)) {
+                throw new ParameterException(String.format("Can't expire message by time and " +
+                        "by message position at the same time."));
+            }
             String topic = validateTopicName(params);
-            getTopics().expireMessages(topic, subName, expireTimeInSeconds);
+            if (expireTimeInSeconds >= 0) {
+                getTopics().expireMessages(topic, subName, expireTimeInSeconds);
+            } else if (isNotBlank(messagePosition)) {
+                int partitionIndex = TopicName.get(topic).getPartitionIndex();
+                MessageId messageId = validateMessageIdString(messagePosition, partitionIndex);
+                getTopics().expireMessages(topic, subName, messageId, excludeResetPosition);
+            } else {
+                throw new ParameterException(
+                        "Either time (--expireTime) or message position (--position) has to be provided" +
+                                " to expire messages");
+            }
         }
     }
 
@@ -854,9 +889,13 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             Message<byte[]> message = getTopics().getMessageById(persistentTopic, ledgerId, entryId);
-
-            ByteBuf date = Unpooled.wrappedBuffer(message.getData());
-            System.out.println(ByteBufUtil.prettyHexDump(date));
+            if (message == null) {
+                System.out.println("Cannot find any messages based on ledgerId:"
+                        + ledgerId + " entryId:" + entryId);
+            } else {
+                ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+                System.out.println(ByteBufUtil.prettyHexDump(date));
+            }
         }
     }
 
@@ -1226,10 +1265,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getRetention(persistentTopic));
+            print(getAdmin().topics().getRetention(persistentTopic, applied));
         }
     }
 
@@ -1359,10 +1401,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getOffloadPolicies(persistentTopic));
+            print(getAdmin().topics().getOffloadPolicies(persistentTopic, applied));
         }
     }
 
