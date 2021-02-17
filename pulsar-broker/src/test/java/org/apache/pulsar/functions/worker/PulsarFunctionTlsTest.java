@@ -99,7 +99,7 @@ public class PulsarFunctionTlsTest {
             config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
-            Set<String> superUsers = Sets.newHashSet("superUser");
+            Set<String> superUsers = Sets.newHashSet("superUser", "admin");
             config.setSuperUserRoles(superUsers);
             Set<String> providers = new HashSet<>();
             providers.add(AuthenticationProviderTls.class.getName());

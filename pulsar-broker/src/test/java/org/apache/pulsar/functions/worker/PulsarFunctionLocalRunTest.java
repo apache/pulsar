@@ -147,7 +147,7 @@ public class PulsarFunctionLocalRunTest {
 
         config = spy(new ServiceConfiguration());
         config.setClusterName(CLUSTER);
-        Set<String> superUsers = Sets.newHashSet("superUser");
+        Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
