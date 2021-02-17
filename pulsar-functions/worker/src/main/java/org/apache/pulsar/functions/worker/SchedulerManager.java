@@ -39,9 +39,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Data;
@@ -52,10 +52,8 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -65,7 +63,6 @@ import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.Instance;
-import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
@@ -99,7 +96,7 @@ public class SchedulerManager implements AutoCloseable {
 
     private final IScheduler scheduler;
 
-    private Producer<byte[]> producer;
+    private Producer<byte[]> exclusiveProducer;
 
     private ScheduledExecutorService scheduledExecutorService;
 
@@ -136,15 +133,26 @@ public class SchedulerManager implements AutoCloseable {
         this.errorNotifier = errorNotifier;
     }
 
-    public synchronized void initialize() {
+    /**
+     * Acquires a exclusive producer.  This method cannot return null.  It can only return a valid exclusive producer
+     * or throw NotLeaderAnymore exception.
+     * @param isLeader if the worker is still the leader
+     * @return A valid exclusive producer
+     * @throws WorkerUtils.NotLeaderAnymore if the worker is no longer the leader.
+     */
+    public Producer<byte[]> acquireExclusiveWrite(Supplier<Boolean> isLeader) throws WorkerUtils.NotLeaderAnymore {
+        // creates exclusive producer for assignment topic
+        return WorkerUtils.createExclusiveProducerWithRetry(
+                pulsarClient,
+                workerConfig.getFunctionAssignmentTopic(),
+                workerConfig.getWorkerId() + "-scheduler-manager",
+                isLeader, 10000);
+    }
+
+    public synchronized void initialize(Producer<byte[]> exclusiveProducer) {
         if (!isRunning) {
             log.info("Initializing scheduler manager");
-            // creates exclusive producer for assignment topic
-            producer = WorkerUtils.createExclusiveProducerWithRetry(
-                    pulsarClient,
-                    workerConfig.getFunctionAssignmentTopic(),
-                    workerConfig.getWorkerId() + "-scheduler-manager");
-
+            this.exclusiveProducer = exclusiveProducer;
             executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<>(5));
             executorService.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("worker-scheduler-%d").build());
@@ -155,6 +163,9 @@ public class SchedulerManager implements AutoCloseable {
 
             isRunning = true;
             lastMessageProduced = null;
+        } else {
+            log.error("Scheduler Manager entered invalid state");
+            errorNotifier.triggerError(new IllegalStateException());
         }
     }
 
@@ -422,7 +433,7 @@ public class SchedulerManager implements AutoCloseable {
             String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
             // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
             // message
-            return producer.newMessage().key(fullyQualifiedInstanceId)
+            return exclusiveProducer.newMessage().key(fullyQualifiedInstanceId)
                     .value(deleted ? "".getBytes() : assignment.toByteArray()).send();
         } catch (Exception e) {
             log.error("Failed to {} assignment update {}", assignment, deleted ? "send" : "deleted", e);
@@ -504,9 +515,9 @@ public class SchedulerManager implements AutoCloseable {
                 executorService.shutdown();
             }
 
-            if (producer != null) {
+            if (exclusiveProducer != null) {
                 try {
-                    producer.close();
+                    exclusiveProducer.close();
                 } catch (PulsarClientException e) {
                     log.warn("Failed to shutdown scheduler manager assignment producer", e);
                 }
