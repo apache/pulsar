@@ -64,7 +64,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
 
         String currentKeyDeserializer = props.getProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
         if (!SUPPORTED_KEY_DESERIALIZERS.contains(currentKeyDeserializer)) {
-            throw new IllegalArgumentException("Unsupported key deserializer: "+currentKeyDeserializer+", only " + SUPPORTED_KEY_DESERIALIZERS);
+            throw new IllegalArgumentException("Unsupported key deserializer: " + currentKeyDeserializer + ", only " + SUPPORTED_KEY_DESERIALIZERS);
         }
 
         String currentValueDeserializer = props.getProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
