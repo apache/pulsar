@@ -22,11 +22,10 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore: ['site2/**', 'deployment/**']
   push:
     branches:
       - branch-*
-    paths-ignore: ['site2/**', 'deployment/**']
+
 env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
@@ -51,12 +50,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Check if this pull request only changes documentation
+        id:   docs
+        uses: apache/pulsar-test-infra/diff-only@master
+        with:
+          args: site2 deployment .asf.yaml .ci ct.yaml
+
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
+        if: steps.docs.outputs.changed_only == 'no'
         with:
           java-version: 1.8
 
       - name: clean disk
+        if: steps.docs.outputs.changed_only == 'no'
         run: |
           sudo swapoff -a
           sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
@@ -65,16 +72,21 @@ jobs:
           df -h
 
       - name: run install by skip tests
+        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -q -B -ntp clean install -DskipTests
 
       - name: build pulsar image
+        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
 
       - name: build pulsar-all image
+        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f docker/pulsar-all/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
 
       - name: build artifacts and docker image
+        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
 
       - name: run integration tests
+        if: steps.docs.outputs.changed_only == 'no'
         run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=tiered-filesystem-storage.xml -DintegrationTests -DredirectTestOutputToFile=false
