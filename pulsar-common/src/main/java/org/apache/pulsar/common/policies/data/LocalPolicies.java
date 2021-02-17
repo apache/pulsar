@@ -38,7 +38,7 @@ public class LocalPolicies {
     public LocalPolicies() {
         bundles = defaultBundle();
         bookieAffinityGroup = null;
-        namespaceAntiAffinityGroup = "";
+        namespaceAntiAffinityGroup = null;
     }
 
     public LocalPolicies(BundlesData data,
