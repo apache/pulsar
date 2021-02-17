@@ -88,8 +88,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private volatile long msgDeliveredCounter = 0;
     private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
-    //default interval for checking if end of topic has been reached is 10 min
-    private static long END_OF_TOPIC_CHECK_INTERVAL = 10 * 60;
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
