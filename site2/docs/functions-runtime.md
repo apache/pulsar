@@ -265,8 +265,8 @@ superUserRoles:
   - superuser
   - proxy
 properties:
-  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token
-  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens
+  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token, key file must be DER-encoded
+  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens, key file must be DER-encoded
 ```
 
 > **Note**   
