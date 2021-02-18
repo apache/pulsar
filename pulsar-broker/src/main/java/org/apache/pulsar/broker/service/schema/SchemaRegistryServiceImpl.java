@@ -32,6 +32,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -142,17 +143,17 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             if (schemaVersion != null) {
                 return CompletableFuture.completedFuture(schemaVersion);
             }
-            CompletableFuture<Void> checkCompatibilityFurture = new CompletableFuture<>();
+            CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
             if (schemaAndMetadataList.size() != 0) {
                 if (isTransitiveStrategy(strategy)) {
-                    checkCompatibilityFurture = checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList);
+                    checkCompatibilityFuture = checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList);
                 } else {
-                    checkCompatibilityFurture = checkCompatibilityWithLatest(schemaId, schema, strategy);
+                    checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy);
                 }
             } else {
-                checkCompatibilityFurture.complete(null);
+                checkCompatibilityFuture.complete(null);
             }
-            return checkCompatibilityFurture.thenCompose(v -> {
+            return checkCompatibilityFuture.thenCompose(v -> {
                 byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
                 SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
                         .setType(Functions.convertFromDomainType(schema.getType()))
@@ -294,15 +295,28 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             SchemaData schemaData) {
         final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
         SchemaVersion schemaVersion;
-        Schema.Parser parser = new Schema.Parser();
-        Schema newSchema = parser.parse(new String(schemaData.getData(), UTF_8));
-        for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
-            Schema.Parser existParser = new Schema.Parser();
-            Schema existSchema = existParser.parse(new String(schemaAndMetadata.schema.getData(), UTF_8));
-            if (newSchema.equals(existSchema)) {
-                schemaVersion = schemaAndMetadata.version;
-                completableFuture.complete(schemaVersion);
-                return completableFuture;
+        if (schemaData.getData().length != 0) {
+            Schema.Parser parser = new Schema.Parser();
+            Schema newSchema = parser.parse(new String(schemaData.getData(), UTF_8));
+            for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
+                if (schemaAndMetadata.schema.getData().length != 0) {
+                    Schema.Parser existParser = new Schema.Parser();
+                    Schema existSchema = existParser.parse(new String(schemaAndMetadata.schema.getData(), UTF_8));
+                    if (newSchema.equals(existSchema)) {
+                        schemaVersion = schemaAndMetadata.version;
+                        completableFuture.complete(schemaVersion);
+                        return completableFuture;
+                    }
+                }
+            }
+        } else {
+            for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
+                if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(),
+                        hashFunction.hashBytes(schemaData.getData()).asBytes())) {
+                    schemaVersion = schemaAndMetadata.version;
+                    completableFuture.complete(schemaVersion);
+                    return completableFuture;
+                }
             }
         }
         completableFuture.complete(null);
