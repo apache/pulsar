@@ -250,6 +250,15 @@ Take <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getLi
 <li><p><strong>entries</strong>: The total number of entries belong to this ledger.</p></li>
 <li><p><strong>size</strong>: The size of messages written to this ledger (in bytes).</p></li>
 <li><p><strong>offloaded</strong>: Whether this ledger is offloaded.</p></li>
+<li><p><strong>metadata</strong>: The ledger metadata.</p></li>
+</ul></li>
+<li><p><strong>schemaLedgers</strong>: The ordered list of all ledgers for this topic schema.</p>
+<ul>
+<li><p><strong>ledgerId</strong>: The ID of this ledger.</p></li>
+<li><p><strong>entries</strong>: The total number of entries belong to this ledger.</p></li>
+<li><p><strong>size</strong>: The size of messages written to this ledger (in bytes).</p></li>
+<li><p><strong>offloaded</strong>: Whether this ledger is offloaded.</p></li>
+<li><p><strong>metadata</strong>: The ledger metadata.</p></li>
 </ul></li>
 <li><p><strong>compactedLedger</strong>: The ledgers holding un-acked messages after topic compaction.</p>
 <ul>
@@ -274,44 +283,60 @@ Take <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getLi
 </ul>
 <p>The following is an example of the detailed statistics of a topic.</p>
 <pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"entriesAddedCounter"</span>: <span class="hljs-number">20449518</span>,
-    <span class="hljs-attr">"numberOfEntries"</span>: <span class="hljs-number">3233</span>,
-    <span class="hljs-attr">"totalSize"</span>: <span class="hljs-number">331482</span>,
-    <span class="hljs-attr">"currentLedgerEntries"</span>: <span class="hljs-number">3233</span>,
-    <span class="hljs-attr">"currentLedgerSize"</span>: <span class="hljs-number">331482</span>,
-    <span class="hljs-attr">"lastLedgerCreatedTimestamp"</span>: <span class="hljs-string">"2016-06-29 03:00:23.825"</span>,
-    <span class="hljs-attr">"lastLedgerCreationFailureTimestamp"</span>: <span class="hljs-literal">null</span>,
-    <span class="hljs-attr">"waitingCursorsCount"</span>: <span class="hljs-number">1</span>,
-    <span class="hljs-attr">"pendingAddEntriesCount"</span>: <span class="hljs-number">0</span>,
-    <span class="hljs-attr">"lastConfirmedEntry"</span>: <span class="hljs-string">"324711539:3232"</span>,
-    <span class="hljs-attr">"state"</span>: <span class="hljs-string">"LedgerOpened"</span>,
-    <span class="hljs-attr">"ledgers"</span>: [
+    <span class="hljs-attr">"entriesAddedCounter"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"numberOfEntries"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"totalSize"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"currentLedgerEntries"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"currentLedgerSize"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"lastLedgerCreatedTimestamp"</span>:<span class="hljs-string">"2021-01-22T21:12:14.868+08:00"</span>,
+    <span class="hljs-attr">"lastLedgerCreationFailureTimestamp"</span>:<span class="hljs-literal">null</span>,
+    <span class="hljs-attr">"waitingCursorsCount"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"pendingAddEntriesCount"</span>:<span class="hljs-number">0</span>,
+    <span class="hljs-attr">"lastConfirmedEntry"</span>:<span class="hljs-string">"3:-1"</span>,
+    <span class="hljs-attr">"state"</span>:<span class="hljs-string">"LedgerOpened"</span>,
+    <span class="hljs-attr">"ledgers"</span>:[
         {
-            <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">324711539</span>,
-            <span class="hljs-attr">"entries"</span>: <span class="hljs-number">0</span>,
-            <span class="hljs-attr">"size"</span>: <span class="hljs-number">0</span>,
-            <span class="hljs-attr">"offloaded"</span>: <span class="hljs-literal">true</span>
+            <span class="hljs-attr">"ledgerId"</span>:<span class="hljs-number">3</span>,
+            <span class="hljs-attr">"entries"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"size"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"offloaded"</span>:<span class="hljs-literal">false</span>,
+            <span class="hljs-attr">"metadata"</span>:<span class="hljs-literal">null</span>
         }
     ],
-    <span class="hljs-attr">"compactedLedger"</span>: {
-        <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">324711540</span>,
-        <span class="hljs-attr">"entries"</span>: <span class="hljs-number">10</span>,
-        <span class="hljs-attr">"size"</span>: <span class="hljs-number">100</span>,
-        <span class="hljs-attr">"offloaded"</span>: <span class="hljs-literal">false</span>
-    },
-    <span class="hljs-attr">"cursors"</span>: {
-        <span class="hljs-attr">"my-subscription"</span>: {
-            <span class="hljs-attr">"markDeletePosition"</span>: <span class="hljs-string">"324711539:3133"</span>,
-            <span class="hljs-attr">"readPosition"</span>: <span class="hljs-string">"324711539:3233"</span>,
-            <span class="hljs-attr">"waitingReadOp"</span>: <span class="hljs-literal">true</span>,
-            <span class="hljs-attr">"pendingReadOps"</span>: <span class="hljs-number">0</span>,
-            <span class="hljs-attr">"messagesConsumedCounter"</span>: <span class="hljs-number">20449501</span>,
-            <span class="hljs-attr">"cursorLedger"</span>: <span class="hljs-number">324702104</span>,
-            <span class="hljs-attr">"cursorLedgerLastEntry"</span>: <span class="hljs-number">21</span>,
-            <span class="hljs-attr">"individuallyDeletedMessages"</span>: <span class="hljs-string">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span>,
-            <span class="hljs-attr">"lastLedgerSwitchTimestamp"</span>: <span class="hljs-string">"2016-06-29 01:30:19.313"</span>,
-            <span class="hljs-attr">"state"</span>: <span class="hljs-string">"Open"</span>
+    <span class="hljs-attr">"cursors"</span>:{
+        <span class="hljs-attr">"test"</span>:{
+            <span class="hljs-attr">"markDeletePosition"</span>:<span class="hljs-string">"3:-1"</span>,
+            <span class="hljs-attr">"readPosition"</span>:<span class="hljs-string">"3:-1"</span>,
+            <span class="hljs-attr">"waitingReadOp"</span>:<span class="hljs-literal">false</span>,
+            <span class="hljs-attr">"pendingReadOps"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"messagesConsumedCounter"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"cursorLedger"</span>:<span class="hljs-number">4</span>,
+            <span class="hljs-attr">"cursorLedgerLastEntry"</span>:<span class="hljs-number">1</span>,
+            <span class="hljs-attr">"individuallyDeletedMessages"</span>:<span class="hljs-string">"[]"</span>,
+            <span class="hljs-attr">"lastLedgerSwitchTimestamp"</span>:<span class="hljs-string">"2021-01-22T21:12:14.966+08:00"</span>,
+            <span class="hljs-attr">"state"</span>:<span class="hljs-string">"Open"</span>,
+            <span class="hljs-attr">"numberOfEntriesSinceFirstNotAckedMessage"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"totalNonContiguousDeletedMessagesRange"</span>:<span class="hljs-number">0</span>,
+            <span class="hljs-attr">"properties"</span>:{
+
+            }
         }
+    },
+    <span class="hljs-attr">"schemaLedgers"</span>:[
+        {
+            <span class="hljs-attr">"ledgerId"</span>:<span class="hljs-number">1</span>,
+            <span class="hljs-attr">"entries"</span>:<span class="hljs-number">11</span>,
+            <span class="hljs-attr">"size"</span>:<span class="hljs-number">10</span>,
+            <span class="hljs-attr">"offloaded"</span>:<span class="hljs-literal">false</span>,
+            <span class="hljs-attr">"metadata"</span>:<span class="hljs-literal">null</span>
+        }
+    ],
+    <span class="hljs-attr">"compactedLedger"</span>:{
+        <span class="hljs-attr">"ledgerId"</span>:<span class="hljs-number">-1</span>,
+        <span class="hljs-attr">"entries"</span>:<span class="hljs-number">-1</span>,
+        <span class="hljs-attr">"size"</span>:<span class="hljs-number">-1</span>,
+        <span class="hljs-attr">"offloaded"</span>:<span class="hljs-literal">false</span>,
+        <span class="hljs-attr">"metadata"</span>:<span class="hljs-literal">null</span>
     }
 }
 </code></pre>
