@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -209,4 +210,55 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertNotNull(subscriptions);
         Assert.assertEquals(subscriptions.size(), 1);
     }
+
+    @Test(timeOut = 20000)
+    public void testEncryption() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final int numberOfMessages = 10;
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                String[] args = {"consume", "-s", "sub-name", "-n", Integer.toString(numberOfMessages), "-ekv",
+                        "file:./src/test/resources/crypto_rsa_private.key", topicName};
+                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+
+        // Make sure subscription has been created
+        while (true) {
+            try {
+                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+                if (subscriptions.size() == 1) {
+                    break;
+                }
+            } catch (Exception e) {
+            }
+            Thread.sleep(200);
+        }
+
+        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+        String[] args = {"produce", "-m", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-ekn",
+                "my-app-key", "-ekv", "file:./src/test/resources/crypto_rsa_public.key", topicName};
+        Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+
+        try {
+            future.get(10, TimeUnit.SECONDS);
+            Assert.assertFalse(future.isCompletedExceptionally());
+        } catch (Exception e) {
+            Assert.fail("consumer was unable to decrypt messages", e);
+        } finally {
+            executor.shutdown();
+        }
+    }
+
 }
