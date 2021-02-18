@@ -680,7 +680,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         Field cacheField = BaseResources.class.getDeclaredField("cache");
         cacheField.setAccessible(true);
-        cacheField.set(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResouces(), null);
+        cacheField.set(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources(), null);
 
         try {
             pulsarClient.newProducer().topic(topicName).create();

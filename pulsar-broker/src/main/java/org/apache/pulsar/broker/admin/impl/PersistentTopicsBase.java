@@ -496,7 +496,7 @@ public class PersistentTopicsBase extends AdminResource {
                 final String path = ZkAdminPaths.partitionedTopicPath(topicName);
                 updatePartitionInOtherCluster(numPartitions, clusters).thenAccept((res) -> {
                     try {
-                        namespaceResources().getPartitionedTopicResouces().setAsync(path, (p) -> {
+                        namespaceResources().getPartitionedTopicResources().setAsync(path, (p) -> {
                             return new PartitionedTopicMetadata(numPartitions);
                         }).thenAccept(r -> updatePartition.complete(null)).exceptionally(ex -> {
                             updatePartition.completeExceptionally(ex.getCause());
@@ -705,7 +705,7 @@ public class PersistentTopicsBase extends AdminResource {
             String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(),
                     topicName.getEncodedLocalName());
             try {
-                namespaceResources().getPartitionedTopicResouces().deleteAsync(path).thenAccept(r2 -> {
+                namespaceResources().getPartitionedTopicResources().deleteAsync(path).thenAccept(r2 -> {
                     log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex1 -> {
@@ -1282,7 +1282,7 @@ public class PersistentTopicsBase extends AdminResource {
                 if (perPartition && stats.partitions.isEmpty()) {
                     String path = ZkAdminPaths.partitionedTopicPath(topicName);
                     try {
-                        boolean zkPathExists = namespaceResources().getPartitionedTopicResouces().exists(path);
+                        boolean zkPathExists = namespaceResources().getPartitionedTopicResources().exists(path);
                         if (zkPathExists) {
                             stats.partitions.put(topicName.toString(), new TopicStats());
                         } else {
@@ -3388,7 +3388,7 @@ public class PersistentTopicsBase extends AdminResource {
         CompletableFuture<Void> updatePartition = new CompletableFuture<>();
         createSubscriptions(topicName, numPartitions).thenAccept(res -> {
             try {
-                namespaceResources().getPartitionedTopicResouces().set(path,
+                namespaceResources().getPartitionedTopicResources().set(path,
                         p -> new PartitionedTopicMetadata(numPartitions));
                 updatePartition.complete(null);
             } catch (Exception e) {

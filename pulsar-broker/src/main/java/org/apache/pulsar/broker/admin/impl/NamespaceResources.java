@@ -34,7 +34,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 public class NamespaceResources extends BaseResources<Policies> {
     private IsolationPolicyResources isolationPolicies;
     private LocalPoliciesResources localPolicies;
-    private PartitionedTopicResources partitionedTopicResouces;
+    private PartitionedTopicResources partitionedTopicResources;
     private MetadataStoreExtended localStore;
     private MetadataStoreExtended configurationStore;
 
@@ -45,7 +45,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         this.configurationStore = configurationStore;
         isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
         localPolicies = new LocalPoliciesResources(localStore, operationTimeoutSec);
-        partitionedTopicResouces = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
+        partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
     }
 
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationData>> {

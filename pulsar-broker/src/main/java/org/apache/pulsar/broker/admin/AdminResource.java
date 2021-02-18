@@ -254,8 +254,8 @@ public abstract class AdminResource extends PulsarWebResource {
                                 topicName.getPartition(partition));
                         result.complete(null);
                     } else if (ex.getCause() instanceof BadVersionException) {
-                        log.warn("[{}] Fail to create topic partition {} with concurrent modification, retry now.",
-                                clientAppId(), topicName.getPartition(partition));
+                        log.warn("[{}] Partitioned topic {} is already created.", clientAppId(),
+                                topicName.getPartition(partition));
                         // metadata-store api returns BadVersionException if node already exists while creating the
                         // resource
                         result.complete(null);
@@ -824,7 +824,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
                 try {
                     String path = ZkAdminPaths.partitionedTopicPath(topicName);
-                    namespaceResources().getPartitionedTopicResouces()
+                    namespaceResources().getPartitionedTopicResources()
                             .createAsync(path, new PartitionedTopicMetadata(numPartitions)).thenAccept(r -> {
                                 log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
                                 tryCreatePartitionsAsync(numPartitions).thenAccept(v -> {
