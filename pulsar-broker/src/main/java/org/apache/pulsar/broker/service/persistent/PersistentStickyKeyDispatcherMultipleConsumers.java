@@ -181,7 +181,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     maxMessagesForC, readType);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
-                        name, consumer.consumerName(), messagesForC, readType);
+                        name, consumer == null ? "null" : consumer.consumerName(), messagesForC, readType);
             }
 
             if (messagesForC < entriesWithSameKeyCount) {
