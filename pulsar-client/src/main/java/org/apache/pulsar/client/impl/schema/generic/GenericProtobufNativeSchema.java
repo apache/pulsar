@@ -46,7 +46,7 @@ public class GenericProtobufNativeSchema extends AbstractGenericSchema {
         this.descriptor = parseProtobufSchema(schemaInfo);
         this.fields = descriptor.getFields()
                 .stream()
-                .map(f -> new Field(f.getName(), f.getIndex()))
+                .map(f -> new GenericProtobufNativeField(f))
                 .collect(Collectors.toList());
         setReader(new MultiVersionGenericProtobufNativeReader(useProvidedSchemaAsReaderSchema, schemaInfo));
         setWriter(new GenericProtobufNativeWriter());

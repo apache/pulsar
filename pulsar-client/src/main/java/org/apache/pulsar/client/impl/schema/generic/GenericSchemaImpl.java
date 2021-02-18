@@ -41,7 +41,7 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
 
         this.fields = schema.getFields()
                 .stream()
-                .map(f -> new Field(f.name(), f.pos()))
+                .map(f -> new GenericAvroField(f))
                 .collect(Collectors.toList());
     }
 
