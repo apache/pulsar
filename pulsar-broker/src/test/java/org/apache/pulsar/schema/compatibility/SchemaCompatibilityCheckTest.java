@@ -326,12 +326,23 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         admin.schemas().createSchema(fqtn, schemaInfo);
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
-        ProducerBuilder<Schemas.PersonOne> producerBuilder = pulsarClient
+        ProducerBuilder<Schemas.PersonOne> producerOneBuilder = pulsarClient
                 .newProducer(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(fqtn);
-        producerBuilder.create();
+        producerOneBuilder.create().close();
 
         assertArrayEquals(changeSchemaBytes, admin.schemas().getSchemaInfo(fqtn).getSchema());
+
+        ProducerBuilder<Schemas.PersonThree> producerThreeBuilder = pulsarClient
+                .newProducer(Schema.AVRO(Schemas.PersonThree.class))
+                .topic(fqtn);
+        
+        try {
+            producerThreeBuilder.create();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
+        }
     }
 
     @Test(dataProvider = "AllCheckSchemaCompatibilityStrategy")
