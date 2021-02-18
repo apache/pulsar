@@ -359,8 +359,8 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_encryption(self):
-        publicKeyPath = "../../pulsar-broker/src/test/resources/certificate/public-key.client-rsa.pem"
-        privateKeyPath = "../../pulsar-broker/src/test/resources/certificate/private-key.client-rsa.pem"
+        publicKeyPath = "/pulsar//pulsar-broker/src/test/resources/certificate/public-key.client-rsa.pem"
+        privateKeyPath = "/pulsar/pulsar-broker/src/test/resources/certificate/private-key.client-rsa.pem"
         crypto_key_reader = CryptoKeyReader(publicKeyPath, privateKeyPath)
         client = Client(self.serviceUrl)
         topic = 'my-python-test-end-to-end-encryption'
