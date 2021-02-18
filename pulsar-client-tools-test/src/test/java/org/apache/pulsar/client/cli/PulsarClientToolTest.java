@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -218,6 +219,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = "persistent://prop/ns-abc/test/topic-" + UUID.randomUUID().toString();
+        final String keyUriBase = "file:../pulsar-broker/src/test/resources/certificate/";
         final int numberOfMessages = 10;
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -226,7 +228,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
                 String[] args = {"consume", "-s", "sub-name", "-n", Integer.toString(numberOfMessages), "-ekv",
-                        "file:./src/test/resources/crypto_rsa_private.key", topicName};
+                        keyUriBase + "private-key.client-rsa.pem", topicName};
                 Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
                 future.complete(null);
             } catch (Throwable t) {
@@ -235,20 +237,19 @@ public class PulsarClientToolTest extends BrokerTestBase {
         });
 
         // Make sure subscription has been created
-        while (true) {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            boolean isCreated = false;
             try {
                 List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-                if (subscriptions.size() == 1) {
-                    break;
-                }
+                isCreated = (subscriptions.size() == 1);
             } catch (Exception e) {
             }
-            Thread.sleep(200);
-        }
+            return isCreated;
+        });
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
         String[] args = {"produce", "-m", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-ekn",
-                "my-app-key", "-ekv", "file:./src/test/resources/crypto_rsa_public.key", topicName};
+                "my-app-key", "-ekv", keyUriBase + "public-key.client-rsa.pem", topicName};
         Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
 
         try {
