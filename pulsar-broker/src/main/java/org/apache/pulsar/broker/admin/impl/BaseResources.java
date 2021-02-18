@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.Getter;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -41,20 +42,23 @@ public class BaseResources<T> {
     private final MetadataStoreExtended store;
     @Getter
     private final MetadataCache<T> cache;
+    private int operationTimeoutSec;
 
-    public BaseResources(MetadataStoreExtended store, Class<T> clazz) {
+    public BaseResources(MetadataStoreExtended store, Class<T> clazz, int operationTimeoutSec) {
         this.store = store;
         this.cache = store.getMetadataCache(clazz);
+        this.operationTimeoutSec = operationTimeoutSec;
     }
 
-    public BaseResources(MetadataStoreExtended store, TypeReference<T> typeRef) {
+    public BaseResources(MetadataStoreExtended store, TypeReference<T> typeRef, int operationTimeoutSec) {
         this.store = store;
         this.cache = store.getMetadataCache(typeRef);
+        this.operationTimeoutSec = operationTimeoutSec;
     }
 
     public List<String> getChildren(String path) throws MetadataStoreException {
         try {
-            return getChildrenAsync(path).get();
+            return getChildrenAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
@@ -69,7 +73,7 @@ public class BaseResources<T> {
 
     public Optional<T> get(String path) throws MetadataStoreException {
         try {
-            return getAsync(path).get();
+            return getAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
@@ -84,7 +88,7 @@ public class BaseResources<T> {
 
     public void set(String path, Function<T, T> modifyFunction) throws MetadataStoreException {
         try {
-            setAsync(path, modifyFunction).get();
+            setAsync(path, modifyFunction).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
@@ -99,7 +103,7 @@ public class BaseResources<T> {
 
     public void setWithCreate(String path, Function<Optional<T>, T> createFunction) throws MetadataStoreException {
         try {
-            setWithCreateAsync(path, createFunction).get();
+            setWithCreateAsync(path, createFunction).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
@@ -114,7 +118,7 @@ public class BaseResources<T> {
 
     public void create(String path, T data) throws MetadataStoreException {
         try {
-            createAsync(path, data).get();
+            createAsync(path, data).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
@@ -129,7 +133,7 @@ public class BaseResources<T> {
 
     public void delete(String path) throws MetadataStoreException {
         try {
-            deleteAsync(path).get();
+            deleteAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
@@ -144,7 +148,7 @@ public class BaseResources<T> {
 
     public boolean exists(String path) throws MetadataStoreException {
         try {
-            return existsAsync(path).get();
+            return existsAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
