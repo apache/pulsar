@@ -16,37 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <boost/python.hpp>
+#include "utils.h"
 
-#include <pulsar/Client.h>
-#include <pulsar/MessageBatch.h>
+CryptoKeyReaderWrapper::CryptoKeyReaderWrapper() {}
 
-using namespace pulsar;
-
-namespace py = boost::python;
-
-struct PulsarException {
-    Result _result;
-    PulsarException(Result res) :
-            _result(res) {}
-};
-
-inline void CHECK_RESULT(Result res) {
-    if (res != ResultOk) {
-        throw PulsarException(res);
-    }
+CryptoKeyReaderWrapper::CryptoKeyReaderWrapper(const std::string& publicKeyPath,
+                                             const std::string& privateKeyPath) {
+    this->cryptoKeyReader = DefaultCryptoKeyReader::create(publicKeyPath, privateKeyPath);
 }
 
-struct AuthenticationWrapper {
-    AuthenticationPtr auth;
+void export_cryptoKeyReader() {
+    using namespace boost::python;
 
-    AuthenticationWrapper();
-    AuthenticationWrapper(const std::string& dynamicLibPath, const std::string& authParamsString);
-};
-
-struct CryptoKeyReaderWrapper {
-    CryptoKeyReaderPtr cryptoKeyReader;
-
-    CryptoKeyReaderWrapper();
-    CryptoKeyReaderWrapper(const std::string& publicKeyPath, const std::string& privateKeyPath);
-};
+    class_<CryptoKeyReaderWrapper>("CryptoKeyReader", init<const std::string&, const std::string&>());
+}

@@ -19,10 +19,18 @@
 
 INCLUDE_DIRECTORIES("${Boost_INCLUDE_DIRS}" "${PYTHON_INCLUDE_DIRS}")
 
-ADD_LIBRARY(_pulsar SHARED src/pulsar.cc src/producer.cc src/consumer.cc
-                            src/config.cc src/enums.cc src/client.cc
-                            src/message.cc src/authentication.cc
-                            src/reader.cc src/schema.cc)
+ADD_LIBRARY(_pulsar SHARED src/pulsar.cc
+                           src/producer.cc
+                           src/consumer.cc
+                           src/config.cc
+                           src/enums.cc
+                           src/client.cc
+                           src/message.cc
+                           src/authentication.cc
+                           src/reader.cc
+                           src/schema.cc
+                           src/cryptoKeyReader.cc)
+
 SET(CMAKE_SHARED_LIBRARY_PREFIX )
 SET(CMAKE_SHARED_LIBRARY_SUFFIX .so)
 
