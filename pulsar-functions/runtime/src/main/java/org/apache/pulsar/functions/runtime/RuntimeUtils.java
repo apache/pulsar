@@ -70,7 +70,6 @@ public class RuntimeUtils {
                                           Boolean installUserCodeDependencies,
                                           String pythonDependencyRepository,
                                           String pythonExtraDependencyRepository,
-                                          int metricsPort,
                                           String narExtractionDirectory,
                                           String functionInstanceClassPath,
                                           String pulsarWebServiceUrl) throws Exception {
@@ -82,7 +81,7 @@ public class RuntimeUtils {
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
-                pythonExtraDependencyRepository, metricsPort, narExtractionDirectory,
+                pythonExtraDependencyRepository, narExtractionDirectory,
                 functionInstanceClassPath, false, pulsarWebServiceUrl));
         return cmd;
     }
@@ -120,8 +119,7 @@ public class RuntimeUtils {
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
                                                 String originalCodeFileName,
                                                 String pulsarServiceUrl,
-                                                boolean k8sRuntime,
-                                                int metricsPort) throws IOException {
+                                                boolean k8sRuntime) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
@@ -221,8 +219,8 @@ public class RuntimeUtils {
             goInstanceConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
 
-        if (metricsPort > 0 && metricsPort < 65536) {
-            goInstanceConfig.setMetricsPort(metricsPort);
+        if (instanceConfig.getMetricsPort() > 0 && instanceConfig.getMetricsPort() < 65536) {
+            goInstanceConfig.setMetricsPort(instanceConfig.getMetricsPort());
         }
 
         goInstanceConfig.setKillAfterIdleMs(0);
@@ -260,7 +258,6 @@ public class RuntimeUtils {
                                       Boolean installUserCodeDependencies,
                                       String pythonDependencyRepository,
                                       String pythonExtraDependencyRepository,
-                                      int metricsPort,
                                       String narExtractionDirectory,
                                       String functionInstanceClassPath,
                                       boolean k8sRuntime,
@@ -268,7 +265,7 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime, metricsPort);
+            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
@@ -398,7 +395,7 @@ public class RuntimeUtils {
         args.add(String.valueOf(grpcPort));
 
         args.add("--metrics_port");
-        args.add(String.valueOf(metricsPort));
+        args.add(String.valueOf(instanceConfig.getMetricsPort()));
 
         // state storage configs
         if (null != stateStorageServiceUrl) {

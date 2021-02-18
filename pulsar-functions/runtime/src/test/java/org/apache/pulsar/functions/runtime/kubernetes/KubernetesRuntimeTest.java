@@ -876,6 +876,7 @@ public class KubernetesRuntimeTest {
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
         config.setClusterName("standalone");
+        config.setMetricsPort(4331);
 
         return config;
     }

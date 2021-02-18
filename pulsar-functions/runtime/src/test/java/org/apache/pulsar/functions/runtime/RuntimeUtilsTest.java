@@ -65,6 +65,7 @@ public class RuntimeUtilsTest {
         instanceConfig.setFunctionVersion("1.0.0");
         instanceConfig.setMaxBufferedTuples(5);
         instanceConfig.setPort(1337);
+        instanceConfig.setMetricsPort(60000);
 
 
         JSONObject userConfig = new JSONObject();
@@ -108,7 +109,7 @@ public class RuntimeUtilsTest {
 
         instanceConfig.setFunctionDetails(functionDetails);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650", k8sRuntime, 60000);
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
