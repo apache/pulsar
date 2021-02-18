@@ -1597,9 +1597,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSubscriptionTypesEnabled() throws PulsarAdminException, PulsarClientException {
-        conf.setTopicLevelPoliciesEnabled(false);
+        pulsar.getConfiguration().setAuthorizationEnabled(false);
+        pulsar.getConfiguration().setTopicLevelPoliciesEnabled(false);
         String namespace = this.testTenant + "/namespace-" + System.nanoTime();
-        String topic = namespace + "/test";
+        String topic = namespace + "/test-subscription-enabled";
         admin.namespaces().createNamespace(namespace);
         Set<SubscriptionType> subscriptionTypes = new HashSet<>();
         subscriptionTypes.add(SubscriptionType.Shared);
