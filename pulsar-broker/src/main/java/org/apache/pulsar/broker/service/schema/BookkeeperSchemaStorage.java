@@ -33,9 +33,11 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -624,6 +626,28 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             }
         }, null);
         return future;
+    }
+
+    public CompletableFuture<List<Long>> getStoreLedgerIdsBySchemaId(String schemaId) {
+        CompletableFuture<List<Long>> ledgerIdsFuture = new CompletableFuture<>();
+        getSchemaLocator(getSchemaPath(schemaId)).thenAccept(locator -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Get all store schema ledgerIds - locator: {}", schemaId, locator);
+            }
+
+            if (!locator.isPresent()) {
+                ledgerIdsFuture.complete(Collections.emptyList());
+                return;
+            }
+            Set<Long> ledgerIds = new HashSet<>();
+            SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
+            schemaLocator.getIndexList().forEach(indexEntry -> ledgerIds.add(indexEntry.getPosition().getLedgerId()));
+            ledgerIdsFuture.complete(new ArrayList<>(ledgerIds));
+        }).exceptionally(e -> {
+            ledgerIdsFuture.completeExceptionally(e);
+            return null;
+        });
+        return ledgerIdsFuture;
     }
 
     interface Functions {
