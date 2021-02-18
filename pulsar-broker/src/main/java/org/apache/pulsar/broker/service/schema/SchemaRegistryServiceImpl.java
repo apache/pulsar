@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
@@ -31,7 +32,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -293,9 +294,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             SchemaData schemaData) {
         final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
         SchemaVersion schemaVersion;
+        Schema.Parser parser = new Schema.Parser();
+        Schema newSchema = parser.parse(new String(schemaData.getData(), UTF_8));
         for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
-            if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(),
-                    hashFunction.hashBytes(schemaData.getData()).asBytes())) {
+            Schema.Parser existParser = new Schema.Parser();
+            Schema existSchema = existParser.parse(new String(schemaAndMetadata.schema.getData(), UTF_8));
+            if (newSchema.equals(existSchema)) {
                 schemaVersion = schemaAndMetadata.version;
                 completableFuture.complete(schemaVersion);
                 return completableFuture;
