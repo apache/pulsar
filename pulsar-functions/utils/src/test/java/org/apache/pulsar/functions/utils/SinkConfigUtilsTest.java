@@ -27,6 +27,8 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarUnpacker;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -38,20 +40,25 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 /**
  * Unit test of {@link Reflections}.
  */
-@PrepareForTest(ConnectorUtils.class)
+@PrepareForTest({ConnectorUtils.class, NarUnpacker.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "javax.xml.*", "org.xml.*", "org.w3c.dom.*", "org.springframework.context.*", "org.apache.log4j.*", "com.sun.org.apache.xerces.*", "javax.management.*" })
 public class SinkConfigUtilsTest extends PowerMockTestCase {
 
@@ -166,11 +173,16 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     @Test
     public void testMergeDifferentInputSpec() {
         SinkConfig sinkConfig = createSinkConfig();
+        sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(true).receiverQueueSize(1000).build());
+
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").receiverQueueSize(58).build());
         SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(mergedConfig.getInputSpecs().get("test-input"), newSinkConfig.getInputSpecs().get("test-input"));
+
+        // make sure original sinkConfig was not modified
+        assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
@@ -307,19 +319,28 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     @Test
     public void testValidateConfig() throws IOException {
         mockStatic(ConnectorUtils.class);
+        mockStatic(NarUnpacker.class);
         defn = new ConnectorDefinition();
         defn.setSinkConfigClass(TestSinkConfig.class.getName());
         PowerMockito.when(ConnectorUtils.getConnectorDefinition(any())).thenReturn(defn);
 
+        File tmpdir = Files.createTempDirectory("test").toFile();
+        PowerMockito.when(NarUnpacker.unpackNar(any(), any())).thenReturn(tmpdir);
+
         SinkConfig sinkConfig = createSinkConfig();
+
+        NarClassLoader narClassLoader = NarClassLoader.getFromArchive(
+                tmpdir, Collections.emptySet(),
+                Thread.currentThread().getContextClassLoader(), NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
 
         // Good config
         sinkConfig.getConfigs().put("configParameter", "Test");
-        SinkConfigUtils.validateConnectorConfig(sinkConfig, Thread.currentThread().getContextClassLoader());
+        SinkConfigUtils.validateSinkConfig(sinkConfig, narClassLoader);
 
         // Bad config
         sinkConfig.getConfigs().put("configParameter", null);
-        Exception e = expectThrows(IllegalArgumentException.class, () -> SinkConfigUtils.validateConnectorConfig(sinkConfig, Thread.currentThread().getContextClassLoader()));
+        Exception e = expectThrows(IllegalArgumentException.class,
+                () -> SinkConfigUtils.validateSinkConfig(sinkConfig, narClassLoader));
         assertTrue(e.getMessage().contains("Could not validate sink config: Field 'configParameter' cannot be null!"));
     }
 

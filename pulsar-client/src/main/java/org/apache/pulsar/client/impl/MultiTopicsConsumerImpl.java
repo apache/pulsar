@@ -190,8 +190,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 subscribeFuture().complete(MultiTopicsConsumerImpl.this);
             })
             .exceptionally(ex -> {
-                log.warn("[{}] Failed to subscribe topics: {}", topic, ex.getMessage());
-                subscribeFuture.completeExceptionally(ex);
+                log.warn("[{}] Failed to subscribe topics: {}, closing consumer", topic, ex.getMessage());
+                closeAsync().whenComplete((res, closeEx) -> {
+                    if (closeEx != null) {
+                        log.error("[{}] Failed to unsubscribe after failed consumer creation: {}", topic, closeEx.getMessage());
+                    }
+                    subscribeFuture.completeExceptionally(ex);
+                });
                 return null;
             });
     }
@@ -947,11 +952,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     partitionIndex -> {
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
-                        ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
-                                configurationData, client.externalExecutorProvider().getExecutor(),
-                                partitionIndex, true, subFuture,
-                                startMessageId, schema, interceptors,
-                                createIfDoesNotExist, startMessageRollbackDurationInSec);
+                        ConsumerImpl<T> newConsumer = null;
+                        try {
+                            newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
+                                    configurationData, client.externalExecutorProvider().getExecutor(),
+                                    partitionIndex, true, subFuture,
+                                    startMessageId, schema, interceptors,
+                                    createIfDoesNotExist, startMessageRollbackDurationInSec);
+                        } catch (PulsarClientException.InvalidConfigurationException e) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Deadletter topic on Key_Shared subscription type is not supported.");
+                            }
+                            subFuture.completeExceptionally(e);
+                        }
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
                     })
@@ -968,11 +981,20 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             allTopicPartitionsNumber.incrementAndGet();
 
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
-            ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
-                    client.externalExecutorProvider().getExecutor(), -1, true, subFuture, null,
-                    schema, interceptors,
-                    createIfDoesNotExist);
-            consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+            ConsumerImpl<T> newConsumer = null;
+            try {
+                newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
+                        client.externalExecutorProvider().getExecutor(), -1, true, subFuture, null,
+                        schema, interceptors,
+                        createIfDoesNotExist);
+                consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+
+            } catch (PulsarClientException.InvalidConfigurationException e) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Deadletter topic on Key_Shared subscription type is not supported.");
+                }
+                subFuture.completeExceptionally(e);
+            }
 
             futureList = Collections.singletonList(subFuture);
         }
@@ -1155,6 +1177,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return consumers.values().stream().collect(Collectors.toList());
     }
 
+    // get all partitions that in the topics map
+    int getPartitionsOfTheTopicMap() {
+        return topics.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
     @Override
     public void pause() {
         synchronized (pauseMutex) {
@@ -1229,7 +1256,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 future.complete(null);
                 return future;
             } else if (oldPartitionNumber < currentPartitionNumber) {
-                allTopicPartitionsNumber.compareAndSet(oldPartitionNumber, currentPartitionNumber);
+                allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
+                topics.put(topicName, currentPartitionNumber);
                 List<String> newPartitions = list.subList(oldPartitionNumber, currentPartitionNumber);
                 // subscribe new added partitions
                 List<CompletableFuture<Consumer<T>>> futureList = newPartitions
@@ -1238,11 +1266,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         int partitionIndex = TopicName.getPartitionIndex(partitionName);
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
-                        ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
-                            client, partitionName, configurationData,
-                            client.externalExecutorProvider().getExecutor(),
-                            partitionIndex, true, subFuture, null, schema, interceptors,
-                            true /* createTopicIfDoesNotExist */);
+                        ConsumerImpl<T> newConsumer = null;
+                        try {
+                            newConsumer = ConsumerImpl.newConsumerImpl(
+                                client, partitionName, configurationData,
+                                client.externalExecutorProvider().getExecutor(),
+                                partitionIndex, true, subFuture, null, schema, interceptors,
+                                true /* createTopicIfDoesNotExist */);
+                        } catch (PulsarClientException.InvalidConfigurationException e) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Deadletter topic on Key_Shared subscription type is not supported.");
+                            }
+                            subFuture.completeExceptionally(e);
+                        }
                         synchronized (pauseMutex) {
                             if (paused) {
                                 newConsumer.pause();

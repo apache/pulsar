@@ -387,6 +387,7 @@ The Apache Software License, Version 2.0
     - presto-parser-332.jar
     - presto-plugin-toolkit-332.jar
     - presto-spi-332.jar
+    - presto-record-decoder-332.jar
   * RocksDB JNI
     - rocksdbjni-6.10.2.jar
   * SnakeYAML
@@ -396,9 +397,9 @@ The Apache Software License, Version 2.0
   * Objectsize
     - objectsize-0.0.12.jar
   * Dropwizard Metrics
-    - metrics-core-3.1.0.jar
-    - metrics-graphite-3.1.0.jar
-    - metrics-jvm-3.1.0.jar
+    - metrics-core-3.2.5.jar
+    - metrics-graphite-3.2.5.jar
+    - metrics-jvm-3.2.5.jar
   * Prometheus
     - simpleclient-0.5.0.jar
     - simpleclient_common-0.5.0.jar
@@ -433,6 +434,8 @@ The Apache Software License, Version 2.0
     - commons-logging-1.2.jar
   * GSON
     - gson-2.8.6.jar
+  * Snappy
+    - snappy-java-1.1.7.jar
   * Jackson
     - jackson-module-parameter-names-2.10.0.jar
     - jackson-module-parameter-names-2.11.1.jar
@@ -455,8 +458,8 @@ The Apache Software License, Version 2.0
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
   * Apache Zookeeper
-    - zookeeper-3.5.7.jar
-    - zookeeper-jute-3.5.7.jar
+    - zookeeper-3.6.2.jar
+    - zookeeper-jute-3.6.2.jar
   * Apache Yetus Audience Annotations
     - audience-annotations-0.5.0.jar
   * Swagger

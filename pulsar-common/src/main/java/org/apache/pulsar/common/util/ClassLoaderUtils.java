@@ -22,7 +22,6 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
@@ -43,10 +42,7 @@ public class ClassLoaderUtils {
             (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[]{url}));
     }
 
-    public static ClassLoader extractClassLoader(Path archivePath, File packageFile) throws Exception {
-        if (archivePath != null) {
-            return loadJar(archivePath.toFile());
-        }
+    public static ClassLoader extractClassLoader(File packageFile) throws Exception {
         if (packageFile != null) {
             return loadJar(packageFile);
         }

@@ -33,7 +33,7 @@ public class PulsarResources {
     public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore) {
         tenatResources = new TenantResources(configurationMetadataStore);
         clusterResources = new ClusterResources(configurationMetadataStore);
-        namespaceResources = new NamespaceResources(configurationMetadataStore);
         dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore);
+        namespaceResources = new NamespaceResources(localMetadataStore, configurationMetadataStore);
     }
 }
