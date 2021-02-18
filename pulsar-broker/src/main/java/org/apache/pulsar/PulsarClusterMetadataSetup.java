@@ -23,6 +23,7 @@ import static org.apache.pulsar.common.policies.data.Policies.getBundles;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.List;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
@@ -229,7 +230,7 @@ public class PulsarClusterMetadataSetup {
 
         if (localZk.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) == null) {
             createZkNode(localZk, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
-                "{}".getBytes(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                "{}".getBytes(Charset.defaultCharset()), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
 
         createZkNode(localZk, "/managed-ledgers", new byte[0],

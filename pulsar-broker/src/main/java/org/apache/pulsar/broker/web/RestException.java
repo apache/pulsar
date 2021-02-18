@@ -40,8 +40,9 @@ public class RestException extends WebApplicationException {
             writer.append("Message: ").append(t.getMessage()).append("\n\n");
         }
         writer.append("Stacktrace:\n\n");
-
-        t.printStackTrace(new PrintWriter(writer));
+        if (t != null) {
+            t.printStackTrace(new PrintWriter(writer));
+        }
         return writer.toString();
     }
 

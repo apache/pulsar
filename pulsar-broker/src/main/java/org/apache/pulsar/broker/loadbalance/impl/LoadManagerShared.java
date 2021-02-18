@@ -225,9 +225,9 @@ public class LoadManagerShared {
         systemResourceUsage.memory.limit = (double) maxHeapMemoryInBytes / MIBI;
 
         // Collect JVM direct memory
-        systemResourceUsage.directMemory.usage = (double) (getJvmDirectMemoryUsed() / MIBI);
+        systemResourceUsage.directMemory.usage = (double) getJvmDirectMemoryUsed() / (double) MIBI;
         systemResourceUsage.directMemory.limit =
-                (double) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / MIBI);
+                io.netty.util.internal.PlatformDependent.maxDirectMemory() / (double) MIBI;
 
         return systemResourceUsage;
     }

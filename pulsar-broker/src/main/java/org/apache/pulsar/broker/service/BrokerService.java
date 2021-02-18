@@ -1610,7 +1610,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             topicName = TopicName.get(topic);
             namespaceBundle = pulsar.getNamespaceService().getBundle(topicName);
-            checkArgument(namespaceBundle instanceof NamespaceBundle);
 
             String bundleName = namespaceBundle.toString();
             String namespaceName = topicName.getNamespaceObject().toString();

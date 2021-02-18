@@ -794,7 +794,7 @@ public abstract class NamespacesBase extends AdminResource {
             String autoOverride = (autoTopicCreationOverride != null
                     && autoTopicCreationOverride.allowAutoTopicCreation) ? "enabled" : "disabled";
             log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(),
-                    autoOverride != null ? autoOverride : "removed", namespaceName);
+                    autoOverride, namespaceName);
             asyncResponse.resume(Response.noContent().build());
             return null;
         }).exceptionally(e -> {
@@ -827,7 +827,7 @@ public abstract class NamespacesBase extends AdminResource {
                 String autoOverride = autoSubscriptionCreationOverride.allowAutoSubscriptionCreation ? "enabled"
                         : "disabled";
                 log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}", clientAppId(),
-                        autoOverride != null ? autoOverride : "removed", namespaceName);
+                        autoOverride, namespaceName);
             }
             asyncResponse.resume(Response.noContent().build());
             return null;
@@ -1303,7 +1303,7 @@ public abstract class NamespacesBase extends AdminResource {
                             "[{}] Failed to update backlog configuration"
                                     + " for namespace {}: conflicts with retention quota",
                             clientAppId(), namespaceName);
-                    new RestException(Status.PRECONDITION_FAILED,
+                    throw new RestException(Status.PRECONDITION_FAILED,
                             "Backlog Quota exceeds configured retention quota for namespace."
                                     + " Please increase retention quota and retry");
                 }
@@ -1353,7 +1353,7 @@ public abstract class NamespacesBase extends AdminResource {
                 log.warn("[{}] Failed to update retention configuration"
                                 + " for namespace {}: conflicts with backlog quota",
                         clientAppId(), namespaceName);
-                new RestException(Status.PRECONDITION_FAILED,
+                throw new RestException(Status.PRECONDITION_FAILED,
                         "Retention Quota must exceed configured backlog quota for namespace.");
             }
             policies.retention_policies = retention;

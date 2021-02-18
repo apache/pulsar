@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Lists;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -60,7 +61,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             // The points are deterministically added based on the hash of the consumer name
             for (int i = 0; i < numberOfPoints; i++) {
                 String key = consumer.consumerName() + i;
-                int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
+                int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes(Charset.defaultCharset()));
                 hashRing.compute(hash, (k, v) -> {
                     if (v == null) {
                         return Lists.newArrayList(consumer);
@@ -85,7 +86,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             // Remove all the points that were added for this consumer
             for (int i = 0; i < numberOfPoints; i++) {
                 String key = consumer.consumerName() + i;
-                int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
+                int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes(Charset.defaultCharset()));
                 hashRing.compute(hash, (k, v) -> {
                     if (v == null) {
                         return null;

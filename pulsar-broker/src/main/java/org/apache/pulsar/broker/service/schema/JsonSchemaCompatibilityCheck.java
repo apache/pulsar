@@ -100,7 +100,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
 
             Schema.Parser fromParser = new Schema.Parser();
             fromParser.setValidateDefaults(false);
-            Schema fromSchema = fromParser.parse(new String(schemaData.getData(), UTF_8));
+            fromParser.parse(new String(schemaData.getData(), UTF_8));
             return true;
         } catch (SchemaParseException e) {
             return false;
@@ -110,7 +110,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
     private boolean isJsonSchema(SchemaData schemaData) {
         ObjectMapper objectMapper = getObjectMapper();
         try {
-            JsonSchema fromSchema = objectMapper.readValue(schemaData.getData(), JsonSchema.class);
+            objectMapper.readValue(schemaData.getData(), JsonSchema.class);
             return true;
         } catch (IOException e) {
            return false;

@@ -1241,10 +1241,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 // check number of bundles assigned, comparing with last LoadReport
                 long oldBundleCount = lastLoadReport.getNumBundles();
                 long newBundleCount = pulsar.getBrokerService().getNumberOfNamespaceBundles();
-                long bundleCountChange = Math.abs(oldBundleCount - newBundleCount);
-                long maxCapacity = ResourceUnitRanking.calculateBrokerMaxCapacity(
-                        lastLoadReport.getSystemResourceUsage(),
-                        pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota());
                 if (newBundleCount != oldBundleCount) {
                     needUpdate = true;
                 }

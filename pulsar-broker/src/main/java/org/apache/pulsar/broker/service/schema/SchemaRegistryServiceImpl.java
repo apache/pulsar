@@ -373,12 +373,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         return;
                     }
                 });
-                trimDeletedSchemaAndGetList(list);
+                List<SchemaAndMetadata> trimmed = trimDeletedSchemaAndGetList(list);
                 // clean up the broken schema from zk
                 deleteSchemaStorage(schemaId, true).handle((sv, th) -> {
                     log.info("Clean up non-recoverable schema {}. Deletion of schema {} {}", ex.getCause().getMessage(),
                             schemaId, (th == null ? "successful" : "failed, " + th.getCause().getMessage()));
-                    schemaResult.complete(list);
+                    schemaResult.complete(trimmed);
                     return null;
                 });
                 return null;

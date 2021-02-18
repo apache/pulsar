@@ -34,6 +34,7 @@ import io.jsonwebtoken.security.Keys;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Key;
@@ -43,6 +44,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
@@ -72,7 +74,7 @@ public class TokensCliUtils {
             byte[] encoded = secretKey.getEncoded();
 
             if (base64) {
-                encoded = Encoders.BASE64.encode(encoded).getBytes();
+                encoded = Encoders.BASE64.encode(encoded).getBytes(Charset.defaultCharset());
             }
 
             if (outputFile != null) {
@@ -184,7 +186,7 @@ public class TokensCliUtils {
                 token = args.get(0);
             } else if (stdin) {
                 @Cleanup
-                BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
+                BufferedReader r = new BufferedReader(new InputStreamReader(System.in, Charset.defaultCharset()));
                 token = r.readLine();
             } else if (tokenFile != null) {
                 token = new String(Files.readAllBytes(Paths.get(tokenFile)), Charsets.UTF_8);
@@ -197,11 +199,12 @@ public class TokensCliUtils {
                 System.exit(1);
                 return;
             }
-
-            String[] parts = token.split("\\.");
-            System.out.println(new String(Decoders.BASE64URL.decode(parts[0])));
-            System.out.println("---");
-            System.out.println(new String(Decoders.BASE64URL.decode(parts[1])));
+            if (StringUtils.isNotEmpty(token)) {
+                String[] parts = token.split("\\.");
+                System.out.println(new String(Decoders.BASE64URL.decode(parts[0]), Charset.defaultCharset()));
+                System.out.println("---");
+                System.out.println(new String(Decoders.BASE64URL.decode(parts[1]), Charset.defaultCharset()));
+            }
         }
     }
 
@@ -249,7 +252,7 @@ public class TokensCliUtils {
                 token = args.get(0);
             } else if (stdin) {
                 @Cleanup
-                BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
+                BufferedReader r = new BufferedReader(new InputStreamReader(System.in, Charset.defaultCharset()));
                 token = r.readLine();
             } else if (tokenFile != null) {
                 token = new String(Files.readAllBytes(Paths.get(tokenFile)), Charsets.UTF_8);
@@ -308,13 +311,13 @@ public class TokensCliUtils {
 
             if (arguments.help || jcommander.getParsedCommand() == null) {
                 jcommander.usage();
-                System.exit(1);
+                Runtime.getRuntime().exit(1);
             }
         } catch (Exception e) {
             System.err.println(e);
             String chosenCommand = jcommander.getParsedCommand();
             usageFormatter.usage(chosenCommand);
-            System.exit(1);
+            Runtime.getRuntime().exit(1);
         }
 
         String cmd = jcommander.getParsedCommand();

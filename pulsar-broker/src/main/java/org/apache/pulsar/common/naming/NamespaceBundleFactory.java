@@ -111,7 +111,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
                     }
                 });
 
-        if (pulsar != null && pulsar.getConfigurationCache() != null) {
+        if (pulsar.getConfigurationCache() != null) {
             pulsar.getLocalZkCacheService().policiesCache().registerListener(this);
         }
 

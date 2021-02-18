@@ -40,7 +40,8 @@ public class RequestWrapper extends HttpServletRequestWrapper {
 
     public RequestWrapper(HttpServletRequest request) throws IOException {
         super(request);
-        body = IOUtils.toByteArray(new InputStreamReader(request.getInputStream()), Charset.defaultCharset());
+        body = IOUtils.toByteArray(new InputStreamReader(request.getInputStream(), Charset.defaultCharset()),
+                Charset.defaultCharset());
     }
 
     @Override

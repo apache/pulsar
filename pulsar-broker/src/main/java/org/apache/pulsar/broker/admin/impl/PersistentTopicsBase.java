@@ -2774,7 +2774,10 @@ public class PersistentTopicsBase extends AdminResource {
                 .orElseGet(() -> {
                     if (applied) {
                         Integer maxProducer = getNamespacePolicies(namespaceName).max_producers_per_topic;
-                        return maxProducer == null ? config().getMaxProducersPerTopic() : maxProducer;
+                        if (maxProducer == null) {
+                            return Integer.valueOf(config().getMaxProducersPerTopic());
+                        }
+                        return maxProducer;
                     }
                     return null;
                 });
@@ -2849,7 +2852,10 @@ public class PersistentTopicsBase extends AdminResource {
                 .orElseGet(() -> {
                     if (applied) {
                         Integer maxConsumer = getNamespacePolicies(namespaceName).max_consumers_per_topic;
-                        return maxConsumer == null ? config().getMaxConsumersPerTopic() : maxConsumer;
+                        if (maxConsumer == null) {
+                            return Integer.valueOf(config().getMaxConsumersPerTopic());
+                        }
+                        return maxConsumer;
                     }
                     return null;
                 });

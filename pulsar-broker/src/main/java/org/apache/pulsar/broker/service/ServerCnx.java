@@ -34,6 +34,7 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
+import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -300,12 +301,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (service.isAuthorizationEnabled()) {
             if (originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-                    topicName, operation, originalPrincipal, getAuthenticationData());
+                        topicName, operation, originalPrincipal, getAuthenticationData());
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
             isAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-                topicName, operation, authRole, authenticationData);
+                    topicName, operation, authRole, authenticationData);
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             isAuthorizedFuture = CompletableFuture.completedFuture(true);
@@ -344,11 +345,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
             if (!isProxyAuthorized) {
                 log.warn("OriginalRole {} is not authorized to perform operation {} on topic {}, subscription {}",
-                    originalPrincipal, operation, topicName, subscriptionName);
+                        originalPrincipal, operation, topicName, subscriptionName);
             }
             if (!isAuthorized) {
                 log.warn("Role {} is not authorized to perform operation {} on topic {}, subscription {}",
-                    authRole, operation, topicName, subscriptionName);
+                        authRole, operation, topicName, subscriptionName);
             }
             return isProxyAuthorized && isAuthorized;
         });
@@ -384,18 +385,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
                             getPrincipal(), getAuthenticationData(),
                             requestId, advertisedListenerName).handle((lookupResponse, ex) -> {
-                                if (ex == null) {
-                                    ctx.writeAndFlush(lookupResponse);
-                                } else {
-                                    // it should never happen
-                                    log.warn("[{}] lookup failed with error {}, {}", remoteAddress, topicName,
-                                            ex.getMessage(), ex);
-                                    ctx.writeAndFlush(newLookupErrorResponse(ServerError.ServiceNotReady,
-                                            ex.getMessage(), requestId));
-                                }
-                                lookupSemaphore.release();
-                                return null;
-                            });
+                        if (ex == null) {
+                            ctx.writeAndFlush(lookupResponse);
+                        } else {
+                            // it should never happen
+                            log.warn("[{}] lookup failed with error {}, {}", remoteAddress, topicName,
+                                    ex.getMessage(), ex);
+                            ctx.writeAndFlush(newLookupErrorResponse(ServerError.ServiceNotReady,
+                                    ex.getMessage(), requestId));
+                        }
+                        lookupSemaphore.release();
+                        return null;
+                    });
                 } else {
                     final String msg = "Proxy Client is not authorized to Lookup";
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
@@ -445,7 +446,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP).thenApply(isAuthorized -> {
                 if (isAuthorized) {
                     unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
-                        .handle((metadata, ex) -> {
+                            .handle((metadata, ex) -> {
                                 if (ex == null) {
                                     int partitions = metadata.partitions;
                                     commandSender.sendPartitionMetadataResponse(partitions, requestId);
@@ -460,8 +461,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 topicName, ex.getMessage(), ex);
                                         ServerError error = (ex instanceof RestException)
                                                 && ((RestException) ex).getResponse().getStatus() < 500
-                                                        ? ServerError.MetadataError
-                                                        : ServerError.ServiceNotReady;
+                                                ? ServerError.MetadataError
+                                                : ServerError.ServiceNotReady;
                                         commandSender.sendPartitionMetadataResponse(error, ex.getMessage(), requestId);
                                     }
                                 }
@@ -615,7 +616,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, clientProtocolVersion));
         if (log.isDebugEnabled()) {
             log.debug("[{}] Authentication in progress client by method {}.",
-                remoteAddress, authMethod);
+                    remoteAddress, authMethod);
         }
         return State.Connecting;
     }
@@ -629,7 +630,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else if (getState() != State.Connected || !isActive) {
             // Connection is either still being established or already closed.
             return;
-        } else if (authState != null && !authState.isExpired()) {
+        } else if (!authState.isExpired()) {
             // Credentials are still valid. Nothing to do at this point
             return;
         } else if (originalPrincipal != null && originalAuthState == null) {
@@ -665,7 +666,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         getRemoteEndpointProtocolVersion()));
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Sent auth challenge to client to refresh credentials with method: {}.",
-                        remoteAddress, authMethod);
+                            remoteAddress, authMethod);
                 }
 
                 pendingAuthChallengeResponse = true;
@@ -685,11 +686,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (log.isDebugEnabled()) {
             log.debug("Received CONNECT from {}, auth enabled: {}:"
-                    + " has original principal = {}, original principal = {}",
-                remoteAddress,
-                service.isAuthenticationEnabled(),
-                connect.hasOriginalPrincipal(),
-                connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null);
+                            + " has original principal = {}, original principal = {}",
+                    remoteAddress,
+                    service.isAuthenticationEnabled(),
+                    connect.hasOriginalPrincipal(),
+                    connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null);
         }
 
         String clientVersion = connect.getClientVersion();
@@ -719,15 +720,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
 
             authenticationProvider = getBrokerService()
-                .getAuthenticationService()
-                .getAuthenticationProvider(authMethod);
+                    .getAuthenticationService()
+                    .getAuthenticationProvider(authMethod);
 
             // Not find provider named authMethod. Most used for tests.
             // In AuthenticationDisabled, it will set authMethod "none".
             if (authenticationProvider == null) {
-                authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole()
-                    .orElseThrow(() ->
-                        new AuthenticationException("No anonymous role, and no authentication provider configured"));
+                authRole = getBrokerService()
+                        .getAuthenticationService()
+                        .getAnonymousUserRole()
+                        .orElseThrow(() ->
+                            new AuthenticationException("No anonymous role, and no authentication provider configured")
+                        );
                 completeConnect(clientProtocolVersion, clientVersion);
                 return;
             }
@@ -744,7 +748,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Authenticate role : {}", remoteAddress,
-                    authState != null ? authState.getAuthRole() : null);
+                        authState != null ? authState.getAuthRole() : null);
             }
 
             state = doAuthentication(clientData, clientProtocolVersion, clientVersion);
@@ -773,7 +777,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
 
                 originalAuthState = originalAuthenticationProvider.newAuthState(
-                        AuthData.of(connect.getOriginalAuthData().getBytes()),
+                        AuthData.of(connect.getOriginalAuthData().getBytes(Charset.defaultCharset())),
                         remoteAddress,
                         sslSession);
                 originalAuthData = originalAuthState.getAuthDataSource();
@@ -786,7 +790,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Authenticate original role (forwarded from proxy): {}",
-                        remoteAddress, originalPrincipal);
+                            remoteAddress, originalPrincipal);
                 }
             }
         } catch (Exception e) {
@@ -806,7 +810,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (log.isDebugEnabled()) {
             log.debug("Received AuthResponse from {}, auth method: {}",
-                remoteAddress, authResponse.getResponse().getAuthMethodName());
+                    remoteAddress, authResponse.getResponse().getAuthMethodName());
         }
 
         try {
@@ -836,7 +840,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Handle subscribe command: auth role = {}, original auth role = {}",
-                remoteAddress, authRole, originalPrincipal);
+                    remoteAddress, authRole, originalPrincipal);
         }
 
         if (invalidOriginalPrincipal(originalPrincipal)) {
@@ -867,8 +871,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 && subscribe.isReplicateSubscriptionState();
         final boolean forceTopicCreation = subscribe.isForceTopicCreation();
         final KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta()
-              ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
-              : emptyKeySharedMeta;
+                ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
+                : emptyKeySharedMeta;
 
         CompletableFuture<Boolean> isAuthorizedFuture = isTopicOperationAllowed(
                 topicName,
@@ -882,144 +886,144 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             remoteAddress, getPrincipal());
                 }
 
-                        log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
-                        try {
-                            Metadata.validateMetadata(metadata);
-                        } catch (IllegalArgumentException iae) {
-                            final String msg = iae.getMessage();
-                            commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
-                            return null;
-                        }
-                        CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
-                        CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId,
-                                consumerFuture);
-
-                        if (existingConsumerFuture != null) {
-                            if (existingConsumerFuture.isDone() && !existingConsumerFuture.isCompletedExceptionally()) {
-                                Consumer consumer = existingConsumerFuture.getNow(null);
-                                log.info("[{}] Consumer with the same id is already created:"
-                                         + " consumerId={}, consumer={}",
-                                         remoteAddress, consumerId, consumer);
-                                commandSender.sendSuccessResponse(requestId);
-                                return null;
-                            } else {
-                                // There was an early request to create a consumer with same consumerId. This can happen
-                                // when
-                                // client timeout is lower the broker timeouts. We need to wait until the previous
-                                // consumer
-                                // creation request either complete or fails.
-                                log.warn("[{}][{}][{}] Consumer with id is already present on the connection,"
-                                         + " consumerId={}", remoteAddress, topicName, subscriptionName, consumerId);
-                                ServerError error = null;
-                                if (!existingConsumerFuture.isDone()) {
-                                    error = ServerError.ServiceNotReady;
-                                } else {
-                                    error = getErrorCode(existingConsumerFuture);
-                                    consumers.remove(consumerId, existingConsumerFuture);
-                                }
-                                commandSender.sendErrorResponse(requestId, error,
-                                        "Consumer is already present on the connection");
-                                return null;
-                            }
-                        }
-
-                        boolean createTopicIfDoesNotExist = forceTopicCreation
-                                && service.isAllowAutoTopicCreation(topicName.toString());
-
-                        service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
-                                .thenCompose(optTopic -> {
-                                    if (!optTopic.isPresent()) {
-                                        return FutureUtil
-                                                .failedFuture(new TopicNotFoundException("Topic does not exist"));
-                                    }
-
-                                    Topic topic = optTopic.get();
-
-                                    boolean rejectSubscriptionIfDoesNotExist = isDurable
-                                        && !service.isAllowAutoSubscriptionCreation(topicName.toString())
-                                        && !topic.getSubscriptions().containsKey(subscriptionName);
-
-                                    if (rejectSubscriptionIfDoesNotExist) {
-                                        return FutureUtil
-                                                .failedFuture(
-                                                        new SubscriptionNotFoundException(
-                                                                "Subscription does not exist"));
-                                    }
-
-                                    if (schema != null) {
-                                        return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                                .thenCompose(v -> topic.subscribe(
-                                                        ServerCnx.this, subscriptionName, consumerId,
-                                                        subType, priorityLevel, consumerName, isDurable,
-                                                        startMessageId, metadata,
-                                                        readCompacted, initialPosition, startMessageRollbackDurationSec,
-                                                        isReplicated, keySharedMeta));
-                                    } else {
-                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                            subType, priorityLevel, consumerName, isDurable,
-                                            startMessageId, metadata, readCompacted, initialPosition,
-                                            startMessageRollbackDurationSec, isReplicated, keySharedMeta);
-                                    }
-                                })
-                                .thenAccept(consumer -> {
-                                    if (consumerFuture.complete(consumer)) {
-                                        log.info("[{}] Created subscription on topic {} / {}",
-                                                remoteAddress, topicName, subscriptionName);
-                                        commandSender.sendSuccessResponse(requestId);
-                                    } else {
-                                        // The consumer future was completed before by a close command
-                                        try {
-                                            consumer.close();
-                                            log.info("[{}] Cleared consumer created after timeout on client side {}",
-                                                    remoteAddress, consumer);
-                                        } catch (BrokerServiceException e) {
-                                            log.warn(
-                                                    "[{}] Error closing consumer created"
-                                                            + " after timeout on client side {}: {}",
-                                                    remoteAddress, consumer, e.getMessage());
-                                        }
-                                        consumers.remove(consumerId, consumerFuture);
-                                    }
-
-                                }) //
-                                .exceptionally(exception -> {
-                                    if (exception.getCause() instanceof ConsumerBusyException) {
-                                        if (log.isDebugEnabled()) {
-                                            log.debug(
-                                                    "[{}][{}][{}] Failed to create consumer because exclusive consumer"
-                                                            + " is already connected: {}",
-                                                    remoteAddress, topicName, subscriptionName,
-                                                    exception.getCause().getMessage());
-                                        }
-                                    } else if (exception.getCause() instanceof BrokerServiceException) {
-                                        log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
-                                                 remoteAddress, topicName, subscriptionName,
-                                                 consumerId,  exception.getCause().getMessage());
-                                    } else {
-                                        log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
-                                                 remoteAddress, topicName, subscriptionName,
-                                                 consumerId, exception.getCause().getMessage(), exception);
-                                    }
-
-                                    // If client timed out, the future would have been completed by subsequent close.
-                                    // Send error
-                                    // back to client, only if not completed already.
-                                    if (consumerFuture.completeExceptionally(exception)) {
-                                        commandSender.sendErrorResponse(requestId,
-                                                BrokerServiceException.getClientErrorCode(exception),
-                                                exception.getCause().getMessage());
-                                    }
-                                    consumers.remove(consumerId, consumerFuture);
-
-                                    return null;
-
-                                });
-                    } else {
-                        String msg = "Client is not authorized to subscribe";
-                        log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
-                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
-                    }
+                log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
+                try {
+                    Metadata.validateMetadata(metadata);
+                } catch (IllegalArgumentException iae) {
+                    final String msg = iae.getMessage();
+                    commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
                     return null;
+                }
+                CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
+                CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId,
+                        consumerFuture);
+
+                if (existingConsumerFuture != null) {
+                    if (existingConsumerFuture.isDone() && !existingConsumerFuture.isCompletedExceptionally()) {
+                        Consumer consumer = existingConsumerFuture.getNow(null);
+                        log.info("[{}] Consumer with the same id is already created:"
+                                        + " consumerId={}, consumer={}",
+                                remoteAddress, consumerId, consumer);
+                        commandSender.sendSuccessResponse(requestId);
+                        return null;
+                    } else {
+                        // There was an early request to create a consumer with same consumerId. This can happen
+                        // when
+                        // client timeout is lower the broker timeouts. We need to wait until the previous
+                        // consumer
+                        // creation request either complete or fails.
+                        log.warn("[{}][{}][{}] Consumer with id is already present on the connection,"
+                                + " consumerId={}", remoteAddress, topicName, subscriptionName, consumerId);
+                        ServerError error = null;
+                        if (!existingConsumerFuture.isDone()) {
+                            error = ServerError.ServiceNotReady;
+                        } else {
+                            error = getErrorCode(existingConsumerFuture);
+                            consumers.remove(consumerId, existingConsumerFuture);
+                        }
+                        commandSender.sendErrorResponse(requestId, error,
+                                "Consumer is already present on the connection");
+                        return null;
+                    }
+                }
+
+                boolean createTopicIfDoesNotExist = forceTopicCreation
+                        && service.isAllowAutoTopicCreation(topicName.toString());
+
+                service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
+                        .thenCompose(optTopic -> {
+                            if (!optTopic.isPresent()) {
+                                return FutureUtil
+                                        .failedFuture(new TopicNotFoundException("Topic does not exist"));
+                            }
+
+                            Topic topic = optTopic.get();
+
+                            boolean rejectSubscriptionIfDoesNotExist = isDurable
+                                    && !service.isAllowAutoSubscriptionCreation(topicName.toString())
+                                    && !topic.getSubscriptions().containsKey(subscriptionName);
+
+                            if (rejectSubscriptionIfDoesNotExist) {
+                                return FutureUtil
+                                        .failedFuture(
+                                                new SubscriptionNotFoundException(
+                                                        "Subscription does not exist"));
+                            }
+
+                            if (schema != null) {
+                                return topic.addSchemaIfIdleOrCheckCompatible(schema)
+                                        .thenCompose(v -> topic.subscribe(
+                                                ServerCnx.this, subscriptionName, consumerId,
+                                                subType, priorityLevel, consumerName, isDurable,
+                                                startMessageId, metadata,
+                                                readCompacted, initialPosition, startMessageRollbackDurationSec,
+                                                isReplicated, keySharedMeta));
+                            } else {
+                                return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                        subType, priorityLevel, consumerName, isDurable,
+                                        startMessageId, metadata, readCompacted, initialPosition,
+                                        startMessageRollbackDurationSec, isReplicated, keySharedMeta);
+                            }
+                        })
+                        .thenAccept(consumer -> {
+                            if (consumerFuture.complete(consumer)) {
+                                log.info("[{}] Created subscription on topic {} / {}",
+                                        remoteAddress, topicName, subscriptionName);
+                                commandSender.sendSuccessResponse(requestId);
+                            } else {
+                                // The consumer future was completed before by a close command
+                                try {
+                                    consumer.close();
+                                    log.info("[{}] Cleared consumer created after timeout on client side {}",
+                                            remoteAddress, consumer);
+                                } catch (BrokerServiceException e) {
+                                    log.warn(
+                                            "[{}] Error closing consumer created"
+                                                    + " after timeout on client side {}: {}",
+                                            remoteAddress, consumer, e.getMessage());
+                                }
+                                consumers.remove(consumerId, consumerFuture);
+                            }
+
+                        }) //
+                        .exceptionally(exception -> {
+                            if (exception.getCause() instanceof ConsumerBusyException) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug(
+                                            "[{}][{}][{}] Failed to create consumer because exclusive consumer"
+                                                    + " is already connected: {}",
+                                            remoteAddress, topicName, subscriptionName,
+                                            exception.getCause().getMessage());
+                                }
+                            } else if (exception.getCause() instanceof BrokerServiceException) {
+                                log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
+                                        remoteAddress, topicName, subscriptionName,
+                                        consumerId,  exception.getCause().getMessage());
+                            } else {
+                                log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
+                                        remoteAddress, topicName, subscriptionName,
+                                        consumerId, exception.getCause().getMessage(), exception);
+                            }
+
+                            // If client timed out, the future would have been completed by subsequent close.
+                            // Send error
+                            // back to client, only if not completed already.
+                            if (consumerFuture.completeExceptionally(exception)) {
+                                commandSender.sendErrorResponse(requestId,
+                                        BrokerServiceException.getClientErrorCode(exception),
+                                        exception.getCause().getMessage());
+                            }
+                            consumers.remove(consumerId, consumerFuture);
+
+                            return null;
+
+                        });
+            } else {
+                String msg = "Client is not authorized to subscribe";
+                log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
+                ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+            }
+            return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
@@ -1029,17 +1033,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private SchemaData getSchema(Schema protocolSchema) {
         return SchemaData.builder()
-            .data(protocolSchema.getSchemaData())
-            .isDeleted(false)
-            .timestamp(System.currentTimeMillis())
-            .user(Strings.nullToEmpty(originalPrincipal))
-            .type(Commands.getSchemaType(protocolSchema.getType()))
-            .props(protocolSchema.getPropertiesList().stream().collect(
-                Collectors.toMap(
-                    KeyValue::getKey,
-                    KeyValue::getValue
-                )
-            )).build();
+                .data(protocolSchema.getSchemaData())
+                .isDeleted(false)
+                .timestamp(System.currentTimeMillis())
+                .user(Strings.nullToEmpty(originalPrincipal))
+                .type(Commands.getSchemaType(protocolSchema.getType()))
+                .props(protocolSchema.getPropertiesList().stream().collect(
+                        Collectors.toMap(
+                                KeyValue::getKey,
+                                KeyValue::getValue
+                        )
+                )).build();
     }
 
     @Override
@@ -1074,185 +1078,185 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         CompletableFuture<Boolean> isAuthorizedFuture = isTopicOperationAllowed(
-            topicName, TopicOperation.PRODUCE
+                topicName, TopicOperation.PRODUCE
         );
         isAuthorizedFuture.thenApply(isAuthorized -> {
-                    if (isAuthorized) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Client is authorized to Produce with role {}",
-                                    remoteAddress, getPrincipal());
+            if (isAuthorized) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Client is authorized to Produce with role {}",
+                            remoteAddress, getPrincipal());
+                }
+                CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
+                CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId,
+                        producerFuture);
+
+                if (existingProducerFuture != null) {
+                    if (existingProducerFuture.isDone() && !existingProducerFuture.isCompletedExceptionally()) {
+                        Producer producer = existingProducerFuture.getNow(null);
+                        log.info("[{}] Producer with the same id is already created:"
+                                + " producerId={}, producer={}", remoteAddress, producerId, producer);
+                        commandSender.sendProducerSuccessResponse(requestId, producer.getProducerName(),
+                                producer.getSchemaVersion());
+
+                        return null;
+                    } else {
+                        // There was an early request to create a producer with
+                        // same producerId. This can happen when
+                        // client
+                        // timeout is lower the broker timeouts. We need to wait
+                        // until the previous producer creation
+                        // request
+                        // either complete or fails.
+                        ServerError error = null;
+                        if (!existingProducerFuture.isDone()) {
+                            error = ServerError.ServiceNotReady;
+                        } else {
+                            error = getErrorCode(existingProducerFuture);
+                            // remove producer with producerId as it's already completed with exception
+                            producers.remove(producerId, existingProducerFuture);
                         }
-                        CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
-                        CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId,
-                                producerFuture);
+                        log.warn("[{}][{}] Producer with id is already present on the connection,"
+                                + " producerId={}", remoteAddress, topicName, producerId);
+                        commandSender.sendErrorResponse(requestId, error,
+                                "Producer is already present on the connection");
 
-                        if (existingProducerFuture != null) {
-                            if (existingProducerFuture.isDone() && !existingProducerFuture.isCompletedExceptionally()) {
-                                Producer producer = existingProducerFuture.getNow(null);
-                                log.info("[{}] Producer with the same id is already created:"
-                                         + " producerId={}, producer={}", remoteAddress, producerId, producer);
-                                commandSender.sendProducerSuccessResponse(requestId, producer.getProducerName(),
-                                        producer.getSchemaVersion());
+                        return null;
+                    }
+                }
 
-                                return null;
-                            } else {
-                                // There was an early request to create a producer with
-                                // same producerId. This can happen when
-                                // client
-                                // timeout is lower the broker timeouts. We need to wait
-                                // until the previous producer creation
-                                // request
-                                // either complete or fails.
-                                ServerError error = null;
-                                if (!existingProducerFuture.isDone()) {
-                                    error = ServerError.ServiceNotReady;
+                log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
+
+                service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
+                    // Before creating producer, check if backlog quota exceeded
+                    // on topic
+                    if (topic.isBacklogQuotaExceeded(producerName)) {
+                        IllegalStateException illegalStateException = new IllegalStateException(
+                                "Cannot create producer on topic with backlog quota exceeded");
+                        BacklogQuota.RetentionPolicy retentionPolicy = topic.getBacklogQuota().getPolicy();
+                        if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
+                            commandSender.sendErrorResponse(requestId,
+                                    ServerError.ProducerBlockedQuotaExceededError,
+                                    illegalStateException.getMessage());
+                        } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
+                            commandSender.sendErrorResponse(requestId,
+                                    ServerError.ProducerBlockedQuotaExceededException,
+                                    illegalStateException.getMessage());
+                        }
+                        producerFuture.completeExceptionally(illegalStateException);
+                        producers.remove(producerId, producerFuture);
+                        return;
+                    }
+
+                    // Check whether the producer will publish encrypted messages or not
+                    if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
+                        String msg = String.format("Encryption is required in %s", topicName);
+                        log.warn("[{}] {}", remoteAddress, msg);
+                        commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
+                        producers.remove(producerId, producerFuture);
+                        return;
+                    }
+
+                    disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
+
+                    CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
+
+                    schemaVersionFuture.exceptionally(exception -> {
+                        String message = exception.getMessage();
+                        if (exception.getCause() != null) {
+                            message += (" caused by " + exception.getCause());
+                        }
+                        commandSender.sendErrorResponse(requestId,
+                                BrokerServiceException.getClientErrorCode(exception),
+                                message);
+                        producers.remove(producerId, producerFuture);
+                        return null;
+                    });
+
+                    schemaVersionFuture.thenAccept(schemaVersion -> {
+                        CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
+                        Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
+                                getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
+                                userProvidedProducerName, producerAccessMode, topicEpoch);
+
+                        topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
+                            if (isActive()) {
+                                if (producerFuture.complete(producer)) {
+                                    log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                                    commandSender.sendProducerSuccessResponse(requestId, producerName,
+                                            producer.getLastSequenceId(), producer.getSchemaVersion(),
+                                            newTopicEpoch, true /* producer is ready now */);
+                                    return;
                                 } else {
-                                    error = getErrorCode(existingProducerFuture);
-                                    // remove producer with producerId as it's already completed with exception
-                                    producers.remove(producerId, existingProducerFuture);
-                                }
-                                log.warn("[{}][{}] Producer with id is already present on the connection,"
-                                         + " producerId={}", remoteAddress, topicName, producerId);
-                                commandSender.sendErrorResponse(requestId, error,
-                                                                "Producer is already present on the connection");
-
-                                return null;
-                            }
-                        }
-
-                        log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
-
-                        service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
-                            // Before creating producer, check if backlog quota exceeded
-                            // on topic
-                            if (topic.isBacklogQuotaExceeded(producerName)) {
-                                IllegalStateException illegalStateException = new IllegalStateException(
-                                        "Cannot create producer on topic with backlog quota exceeded");
-                                BacklogQuota.RetentionPolicy retentionPolicy = topic.getBacklogQuota().getPolicy();
-                                if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
-                                    commandSender.sendErrorResponse(requestId,
-                                            ServerError.ProducerBlockedQuotaExceededError,
-                                            illegalStateException.getMessage());
-                                } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
-                                    commandSender.sendErrorResponse(requestId,
-                                            ServerError.ProducerBlockedQuotaExceededException,
-                                            illegalStateException.getMessage());
-                                }
-                                producerFuture.completeExceptionally(illegalStateException);
-                                producers.remove(producerId, producerFuture);
-                                return;
-                            }
-
-                            // Check whether the producer will publish encrypted messages or not
-                            if ((topic.isEncryptionRequired() || encryptionRequireOnProducer) && !isEncrypted) {
-                                String msg = String.format("Encryption is required in %s", topicName);
-                                log.warn("[{}] {}", remoteAddress, msg);
-                                commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
-                                producers.remove(producerId, producerFuture);
-                                return;
-                            }
-
-                            disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
-
-                            CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
-
-                            schemaVersionFuture.exceptionally(exception -> {
-                                String message = exception.getMessage();
-                                if (exception.getCause() != null) {
-                                    message += (" caused by " + exception.getCause());
-                                }
-                                commandSender.sendErrorResponse(requestId,
-                                        BrokerServiceException.getClientErrorCode(exception),
-                                        message);
-                                producers.remove(producerId, producerFuture);
-                                return null;
-                            });
-
-                            schemaVersionFuture.thenAccept(schemaVersion -> {
-                                CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
-                                Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
-                                        getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                                        userProvidedProducerName, producerAccessMode, topicEpoch);
-
-                                topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
-                                    if (isActive()) {
-                                        if (producerFuture.complete(producer)) {
-                                            log.info("[{}] Created new producer: {}", remoteAddress, producer);
-                                            commandSender.sendProducerSuccessResponse(requestId, producerName,
-                                                    producer.getLastSequenceId(), producer.getSchemaVersion(),
-                                                    newTopicEpoch, true /* producer is ready now */);
-                                            return;
-                                        } else {
-                                            // The producer's future was completed before by
-                                            // a close command
-                                            producer.closeNow(true);
-                                            log.info("[{}] Cleared producer created after"
-                                                            + " timeout on client side {}",
-                                                    remoteAddress, producer);
-                                        }
-                                        } else {
-                                            producer.closeNow(true);
-                                        log.info("[{}] Cleared producer created after connection was closed: {}",
-                                                remoteAddress, producer);
-                                        producerFuture.completeExceptionally(
-                                                new IllegalStateException(
-                                                        "Producer created after connection was closed"));
-                                        }
-
-                                        producers.remove(producerId, producerFuture);
-                                }).exceptionally(ex -> {
-                                    log.error("[{}] Failed to add producer to topic {}: producerId={}, {}",
-                                              remoteAddress, topicName, producerId, ex.getMessage());
-
+                                    // The producer's future was completed before by
+                                    // a close command
                                     producer.closeNow(true);
-                                    if (producerFuture.completeExceptionally(ex)) {
-                                        commandSender.sendErrorResponse(requestId,
-                                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-                                    }
-                                    return null;
-                                });
-
-                                producerQueuedFuture.thenRun(() -> {
-                                    // If the producer is queued waiting, we will get an immediate notification
-                                    // that we need to pass to client
-                                    if (isActive()) {
-                                        log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
-                                        commandSender.sendProducerSuccessResponse(requestId, producerName,
-                                                producer.getLastSequenceId(), producer.getSchemaVersion(),
-                                                Optional.empty(), false/* producer is not ready now */);
-                                    }
-                                });
-                            });
-                        }).exceptionally(exception -> {
-                            Throwable cause = exception.getCause();
-
-                            if (cause instanceof NoSuchElementException) {
-                                cause = new TopicNotFoundException("Topic Not Found.");
+                                    log.info("[{}] Cleared producer created after"
+                                                    + " timeout on client side {}",
+                                            remoteAddress, producer);
+                                }
+                            } else {
+                                producer.closeNow(true);
+                                log.info("[{}] Cleared producer created after connection was closed: {}",
+                                        remoteAddress, producer);
+                                producerFuture.completeExceptionally(
+                                        new IllegalStateException(
+                                                "Producer created after connection was closed"));
                             }
 
-                            if (!(cause instanceof ServiceUnitNotReadyException)) {
-                                // Do not print stack traces for expected exceptions
-                                log.error("[{}] Failed to create topic {}, producerId={}",
-                                          remoteAddress, topicName, producerId, exception);
-                            }
-
-                            // If client timed out, the future would have been completed
-                            // by subsequent close. Send error back to
-                            // client, only if not completed already.
-                            if (producerFuture.completeExceptionally(exception)) {
-                                commandSender.sendErrorResponse(requestId,
-                                        BrokerServiceException.getClientErrorCode(cause), cause.getMessage());
-                            }
                             producers.remove(producerId, producerFuture);
+                        }).exceptionally(ex -> {
+                            log.error("[{}] Failed to add producer to topic {}: producerId={}, {}",
+                                    remoteAddress, topicName, producerId, ex.getMessage());
 
+                            producer.closeNow(true);
+                            if (producerFuture.completeExceptionally(ex)) {
+                                commandSender.sendErrorResponse(requestId,
+                                        BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+                            }
                             return null;
                         });
-                    } else {
-                        String msg = "Client is not authorized to Produce";
-                        log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
-                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+
+                        producerQueuedFuture.thenRun(() -> {
+                            // If the producer is queued waiting, we will get an immediate notification
+                            // that we need to pass to client
+                            if (isActive()) {
+                                log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
+                                commandSender.sendProducerSuccessResponse(requestId, producerName,
+                                        producer.getLastSequenceId(), producer.getSchemaVersion(),
+                                        Optional.empty(), false/* producer is not ready now */);
+                            }
+                        });
+                    });
+                }).exceptionally(exception -> {
+                    Throwable cause = exception.getCause();
+
+                    if (cause instanceof NoSuchElementException) {
+                        cause = new TopicNotFoundException("Topic Not Found.");
                     }
+
+                    if (!(cause instanceof ServiceUnitNotReadyException)) {
+                        // Do not print stack traces for expected exceptions
+                        log.error("[{}] Failed to create topic {}, producerId={}",
+                                remoteAddress, topicName, producerId, exception);
+                    }
+
+                    // If client timed out, the future would have been completed
+                    // by subsequent close. Send error back to
+                    // client, only if not completed already.
+                    if (producerFuture.completeExceptionally(exception)) {
+                        commandSender.sendErrorResponse(requestId,
+                                BrokerServiceException.getClientErrorCode(cause), cause.getMessage());
+                    }
+                    producers.remove(producerId, producerFuture);
+
                     return null;
+                });
+            } else {
+                String msg = "Client is not authorized to Produce";
+                log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
+                ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+            }
+            return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "producer", getPrincipal(), Optional.of(topicName), ex);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
@@ -1335,18 +1339,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             consumerFuture.getNow(null).messageAcked(ack).thenRun(() -> {
-                        if (hasRequestId) {
-                            ctx.writeAndFlush(Commands.newAckResponse(
-                                    requestId, null, null, consumerId));
-                        }
-                    }).exceptionally(e -> {
-                        if (hasRequestId) {
-                            ctx.writeAndFlush(Commands.newAckResponse(requestId,
-                                    BrokerServiceException.getClientErrorCode(e),
-                                    e.getMessage(), consumerId));
-                        }
-                        return null;
-                    });
+                if (hasRequestId) {
+                    ctx.writeAndFlush(Commands.newAckResponse(
+                            requestId, null, null, consumerId));
+                }
+            }).exceptionally(e -> {
+                if (hasRequestId) {
+                    ctx.writeAndFlush(Commands.newAckResponse(requestId,
+                            BrokerServiceException.getClientErrorCode(e),
+                            e.getMessage(), consumerId));
+                }
+                return null;
+            });
         }
     }
 
@@ -1487,13 +1491,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // We have received a request to close the producer before it was actually completed, we have marked the
             // producer future as failed and we can tell the client the close operation was successful.
             log.info("[{}] Closed producer before its creation was completed. producerId={}",
-                     remoteAddress, producerId);
+                    remoteAddress, producerId);
             commandSender.sendSuccessResponse(requestId);
             producers.remove(producerId, producerFuture);
             return;
         } else if (producerFuture.isCompletedExceptionally()) {
             log.info("[{}] Closed producer that already failed to be created. producerId={}",
-                     remoteAddress, producerId);
+                    remoteAddress, producerId);
             commandSender.sendSuccessResponse(requestId);
             producers.remove(producerId, producerFuture);
             return;
@@ -1502,12 +1506,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // Proceed with normal close, the producer
         Producer producer = producerFuture.getNow(null);
         log.info("[{}][{}] Closing producer on cnx {}. producerId={}",
-                 producer.getTopic(), producer.getProducerName(), remoteAddress, producerId);
+                producer.getTopic(), producer.getProducerName(), remoteAddress, producerId);
 
         producer.close(true).thenAccept(v -> {
             log.info("[{}][{}] Closed producer on cnx {}. producerId={}",
-                     producer.getTopic(), producer.getProducerName(),
-                     remoteAddress, producerId);
+                    producer.getTopic(), producer.getProducerName(),
+                    remoteAddress, producerId);
             commandSender.sendSuccessResponse(requestId);
             producers.remove(producerId, producerFuture);
         });
@@ -1534,14 +1538,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // consumer future as failed and we can tell the client the close operation was successful. When the actual
             // create operation will complete, the new consumer will be discarded.
             log.info("[{}] Closed consumer before its creation was completed. consumerId={}",
-                     remoteAddress, consumerId);
+                    remoteAddress, consumerId);
             commandSender.sendSuccessResponse(requestId);
             return;
         }
 
         if (consumerFuture.isCompletedExceptionally()) {
             log.info("[{}] Closed consumer that already failed to be created. consumerId={}",
-                     remoteAddress, consumerId);
+                    remoteAddress, consumerId);
             commandSender.sendSuccessResponse(requestId);
             return;
         }
@@ -1673,7 +1677,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleGetSchema(CommandGetSchema commandGetSchema) {
         if (log.isDebugEnabled()) {
             log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
-                    remoteAddress, new String(commandGetSchema.getSchemaVersion()),
+                    remoteAddress, new String(commandGetSchema.getSchemaVersion(), Charset.defaultCharset()),
                     commandGetSchema.getTopic(), commandGetSchema.getRequestId());
         }
 
@@ -1749,21 +1753,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, tcId, remoteAddress);
         }
         service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId, command.getTxnTtlSeconds())
-            .whenComplete(((txnID, ex) -> {
-                if (ex == null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Send response {} for new txn request {}", tcId.getId(), requestId);
+                .whenComplete(((txnID, ex) -> {
+                    if (ex == null) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Send response {} for new txn request {}", tcId.getId(), requestId);
+                        }
+                        ctx.writeAndFlush(Commands.newTxnResponse(requestId, txnID.getLeastSigBits(),
+                                txnID.getMostSigBits()));
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Send response error for new txn request {}", requestId, ex);
+                        }
+                        ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
+                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
                     }
-                    ctx.writeAndFlush(Commands.newTxnResponse(requestId, txnID.getLeastSigBits(),
-                            txnID.getMostSigBits()));
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Send response error for new txn request {}", requestId, ex);
-                    }
-                    ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
-                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
-                }
-            }));
+                }));
     }
 
     @Override
@@ -1787,11 +1791,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         if (log.isDebugEnabled()) {
                             log.debug("Send response error for add published partition to txn request {}", requestId,
                                     ex);
+                        }
+                        ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
+                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
                     }
-                    ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
-                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
-                }
-            }));
+                }));
     }
 
     @Override
@@ -1826,16 +1830,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
             optionalTopic.get().endTxn(txnID, txnAction, command.getTxnidLeastBitsOfLowWatermark())
-                .whenComplete((ignored, throwable) -> {
-                    if (throwable != null) {
-                        log.error("Handle endTxnOnPartition {} failed.", topic, throwable);
-                        ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                                requestId, ServerError.UnknownError, throwable.getMessage()));
-                        return;
-                    }
-                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
-                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
-                });
+                    .whenComplete((ignored, throwable) -> {
+                        if (throwable != null) {
+                            log.error("Handle endTxnOnPartition {} failed.", topic, throwable);
+                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                                    requestId, ServerError.UnknownError, throwable.getMessage()));
+                            return;
+                        }
+                        ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
+                                txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                    });
         });
     }
 
@@ -1849,42 +1853,42 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final int txnAction = command.getTxnAction().getValue();
 
         service.getTopics().get(TopicName.get(topic).toString())
-            .thenAccept(optionalTopic -> {
-                if (!optionalTopic.isPresent()) {
-                    log.error("The topic {} is not exist in broker.", topic);
-                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
-                            requestId, txnidLeastBits, txnidMostBits,
-                            ServerError.UnknownError,
-                            "The topic " + topic + " is not exist in broker."));
-                    return;
-                }
-
-                Subscription subscription = optionalTopic.get().getSubscription(subName);
-                if (subscription == null) {
-                    log.error("Topic {} subscription {} is not exist.", optionalTopic.get().getName(), subName);
-                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
-                            requestId, txnidLeastBits, txnidMostBits,
-                            ServerError.UnknownError,
-                            "Topic " + optionalTopic.get().getName()
-                                    + " subscription " + subName + " is not exist."));
-                    return;
-                }
-
-                CompletableFuture<Void> completableFuture =
-                        subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction);
-                completableFuture.whenComplete((ignored, throwable) -> {
-                    if (throwable != null) {
-                        log.error("Handle end txn on subscription failed for request {}", requestId);
+                .thenAccept(optionalTopic -> {
+                    if (!optionalTopic.isPresent()) {
+                        log.error("The topic {} is not exist in broker.", topic);
                         ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
                                 requestId, txnidLeastBits, txnidMostBits,
                                 ServerError.UnknownError,
-                                "Handle end txn on subscription failed."));
+                                "The topic " + topic + " is not exist in broker."));
                         return;
                     }
-                    ctx.writeAndFlush(
-                            Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
+
+                    Subscription subscription = optionalTopic.get().getSubscription(subName);
+                    if (subscription == null) {
+                        log.error("Topic {} subscription {} is not exist.", optionalTopic.get().getName(), subName);
+                        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                                requestId, txnidLeastBits, txnidMostBits,
+                                ServerError.UnknownError,
+                                "Topic " + optionalTopic.get().getName()
+                                        + " subscription " + subName + " is not exist."));
+                        return;
+                    }
+
+                    CompletableFuture<Void> completableFuture =
+                            subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction);
+                    completableFuture.whenComplete((ignored, throwable) -> {
+                        if (throwable != null) {
+                            log.error("Handle end txn on subscription failed for request {}", requestId);
+                            ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                                    requestId, txnidLeastBits, txnidMostBits,
+                                    ServerError.UnknownError,
+                                    "Handle end txn on subscription failed."));
+                            return;
+                        }
+                        ctx.writeAndFlush(
+                                Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
+                    });
                 });
-            });
     }
 
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
@@ -1893,7 +1897,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             return topic.hasSchema().thenCompose((hasSchema) -> {
                 log.info("[{}] {} configured with schema {}",
-                         remoteAddress, topic.getName(), hasSchema);
+                        remoteAddress, topic.getName(), hasSchema);
                 CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
                 if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
                     result.completeExceptionally(new IncompatibleSchemaException(
@@ -2007,10 +2011,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Producer> future = producers.get(producerId);
         if (future != null) {
             future.whenComplete((producer2, exception) -> {
-                    if (exception != null || producer2 == producer) {
-                        producers.remove(producerId, future);
-                    }
-                });
+                if (exception != null || producer2 == producer) {
+                    producers.remove(producerId, future);
+                }
+            });
         }
     }
 
@@ -2022,10 +2026,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Consumer> future = consumers.get(consumerId);
         if (future != null) {
             future.whenComplete((consumer2, exception) -> {
-                    if (exception != null || consumer2 == consumer) {
-                        consumers.remove(consumerId, future);
-                    }
-                });
+                if (exception != null || consumer2 == consumer) {
+                    consumers.remove(consumerId, future);
+                }
+            });
         }
     }
 
@@ -2167,7 +2171,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     public ByteBufPair newMessageAndIntercept(long consumerId, long ledgerId, long entryId, int partition,
-            int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet, String topic) {
+                                              int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet,
+                                              String topic) {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
                 ackSet);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
@@ -2309,10 +2314,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         String topicString = topic.map(t -> ", topic=" + t.toString()).orElse("");
         if (ex instanceof AuthenticationException) {
             log.info("[{}] Failed to authenticate: operation={}, principal={}{}, reason={}",
-                     remoteAddress, operation, principal, topicString, ex.getMessage());
+                    remoteAddress, operation, principal, topicString, ex.getMessage());
         } else {
             log.error("[{}] Error trying to authenticate: operation={}, principal={}{}",
-                      remoteAddress, operation, principal, topicString, ex);
+                    remoteAddress, operation, principal, topicString, ex);
         }
     }
 }

@@ -81,6 +81,6 @@ public class ResourceAvailabilityRanker implements LoadRanker, Comparator<Resour
     }
 
     public int compare(ResourceDescription rd1, ResourceDescription rd2) {
-        return ((Long) getRank(rd1)).compareTo(getRank(rd2));
+        return Long.compare(getRank(rd1), getRank(rd2));
     }
 }

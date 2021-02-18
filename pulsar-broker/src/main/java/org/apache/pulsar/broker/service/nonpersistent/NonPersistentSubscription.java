@@ -46,6 +46,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
+import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -443,19 +444,30 @@ public class NonPersistentSubscription implements Subscription {
 
         NonPersistentDispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
+            Rate rate = dispatcher.getMessageDropRate();
+            if (rate != null){
+                subStats.msgDropRate = rate.getValueRate();
+            }
+            if (dispatcher.getConsumers() == null){
+                return subStats;
+            }
             dispatcher.getConsumers().forEach(consumer -> {
+                if (consumer == null) {
+                    return;
+                }
                 ConsumerStats consumerStats = consumer.getStats();
-                subStats.consumers.add(consumerStats);
-                subStats.msgRateOut += consumerStats.msgRateOut;
-                subStats.msgThroughputOut += consumerStats.msgThroughputOut;
-                subStats.bytesOutCounter += consumerStats.bytesOutCounter;
-                subStats.msgOutCounter += consumerStats.msgOutCounter;
-                subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
+                if (consumerStats != null) {
+                    subStats.consumers.add(consumerStats);
+                    subStats.msgRateOut += consumerStats.msgRateOut;
+                    subStats.msgThroughputOut += consumerStats.msgThroughputOut;
+                    subStats.bytesOutCounter += consumerStats.bytesOutCounter;
+                    subStats.msgOutCounter += consumerStats.msgOutCounter;
+                    subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
+                }
             });
         }
 
         subStats.type = getType();
-        subStats.msgDropRate = dispatcher.getMessageDropRate().getValueRate();
         return subStats;
     }
 

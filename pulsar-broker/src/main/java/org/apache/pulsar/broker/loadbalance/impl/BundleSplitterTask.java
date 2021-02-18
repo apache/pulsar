@@ -68,7 +68,8 @@ public class BundleSplitterTask implements BundleSplitStrategy {
         long maxBundleTopics = conf.getLoadBalancerNamespaceBundleMaxTopics();
         long maxBundleSessions = conf.getLoadBalancerNamespaceBundleMaxSessions();
         long maxBundleMsgRate = conf.getLoadBalancerNamespaceBundleMaxMsgRate();
-        long maxBundleBandwidth = conf.getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * LoadManagerShared.MIBI;
+        long maxBundleBandwidth =
+                conf.getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * (long) LoadManagerShared.MIBI;
         loadData.getBrokerData().forEach((broker, brokerData) -> {
             LocalBrokerData localData = brokerData.getLocalData();
             for (final Map.Entry<String, NamespaceBundleStats> entry : localData.getLastStats().entrySet()) {

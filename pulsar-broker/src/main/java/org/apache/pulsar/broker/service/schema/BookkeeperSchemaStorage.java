@@ -28,6 +28,7 @@ import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Fu
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -71,7 +72,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     private static final String SchemaPath = "/schemas";
     private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
-    private static final byte[] LedgerPassword = "".getBytes();
+    private static final byte[] LedgerPassword = "".getBytes(Charset.defaultCharset());
 
     private final PulsarService pulsar;
     private final ZooKeeper zooKeeper;

@@ -34,7 +34,7 @@ class NeverSchemaValidator implements SchemaValidator {
     @Override
     public void validate(Schema toValidate, Iterable<Schema> existing)
             throws SchemaValidationException {
-        for (Schema s : existing) {
+        if (existing != null && existing.iterator().hasNext()) {
             // only throw exception if there are existing schemas
             throw new SchemaValidationException(toValidate, toValidate);
         }

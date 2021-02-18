@@ -32,7 +32,311 @@
         <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
     </Match>
     <Match>
-        <Class name="oorg.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl"/>
+        <Class name="org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl"/>
         <Bug pattern="DM_DEFAULT_ENCODING"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.ServerCnx"/>
+        <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.admin.v2.PersistentTopics"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.PulsarBrokerStarter "/>
+        <Bug pattern="DM_EXIT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.PulsarBrokerStarter$BrokerStarter"/>
+        <Bug pattern="DM_EXIT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.utils.auth.tokens.TokensCliUtils"/>
+        <Bug pattern="DM_EXIT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.PulsarStandalone"/>
+        <Bug pattern="DM_EXIT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.utils.auth.tokens.TokensCliUtils$CommandShowToken"/>
+        <Bug pattern="DM_EXIT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.utils.auth.tokens.TokensCliUtils$CommandValidateToken"/>
+        <Bug pattern="DM_EXIT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.utils.auth.tokens.TokensCliUtils$CommandCreateToken"/>
+        <Bug pattern="DM_EXIT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.PulsarClusterMetadataTeardown"/>
+        <Bug pattern="MS_FINAL_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.PulsarService"/>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.PulsarService"/>
+        <Bug pattern="UL_UNRELEASED_LOCK_EXCEPTION_PATH"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.admin.impl.ClustersBase"/>
+        <Bug pattern="NP_LOAD_OF_KNOWN_NULL_VALUE"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.admin.impl.PersistentTopicsBase"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.admin.impl.PersistentTopicsBase"/>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.admin.impl.PersistentTopicsBase$2"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.admin.impl.PersistentTopicsBase$3"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.admin.v1.Functions"/>
+        <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl"/>
+        <Bug pattern="DMI_HARDCODED_ABSOLUTE_FILENAME"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"/>
+        <Bug pattern="ML_SYNC_ON_FIELD_TO_GUARD_CHANGING_THAT_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.loadbalance.impl.PulsarResourceDescription"/>
+        <Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.namespace.NamespaceService"/>
+        <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.namespace.NamespaceService"/>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.AbstractBaseDispatcher"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.BrokerService"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.BrokerService"/>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.PrecisPublishLimiter"/>
+        <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.PrecisPublishLimiter"/>
+        <Bug pattern="IC_SUPERCLASS_USES_SUBCLASS_DURING_INITIALIZATION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.PulsarCommandSenderImpl"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.PulsarStats"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.ServerCnx"/>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.ServerCnx"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.nonpersistent.NonPersistentDispatcherMultipleConsumers"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.nonpersistent.NonPersistentDispatcherSingleActiveConsumer"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator$ProducerSendCallback"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.MessageDeduplication$1"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentMessageFinder"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentReplicator"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentReplicator$ProducerSendCallback"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.loadbalance.impl.PulsarServiceUnit"/>
+        <Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.BrokerService$4"/>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.PublishRateLimiter"/>
+        <Bug pattern="IC_SUPERCLASS_USES_SUBCLASS_DURING_INITIALIZATION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.utils.StatsOutputStream"/>
+        <Bug pattern="RC_REF_COMPARISON_BAD_PRACTICE_BOOLEAN"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.compaction.CompactedTopicImpl"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.common.naming.NamespaceBundles"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm"/>
+        <Bug pattern="MS_MUTABLE_COLLECTION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.RawReaderImpl$RawConsumerImpl"/>
+        <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.web.RequestWrapper"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl$OpRequestSend"/>
+        <Bug pattern="URF_UNREAD_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBuffer$TxnBuffer"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.stats.NamespaceStats"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.stats.MBeanStatsGenerator"/>
+        <Bug pattern="DE_MIGHT_IGNORE"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat$SchemaInfo$KeyValuePair$Builder"/>
+        <Bug pattern="UCF_USELESS_CONTROL_FLOW"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.schema.SchemaStorageFormat$PositionInfo$Builder"/>
+        <Bug pattern="UCF_USELESS_CONTROL_FLOW"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.PublishRateLimiterDisable"/>
+        <Bug pattern="IC_SUPERCLASS_USES_SUBCLASS_DURING_INITIALIZATION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.DispatchRateLimiter"/>
+        <Bug pattern="SF_SWITCH_NO_DEFAULT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentTopic"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentTopic"/>
+        <Bug pattern="ML_SYNC_ON_FIELD_TO_GUARD_CHANGING_THAT_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentTopic"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentTopic$TopicStatsHelper"/>
+        <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter"/>
+        <Bug pattern="AT_OPERATION_SEQUENCE_ON_CONCURRENT_ABSTRACTION"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.common.naming.NamespaceBundle"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentStreamingDispatcherMultipleConsumers"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.persistent.PersistentStreamingDispatcherSingleActiveConsumer"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.broker.service.streamingdispatch.StreamingEntryReader"/>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
     </Match>
 </FindBugsFilter>
