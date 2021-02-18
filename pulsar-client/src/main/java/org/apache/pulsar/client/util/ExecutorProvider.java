@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 @Slf4j
 public class ExecutorProvider {
@@ -54,10 +55,15 @@ public class ExecutorProvider {
     }
 
     public ExecutorService getExecutor(Object object) {
-        return getExecutor(object == null ? -1 : object.hashCode() & Integer.MAX_VALUE);
+        return getExecutorInternal(object == null ? -1 : object.hashCode() & Integer.MAX_VALUE);
     }
-    
-    public ExecutorService getExecutor(int hash) {
+
+    public ExecutorService getExecutor(byte[] bytes) {
+        int keyHash = Murmur3_32Hash.getInstance().makeHash(bytes);
+        return getExecutorInternal(keyHash);
+    }
+
+    private ExecutorService getExecutorInternal(int hash) {
         return executors.get((hash & Integer.MAX_VALUE) % numThreads);
     }
 

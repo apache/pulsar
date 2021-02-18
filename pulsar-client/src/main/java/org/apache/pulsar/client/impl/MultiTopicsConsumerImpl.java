@@ -573,7 +573,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void failPendingReceive() {
-        if (pingedExecutor != null && !pingedExecutor.isShutdown()) {
+        if (pinnedExecutor != null && !pinnedExecutor.isShutdown()) {
             failPendingReceives(pendingReceives);
             failPendingBatchReceives(pendingBatchReceives);
         }

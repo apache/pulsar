@@ -71,7 +71,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final MessageListener<T> listener;
     protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorProvider executorProvider;
-    protected final ScheduledExecutorService pingedExecutor;
+    protected final ScheduledExecutorService pinnedExecutor;
     final BlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
@@ -101,7 +101,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
         this.unAckedChunkedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
         this.executorProvider = executorProvider;
-        this.pingedExecutor = (ScheduledExecutorService) executorProvider.getExecutor();
+        this.pinnedExecutor = (ScheduledExecutorService) executorProvider.getExecutor();
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
         this.interceptors = interceptors;
@@ -233,7 +233,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void completePendingReceive(CompletableFuture<Message<T>> receivedFuture, Message<T> message) {
-        pingedExecutor.execute(() -> {
+        pinnedExecutor.execute(() -> {
             if (!receivedFuture.complete(message)) {
                 log.warn("Race condition detected. receive future was already completed (cancelled={}) and message was dropped. message={}",
                         receivedFuture.isCancelled(), message);
@@ -854,10 +854,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 if (msg != null) {
                     final Message<T> finalMsg = msg;
                     if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
-                        int keyHash = Murmur3_32Hash.getInstance().makeHash(peekMessageKey(finalMsg));
-                        executorProvider.getExecutor(keyHash).execute(() -> callMessageListener(finalMsg));
+                        executorProvider.getExecutor(peekMessageKey(finalMsg)).execute(() ->
+                                callMessageListener(finalMsg));
                     } else {
-                        pingedExecutor.execute(() -> callMessageListener(finalMsg));
+                        pinnedExecutor.execute(() -> callMessageListener(finalMsg));
                     }
                 }
             } catch (PulsarClientException e) {

@@ -946,7 +946,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private void failPendingReceive() {
         lock.readLock().lock();
         try {
-            if (pingedExecutor != null && !pingedExecutor.isShutdown()) {
+            if (pinnedExecutor != null && !pinnedExecutor.isShutdown()) {
                 failPendingReceives(this.pendingReceives);
                 failPendingBatchReceives(this.pendingBatchReceives);
             }
@@ -960,7 +960,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        pingedExecutor.execute(() -> {
+        pinnedExecutor.execute(() -> {
             if (isActive) {
                 consumerEventListener.becameActive(this, partitionIndex);
             } else {
@@ -1089,7 +1089,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // Lazy task scheduling to expire incomplete chunk message
         if (!expireChunkMessageTaskScheduled && expireTimeOfIncompleteChunkedMessageMillis > 0) {
-            pingedExecutor.scheduleAtFixedRate(() -> {
+            pinnedExecutor.scheduleAtFixedRate(() -> {
                 removeExpireIncompleteChunkedMessages();
             }, expireTimeOfIncompleteChunkedMessageMillis, expireTimeOfIncompleteChunkedMessageMillis,
                     TimeUnit.MILLISECONDS);
@@ -1183,13 +1183,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (exception != null) {
-            pingedExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
+            pinnedExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
             return;
         }
 
         if (message == null) {
             IllegalStateException e = new IllegalStateException("received message can't be null");
-            pingedExecutor.execute(() -> receivedFuture.completeExceptionally(e));
+            pinnedExecutor.execute(() -> receivedFuture.completeExceptionally(e));
             return;
         }
 
@@ -2010,7 +2010,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            pingedExecutor.schedule(() -> {
+            pinnedExecutor.schedule(() -> {
                 log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
                         topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);

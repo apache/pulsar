@@ -152,7 +152,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         checkNotNull(listener, "listener can't be null");
         checkNotNull(message, "unqueued message can't be null");
 
-        pingedExecutor.execute(() -> {
+        pinnedExecutor.execute(() -> {
             stats.updateNumMsgsReceived(message);
             try {
                 if (log.isDebugEnabled()) {
