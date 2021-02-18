@@ -866,6 +866,8 @@ Subcommands
 * `get-subscribe-rate`
 * `set-subscription-dispatch-rate`
 * `get-subscription-dispatch-rate`
+* `set-subscription-expiration-time`
+* `get-subscription-expiration-time`
 * `clear-backlog`
 * `unsubscribe`
 * `set-encryption-required`
@@ -1362,6 +1364,27 @@ Get subscription configured message-dispatch-rate for all topics of the namespac
 Usage
 ```bash
 $ pulsar-admin namespaces get-subscription-dispatch-rate tenant/namespace
+```
+
+### `set-subscription-expiration-time`
+Set subscription expiration time in minutes for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-subscription-expiration-time tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-t`, `--time`|Subscription expiration time in minutes|0|
+
+### `get-subscription-expiration-time`
+Get subscription expiration time for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces get-subscription-expiration-time tenant/namespace
 ```
 
 ### `clear-backlog`
