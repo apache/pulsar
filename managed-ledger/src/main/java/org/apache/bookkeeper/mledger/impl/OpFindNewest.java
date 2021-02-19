@@ -19,16 +19,14 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.base.Predicate;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedger.PositionBound;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 
 @Slf4j
 class OpFindNewest implements ReadEntryCallback {

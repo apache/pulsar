@@ -30,6 +30,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -58,6 +60,18 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
 public interface ManagedLedger {
+
+    boolean isValidPosition(PositionImpl nextReadPosition);
+
+    boolean hasMoreEntries(PositionImpl nextReadPosition);
+
+    void addWaitingEntryCallBack(WaitingEntryCallBack streamingEntryReader);
+
+    // define boundaries for position based seeks and searches
+    enum PositionBound {
+        startIncluded, startExcluded
+    }
+
 
     /**
      * @return the unique name of this ManagedLedger
@@ -388,6 +402,23 @@ public interface ManagedLedger {
     long getEstimatedBacklogSize();
 
     /**
+     * Get estimated backlog size from a specific position.
+     * @param pos
+     * @return
+     */
+    long getEstimatedBacklogSize(PositionImpl pos);
+
+    /**
+     * number of entries are in add progress
+     */
+    int getPendingAddEntriesCount();
+
+    /**
+     * Get the total size in bytes of all the entries stored in this cache.
+     */
+    long getCacheSize();
+
+    /**
      * Return the size of all ledgers offloaded to 2nd tier storage
      */
     long getOffloadedSize();
@@ -591,6 +622,25 @@ public interface ManagedLedger {
     CompletableFuture<Position> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate);
 
     /**
+     * Get the entry position at a given distance from a given position.
+     *
+     * @param startPosition
+     *            starting position
+     * @param n
+     *            number of entries to skip ahead
+     * @param startRange
+     *            specifies whether or not to include the start position in calculating the distance
+     * @return the new position that is n entries ahead
+     */
+    PositionImpl getPositionAfterN(final PositionImpl startPosition, long n,
+                                   ManagedLedgerImpl.PositionBound startRange);
+
+    /**
+     * first position of current topic
+     */
+    PositionImpl getFirstPosition();
+
+    /**
      * Get the ManagedLedgerInterceptor for ManagedLedger.
      * */
     ManagedLedgerInterceptor getManagedLedgerInterceptor();
@@ -600,4 +650,10 @@ public interface ManagedLedger {
      * will got null if corresponding ledger not exists.
      */
     CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId);
+
+    /**
+     * get the valid position next to the given one
+     * @param position current postion
+     */
+    PositionImpl getNextValidPosition(final PositionImpl position);
 }

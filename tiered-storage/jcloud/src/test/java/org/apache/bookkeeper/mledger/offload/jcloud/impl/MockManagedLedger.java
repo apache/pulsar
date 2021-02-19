@@ -31,12 +31,29 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 
 @Slf4j
 public class MockManagedLedger implements ManagedLedger {
+    @Override
+    public boolean isValidPosition(PositionImpl nextReadPosition) {
+        return false;
+    }
+
+    @Override
+    public boolean hasMoreEntries(PositionImpl nextReadPosition) {
+        return false;
+    }
+
+    @Override
+    public void addWaitingEntryCallBack(WaitingEntryCallBack streamingEntryReader) {
+
+    }
+
     @Override
     public String getName() {
         return null;
@@ -184,6 +201,21 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public long getEstimatedBacklogSize(PositionImpl pos) {
+        return 0;
+    }
+
+    @Override
+    public int getPendingAddEntriesCount() {
+        return 0;
+    }
+
+    @Override
+    public long getCacheSize() {
+        return 0;
+    }
+
+    @Override
     public long getOffloadedSize() {
         return 0;
     }
@@ -316,6 +348,16 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public PositionImpl getPositionAfterN(PositionImpl startPosition, long n, PositionBound startRange) {
+        return null;
+    }
+
+    @Override
+    public PositionImpl getFirstPosition() {
+        return null;
+    }
+
+    @Override
     public ManagedLedgerInterceptor getManagedLedgerInterceptor() {
         return null;
     }
@@ -324,5 +366,10 @@ public class MockManagedLedger implements ManagedLedger {
     public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
         final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
         return CompletableFuture.completedFuture(build);
+    }
+
+    @Override
+    public PositionImpl getNextValidPosition(PositionImpl position) {
+        return null;
     }
 }

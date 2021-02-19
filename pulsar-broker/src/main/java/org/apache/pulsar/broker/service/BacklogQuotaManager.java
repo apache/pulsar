@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -132,7 +132,7 @@ public class BacklogQuotaManager {
 
         // Get estimated unconsumed size for the managed ledger associated with this topic. Estimated size is more
         // useful than the actual storage size. Actual storage size gets updated only when managed ledger is trimmed.
-        ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedLedger mLedger = persistentTopic.getManagedLedger();
         long backlogSize = mLedger.getEstimatedBacklogSize();
 
         if (log.isDebugEnabled()) {

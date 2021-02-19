@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.service.Consumer;
@@ -163,7 +162,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
             filterEntriesForConsumer(Lists.newArrayList(entry), batchSizes, sendMessageInfo, batchIndexesAcks,
                     cursor, false);
             // Update cursor's read position.
-            cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
+            cursor.seek(cursor.getManagedLedger()
                     .getNextValidPosition((PositionImpl) entry.getPosition()));
             dispatchEntriesToConsumer(currentConsumer, Lists.newArrayList(entry), batchSizes,
                     batchIndexesAcks, sendMessageInfo);

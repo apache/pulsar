@@ -34,6 +34,7 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -47,9 +48,9 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
@@ -1594,7 +1595,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             String subscriptionName) {
 
         PersistentTopic persistentTopic = (PersistentTopic) topic;
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedLedger ml = persistentTopic.getManagedLedger();
 
         // If it's not pointing to a valid entry, respond messageId of the current position.
         if (position.getEntryId() == -1) {
@@ -1605,17 +1606,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // For a valid position, we read the entry out and parse the batch size from its metadata.
         CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
-        ml.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
-            @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
-                entryFuture.complete(entry);
-            }
+        try {
+            ml.newNonDurableCursor(position).asyncReadEntries(1, new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    if (!entries.isEmpty()) {
+                        entryFuture.complete(entries.get(0));
+                    } else {
+                        entryFuture.complete(null);
+                    }
+                }
 
-            @Override
-            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                entryFuture.completeExceptionally(exception);
-            }
-        }, null);
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    entryFuture.completeExceptionally(exception);
+                }
+            }, null, PositionImpl.latest);
+        } catch (ManagedLedgerException e) {
+            entryFuture.completeExceptionally(e);
+        }
 
         CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
             MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());

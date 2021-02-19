@@ -36,12 +36,12 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -380,27 +380,37 @@ public class PersistentSubscription implements Subscription {
 
     private void deleteTransactionMarker(PositionImpl position, AckType ackType, Map<String, Long> properties) {
         if (position != null) {
-            ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+            ManagedLedger managedLedger = (cursor.getManagedLedger());
             PositionImpl nextPosition = managedLedger.getNextValidPosition(position);
-            managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                    isDeleteTransactionMarkerInProcess = false;
-                    if (Markers.isTxnCommitMarker(messageMetadata) || Markers.isTxnAbortMarker(messageMetadata)) {
-                        lastMarkDeleteForTransactionMarker = position;
-                        acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
-                    }
-                }
+            try {
+                managedLedger.newNonDurableCursor(nextPosition).asyncReadEntries(1,
+                        new AsyncCallbacks.ReadEntriesCallback() {
+                            @Override
+                            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                                MessageMetadata messageMetadata = Commands
+                                        .parseMessageMetadata(entries.get(0).getDataBuffer());
+                                isDeleteTransactionMarkerInProcess = false;
+                                if (Markers.isTxnCommitMarker(messageMetadata) || Markers
+                                        .isTxnAbortMarker(messageMetadata)) {
+                                    lastMarkDeleteForTransactionMarker = position;
+                                    acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
+                                }
+                            }
 
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    isDeleteTransactionMarkerInProcess = false;
-                    if (log.isDebugEnabled()) {
-                        log.debug("Fail to read transaction marker! Position : {}", position, exception);
-                    }
+                            @Override
+                            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                                isDeleteTransactionMarkerInProcess = false;
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Fail to read transaction marker! Position : {}", position, exception);
+                                }
+                            }
+                        }, null, PositionImpl.latest);
+            } catch (ManagedLedgerException e) {
+                isDeleteTransactionMarkerInProcess = false;
+                if (log.isDebugEnabled()) {
+                    log.debug("Fail to read transaction marker! Position : {}", position, e);
                 }
-            }, null);
+            }
         } else {
             isDeleteTransactionMarkerInProcess = false;
         }
@@ -963,7 +973,7 @@ public class PersistentSubscription implements Subscription {
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
         if (subscriptionBacklogSize) {
-            subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
+            subStats.backlogSize = topic.getManagedLedger()
                     .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
         }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;

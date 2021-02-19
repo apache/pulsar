@@ -23,8 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
@@ -77,7 +75,6 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
-import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
@@ -230,11 +227,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     // are allowed to be added. Reads are allowed
         WriteFailed // The state that is transitioned to when a BK write failure happens
                     // After handling the BK write failure, managed ledger will get signalled to create a new ledger
-    }
-
-    // define boundaries for position based seeks and searches
-    public enum PositionBound {
-        startIncluded, startExcluded
     }
 
     private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, State> STATE_UPDATER = AtomicReferenceFieldUpdater

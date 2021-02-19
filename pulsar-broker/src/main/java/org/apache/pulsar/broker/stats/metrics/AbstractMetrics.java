@@ -98,6 +98,7 @@ abstract class AbstractMetrics {
      * @return
      */
     protected Map<String, ManagedLedgerImpl> getManagedLedgers() {
+        //TODO avoid ManagedLedgerImpl and ManagedLedgerFactoryImpl
         return ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers();
     }
 

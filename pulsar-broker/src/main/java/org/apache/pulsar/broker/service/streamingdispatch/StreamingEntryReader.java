@@ -29,11 +29,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -95,7 +95,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
         }
 
         PositionImpl nextReadPosition = (PositionImpl) cursor.getReadPosition();
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) cursor.getManagedLedger();
+        ManagedLedger managedLedger = cursor.getManagedLedger();
         // Edge case, when a old ledger is full and new ledger is not yet opened, position can point to next
         // position of the last confirmed position, but it'll be an invalid position. So try to update the position.
         if (!managedLedger.isValidPosition(nextReadPosition)) {
@@ -119,7 +119,22 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
 
         // Issue requests.
         for (PendingReadEntryRequest request : issuedReads) {
-            managedLedger.asyncReadEntry(request.position, this, request);
+            try {
+                managedLedger.newNonDurableCursor(request.position).asyncReadEntries(1,
+                        new AsyncCallbacks.ReadEntriesCallback() {
+                            @Override
+                            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                                StreamingEntryReader.this.readEntryComplete(entries.get(0), ctx);
+                            }
+
+                            @Override
+                            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                                StreamingEntryReader.this.readEntryFailed(exception, ctx);
+                            }
+                        }, null, PositionImpl.latest);
+            } catch (ManagedLedgerException e) {
+                StreamingEntryReader.this.readEntryFailed(e, null);
+            }
         }
 
         if (!pendingReads.isEmpty()) {
@@ -272,9 +287,24 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             // Jump again into dispatcher dedicated thread
             topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(dispatcher.getName(),
                     SafeRun.safeRun(() -> {
-                ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) cursor.getManagedLedger();
-                managedLedger.asyncReadEntry(pendingReadEntryRequest.position, this, pendingReadEntryRequest);
-            }));
+                        ManagedLedger managedLedger = cursor.getManagedLedger();
+                        try {
+                            managedLedger.newNonDurableCursor(pendingReadEntryRequest.position).asyncReadEntries(1,
+                                    new AsyncCallbacks.ReadEntriesCallback() {
+                                        @Override
+                                        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                                            StreamingEntryReader.this.readEntryComplete(entries.get(0), ctx);
+                                        }
+
+                                        @Override
+                                        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                                            StreamingEntryReader.this.readEntryFailed(exception, ctx);
+                                        }
+                                    }, null, PositionImpl.latest);
+                        } catch (ManagedLedgerException e) {
+                            StreamingEntryReader.this.readEntryFailed(e, null);
+                        }
+                    }));
         }, delay, TimeUnit.MILLISECONDS);
     }
 
@@ -290,7 +320,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             log.debug("[{}} Streaming entry reader get notification of newly added entries from managed ledger,"
                     + " trying to issued pending read requests.", cursor.getName());
         }
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) cursor.getManagedLedger();
+        ManagedLedger managedLedger = cursor.getManagedLedger();
         List<PendingReadEntryRequest> newlyIssuedRequests = new ArrayList<>();
         if (!pendingReads.isEmpty()) {
             // Edge case, when a old ledger is full and new ledger is not yet opened, position can point to next
@@ -310,7 +340,22 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             }
 
             for (PendingReadEntryRequest request : newlyIssuedRequests) {
-                managedLedger.asyncReadEntry(request.position, this, request);
+                try {
+                    managedLedger.newNonDurableCursor(request.position).asyncReadEntries(1,
+                            new AsyncCallbacks.ReadEntriesCallback() {
+                                @Override
+                                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                                    StreamingEntryReader.this.readEntryComplete(entries.get(0), ctx);
+                                }
+
+                                @Override
+                                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                                    StreamingEntryReader.this.readEntryFailed(exception, ctx);
+                                }
+                            }, null, PositionImpl.latest);
+                } catch (ManagedLedgerException e) {
+                    StreamingEntryReader.this.readEntryFailed(e, null);
+                }
             }
 
             if (!pendingReads.isEmpty()) {

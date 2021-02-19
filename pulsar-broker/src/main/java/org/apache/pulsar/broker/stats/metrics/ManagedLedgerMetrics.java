@@ -58,7 +58,7 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
      * @return
      */
     private List<Metrics> aggregate(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimension) {
-
+        //TODO avoid ManagedLedgerImpl and ManagedLedgerFactoryImpl
         metricsCollection.clear();
 
         for (Entry<Metrics, List<ManagedLedgerImpl>> e : ledgersByDimension.entrySet()) {
