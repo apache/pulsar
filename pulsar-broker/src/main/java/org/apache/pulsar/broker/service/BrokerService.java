@@ -771,7 +771,24 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     // Exceptional topics should be recreated.
                     topics.remove(topic, topicFuture);
                 } else {
-                    return topicFuture;
+                    // a non-existing topic in the cache shouldn't prevent creating a topic
+                    if (createIfMissing) {
+                        if (topicFuture.isDone() && topicFuture.getNow(Optional.empty()).isPresent()) {
+                            return topicFuture;
+                        } else {
+                            return topicFuture.thenCompose(value -> {
+                                if (!value.isPresent()) {
+                                    // retry and create topic
+                                    return getTopic(topic, createIfMissing);
+                                } else {
+                                    // in-progress future completed successfully
+                                    return CompletableFuture.completedFuture(value);
+                                }
+                            });
+                        }
+                    } else {
+                        return topicFuture;
+                    }
                 }
             }
             final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
@@ -2212,13 +2229,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {
-        // gets the number of partitions from the zk cache
-        return pulsar.getGlobalZkCache().getDataAsync(partitionedTopicPath(topicName), (key, content) -> {
-            return ObjectMapperFactory.getThreadLocal().readValue(content, PartitionedTopicMetadata.class);
-        }).thenApply(metadata -> {
-            // if the partitioned topic is not found in zk, then the topic is not partitioned
-            return metadata.orElseGet(() -> new PartitionedTopicMetadata());
-        });
+        // gets the number of partitions from the configuration cache
+        return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .getAsync(partitionedTopicPath(topicName)).thenApply(metadata -> {
+                    // if the partitioned topic is not found in zk, then the topic is not partitioned
+                    return metadata.orElseGet(() -> new PartitionedTopicMetadata());
+                });
     }
 
     private static String partitionedTopicPath(TopicName topicName) {

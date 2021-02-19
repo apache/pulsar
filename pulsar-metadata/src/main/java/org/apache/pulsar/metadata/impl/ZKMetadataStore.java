@@ -34,6 +34,7 @@ import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -296,6 +297,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             return new BadVersionException(ex);
         case NONODE:
             return new NotFoundException(ex);
+        case NODEEXISTS:
+            return new AlreadyExistsException(ex);
         default:
             return new MetadataStoreException(ex);
         }

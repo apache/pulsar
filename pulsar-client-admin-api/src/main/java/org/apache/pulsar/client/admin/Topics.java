@@ -1184,6 +1184,40 @@ public interface Topics {
             long expireTimeInSeconds);
 
     /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            Position before which all messages will be expired.
+     * @param isExcluded
+     *            Will message at passed in position also be expired.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void expireMessages(String topic, String subscriptionName, MessageId messageId, boolean isExcluded)
+            throws PulsarAdminException;
+
+    /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription asynchronously.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            Position before which all messages will be expired.
+     * @param isExcluded
+     *            Will message at passed in position also be expired.
+     * @return
+     *            A {@link CompletableFuture} that'll be completed when expire message is done.
+     */
+    CompletableFuture<Void> expireMessagesAsync(String topic, String subscriptionName,
+                                                MessageId messageId, boolean isExcluded);
+
+    /**
      * Expire all messages older than given N seconds for all subscriptions of the persistent-topic.
      *
      * @param topic

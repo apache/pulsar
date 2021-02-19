@@ -34,7 +34,6 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import io.prometheus.client.CollectorRegistry;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -61,7 +60,6 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
-import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler;
 import org.mockito.Mockito;
@@ -84,6 +82,7 @@ public class SchedulerManagerTest {
     private ScheduledExecutorService executor;
     private LeaderService leaderService;
     private ErrorNotifier errorNotifier;
+    private PulsarClient pulsarClient;
 
     @BeforeMethod
     public void setup() {
@@ -116,10 +115,11 @@ public class SchedulerManagerTest {
         when(builder.blockIfQueueFull(anyBoolean())).thenReturn(builder);
         when(builder.compressionType(any(CompressionType.class))).thenReturn(builder);
         when(builder.sendTimeout(anyInt(), any(TimeUnit.class))).thenReturn(builder);
+        when(builder.accessMode(any())).thenReturn(builder);
 
         when(builder.createAsync()).thenReturn(CompletableFuture.completedFuture(producer));
 
-        PulsarClient pulsarClient = mock(PulsarClient.class);
+        pulsarClient = mock(PulsarClient.class);
         when(pulsarClient.newProducer()).thenReturn(builder);
 
         this.executor = Executors
@@ -820,7 +820,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testAssignmentWorkerDoesNotExist() throws InterruptedException, NoSuchMethodException, TimeoutException, ExecutionException {
+    public void testAssignmentWorkerDoesNotExist() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -879,9 +879,12 @@ public class SchedulerManagerTest {
     }
 
     private void callSchedule() throws InterruptedException,
-            TimeoutException, ExecutionException {
+            TimeoutException, ExecutionException, WorkerUtils.NotLeaderAnymore {
 
-        schedulerManager.initialize();
+        if (leaderService.isLeader()) {
+            Producer<byte[]> exclusiveProducer = schedulerManager.acquireExclusiveWrite(() -> true);
+            schedulerManager.initialize(exclusiveProducer);
+        }
         Future<?> complete = schedulerManager.schedule();
 
         complete.get(30, TimeUnit.SECONDS);

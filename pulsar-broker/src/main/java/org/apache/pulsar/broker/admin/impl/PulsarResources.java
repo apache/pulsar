@@ -30,10 +30,12 @@ public class PulsarResources {
     private NamespaceResources namespaceResources;
     private DynamicConfigurationResources dynamicConfigResources;
 
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore) {
-        tenatResources = new TenantResources(configurationMetadataStore);
-        clusterResources = new ClusterResources(configurationMetadataStore);
-        dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore);
-        namespaceResources = new NamespaceResources(localMetadataStore, configurationMetadataStore);
+    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore,
+            int operationTimeoutSec) {
+        tenatResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
+        clusterResources = new ClusterResources(configurationMetadataStore, operationTimeoutSec);
+        dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore, operationTimeoutSec);
+        namespaceResources = new NamespaceResources(localMetadataStore, configurationMetadataStore,
+                operationTimeoutSec);
     }
 }

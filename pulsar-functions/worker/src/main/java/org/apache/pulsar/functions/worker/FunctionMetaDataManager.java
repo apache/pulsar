@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
@@ -252,14 +254,36 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     /**
+     * Acquires a exclusive producer.  This method cannot return null.  It can only return a valid exclusive producer
+     * or throw NotLeaderAnymore exception.
+     * @param isLeader if the worker is still the leader
+     * @return A valid exclusive producer
+     * @throws WorkerUtils.NotLeaderAnymore if the worker is no longer the leader.
+     */
+    public Producer<byte[]> acquireExclusiveWrite(Supplier<Boolean> isLeader) throws WorkerUtils.NotLeaderAnymore {
+        // creates exclusive producer for metadata topic
+        return WorkerUtils.createExclusiveProducerWithRetry(
+                pulsarClient,
+                workerConfig.getFunctionMetadataTopic(),
+                workerConfig.getWorkerId() + "-leader",
+                isLeader, 1000);
+    }
+
+    /**
      * Called by the leader service when this worker becomes the leader.
      * We first get exclusive producer on the metadata topic. Next we drain the tailer
      * to ensure that we have caught up to metadata topic. After which we close the tailer.
      * Note that this method cannot be syncrhonized because the tailer might still be processing messages
      */
-    public void acquireLeadership() {
+    public void acquireLeadership(Producer<byte[]> exclusiveProducer) {
         log.info("FunctionMetaDataManager becoming leader by creating exclusive producer");
-        FunctionMetaDataTopicTailer tailer = internalAcquireLeadership();
+        if (exclusiveLeaderProducer != null) {
+            log.error("FunctionMetaData Manager entered invalid state");
+            errorNotifier.triggerError(new IllegalStateException());
+        }
+        this.exclusiveLeaderProducer = exclusiveProducer;
+        FunctionMetaDataTopicTailer tailer = this.functionMetaDataTopicTailer;
+        this.functionMetaDataTopicTailer = null;
         // Now that we have created the exclusive producer, wait for reader to get over
         if (tailer != null) {
             try {
@@ -271,27 +295,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
             tailer.close();
         }
         log.info("FunctionMetaDataManager done becoming leader");
-    }
-
-    private synchronized FunctionMetaDataTopicTailer internalAcquireLeadership() {
-        if (exclusiveLeaderProducer == null) {
-            try {
-                exclusiveLeaderProducer = pulsarClient.newProducer()
-                        .topic(this.workerConfig.getFunctionMetadataTopic())
-                        .producerName(workerConfig.getWorkerId() + "-leader")
-                        // .type(EXCLUSIVE)
-                        .create();
-            } catch (PulsarClientException e) {
-                log.error("Error creating exclusive producer", e);
-                errorNotifier.triggerError(e);
-            }
-        } else {
-            log.error("Logic Error in FunctionMetaData Manager");
-            errorNotifier.triggerError(new IllegalStateException());
-        }
-        FunctionMetaDataTopicTailer tailer = this.functionMetaDataTopicTailer;
-        this.functionMetaDataTopicTailer = null;
-        return tailer;
     }
 
     /**
