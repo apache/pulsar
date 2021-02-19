@@ -18,15 +18,23 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import com.google.protobuf.Descriptors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.schema.proto.Test.TestMessage;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.List;
+import java.util.function.Consumer;
+
 import static org.testng.Assert.assertEquals;
 
+@Slf4j
 public class GenericProtobufNativeSchemaTest {
 
     private TestMessage message;
@@ -40,6 +48,44 @@ public class GenericProtobufNativeSchemaTest {
                 .withPojo(TestMessage.class).build());
         genericProtobufNativeSchema = (GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(clazzBasedProtobufNativeSchema.getSchemaInfo());
 
+    }
+
+    private static void assertField(String name, Consumer<Descriptors.FieldDescriptor> checker, List<Field> fields) {
+        Field field = fields.stream().filter(f -> f.getName().equals(name)).findFirst().get();
+        Descriptors.FieldDescriptor avroField = field.unwrap(Descriptors.FieldDescriptor.class);
+        checker.accept(avroField);
+    }
+
+    @Test
+    public void testAllowUnwrapFieldSchema() {
+        List<Field> fields = genericProtobufNativeSchema.getFields();
+        Assert.assertEquals(7, fields.size());
+        fields.forEach(f -> {
+            Descriptors.FieldDescriptor unwrap = f.unwrap(Descriptors.FieldDescriptor.class);
+            log.info("field {} unwrap {} {}", f, unwrap, unwrap.getType());
+        });
+
+        assertField("stringField", (f) -> {
+            Assert.assertEquals(Descriptors.FieldDescriptor.Type.STRING, f.getType());
+        }, fields);
+        assertField("doubleField", (f) -> {
+            Assert.assertEquals(Descriptors.FieldDescriptor.Type.DOUBLE, f.getType());
+        }, fields);
+        assertField("intField", (f) -> {
+            Assert.assertEquals(Descriptors.FieldDescriptor.Type.INT32, f.getType());
+        }, fields);
+        assertField("testEnum", (f) -> {
+            Assert.assertEquals(Descriptors.FieldDescriptor.Type.ENUM, f.getType());
+        }, fields);
+        assertField("nestedField", (f) -> {
+            Assert.assertEquals(Descriptors.FieldDescriptor.Type.MESSAGE, f.getType());
+        }, fields);
+        assertField("externalMessage", (f) -> {
+            Assert.assertEquals(Descriptors.FieldDescriptor.Type.MESSAGE, f.getType());
+        }, fields);
+        assertField("repeatedField", (f) -> {
+            Assert.assertEquals(Descriptors.FieldDescriptor.Type.STRING, f.getType());
+        }, fields);
     }
 
     @Test

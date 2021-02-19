@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+
+import org.apache.avro.Schema;
+import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -46,6 +51,48 @@ public class GenericAvroSchemaTest {
             .withAlwaysAllowNull(false).withPojo(SchemaTestUtils.Foo.class).build());
         writerSchema = new GenericAvroSchema(avroFooV2Schema.getSchemaInfo());
         readerSchema = new GenericAvroSchema(avroFooSchema.getSchemaInfo());
+    }
+
+    private static void assertField(String name, Consumer<Schema.Field> checker, List<Field> fields) {
+        Field field = fields.stream().filter(f -> f.getName().equals(name)).findFirst().get();
+        Schema.Field avroField = field.unwrap(Schema.Field.class);
+        checker.accept(avroField);
+    }
+
+    @Test
+    public void testAllowUnwrapFieldSchema() {
+        List<Field> fields = readerSchema.getFields();
+        Assert.assertEquals(6, fields.size());
+
+        assertField("field1", (f) -> {
+            // a nullable String is an UNION
+            Assert.assertEquals(Schema.Type.UNION, f.schema().getType());
+            Assert.assertTrue(f.schema().getTypes().stream().anyMatch(s->s.getType() == Schema.Type.NULL));
+            Assert.assertTrue(f.schema().getTypes().stream().anyMatch(s->s.getType() == Schema.Type.STRING));
+        }, fields);
+        assertField("field2", (f) -> {
+            Assert.assertEquals(Schema.Type.UNION, f.schema().getType());
+            Assert.assertTrue(f.schema().getTypes().stream().anyMatch(s->s.getType() == Schema.Type.NULL));
+            Assert.assertTrue(f.schema().getTypes().stream().anyMatch(s->s.getType() == Schema.Type.STRING));
+        }, fields);
+        assertField("field3", (f) -> {
+            Assert.assertEquals(Schema.Type.INT, f.schema().getType());
+        }, fields);
+        assertField("field4", (f) -> {
+            // nullable Record
+            Assert.assertTrue(f.schema().getTypes().stream().anyMatch(s->s.getType() == Schema.Type.NULL));
+            Assert.assertTrue(f.schema().getTypes().stream().anyMatch(s->s.getType() == Schema.Type.RECORD));
+            Schema recordSchema = f.schema().getTypes().stream().filter(s -> s.getType() == Schema.Type.RECORD).findFirst().get();
+            Assert.assertTrue(recordSchema.getFields().stream().anyMatch( subField -> subField.name().equals("field1")));
+        }, fields);
+        assertField("color", (f) -> {
+            Assert.assertEquals(Schema.Type.UNION, f.schema().getType());
+            Assert.assertTrue(f.schema().getTypes().stream().anyMatch(s->s.getType() == Schema.Type.NULL));
+            Assert.assertTrue(f.schema().getTypes().stream().anyMatch(s->s.getType() == Schema.Type.ENUM));
+        }, fields);
+        assertField("fieldUnableNull", (f) -> {
+            Assert.assertEquals(Schema.Type.STRING, f.schema().getType());
+        }, fields);
     }
 
     @Test

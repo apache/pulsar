@@ -3900,6 +3900,47 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             log.info("field {} {}", f.getName(), res.getField(f));
             assertEquals("field", f.getName());
             assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
+            org.apache.avro.Schema.Field fieldDetails = f.unwrap(org.apache.avro.Schema.Field.class);
+
+        }
+        assertEquals(1, res.getFields().size());
+    }
+
+    @DataProvider(name = "avroSchemaProvider")
+    public static Object[] avroSchemaProvider() {
+        return new Object[]{Schema.AVRO(MyBean.class), Schema.JSON(MyBean.class)};
+    }
+
+    @Test(dataProvider = "avroSchemaProvider")
+    public void testAccessAvroSchemaMetadata(Schema<MyBean> schema) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topic = "persistent://my-property/my-ns/accessSchema";
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionName("testsub")
+                .subscribe();
+
+        Producer<MyBean> producer = pulsarClient
+                .newProducer(schema)
+                .topic(topic)
+                .create();
+        MyBean payload = new MyBean();
+        payload.setField("aaaaaaaaaaaaaaaaaaaaaaaaa");
+        producer.send(payload);
+        producer.close();
+
+        GenericRecord res = consumer.receive().getValue();
+        consumer.close();
+        for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
+            log.info("field {} {}", f.getName(), res.getField(f));
+            assertEquals("field", f.getName());
+            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
+            org.apache.avro.Schema.Field fieldDetails = f.unwrap(org.apache.avro.Schema.Field.class);
+            // a nullable string is an UNION
+            assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
+            assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s->s.getType() == org.apache.avro.Schema.Type.STRING));
+            assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s->s.getType() == org.apache.avro.Schema.Type.NULL));
         }
         assertEquals(1, res.getFields().size());
     }
