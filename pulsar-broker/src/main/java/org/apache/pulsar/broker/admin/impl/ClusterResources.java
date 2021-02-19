@@ -32,9 +32,9 @@ public class ClusterResources extends BaseResources<ClusterData> {
     @Getter
     private FailureDomainResources failureDomainResources;
 
-    public ClusterResources(MetadataStoreExtended store) {
-        super(store, ClusterData.class);
-        this.failureDomainResources = new FailureDomainResources(store, FailureDomain.class);
+    public ClusterResources(MetadataStoreExtended store, int operationTimeoutSec) {
+        super(store, ClusterData.class, operationTimeoutSec);
+        this.failureDomainResources = new FailureDomainResources(store, FailureDomain.class, operationTimeoutSec);
     }
 
     public Set<String> list() throws MetadataStoreException {
@@ -44,8 +44,9 @@ public class ClusterResources extends BaseResources<ClusterData> {
     public static class FailureDomainResources extends BaseResources<FailureDomain> {
         public static final String FAILURE_DOMAIN = "failureDomain";
 
-        public FailureDomainResources(MetadataStoreExtended store, Class<FailureDomain> clazz) {
-            super(store, clazz);
+        public FailureDomainResources(MetadataStoreExtended store, Class<FailureDomain> clazz,
+                int operationTimeoutSec) {
+            super(store, clazz, operationTimeoutSec);
         }
     }
 }
