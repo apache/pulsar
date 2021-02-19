@@ -49,10 +49,12 @@ public class ResetCursorData {
             this.ledgerId = batchMessageId.getLedgerId();
             this.entryId = batchMessageId.getEntryId();
             this.batchIndex = batchMessageId.getBatchIndex();
+            this.partitionIndex = batchMessageId.partitionIndex;
         } else if (messageId instanceof MessageIdImpl) {
             MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
             this.ledgerId = messageIdImpl.getLedgerId();
             this.entryId = messageIdImpl.getEntryId();
+            this.partitionIndex = messageIdImpl.partitionIndex;
         }  else if (messageId instanceof TopicMessageIdImpl) {
             throw new IllegalArgumentException("Not supported operation on partitioned-topic");
         }

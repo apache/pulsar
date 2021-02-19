@@ -31,6 +31,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +94,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
@@ -1579,7 +1581,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public TopicStats getStats(boolean getPreciseBacklog) {
+    public TopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
 
         TopicStats stats = new TopicStats();
 
@@ -1603,7 +1605,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.msgChunkPublished = this.msgChunkPublished;
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
+            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
@@ -1721,14 +1723,71 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             cs.properties = cursor.getProperties();
             stats.cursors.put(cursor.getName(), cs);
         });
-        if (futures != null) {
-            FutureUtil.waitForAll(futures).handle((res, ex) -> {
-                statFuture.complete(stats);
+
+        //Schema store ledgers
+        String schemaId;
+        try {
+            schemaId = TopicName.get(topic).getSchemaName();
+        } catch (Throwable t) {
+            statFuture.completeExceptionally(t);
+            return statFuture;
+        }
+
+
+        CompletableFuture<Void> schemaStoreLedgersFuture = new CompletableFuture<>();
+        stats.schemaLedgers = Collections.synchronizedList(new ArrayList<>());
+        if (brokerService.getPulsar().getSchemaStorage() != null
+                && brokerService.getPulsar().getSchemaStorage() instanceof BookkeeperSchemaStorage) {
+            ((BookkeeperSchemaStorage) brokerService.getPulsar().getSchemaStorage())
+                    .getStoreLedgerIdsBySchemaId(schemaId)
+                    .thenAccept(ledgers -> {
+                        List<CompletableFuture<Void>> getLedgerMetadataFutures = new ArrayList<>();
+                        ledgers.forEach(ledgerId -> {
+                            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                            getLedgerMetadataFutures.add(completableFuture);
+                            brokerService.getPulsar().getBookKeeperClient()
+                                    .getLedgerMetadata(ledgerId)
+                                    .thenAccept(metadata -> {
+                                        LedgerInfo schemaLedgerInfo = new LedgerInfo();
+                                        schemaLedgerInfo.ledgerId = metadata.getLedgerId();
+                                        schemaLedgerInfo.entries = metadata.getLastEntryId() + 1;
+                                        schemaLedgerInfo.size = metadata.getLength();
+                                        if (includeLedgerMetadata) {
+                                            info.metadata = metadata.toSafeString();
+                                        }
+                                        stats.schemaLedgers.add(schemaLedgerInfo);
+                                        completableFuture.complete(null);
+                                    }).exceptionally(e -> {
+                                completableFuture.completeExceptionally(e);
+                                return null;
+                            });
+                        });
+                        FutureUtil.waitForAll(getLedgerMetadataFutures).thenRun(() -> {
+                            schemaStoreLedgersFuture.complete(null);
+                        }).exceptionally(e -> {
+                            schemaStoreLedgersFuture.completeExceptionally(e);
+                            return null;
+                        });
+                    }).exceptionally(e -> {
+                schemaStoreLedgersFuture.completeExceptionally(e);
                 return null;
             });
         } else {
-            statFuture.complete(stats);
+            schemaStoreLedgersFuture.complete(null);
         }
+        schemaStoreLedgersFuture.thenRun(() -> {
+            if (futures != null) {
+                FutureUtil.waitForAll(futures).handle((res, ex) -> {
+                    statFuture.complete(stats);
+                    return null;
+                });
+            } else {
+                statFuture.complete(stats);
+            }
+        }).exceptionally(e -> {
+            statFuture.completeExceptionally(e);
+            return null;
+        });
         return statFuture;
     }
 
@@ -2670,8 +2729,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private boolean checkMaxSubscriptionsPerTopicExceed() {
-        Integer maxSubsPerTopic = maxSubscriptionsPerTopic;
-
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        Integer maxSubsPerTopic = null;
+        if (topicPolicies != null && topicPolicies.isMaxSubscriptionsPerTopicSet()) {
+            maxSubsPerTopic = topicPolicies.getMaxSubscriptionsPerTopic();
+        }
+        if (maxSubsPerTopic == null) {
+            maxSubsPerTopic = maxSubscriptionsPerTopic;
+        }
         if (maxSubsPerTopic == null) {
             maxSubsPerTopic = brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
         }

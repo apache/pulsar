@@ -430,8 +430,15 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public void expireMessages(int messageTTLInSeconds) {
-        // No-op
+    public boolean expireMessages(int messageTTLInSeconds) {
+        throw new UnsupportedOperationException("Expire message by timestamp is not supported for"
+                + " non-persistent topic.");
+    }
+
+    @Override
+    public boolean expireMessages(Position position) {
+        throw new UnsupportedOperationException("Expire message by position is not supported for"
+                + " non-persistent topic.");
     }
 
     public NonPersistentSubscriptionStats getStats() {

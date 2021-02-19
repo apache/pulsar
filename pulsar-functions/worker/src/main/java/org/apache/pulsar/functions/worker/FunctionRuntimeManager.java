@@ -38,6 +38,7 @@ import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -419,7 +420,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
                             .type(MediaType.APPLICATION_JSON)
                             .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
                 }
-                this.functionAdmin.functions().restartFunction(tenant, namespace, functionName);
+
+                ComponentType componentType = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getComponentType();
+
+                if (ComponentType.SOURCE == componentType) {
+                    this.functionAdmin.sources().restartSource(tenant, namespace, functionName);
+                } else if (ComponentType.SINK == componentType) {
+                    this.functionAdmin.sinks().restartSink(tenant, namespace, functionName);
+                } else {
+                    this.functionAdmin.functions().restartFunction(tenant, namespace, functionName);
+                }
             }
         } else {
             for (Assignment assignment : assignments) {
@@ -442,8 +452,19 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         }
                         continue;
                     }
-                    this.functionAdmin.functions().restartFunction(tenant, namespace, functionName,
-                                assignment.getInstance().getInstanceId());
+
+                    ComponentType componentType = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getComponentType();
+
+                    if (ComponentType.SOURCE == componentType) {
+                        this.functionAdmin.sources().restartSource(tenant, namespace, functionName,
+                            assignment.getInstance().getInstanceId());
+                    } else if (ComponentType.SINK == componentType) {
+                        this.functionAdmin.sinks().restartSink(tenant, namespace, functionName,
+                            assignment.getInstance().getInstanceId());
+                    } else {
+                        this.functionAdmin.functions().restartFunction(tenant, namespace, functionName,
+                            assignment.getInstance().getInstanceId());
+                    }
                 }
             }
         }

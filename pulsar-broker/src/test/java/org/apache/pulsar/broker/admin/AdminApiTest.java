@@ -93,6 +93,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -128,6 +129,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -1574,16 +1576,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     long messageTimestamp = System.currentTimeMillis();
     long secondTimestamp = System.currentTimeMillis();
 
-    private void publishMessagesOnPersistentTopic(String topicName, int messages) throws Exception {
-        publishMessagesOnPersistentTopic(topicName, messages, 0, false);
+    private List<MessageId> publishMessagesOnPersistentTopic(String topicName, int messages) throws Exception {
+        return publishMessagesOnPersistentTopic(topicName, messages, 0, false);
     }
 
-    private void publishNullValueMessageOnPersistentTopic(String topicName, int messages) throws Exception {
-        publishMessagesOnPersistentTopic(topicName, messages, 0, true);
+    private List<MessageId> publishNullValueMessageOnPersistentTopic(String topicName, int messages) throws Exception {
+        return publishMessagesOnPersistentTopic(topicName, messages, 0, true);
     }
 
-    private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx,
+    private List<MessageId> publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx,
                                                   boolean nullValue) throws Exception {
+        List<MessageId> messageIds = new ArrayList<>();
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
             .topic(topicName)
             .enableBatching(false)
@@ -1592,14 +1595,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         for (int i = startIdx; i < (messages + startIdx); i++) {
             if (nullValue) {
-                producer.send(null);
+                messageIds.add(producer.send(null));
             } else {
                 String message = "message-" + i;
-                producer.send(message.getBytes());
+                messageIds.add(producer.send(message.getBytes()));
             }
         }
 
         producer.close();
+        return messageIds;
     }
 
     @Test
@@ -2040,7 +2044,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testPersistentTopicsExpireMessages() throws Exception {
-
         // Force to create a topic
         publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/ds2", 0);
         assertEquals(admin.topics().getList("prop-xyz/ns1"),
@@ -2060,21 +2063,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getSubscriptions("persistent://prop-xyz/ns1/ds2").size(), 3);
 
-        publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/ds2", 10);
+        List<MessageId> messageIds = publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/ds2", 10);
 
         TopicStats topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
         assertEquals(topicStats.subscriptions.get("my-sub1").msgBacklog, 10);
         assertEquals(topicStats.subscriptions.get("my-sub2").msgBacklog, 10);
         assertEquals(topicStats.subscriptions.get("my-sub3").msgBacklog, 10);
 
-        Thread.sleep(1000); // wait for 1 seconds to expire message
+        Thread.sleep(1000);
         admin.topics().expireMessages("persistent://prop-xyz/ns1/ds2", "my-sub1", 1);
-        Thread.sleep(1000); // wait for 1 seconds to execute expire message as it is async
-
+        // Wait at most 2 seconds for sub1's message to expire.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+                admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub1").lastMarkDeleteAdvancedTimestamp > 0L));
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
         SubscriptionStats subStats1 = topicStats.subscriptions.get("my-sub1");
         assertEquals(subStats1.msgBacklog, 0);
-        assertTrue(subStats1.lastMarkDeleteAdvancedTimestamp > 0L);
         SubscriptionStats subStats2 = topicStats.subscriptions.get("my-sub2");
         assertEquals(subStats2.msgBacklog, 10);
         assertEquals(subStats2.lastMarkDeleteAdvancedTimestamp, 0L);
@@ -2082,24 +2085,74 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(subStats3.msgBacklog, 10);
         assertEquals(subStats3.lastMarkDeleteAdvancedTimestamp, 0L);
 
-        admin.topics().expireMessagesForAllSubscriptions("persistent://prop-xyz/ns1/ds2", 1);
-        Thread.sleep(1000); // wait for 1 seconds to execute expire message as it is async
-
+        admin.topics().expireMessages("persistent://prop-xyz/ns1/ds2", "my-sub2",
+                messageIds.get(4), false);
+        // Wait at most 2 seconds for sub2's message to expire.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+                admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub2").lastMarkDeleteAdvancedTimestamp > 0L));
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
-        SubscriptionStats newSubStats1 = topicStats.subscriptions.get("my-sub1");
-        assertEquals(newSubStats1.msgBacklog, 0);
-        assertEquals(newSubStats1.lastMarkDeleteAdvancedTimestamp, subStats1.lastMarkDeleteAdvancedTimestamp);
-        SubscriptionStats newSubStats2 = topicStats.subscriptions.get("my-sub2");
-        assertEquals(newSubStats2.msgBacklog, 0);
-        assertTrue(newSubStats2.lastMarkDeleteAdvancedTimestamp > subStats2.lastMarkDeleteAdvancedTimestamp);
-        SubscriptionStats newSubStats3 = topicStats.subscriptions.get("my-sub3");
-        assertEquals(newSubStats3.msgBacklog, 0);
-        assertTrue(newSubStats3.lastMarkDeleteAdvancedTimestamp > subStats3.lastMarkDeleteAdvancedTimestamp);
+        subStats1 = topicStats.subscriptions.get("my-sub1");
+        assertEquals(subStats1.msgBacklog, 0);
+        assertTrue(subStats1.lastMarkDeleteAdvancedTimestamp > 0L);
+        Long sub2lastMarkDeleteAdvancedTimestamp = subStats1.lastMarkDeleteAdvancedTimestamp;
+        subStats2 = topicStats.subscriptions.get("my-sub2");
+        assertEquals(subStats2.msgBacklog, 5);
+        subStats3 = topicStats.subscriptions.get("my-sub3");
+        assertEquals(subStats3.msgBacklog, 10);
+        assertEquals(subStats3.lastMarkDeleteAdvancedTimestamp, 0L);
+
+        try {
+            admin.topics().expireMessagesForAllSubscriptions("persistent://prop-xyz/ns1/ds2", 1);
+        } catch (Exception e) {
+            // my-sub1 has no msg backlog, so expire message won't be issued on that subscription
+            assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
+        }
+        // Wait at most 2 seconds for sub3's message to expire.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+                admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub3").lastMarkDeleteAdvancedTimestamp > 0L));
+        topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
+        subStats1 = topicStats.subscriptions.get("my-sub1");
+        assertEquals(subStats1.msgBacklog, 0);
+        assertEquals(subStats1.lastMarkDeleteAdvancedTimestamp, subStats1.lastMarkDeleteAdvancedTimestamp);
+        // Wait at most 2 seconds for rest of sub2's message to expire.
+        subStats2 = topicStats.subscriptions.get("my-sub2");
+        assertEquals(subStats2.msgBacklog, 0);
+        assertTrue(subStats2.lastMarkDeleteAdvancedTimestamp > sub2lastMarkDeleteAdvancedTimestamp);
+        subStats3 = topicStats.subscriptions.get("my-sub3");
+        assertEquals(subStats3.msgBacklog, 0);
 
         consumer1.close();
         consumer2.close();
         consumer3.close();
+    }
 
+    @Test
+    public void testPersistentTopicsExpireMessagesInvalidPartitionIndex() throws Exception {
+        // Force to create a topic
+        publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/ds2-partition-2", 0);
+        assertEquals(admin.topics().getList("prop-xyz/ns1"),
+                Lists.newArrayList("persistent://prop-xyz/ns1/ds2-partition-2"));
+
+        // create consumer and subscription
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer()
+                .topic("persistent://prop-xyz/ns1/ds2-partition-2")
+                .subscriptionType(SubscriptionType.Shared);
+        @Cleanup
+        Consumer<byte[]> consumer = consumerBuilder.clone().subscriptionName("my-sub").subscribe();
+
+        assertEquals(admin.topics().getSubscriptions("persistent://prop-xyz/ns1/ds2-partition-2").size(), 1);
+        publishMessagesOnPersistentTopic("persistent://prop-xyz/ns1/ds2-partition-2", 10);
+        try {
+            admin.topics().expireMessages("persistent://prop-xyz/ns1/ds2-partition-2", "my-sub",
+                    new MessageIdImpl(1, 1, 1), false);
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Invalid parameter for expire message by position"));
+        }
     }
 
     /**
@@ -2451,21 +2504,28 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertTrue(admin.topics().compactionStatus(topicName).lastError.contains("Failed at something"));
     }
 
-    @Test(timeOut = 90000)
+    @Test(timeOut = 20000)
     public void testTopicStatsLastExpireTimestampForSubscription() throws PulsarAdminException, PulsarClientException, InterruptedException {
-        admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 60);
+        admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 10);
         final String topic = "persistent://prop-xyz/ns1/testTopicStatsLastExpireTimestampForSubscription";
-        Consumer<byte[]> producer = pulsarClient.newConsumer()
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+        for (int i = 0; i < 10; i++) {
+            producer.send(new byte[1024 * i * 5]);
+        }
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topic(topic)
             .subscriptionName("sub-1")
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
             .subscribe();
 
         Assert.assertEquals(admin.topics().getStats(topic).subscriptions.size(), 1);
         Assert.assertEquals(admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp, 0L);
-
-        Thread.sleep(60000);
-
-        Assert.assertTrue(admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
+        Thread.sleep(10000);
+        // Update policy to trigger message expiry check.
+        admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 5);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
     }
 
     @Test(timeOut = 150000)
@@ -2587,5 +2647,64 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         ConsumerStats consumerStats = subStats.consumers.get(0);
         Assert.assertEquals(consumerStats.getReadPositionWhenJoining(),
                 PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId() + 1).toString());
+    }
+
+    @Test
+    public void testPartitionedTopicMsgDelayedAggregated() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testPartitionedTopicMsgDelayedAggregated-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+        final int numPartitions = 2;
+        conf.setSubscriptionRedeliveryTrackerEnabled(true);
+        conf.setDelayedDeliveryEnabled(true);
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        for (int i = 0; i < 2; i++) {
+            pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName(subName)
+                    .subscribe();
+        }
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        final int messages = 100;
+        for (int i = 0; i < messages; i++) {
+            String msg = "Hello Pulsar - " + i;
+            producer.send(msg.getBytes());
+            producer.newMessage().deliverAfter(1L, TimeUnit.HOURS).value(msg.getBytes()).send();
+        }
+        PartitionedTopicStats partitionedTopicStats = admin.topics().getPartitionedStats(topic, false);
+        Assert.assertNotNull(partitionedTopicStats);
+        SubscriptionStats subStats = partitionedTopicStats.subscriptions.get(subName);
+        Assert.assertNotNull(subStats);
+        Assert.assertEquals(subStats.msgBacklog, subStats.msgBacklogNoDelayed + subStats.msgDelayed);
+
+        partitionedTopicStats = admin.topics().getPartitionedStats(topic, true);
+        Assert.assertNotNull(partitionedTopicStats);
+        subStats = partitionedTopicStats.subscriptions.get(subName);
+        Assert.assertNotNull(subStats);
+        Assert.assertEquals(subStats.msgBacklog, subStats.msgBacklogNoDelayed + subStats.msgDelayed);
+        Assert.assertNotNull(partitionedTopicStats.partitions);
+        Assert.assertEquals(partitionedTopicStats.partitions.size(), numPartitions);
+
+        long sumMsgBacklog = 0;
+        long sumMsgBacklogNoDelayed = 0;
+        long sumMsgDelayed = 0;
+        for(TopicStats stats: partitionedTopicStats.partitions.values()){
+            Assert.assertNotNull(stats);
+            SubscriptionStats partitionedSubStats = stats.subscriptions.get(subName);
+            Assert.assertNotNull(partitionedSubStats);
+            sumMsgBacklog += partitionedSubStats.msgBacklog;
+            sumMsgBacklogNoDelayed += partitionedSubStats.msgBacklogNoDelayed;
+            sumMsgDelayed += partitionedSubStats.msgDelayed;
+        }
+        Assert.assertEquals(sumMsgBacklog, sumMsgBacklogNoDelayed + sumMsgDelayed);
+        Assert.assertEquals(sumMsgBacklog, subStats.msgBacklog);
+        Assert.assertEquals(sumMsgBacklogNoDelayed, subStats.msgBacklogNoDelayed);
+        Assert.assertEquals(sumMsgDelayed, subStats.msgDelayed);
     }
 }

@@ -24,11 +24,14 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,7 +52,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -63,6 +67,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceExcept
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -75,23 +80,17 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-
-import lombok.Cleanup;
-
 /**
  */
+@Slf4j
 public class BrokerServiceTest extends BrokerTestBase {
 
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
@@ -109,6 +108,13 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    // method for resetting state explicitly
+    // this is required since setup & cleanup are using BeforeClass & AfterClass
+    private void resetState() throws Exception {
+        cleanup();
+        setup();
     }
 
     @Test
@@ -147,6 +153,9 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testBrokerServicePersistentTopicStats() throws Exception {
+        // this test might fail if there are stats from other tests
+        resetState();
+
         final String topicName = "persistent://prop/ns-abc/successTopic";
         final String subName = "successSub";
 
@@ -161,7 +170,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // subscription stats
@@ -182,7 +191,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // publisher stats
@@ -220,7 +229,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
         assertEquals(stats.offloadedStorageSize, 0);
 
@@ -234,17 +243,20 @@ public class BrokerServiceTest extends BrokerTestBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         assertNotNull(topicRef);
-        assertEquals(topicRef.getStats(false).storageSize, 0);
+        assertEquals(topicRef.getStats(false, false).storageSize, 0);
 
         for (int i = 0; i < 10; i++) {
             producer.send(new byte[10]);
         }
 
-        assertTrue(topicRef.getStats(false).storageSize > 0);
+        assertTrue(topicRef.getStats(false, false).storageSize > 0);
     }
 
     @Test
     public void testBrokerServicePersistentRedeliverTopicStats() throws Exception {
+        // this test might fail if there are stats from other tests
+        resetState();
+
         final String topicName = "persistent://prop/ns-abc/successSharedTopic";
         final String subName = "successSharedSub";
 
@@ -259,7 +271,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // subscription stats
@@ -277,7 +289,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // publisher stats
@@ -312,7 +324,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
         assertTrue(subStats.msgRateRedeliver > 0.0);
         assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
@@ -326,7 +338,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false);
+        stats = topicRef.getStats(false, false);
         subStats = stats.subscriptions.values().iterator().next();
 
         assertEquals(subStats.msgBacklog, 0);
@@ -382,6 +394,9 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testBrokerServiceNamespaceStats() throws Exception {
+        // this test fails if there is state from other tests
+        resetState();
+
         final int numBundles = 4;
         final String ns1 = "prop/stats1";
         final String ns2 = "prop/stats2";
@@ -1000,5 +1015,34 @@ public class BrokerServiceTest extends BrokerTestBase {
             sb.append(str);
         }
         Assert.assertTrue(sb.toString().contains("test_metrics"));
+    }
+
+    @Test
+    public void shouldNotPreventCreatingTopicWhenNonexistingTopicIsCached() throws Exception {
+        // run multiple iterations to increase the chance of reproducing a race condition in the topic cache
+        for (int i = 0; i < 100; i++) {
+            final String topicName = "persistent://prop/ns-abc/topic-caching-test-topic" + i;
+            CountDownLatch latch = new CountDownLatch(1);
+            Thread getStatsThread = new Thread(() -> {
+                try {
+                    latch.countDown();
+                    // create race condition with a short delay
+                    // the bug might not reproduce in all environments, this works at least on i7-10750H CPU
+                    Thread.sleep(1);
+                    admin.topics().getStats(topicName);
+                    fail("The topic should not exist yet.");
+                } catch (PulsarAdminException.NotFoundException e) {
+                    // expected exception
+                } catch (PulsarAdminException | InterruptedException e) {
+                    log.error("Exception in {}", Thread.currentThread().getName(), e);
+                }
+            }, "getStatsThread#" + i);
+            getStatsThread.start();
+            latch.await();
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+            assertNotNull(producer);
+            getStatsThread.join();
+        }
     }
 }

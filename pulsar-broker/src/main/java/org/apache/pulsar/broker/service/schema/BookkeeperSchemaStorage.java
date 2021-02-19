@@ -33,14 +33,17 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 
 import org.apache.bookkeeper.client.BKException;
@@ -51,6 +54,7 @@ import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
@@ -132,7 +136,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @Override
     public CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key) {
         CompletableFuture<List<CompletableFuture<StoredSchema>>> result = new CompletableFuture<>();
-        getSchemaLocator(getSchemaPath(key)).thenAccept(locator -> {
+        getLocator(key).thenAccept(locator -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Get all schemas - locator: {}", key, locator);
             }
@@ -157,9 +161,42 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return result;
     }
 
+    private CompletableFuture<Optional<LocatorEntry>> getLocator(String key) {
+        return getSchemaLocator(getSchemaPath(key));
+    }
+
+    public void clearLocatorCache(String key) {
+        localZkCache.invalidate(getSchemaPath(key));
+    }
+
+    @VisibleForTesting
+    List<Long> getSchemaLedgerList(String key) throws IOException {
+        Optional<LocatorEntry> locatorEntry = null;
+        try {
+            locatorEntry = getLocator(key).get();
+        } catch (Exception e) {
+            log.warn("Failed to get list of schema-storage ledger for {}", key,
+                    (e instanceof ExecutionException ? e.getCause() : e));
+            throw new IOException("Failed to get schema ledger for" + key);
+        }
+        LocatorEntry entry = locatorEntry.orElse(null);
+        return entry != null ? entry.locator.getIndexList().stream().map(i -> i.getPosition().getLedgerId())
+                .collect(Collectors.toList()) : null;
+    }
+
+    @VisibleForTesting
+    BookKeeper getBookKeeper() {
+        return bookKeeper;
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> delete(String key, boolean forcefully) {
+        return deleteSchema(key, forcefully).thenApply(LongSchemaVersion::new);
+    }
+
     @Override
     public CompletableFuture<SchemaVersion> delete(String key) {
-        return deleteSchema(key).thenApply(LongSchemaVersion::new);
+        return delete(key, false);
     }
 
     @NotNull
@@ -350,9 +387,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<Long> deleteSchema(String schemaId) {
-        return getSchema(schemaId).thenCompose(schemaAndVersion -> {
-            if (isNull(schemaAndVersion)) {
+    private CompletableFuture<Long> deleteSchema(String schemaId, boolean forceFully) {
+        return (forceFully ? CompletableFuture.completedFuture(null) : getSchema(schemaId))
+                .thenCompose(schemaAndVersion -> {
+            if (!forceFully && isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
                 // The version is only for the compatibility of the current interface
@@ -373,6 +411,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                                 } catch (InterruptedException | KeeperException e) {
                                     future.completeExceptionally(e);
                                 }
+                                clearLocatorCache(getSchemaPath(schemaId));
                                 future.complete(version);
                             }
                         }, null);
@@ -589,6 +628,28 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return future;
     }
 
+    public CompletableFuture<List<Long>> getStoreLedgerIdsBySchemaId(String schemaId) {
+        CompletableFuture<List<Long>> ledgerIdsFuture = new CompletableFuture<>();
+        getSchemaLocator(getSchemaPath(schemaId)).thenAccept(locator -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Get all store schema ledgerIds - locator: {}", schemaId, locator);
+            }
+
+            if (!locator.isPresent()) {
+                ledgerIdsFuture.complete(Collections.emptyList());
+                return;
+            }
+            Set<Long> ledgerIds = new HashSet<>();
+            SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
+            schemaLocator.getIndexList().forEach(indexEntry -> ledgerIds.add(indexEntry.getPosition().getLedgerId()));
+            ledgerIdsFuture.complete(new ArrayList<>(ledgerIds));
+        }).exceptionally(e -> {
+            ledgerIdsFuture.completeExceptionally(e);
+            return null;
+        });
+        return ledgerIdsFuture;
+    }
+
     interface Functions {
         static CompletableFuture<LedgerEntry> getLedgerEntry(LedgerHandle ledger, long entry) {
             final CompletableFuture<LedgerEntry> future = new CompletableFuture<>();
@@ -656,6 +717,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         if (entryId != -1) {
             message += " - entry=" + entryId;
         }
-        return new IOException(message);
+        boolean recoverable = rc != BKException.Code.NoSuchLedgerExistsException
+                && rc != BKException.Code.NoSuchEntryException;
+        return new SchemaException(recoverable, message);
     }
 }

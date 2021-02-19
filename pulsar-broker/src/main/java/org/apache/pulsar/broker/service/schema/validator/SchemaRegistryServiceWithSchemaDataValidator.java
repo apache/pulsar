@@ -103,7 +103,12 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
 
     @Override
     public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
-        return service.deleteSchemaStorage(schemaId);
+        return deleteSchemaStorage(schemaId, false);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
+        return service.deleteSchemaStorage(schemaId, forcefully);
     }
 
     @Override

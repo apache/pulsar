@@ -23,6 +23,8 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
@@ -119,6 +121,7 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
@@ -1021,6 +1024,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return size;
             }
         }
+    }
+
+    /**
+     * Get estimated backlog size from a specific position.
+     */
+    public long getEstimatedBacklogSize(PositionImpl pos) {
+        if (pos == null) {
+            return 0;
+        }
+        return estimateBacklogFromPosition(pos);
     }
 
     long estimateBacklogFromPosition(PositionImpl pos) {
@@ -3293,7 +3306,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     config.getBookKeeperEnsemblePlacementPolicyClassName(),
                     config.getBookKeeperEnsemblePlacementPolicyProperties()
                 ));
-            } catch (JsonUtil.ParseJsonException e) {
+            } catch (EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException e) {
                 log.error("[{}] Serialize the placement configuration failed", name, e);
                 cb.createComplete(Code.UnexpectedConditionException, null, ledgerCreated);
                 return;

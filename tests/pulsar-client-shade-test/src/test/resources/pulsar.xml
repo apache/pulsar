@@ -22,9 +22,10 @@
 <!-- TODO: we have to put suite files in one file to avoid executing TESTNG test suites multiple times.
            see {@link https://github.com/cbeust/testng/issues/508} -->
 <suite name="Pulsar Shade Tests" verbose="2" annotations="JDK">
-    <test name="pulsar-client-and-admin-shade-suite" preserve-order="true" >
+    <test name="pulsar-client-shade-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.SmokeTest" />
+            <class name="org.apache.pulsar.tests.integration.SimpleProducerConsumerTest" />
         </classes>
     </test>
 </suite>

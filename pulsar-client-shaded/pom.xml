@@ -104,6 +104,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
+                  <include>org.apache.pulsar:pulsar-client-api</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>

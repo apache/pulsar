@@ -769,7 +769,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public NonPersistentTopicStats getStats(boolean getPreciseBacklog) {
+    public NonPersistentTopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
 
         NonPersistentTopicStats stats = new NonPersistentTopicStats();
 

@@ -116,12 +116,15 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Is return precise backlog or imprecise backlog")
-            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
+            @ApiParam(value = "If return precise backlog or imprecise backlog")
+            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
+            @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
+                    + "not to use when there's heavy traffic.")
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminOperationOnTopic(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog);
+        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, subscriptionBacklogSize);
     }
 
     @GET

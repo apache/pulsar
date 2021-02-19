@@ -30,15 +30,16 @@
         <version>2.7.0</version>
     </parent>
 
-    <artifactId>pulsar-client-and-admin-shade-test</artifactId>
+    <artifactId>pulsar-client-shade-test</artifactId>
     <packaging>jar</packaging>
-    <name>Apache Pulsar :: Tests :: Pulsar-Client-And-Admin-Shade Test</name>
+    <name>Apache Pulsar :: Tests :: Pulsar-Client-Shade Test</name>
 
     <dependencies>
 
         <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>pulsar-client</artifactId>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -51,7 +52,7 @@
 
         <dependency>
             <groupId>org.apache.pulsar</groupId>
-            <artifactId>pulsar-client</artifactId>
+            <artifactId>pulsar-common</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
@@ -130,6 +131,4 @@
             </build>
         </profile>
     </profiles>
-
-
 </project>
