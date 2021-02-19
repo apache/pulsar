@@ -295,14 +295,26 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             SchemaData schemaData) {
         final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
         SchemaVersion schemaVersion;
-        if (schemaData.getData().length != 0) {
+        if (schemaData.getType() == SchemaType.AVRO
+                || schemaData.getType() == SchemaType.JSON
+                || schemaData.getType() == SchemaType.PROTOBUF) {
             Schema.Parser parser = new Schema.Parser();
             Schema newSchema = parser.parse(new String(schemaData.getData(), UTF_8));
+
             for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
-                if (schemaAndMetadata.schema.getData().length != 0) {
+                if (schemaAndMetadata.schema.getType() == SchemaType.AVRO
+                        || schemaAndMetadata.schema.getType() == SchemaType.JSON
+                        || schemaAndMetadata.schema.getType() == SchemaType.PROTOBUF) {
                     Schema.Parser existParser = new Schema.Parser();
                     Schema existSchema = existParser.parse(new String(schemaAndMetadata.schema.getData(), UTF_8));
                     if (newSchema.equals(existSchema)) {
+                        schemaVersion = schemaAndMetadata.version;
+                        completableFuture.complete(schemaVersion);
+                        return completableFuture;
+                    }
+                } else {
+                    if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(),
+                            hashFunction.hashBytes(schemaData.getData()).asBytes())) {
                         schemaVersion = schemaAndMetadata.version;
                         completableFuture.complete(schemaVersion);
                         return completableFuture;

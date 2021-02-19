@@ -51,6 +51,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 
 @Slf4j
@@ -339,8 +340,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         
         try {
             producerThreeBuilder.create();
+            fail();
         } catch (Exception e) {
-            e.printStackTrace();
             Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
     }
