@@ -22,7 +22,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public class TenantResources extends BaseResources<TenantInfo> {
-    public TenantResources(MetadataStoreExtended store) {
-        super(store, TenantInfo.class);
+    public TenantResources(MetadataStoreExtended store, int operationTimeoutSec) {
+        super(store, TenantInfo.class, operationTimeoutSec);
     }
 }

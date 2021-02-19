@@ -497,6 +497,7 @@ public class PulsarWorkerService implements WorkerService {
               schedulerManager,
               functionRuntimeManager,
               functionMetaDataManager,
+              membershipManager,
               errorNotifier);
 
             log.info("/** Start Leader Service **/");

@@ -30,6 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -1181,6 +1182,40 @@ public interface Topics {
      */
     CompletableFuture<Void> expireMessagesAsync(String topic, String subscriptionName,
             long expireTimeInSeconds);
+
+    /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            Position before which all messages will be expired.
+     * @param isExcluded
+     *            Will message at passed in position also be expired.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void expireMessages(String topic, String subscriptionName, MessageId messageId, boolean isExcluded)
+            throws PulsarAdminException;
+
+    /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription asynchronously.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            Position before which all messages will be expired.
+     * @param isExcluded
+     *            Will message at passed in position also be expired.
+     * @return
+     *            A {@link CompletableFuture} that'll be completed when expire message is done.
+     */
+    CompletableFuture<Void> expireMessagesAsync(String topic, String subscriptionName,
+                                                MessageId messageId, boolean isExcluded);
 
     /**
      * Expire all messages older than given N seconds for all subscriptions of the persistent-topic.
@@ -2844,6 +2879,47 @@ public interface Topics {
      * @return
      */
     CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String topic);
+
+    /**
+     * Set is enable sub types.
+     *
+     * @param topic
+     * @param subscriptionTypesEnabled
+     *            is enable subTypes
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionTypesEnabled(String topic,
+                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
+
+    /**
+     * Set is enable sub types asynchronously.
+     *
+     * @param topic
+     * @param subscriptionTypesEnabled
+     *            is enable subTypes
+     */
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String topic,
+                                                             Set<SubscriptionType> subscriptionTypesEnabled);
+
+    /**
+     * Get is enable sub types.
+     *
+     * @param topic
+     *            is topic for get is enable sub types
+     * @return set of enable sub types {@link Set<SubscriptionType>}
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Set<SubscriptionType> getSubscriptionTypesEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * Get is enable sub types asynchronously.
+     *
+     * @param topic
+     *            is topic for get is enable sub types
+     */
+    CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic);
 
     /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).

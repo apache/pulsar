@@ -312,5 +312,10 @@ module.exports = [
         name: 'Appen',
         url: 'https://www.appen.com.cn/',
         logo: 'https://resources.appen.com/wp-content/uploads/2020/03/no-tagline.svg',
+    },
+    {
+        name: 'Pandio',
+        url: 'https://pandio.com',
+        logo: 'https://pandio-public-assets.s3-us-west-2.amazonaws.com/pandio_225-05.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

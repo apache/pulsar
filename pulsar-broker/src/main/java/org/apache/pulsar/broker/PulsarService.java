@@ -490,7 +490,8 @@ public class PulsarService implements AutoCloseable {
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
             configurationMetadataStore = createConfigurationMetadataStore();
-            pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore);
+            pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
+                    config.getZooKeeperOperationTimeoutSeconds());
 
             orderedExecutor = OrderedExecutor.newBuilder()
                     .numThreads(config.getNumOrderedExecutorThreads())
@@ -573,7 +574,8 @@ public class PulsarService implements AutoCloseable {
                     "org.apache.pulsar.broker.lookup", true, attributeMap);
             this.metricsServlet = new PrometheusMetricsServlet(
                     this, config.isExposeTopicLevelMetricsInPrometheus(),
-                    config.isExposeConsumerLevelMetricsInPrometheus());
+                    config.isExposeConsumerLevelMetricsInPrometheus(),
+                    config.isExposeProducerLevelMetricsInPrometheus());
             if (pendingMetricsProviders != null) {
                 pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
                 this.pendingMetricsProviders = null;

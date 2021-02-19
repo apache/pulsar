@@ -22,10 +22,11 @@ on:
   pull_request:
     branches:
       - master
+    paths-ignore: ['site2/**', 'deployment/**']
   push:
     branches:
       - branch-*
-
+    paths-ignore: ['site2/**', 'deployment/**']
 env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
@@ -45,14 +46,7 @@ jobs:
           fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
-
       - name: Cache local Maven repository
-        if: steps.docs.outputs.changed_only == 'no'
         uses: actions/cache@v2
         with:
           path: ~/.m2/repository
@@ -61,11 +55,9 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: build modules
-        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
       - name: run unit test 'BROKER_GROUP_1'
-        if: steps.docs.outputs.changed_only == 'no'
         run: ./build/run_unit_group.sh BROKER_GROUP_1
 
       - name: package surefire artifacts

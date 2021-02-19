@@ -25,6 +25,9 @@ import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,6 +41,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
@@ -47,11 +51,13 @@ import org.apache.zookeeper.AsyncCallback.StringCallback;
 import org.apache.zookeeper.AsyncCallback.VoidCallback;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
+import org.apache.zookeeper.client.HostProvider;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 import org.objenesis.instantiator.ObjectInstantiator;
+import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,6 +131,8 @@ public class MockZooKeeper extends ZooKeeper {
             zk.init(executor);
             zk.readOpDelayMs = readOpDelayMs;
             zk.mutex = new ReentrantLock();
+            ObjectInstantiator<ClientCnxn> clientCnxnObjectInstantiator = objenesis.getInstantiatorOf(ClientCnxn.class);
+            Whitebox.setInternalState(zk, "cnxn", clientCnxnObjectInstantiator.newInstance());
             zk.sequentialIdGenerator =  new AtomicLong();
             return zk;
         } catch (RuntimeException e) {
@@ -880,6 +888,36 @@ public class MockZooKeeper extends ZooKeeper {
             return;
         }
 
+    }
+
+    @Override
+    public void multi(Iterable<org.apache.zookeeper.Op> ops, AsyncCallback.MultiCallback cb, Object ctx) {
+        try {
+            List<OpResult> res = multi(ops);
+            cb.processResult(KeeperException.Code.OK.intValue(), (String)null, ctx, res);
+        } catch (Exception e) {
+            cb.processResult(KeeperException.Code.APIERROR.intValue(), (String)null, ctx, null);
+        }
+    }
+
+    @Override
+    public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
+        List<OpResult> res = new ArrayList<>();
+        for (org.apache.zookeeper.Op op : ops) {
+            switch (op.getType()) {
+                case ZooDefs.OpCode.create:
+                    this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
+                    res.add(new OpResult.CreateResult(op.getPath()));
+                case ZooDefs.OpCode.delete:
+                    this.delete(op.getPath(), -1);
+                    res.add(new OpResult.DeleteResult());
+                case ZooDefs.OpCode.setData:
+                    this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
+                    res.add(new OpResult.SetDataResult(null));
+                default:
+            }
+        }
+        return res;
     }
 
     @Override

@@ -175,7 +175,7 @@ public class PulsarFunctionE2ETest {
 
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
-        Set<String> superUsers = Sets.newHashSet("superUser");
+        Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
@@ -614,7 +614,7 @@ public class PulsarFunctionE2ETest {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testReadCompactedSink() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
