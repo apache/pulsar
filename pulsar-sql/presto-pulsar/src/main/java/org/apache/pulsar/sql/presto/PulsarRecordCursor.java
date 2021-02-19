@@ -80,6 +80,7 @@ public class PulsarRecordCursor implements RecordCursor {
     private ReadOnlyCursor cursor;
     private SpscArrayQueue<RawMessage> messageQueue;
     private SpscArrayQueue<Entry> entryQueue;
+    private CacheSizeAllocator entryCacheSizeAllocator;
     private RawMessage currentMessage;
     private int maxBatchSize;
     private long completedBytes = 0;
@@ -137,6 +138,10 @@ public class PulsarRecordCursor implements RecordCursor {
                         pulsarConnectorConfig),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
         this.decoderFactory = decoderFactory;
+        if (pulsarConnectorConfig.getMaxSplitEntryQueueSizeBytes() >= 0) {
+            this.entryCacheSizeAllocator = new CacheSizeAllocator(
+                    pulsarConnectorConfig.getMaxSplitEntryQueueSizeBytes());
+        }
     }
 
     // Exposed for testing purposes
@@ -167,6 +172,10 @@ public class PulsarRecordCursor implements RecordCursor {
         this.metricsTracker = pulsarConnectorMetricsTracker;
         this.readOffloaded = pulsarConnectorConfig.getManagedLedgerOffloadDriver() != null;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
+        if (pulsarConnectorConfig.getMaxSplitEntryQueueSizeBytes() >= 0) {
+            this.entryCacheSizeAllocator = new CacheSizeAllocator(
+                    pulsarConnectorConfig.getMaxSplitEntryQueueSizeBytes());
+        }
 
         try {
             this.schemaInfoProvider = new PulsarSqlSchemaInfoProvider(this.topicName,
@@ -249,6 +258,10 @@ public class PulsarRecordCursor implements RecordCursor {
                     public void accept(Entry entry) {
 
                         try {
+                            if (entryCacheSizeAllocator != null) {
+                                entryCacheSizeAllocator.release(entry.getLength());
+                            }
+
                             long bytes = entry.getDataBuffer().readableBytes();
                             completedBytes += bytes;
                             // register stats for bytes read
@@ -348,7 +361,15 @@ public class PulsarRecordCursor implements RecordCursor {
                             entriesProcessed += entriesToSkip;
                         } else {
                             outstandingReadsRequests.decrementAndGet();
-                            cursor.asyncReadEntries(batchSize, this, System.nanoTime(), PositionImpl.latest);
+
+                            long maxSizeBytes = -1;
+                            if (entryCacheSizeAllocator != null) {
+                                long availableSizeBytes = entryCacheSizeAllocator.getAvailableCacheSize();
+                                // if the available size is invalid, use 0 as max size bytes, read only one entry
+                                maxSizeBytes = availableSizeBytes < 0 ? 0 : availableSizeBytes;
+                            }
+                            cursor.asyncReadEntries(batchSize, maxSizeBytes,
+                                    this, System.nanoTime(), PositionImpl.latest);
                         }
 
                         // stats for successful read request
@@ -370,6 +391,9 @@ public class PulsarRecordCursor implements RecordCursor {
                 public Entry get() {
                     Entry entry = entries.get(i);
                     i++;
+                    if (entryCacheSizeAllocator != null) {
+                        entryCacheSizeAllocator.allocate(entry.getLength());
+                    }
                     return entry;
                 }
             }, entries.size());
