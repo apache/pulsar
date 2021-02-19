@@ -90,7 +90,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
             int j = 100 * i;
             final Stock stock1 = new Stock(j, "STOCK_" + j , 100.0 + j * 10);
-            final Stock stock2 = new Stock(i,i + "STOCK_" + i , 100.0 + i * 10);
+            final Stock stock2 = new Stock(i, "STOCK_" + i , 100.0 + i * 10);
             producer.send(new KeyValue<>(stock1, stock2));
         }
 
