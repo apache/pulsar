@@ -31,7 +31,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarSQLTestSuite;
@@ -42,19 +44,27 @@ import org.testcontainers.shaded.okhttp3.Request;
 import org.testcontainers.shaded.okhttp3.Response;
 import org.testng.Assert;
 
+
+/**
+ * Pulsar SQL test base.
+ */
 @Slf4j
 public class TestPulsarSQLBase extends PulsarSQLTestSuite {
 
-    protected void pulsarSQLBasicTest(TopicName topic, boolean isBatch, boolean useNsOffloadPolices) throws Exception {
+    protected void pulsarSQLBasicTest(TopicName topic,
+                                      boolean isBatch,
+                                      boolean useNsOffloadPolices,
+                                      Schema schema,
+                                      KeyValueEncodingType keyValueEncodingType) throws Exception {
         waitPulsarSQLReady();
 
         log.info("start prepare data for query. topic: {}", topic);
-        int messageCnt = prepareData(topic, isBatch, useNsOffloadPolices);
+        int messageCnt = prepareData(topic, isBatch, useNsOffloadPolices, schema, keyValueEncodingType);
         log.info("finish prepare data for query. topic: {}, messageCnt: {}", topic, messageCnt);
 
         validateMetadata(topic);
 
-        validateData(topic, messageCnt);
+        validateData(topic, messageCnt, schema);
     }
 
     public void waitPulsarSQLReady() throws Exception {
@@ -98,7 +108,11 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         }
     }
 
-    protected int prepareData(TopicName topicName, boolean isBatch, boolean useNsOffloadPolices) throws Exception {
+    protected int prepareData(TopicName topicName,
+                              boolean isBatch,
+                              boolean useNsOffloadPolices,
+                              Schema schema,
+                              KeyValueEncodingType keyValueEncodingType) throws Exception {
         throw new Exception("Unsupported operation prepareData.");
     }
 
@@ -122,7 +136,11 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         );
     }
 
-    public void validateData(TopicName topicName, int messageNum) throws Exception {
+    protected void validateContent(int messageNum, String[] contentArr, Schema schema) throws Exception {
+        throw new Exception("Unsupported operation validateContent.");
+    }
+
+    private void validateData(TopicName topicName, int messageNum, Schema schema) throws Exception {
         String namespace = topicName.getNamespace();
         String topic = topicName.getLocalName();
 
@@ -135,11 +153,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                     String[] split = containerExecResult.getStdout().split("\n");
                     assertThat(split.length).isEqualTo(messageNum);
                     String[] split2 = containerExecResult.getStdout().split("\n|,");
-                    for (int i = 0; i < messageNum; ++i) {
-                        assertThat(split2).contains("\"" + i + "\"");
-                        assertThat(split2).contains("\"" + "STOCK_" + i + "\"");
-                        assertThat(split2).contains("\"" + (100.0 + i * 10) + "\"");
-                    }
+                    validateContent(messageNum, split2, schema);
                 }
         );
 
