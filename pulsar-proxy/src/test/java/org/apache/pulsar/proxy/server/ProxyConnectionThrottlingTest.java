@@ -64,7 +64,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
         proxyService.close();
