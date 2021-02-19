@@ -219,7 +219,7 @@ public class RuntimeUtils {
             goInstanceConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
 
-        if (instanceConfig.getMetricsPort() > 0 && instanceConfig.getMetricsPort() < 65536) {
+        if (instanceConfig.hasValidMetricsPort()) {
             goInstanceConfig.setMetricsPort(instanceConfig.getMetricsPort());
         }
 
