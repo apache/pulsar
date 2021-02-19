@@ -22,7 +22,6 @@ on:
   pull_request:
     branches:
       - master
-      - branch-*
   push:
     branches:
       - branch-*
