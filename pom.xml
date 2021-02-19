@@ -369,7 +369,7 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-      
+
       <dependency>
          <groupId>org.apache.curator</groupId>
          <artifactId>curator-recipes</artifactId>
@@ -640,7 +640,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jna</artifactId>
         <version>${jna.version}</version>
       </dependency>
-      
+
       <dependency>
          <groupId>com.github.docker-java</groupId>
          <artifactId>docker-java-core</artifactId>
@@ -1119,6 +1119,9 @@ flexible messaging model and an intuitive client API.</description>
               <version>${lombok.version}</version>
             </path>
           </annotationProcessorPaths>
+          <compilerArgs>
+            <arg>-parameters</arg>
+          </compilerArgs>
         </configuration>
       </plugin>
       <plugin>
