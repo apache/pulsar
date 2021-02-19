@@ -56,7 +56,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -108,7 +107,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics = spy(new PersistentTopics());
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(persistentTopics).globalZk();
         doReturn(mockZooKeeper).when(persistentTopics).localZk();
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
@@ -120,7 +118,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         nonPersistentTopic = spy(new NonPersistentTopics());
         nonPersistentTopic.setServletContext(new MockServletContext());
         nonPersistentTopic.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(nonPersistentTopic).globalZk();
         doReturn(mockZooKeeper).when(nonPersistentTopic).localZk();
         doReturn(false).when(nonPersistentTopic).isRequestHttps();
         doReturn(null).when(nonPersistentTopic).originalPrincipal();

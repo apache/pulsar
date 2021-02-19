@@ -28,9 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
@@ -38,7 +36,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
@@ -71,12 +68,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,14 +83,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected BookKeeper bookKeeper() {
         return pulsar().getBookKeeperClient();
-    }
-
-    protected ZooKeeper globalZk() {
-        return pulsar().getGlobalZkCache().getZooKeeper();
-    }
-
-    protected ZooKeeperCache globalZkCache() {
-        return pulsar().getGlobalZkCache();
     }
 
     protected ZooKeeper localZk() {
@@ -110,37 +97,8 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getLocalZkCacheService();
     }
 
-    protected void zkCreate(String path, byte[] content) throws Exception {
-        globalZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-    }
-
     protected void localZKCreate(String path, byte[] content) throws Exception {
         localZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-    }
-
-    protected void zkCreateOptimistic(String path, byte[] content) throws Exception {
-        ZkUtils.createFullPathOptimistic(globalZk(), path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-    }
-
-    protected void zkCreateOptimisticAsync(ZooKeeper zk, String path,
-                                           byte[] content, AsyncCallback.StringCallback callback) {
-        ZkUtils.asyncCreateFullPathOptimistic(zk, path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT, callback, null);
-    }
-
-    protected void zkSync(String path) throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicInteger rc = new AtomicInteger(KeeperException.Code.OK.intValue());
-        globalZk().sync(path, (rc2, s, ctx) -> {
-            if (KeeperException.Code.OK.intValue() != rc2) {
-                rc.set(rc2);
-            }
-            latch.countDown();
-        }, null);
-        latch.await();
-        if (KeeperException.Code.OK.intValue() != rc.get()) {
-            throw KeeperException.create(KeeperException.Code.get(rc.get()));
-        }
     }
 
     /**
@@ -189,17 +147,18 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     /**
-     * Checks whether the broker is allowed to do read-write operations based on the existence of a node in global
-     * zookeeper.
+     * Checks whether the broker is allowed to do read-write operations based on the existence of a node in
+     * configuration metadata-store.
      *
      * @throws WebApplicationException
-     *             if broker has a read only access if broker is not connected to the global zookeeper
+     *             if broker has a read only access if broker is not connected to the configuration metadata-store
      */
     public void validatePoliciesReadOnlyAccess() {
         boolean arePoliciesReadOnly = true;
 
         try {
-            arePoliciesReadOnly = globalZkCache().exists(POLICIES_READONLY_FLAG_PATH);
+            arePoliciesReadOnly = pulsar().getPulsarResources().getNamespaceResources()
+                    .exists(POLICIES_READONLY_FLAG_PATH);
         } catch (Exception e) {
             log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e);
             throw new RestException(e);
@@ -209,15 +168,8 @@ public abstract class AdminResource extends PulsarWebResource {
             log.debug("Policies are read-only. Broker cannot do read-write operations");
             throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
         } else {
-            // Make sure the broker is connected to the global zookeeper before writing. If not, throw an exception.
-            if (globalZkCache().getZooKeeper().getState() != States.CONNECTED) {
-                log.debug("Broker is not connected to the global zookeeper");
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "Broker needs to be connected to global zookeeper before making a read-write operation");
-            } else {
-                // Do nothing, just log the message.
-                log.debug("Broker is allowed to make read-write operations");
-            }
+            // Do nothing, just log the message.
+            log.debug("Broker is allowed to make read-write operations");
         }
     }
 
