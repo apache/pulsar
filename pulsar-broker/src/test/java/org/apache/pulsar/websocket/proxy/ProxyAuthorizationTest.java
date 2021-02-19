@@ -72,7 +72,9 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
-        service.close();
+        if (service != null) {
+            service.close();
+        }
     }
 
     @Test

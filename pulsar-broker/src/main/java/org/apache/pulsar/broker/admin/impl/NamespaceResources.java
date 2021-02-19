@@ -22,19 +22,22 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Getter;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+@Getter
 public class NamespaceResources extends BaseResources<Policies> {
-    @Getter
     private IsolationPolicyResources isolationPolicies;
+    private LocalPoliciesResources localPolicies;
 
-    public NamespaceResources(MetadataStoreExtended store) {
-        super(store, Policies.class);
-        isolationPolicies = new IsolationPolicyResources(store);
+    public NamespaceResources(MetadataStoreExtended localStore, MetadataStoreExtended configurationStore) {
+        super(configurationStore, Policies.class);
+        isolationPolicies = new IsolationPolicyResources(configurationStore);
+        localPolicies = new LocalPoliciesResources(localStore);
     }
 
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationData>> {
@@ -46,6 +49,12 @@ public class NamespaceResources extends BaseResources<Policies> {
         public Optional<NamespaceIsolationPolicies> getPolicies(String path) throws MetadataStoreException {
             Optional<Map<String, NamespaceIsolationData>> data = super.get(path);
             return data.isPresent() ? Optional.of(new NamespaceIsolationPolicies(data.get())) : Optional.empty();
+        }
+    }
+
+    public static class LocalPoliciesResources extends BaseResources<LocalPolicies> {
+        public LocalPoliciesResources(MetadataStoreExtended configurationStore) {
+            super(configurationStore, LocalPolicies.class);
         }
     }
 }

@@ -58,6 +58,11 @@
       <groupId>org.objenesis</groupId>
       <artifactId>objenesis</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-testng</artifactId>
+    </dependency>
   </dependencies>
 
 </project>

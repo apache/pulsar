@@ -87,7 +87,8 @@ class ProcessRuntime implements Runtime {
                    String stateStorageServiceUrl,
                    AuthenticationConfig authConfig,
                    SecretsProviderConfigurator secretsProviderConfigurator,
-                   Long expectedHealthCheckInterval) throws Exception {
+                   Long expectedHealthCheckInterval,
+                   String pulsarWebServiceUrl) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
         this.metricsPort = FunctionCommon.findAvailablePort();
@@ -135,7 +136,8 @@ class ProcessRuntime implements Runtime {
             null,
                 this.metricsPort,
                 narExtractionDirectory,
-                null);
+                null,
+                pulsarWebServiceUrl);
     }
 
     /**

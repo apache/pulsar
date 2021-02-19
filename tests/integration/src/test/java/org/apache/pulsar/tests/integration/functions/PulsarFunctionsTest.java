@@ -25,7 +25,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -35,6 +34,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.failsafe.Failsafe;
@@ -110,6 +111,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
             .onRetry(e -> log.error("Retry ... "));
+    private final AtomicInteger testId = new AtomicInteger(0);
 
     PulsarFunctionsTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);
@@ -2344,7 +2346,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
-        final String outputTopicName = "debe-output-topic-name";
+        final String outputTopicName = "debe-output-topic-name-" + testId.getAndIncrement();
         boolean isJsonConverter = converterClassName.endsWith("JsonConverter");
         final String consumeTopicName = "debezium/mysql-"
                 + (isJsonConverter ? "json" : "avro")
@@ -2440,11 +2442,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getSourceInfoNotFound(tenant, namespace, sourceName);
     }
 
-    private  void testDebeziumPostgreSqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+    private void testDebeziumPostgreSqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
-        final String outputTopicName = "debe-output-topic-name";
+        final String outputTopicName = "debe-output-topic-name-" + testId.getAndIncrement();
         final String consumeTopicName = "debezium/postgresql/dbserver1.inventory.products";
         final String sourceName = "test-source-debezium-postgersql-" + functionRuntimeType + "-" + randomName(8);
 

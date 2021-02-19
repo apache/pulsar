@@ -413,8 +413,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void start() throws Exception {
-        this.producerNameGenerator = new DistributedIdGenerator(pulsar.getZkClient(), PRODUCER_NAME_GENERATOR_PATH,
-                pulsar.getConfiguration().getClusterName());
+        this.producerNameGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
+                PRODUCER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
 
         ServerBootstrap bootstrap = defaultServerBootstrap.clone();
 
@@ -771,7 +771,24 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     // Exceptional topics should be recreated.
                     topics.remove(topic, topicFuture);
                 } else {
-                    return topicFuture;
+                    // a non-existing topic in the cache shouldn't prevent creating a topic
+                    if (createIfMissing) {
+                        if (topicFuture.isDone() && topicFuture.getNow(Optional.empty()).isPresent()) {
+                            return topicFuture;
+                        } else {
+                            return topicFuture.thenCompose(value -> {
+                                if (!value.isPresent()) {
+                                    // retry and create topic
+                                    return getTopic(topic, createIfMissing);
+                                } else {
+                                    // in-progress future completed successfully
+                                    return CompletableFuture.completedFuture(value);
+                                }
+                            });
+                        }
+                    } else {
+                        return topicFuture;
+                    }
                 }
             }
             final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
@@ -1731,7 +1748,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, TopicStats> getTopicStats() {
         HashMap<String, TopicStats> stats = new HashMap<>();
 
-        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false)));
+        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats(false, false)));
 
         return stats;
     }
