@@ -107,7 +107,7 @@ public class MongoSourceTest {
         }).when(mockPublisher).subscribe(any());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         source.close();
         verify(mockMongoClient, times(1)).close();

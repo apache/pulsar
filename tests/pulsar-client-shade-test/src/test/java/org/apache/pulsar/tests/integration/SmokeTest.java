@@ -72,7 +72,7 @@ public class SmokeTest {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup(){
         pulsarContainer.stop();
     }

@@ -49,7 +49,7 @@ public class PackagesManagementImplTest {
         packagesManagement.initialize(storage);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public static void teardown() throws ExecutionException, InterruptedException {
         storage.closeAsync().get();
     }
