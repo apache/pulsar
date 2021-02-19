@@ -478,7 +478,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                     .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
             txn.registerAckOp(ackFuture);
         } else {
-            ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
+            ackFuture = doAcknowledge(messageIdList, ackType, properties, null);
         }
         return ackFuture;
     }
