@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,6 +20,9 @@ package org.apache.pulsar.broker.stats.metrics;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
@@ -27,10 +30,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
-
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 public class ManagedCursorMetrics extends AbstractMetrics {
 
@@ -50,7 +49,7 @@ public class ManagedCursorMetrics extends AbstractMetrics {
 
 
     /**
-     * Aggregation by namespace, ledger, cursor
+     * Aggregation by namespace, ledger, cursor.
      *
      * @return List<Metrics>
      */
