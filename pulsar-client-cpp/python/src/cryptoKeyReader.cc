@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+#include "utils.h"
 
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+CryptoKeyReaderWrapper::CryptoKeyReaderWrapper() {}
 
-public class TenantResources extends BaseResources<TenantInfo> {
-    public TenantResources(MetadataStoreExtended store, int operationTimeoutSec) {
-        super(store, TenantInfo.class, operationTimeoutSec);
-    }
+CryptoKeyReaderWrapper::CryptoKeyReaderWrapper(const std::string& publicKeyPath,
+                                             const std::string& privateKeyPath) {
+    this->cryptoKeyReader = DefaultCryptoKeyReader::create(publicKeyPath, privateKeyPath);
+}
+
+void export_cryptoKeyReader() {
+    using namespace boost::python;
+
+    class_<CryptoKeyReaderWrapper>("CryptoKeyReader", init<const std::string&, const std::string&>());
 }

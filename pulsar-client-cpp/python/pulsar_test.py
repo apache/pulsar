@@ -26,7 +26,8 @@ import uuid
 from datetime import timedelta
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
-            AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition
+            AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition, \
+            CryptoKeyReader
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -355,6 +356,25 @@ class PulsarTest(TestCase):
         except:
             pass  # Exception is expected
 
+        client.close()
+
+    def test_encryption(self):
+        publicKeyPath = "/pulsar//pulsar-broker/src/test/resources/certificate/public-key.client-rsa.pem"
+        privateKeyPath = "/pulsar/pulsar-broker/src/test/resources/certificate/private-key.client-rsa.pem"
+        crypto_key_reader = CryptoKeyReader(publicKeyPath, privateKeyPath)
+        client = Client(self.serviceUrl)
+        topic = 'my-python-test-end-to-end-encryption'
+        consumer = client.subscribe(topic=topic,
+                                    subscription_name='my-subscription',
+                                    crypto_key_reader=crypto_key_reader)
+        producer = client.create_producer(topic=topic,
+                                          encryption_key="client-rsa.pem",
+                                          crypto_key_reader=crypto_key_reader)
+        producer.send('hello')
+        msg = consumer.receive(TM)
+        self.assertTrue(msg)
+        self.assertEqual(msg.value(), 'hello')
+        consumer.unsubscribe()
         client.close()
 
     def test_tls_auth3(self):
