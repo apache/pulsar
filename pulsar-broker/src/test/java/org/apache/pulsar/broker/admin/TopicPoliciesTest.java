@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -54,7 +55,9 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -1581,6 +1584,58 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         //should not fail
         assertNull(admin.topics().getMessageTTL(topic));
+    }
+
+    @Test(timeOut = 30000)
+    public void testSubscriptionTypesEnabled() throws Exception {
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        // use broker.conf
+        pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe().close();
+        assertNull(admin.topics().getSubscriptionTypesEnabled(topic));
+        // set enable failover sub type
+        Set<SubscriptionType> subscriptionTypeSet = new HashSet<>();
+        subscriptionTypeSet.add(SubscriptionType.Failover);
+        admin.topics().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(()
+                -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
+        subscriptionTypeSet = admin.topics().getSubscriptionTypesEnabled(topic);
+        assertTrue(subscriptionTypeSet.contains(SubscriptionType.Failover));
+        assertFalse(subscriptionTypeSet.contains(SubscriptionType.Shared));
+        assertEquals(subscriptionTypeSet.size(), 1);
+        try {
+            pulsarClient.newConsumer().topic(topic)
+                    .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+
+        // add shared type
+        subscriptionTypeSet.add(SubscriptionType.Shared);
+        admin.topics().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
+        pulsarClient.newConsumer().topic(topic)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe().close();
+
+        // test namespace and topic policy
+        subscriptionTypeSet.add(SubscriptionType.Shared);
+        admin.namespaces().setSubscriptionTypesEnabled(myNamespace, subscriptionTypeSet);
+
+        subscriptionTypeSet.clear();
+        subscriptionTypeSet.add(SubscriptionType.Failover);
+        admin.topics().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
+
+        try {
+            pulsarClient.newConsumer().topic(topic)
+                    .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
     }
 
 }
