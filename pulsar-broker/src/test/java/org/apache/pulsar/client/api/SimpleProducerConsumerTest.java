@@ -680,13 +680,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         try {
-            pulsarClient.newProducer().maxPendingMessages(0);
-            Assert.fail("should fail");
-        } catch (IllegalArgumentException e) {
-            // ok
-        }
-
-        try {
             pulsarClient.newProducer().topic("invalid://topic").create();
             Assert.fail("should fail");
         } catch (PulsarClientException e) {
