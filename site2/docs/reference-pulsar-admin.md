@@ -2235,14 +2235,6 @@ Options
 |`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
 |`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
 
-### `last-message-id`
-Get the last commit message id of topic.
-
-Usage
-```bash
-$ pulsar-admin topics last-message-id persistent://tenant/namespace/topic
-```
-
 ### `get-message-by-id`
 Get message by ledger id and entry id
 
@@ -2258,35 +2250,13 @@ Options
 |`-l`, `--ledgerId`|The ledger id |0|
 |`-e`, `--entryId`|The entry id |0|
 
-### `enable-deduplication`
-Enable a deduplication policy for a topic.
+### `last-message-id`
+Get the last commit message id of topic.
 
 Usage
 ```bash
-$ pulsar-admin topics enable-deduplication tenant/namespace/topic
+$ pulsar-admin topics last-message-id persistent://tenant/namespace/topic
 ```
-
-### `disable-deduplication`
-Disable a deduplication policy for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics disable-deduplication tenant/namespace/topic
-```
-
-### `get-deduplication-enabled`
-Get a deduplication policy for a topic enabled.
-
-Usage
-```bash
-$ pulsar-admin topics get-deduplication-enabled tenant/namespace/topic
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-l`, `--limit`|Size limit (eg: 10M, 16G)", required = true)||
-|`-p`, `--policy`|Retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
 
 ### `get-backlog-quotas`
 Get the backlog quota policies for a topic.
@@ -2301,7 +2271,7 @@ Set a backlog quota policy for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-backlog-quota tenant/namespace/topic
+$ pulsar-admin topics set-backlog-quota tenant/namespace/topic options
 ```
 
 ### `remove-backlog-quota`
