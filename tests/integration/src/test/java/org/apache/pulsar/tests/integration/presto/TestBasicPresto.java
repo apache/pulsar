@@ -39,7 +39,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         pulsarCluster.startPrestoWorker();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardownPresto() {
         log.info("[TestBasicPresto] tearing down...");
         pulsarCluster.stopPrestoWorker();

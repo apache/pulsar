@@ -111,6 +111,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -633,6 +634,20 @@ public class PersistentTopic extends AbstractTopic
             );
             return future;
         }
+
+        try {
+            if (!topic.endsWith(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)
+                    && !checkSubscriptionTypesEnable(subType)) {
+                future.completeExceptionally(
+                        new NotAllowedException("Topic[{" + topic + "}] don't support "
+                                + subType.name() + " sub type!"));
+                return future;
+            }
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+            return future;
+        }
+
         if (isBlank(subscriptionName)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Empty subscription name", topic);
@@ -2777,6 +2792,40 @@ public class PersistentTopic extends AbstractTopic
         }
 
         return false;
+    }
+
+    public boolean checkSubscriptionTypesEnable(SubType subType) throws Exception {
+        TopicName topicName = TopicName.get(topic);
+        if (brokerService.pulsar().getConfiguration().isTopicLevelPoliciesEnabled()) {
+            TopicPolicies topicPolicies =
+                    brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
+            if (topicPolicies == null) {
+                return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+            } else {
+                if (topicPolicies.getSubscriptionTypesEnabled().isEmpty()) {
+                    return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+                }
+                return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
+            }
+        } else {
+            return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+        }
+    }
+
+    private boolean checkNsAndBrokerSubscriptionTypesEnable(TopicName topicName, SubType subType) throws Exception {
+        Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
+        if (policies.isPresent()) {
+            if (policies.get().subscription_types_enabled.isEmpty()) {
+                return getBrokerService().getPulsar().getConfiguration()
+                        .getSubscriptionTypesEnabled().contains(subType.name());
+            } else {
+                return policies.get().subscription_types_enabled.contains(subType);
+            }
+        } else {
+            return getBrokerService().getPulsar().getConfiguration()
+                    .getSubscriptionTypesEnabled().contains(subType.name());
+        }
     }
 
     public PositionImpl getMaxReadPosition() {

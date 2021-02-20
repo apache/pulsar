@@ -95,7 +95,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
         webServer.stop();
