@@ -662,6 +662,7 @@ message CommandGetLastMessageId {
 message CommandGetLastMessageIdResponse {
     required MessageIdData last_message_id = 1;
     required uint64 request_id  = 2;
+    optional MessageIdData consumer_mark_delete_position = 3;
 }
 
 message CommandGetTopicsOfNamespace {
