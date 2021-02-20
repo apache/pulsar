@@ -582,47 +582,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompletableFuture<Void> result = new CompletableFuture<>();
         if (retryLetterProducer != null) {
             try {
-                MessageImpl<T> retryMessage = null;
-                String originMessageIdStr = null;
-                String originTopicNameStr = null;
-                if (message instanceof TopicMessageImpl) {
-                    retryMessage = (MessageImpl<T>) ((TopicMessageImpl<T>) message).getMessage();
-                    originMessageIdStr = ((TopicMessageIdImpl) message.getMessageId()).getInnerMessageId().toString();
-                    originTopicNameStr = ((TopicMessageIdImpl) message.getMessageId()).getTopicName();
-                } else if (message instanceof MessageImpl) {
-                    retryMessage = (MessageImpl<T>) message;
-                    originMessageIdStr = ((MessageImpl<T>) message).getMessageId().toString();
-                    originTopicNameStr =  ((MessageImpl<T>) message).getTopicName();
-                }
-                SortedMap<String, String> propertiesMap = new TreeMap<>();
+                MessageImpl<T> retryMessage = (MessageImpl<T>) getMessageImpl(message);
+                String originMessageIdStr = getOriginMessageIdStr(message);
+                String originTopicNameStr = getOriginTopicNameStr(message);
+                SortedMap<String, String> propertiesMap
+                        = getPropertiesMap(message, originMessageIdStr, originTopicNameStr);
                 int reconsumetimes = 1;
-                if (message.getProperties() != null) {
-                    propertiesMap.putAll(message.getProperties());
-                }
-
                 if (propertiesMap.containsKey(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
-                    reconsumetimes = Integer.valueOf(propertiesMap.get(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES));
+                    reconsumetimes = Integer.parseInt(propertiesMap.get(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES));
                     reconsumetimes = reconsumetimes + 1;
-
-                } else {
-                    propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
-                    propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
                 }
-
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES, String.valueOf(reconsumetimes));
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_DELAY_TIME, String.valueOf(unit.toMillis(delayTime)));
 
                 if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount() && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
                     initDeadLetterProducerIfNeeded();
                     MessageId finalMessageId = messageId;
-                    String finalOriginTopicNameStr = originTopicNameStr;
-                    String finalOriginMessageIdStr = originMessageIdStr;
-                    MessageImpl<T> finalRetryMessage = retryMessage;
                     deadLetterProducer.thenAccept(dlqProducer -> {
-                        propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, finalOriginTopicNameStr);
-                        propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, finalOriginMessageIdStr);
                         TypedMessageBuilder<T> typedMessageBuilderNew = dlqProducer.newMessage()
-                                .value(finalRetryMessage.getValue())
+                                .value(retryMessage.getValue())
                                 .properties(propertiesMap);
                         typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
                             doAcknowledge(finalMessageId, ackType, properties, null).thenAccept(v -> {
@@ -668,6 +646,43 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return null;
         });
         return result;
+    }
+
+    private SortedMap<String, String> getPropertiesMap(Message<?> message, String originMessageIdStr, String originTopicNameStr) {
+        SortedMap<String, String> propertiesMap = new TreeMap<>();
+        if (message.getProperties() != null) {
+            propertiesMap.putAll(message.getProperties());
+        }
+        propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
+        propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
+        return propertiesMap;
+    }
+
+    private String getOriginMessageIdStr(Message<?> message) {
+        if (message instanceof TopicMessageImpl) {
+            return  ((TopicMessageIdImpl) message.getMessageId()).getInnerMessageId().toString();
+        } else if (message instanceof MessageImpl) {
+            return message.getMessageId().toString();
+        }
+        return null;
+    }
+
+    private String getOriginTopicNameStr(Message<?> message) {
+        if (message instanceof TopicMessageImpl) {
+            return  ((TopicMessageIdImpl) message.getMessageId()).getTopicName();
+        } else if (message instanceof MessageImpl) {
+            return message.getTopicName();
+        }
+        return null;
+    }
+
+    private MessageImpl<?> getMessageImpl(Message<?> message){
+        if (message instanceof TopicMessageImpl) {
+            return (MessageImpl<?>) ((TopicMessageImpl<?>) message).getMessage();
+        } else if (message instanceof MessageImpl) {
+            return (MessageImpl<?>) message;
+        }
+        return null;
     }
 
     @Override
@@ -1708,9 +1723,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             MessageIdImpl finalMessageId = messageId;
             deadLetterProducer.thenAccept(producerDLQ -> {
                 for (MessageImpl<T> message : finalDeadLetterMessages) {
+                    String originMessageIdStr = getOriginMessageIdStr(message);
+                    String originTopicNameStr = getOriginTopicNameStr(message);
                     producerDLQ.newMessage()
                             .value(message.getValue())
-                            .properties(message.getProperties())
+                            .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr))
                             .sendAsync()
                             .thenAccept(messageIdInDLQ -> {
                                 possibleSendToDeadLetterTopicMessages.remove(finalMessageId);
