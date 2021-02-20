@@ -144,10 +144,16 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         String namespace = topicName.getNamespace();
         String topic = topicName.getLocalName();
 
+        final String queryAllDataSql;
+        if (schemaType.isStruct()) {
+            queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\" order by entryid;", namespace, topic);
+        } else {
+            queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\";", namespace, topic);
+        }
+
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
                 () -> {
-                    ContainerExecResult containerExecResult = execQuery(
-                            String.format("select * from pulsar.\"%s\".\"%s\" order by entryid;", namespace, topic));
+                    ContainerExecResult containerExecResult = execQuery(queryAllDataSql);
                     assertThat(containerExecResult.getExitCode()).isEqualTo(0);
                     log.info("select sql query output \n{}", containerExecResult.getStdout());
                     String[] split = containerExecResult.getStdout().split("\n");
