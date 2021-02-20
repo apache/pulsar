@@ -57,27 +57,20 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -241,7 +234,12 @@ public abstract class AdminResource extends PulsarWebResource {
 
     private CompletableFuture<Void> tryCreatePartitionAsync(final int partition, CompletableFuture<Void> reuseFuture) {
         CompletableFuture<Void> result = reuseFuture == null ? new CompletableFuture<>() : reuseFuture;
-        namespaceResources().getLocalStore()
+        Optional<MetadataStoreExtended> localStore = getPulsarResources().getLocalMetadataStore();
+        if (!localStore.isPresent()) {
+            result.completeExceptionally(new IllegalStateException("metadata store not initialized"));
+            return result;
+        }
+        localStore.get()
                 .put(ZkAdminPaths.managedLedgerPath(topicName.getPartition(partition)), new byte[0], Optional.of(-1L))
                 .thenAccept(r -> {
                     if (log.isDebugEnabled()) {
@@ -406,7 +404,7 @@ public abstract class AdminResource extends PulsarWebResource {
         final String namespace = namespaceName.toString();
         final String policyPath = AdminResource.path(POLICIES, namespace);
 
-        return policiesCache().getAsync(policyPath).thenCompose(policies -> {
+        return namespaceResources().getAsync(policyPath).thenCompose(policies -> {
             if (policies.isPresent()) {
                 return pulsar()
                         .getNamespaceService()
@@ -532,30 +530,10 @@ public abstract class AdminResource extends PulsarWebResource {
         return ObjectMapperFactory.getThreadLocal();
     }
 
-    public ZooKeeperDataCache<TenantInfo> tenantsCache() {
-        return pulsar().getConfigurationCache().propertiesCache();
-    }
-
-    protected ZooKeeperDataCache<Policies> policiesCache() {
-        return pulsar().getConfigurationCache().policiesCache();
-    }
-
-    protected ZooKeeperDataCache<LocalPolicies> localPoliciesCache() {
-        return pulsar().getLocalZkCacheService().policiesCache();
-    }
-
-    protected ZooKeeperDataCache<ClusterData> clustersCache() {
-        return pulsar().getConfigurationCache().clustersCache();
-    }
-
-    protected ZooKeeperManagedLedgerCache managedLedgerListCache() {
-        return pulsar().getLocalZkCacheService().managedLedgerListCache();
-    }
-
     protected Set<String> clusters() {
         try {
             // Remove "global" cluster from returned list
-            Set<String> clusters = pulsar().getConfigurationCache().clustersListCache().get().stream()
+            Set<String> clusters = clusterResources().list().stream()
                     .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster)).collect(Collectors.toSet());
             return clusters;
         } catch (Exception e) {
@@ -563,24 +541,8 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected ZooKeeperChildrenCache clustersListCache() {
-        return pulsar().getConfigurationCache().clustersListCache();
-    }
-
     protected void setServletContext(ServletContext servletContext) {
         this.servletContext = servletContext;
-    }
-
-    protected ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPoliciesCache() {
-        return pulsar().getConfigurationCache().namespaceIsolationPoliciesCache();
-    }
-
-    protected ZooKeeperDataCache<FailureDomain> failureDomainCache() {
-        return pulsar().getConfigurationCache().failureDomainCache();
-    }
-
-    protected ZooKeeperChildrenCache failureDomainListCache() {
-        return pulsar().getConfigurationCache().failureDomainListCache();
     }
 
     protected CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
@@ -686,7 +648,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Policies getNamespacePolicies(String property, String cluster, String namespace) {
         try {
-            Policies policies = policiesCache().get(AdminResource.path(POLICIES, property, cluster, namespace))
+            Policies policies = namespaceResources().get(AdminResource.path(POLICIES, property, cluster, namespace))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
@@ -708,7 +670,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Set<String> getNamespaceReplicatedClusters(NamespaceName namespaceName) {
         try {
-            final Policies policies = policiesCache().get(ZkAdminPaths.namespacePoliciesPath(namespaceName))
+            final Policies policies = namespaceResources().get(ZkAdminPaths.namespacePoliciesPath(namespaceName))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             return policies.replication_clusters;
         } catch (RestException re) {

@@ -159,8 +159,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces.setPulsar(pulsar);
         doReturn(mockZooKeeperGlobal).when(namespaces).globalZk();
         doReturn(mockZooKeeper).when(namespaces).localZk();
-        doReturn(pulsar.getConfigurationCache().propertiesCache()).when(namespaces).tenantsCache();
-        doReturn(pulsar.getConfigurationCache().policiesCache()).when(namespaces).policiesCache();
         doReturn(false).when(namespaces).isRequestHttps();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
