@@ -754,7 +754,7 @@ public class PulsarService implements AutoCloseable {
         try {
             // Namespace not created hence no need to unload it
             String nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
-            if (!this.globalZkCache.exists(
+            if (!this.pulsarResources.getNamespaceResources().exists(
                     AdminResource.path(POLICIES) + "/" + nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
@@ -1059,10 +1059,6 @@ public class PulsarService implements AutoCloseable {
         return localZkCache;
     }
 
-    public ZooKeeperCache getGlobalZkCache() {
-        return globalZkCache;
-    }
-
     public ScheduledExecutorService getExecutor() {
         return executor;
     }
@@ -1344,7 +1340,7 @@ public class PulsarService implements AutoCloseable {
             functionWorkerService.get().initInBroker(
                 config,
                 workerConfig,
-                getGlobalZkCache(),
+                pulsarResources,
                 getConfigurationCacheService(),
                 getInternalConfigurationData()
             );
