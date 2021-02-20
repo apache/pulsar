@@ -135,7 +135,7 @@ public class LoadBalancerTest {
 
 
             ServiceConfiguration config = new ServiceConfiguration();
-            config.setBrokerServicePort(Optional.ofNullable(brokerNativeBrokerPorts[i]));
+            config.setBrokerServicePort(Optional.of(brokerNativeBrokerPorts[i]));
             config.setClusterName("use");
             config.setAdvertisedAddress(localhost);
             config.setAdvertisedAddress("localhost");
@@ -488,7 +488,7 @@ public class LoadBalancerTest {
             sru.setCpu(new ResourceUsage(200, 400));
             lr.setSystemResourceUsage(sru);
 
-            Map<String, NamespaceBundleStats> bundleStats = new HashMap<String, NamespaceBundleStats>();
+            Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
             for (int j = 0; j < 5; j++) {
                 String bundleName = String.format("pulsar/use/primary-ns-%d-%d/0x00000000_0xffffffff", i, j);
                 NamespaceBundleStats stats = new NamespaceBundleStats();
@@ -496,7 +496,7 @@ public class LoadBalancerTest {
                 stats.msgRateOut = 15 * (i + j);
                 stats.msgThroughputIn = 5000 * (i + j);
                 stats.msgThroughputOut = 15000 * (i + j);
-                stats.topics = 25 * (i + j);
+                stats.topics = 25L * (i + j);
                 stats.consumerCount = 50 * (i + j);
                 stats.producerCount = 50 * (i + j);
                 bundleStats.put(bundleName, stats);
@@ -942,7 +942,7 @@ public class LoadBalancerTest {
         zkCacheField.setAccessible(true);
         zkCacheField.set(pulsarServices[0], mockCache);
 
-        TreeMap<Long, Set<ResourceUnit>> sortedRankingsInstance = new TreeMap<Long, Set<ResourceUnit>>();
+        TreeMap<Long, Set<ResourceUnit>> sortedRankingsInstance = new TreeMap<>();
         for (int i = 1; i <= 3; i++) {
             PulsarResourceDescription rd = createResourceDescription(memoryMB * i, cpuPercent * i, bInMbps * i,
                     bOutMbps * 2, threads * i);
@@ -954,7 +954,7 @@ public class LoadBalancerTest {
                 // get the object set and put the rd in it
                 sortedRankingsInstance.get(rank).add(ru1);
             } else {
-                Set<ResourceUnit> rus = new HashSet<ResourceUnit>();
+                Set<ResourceUnit> rus = new HashSet<>();
                 rus.add(ru1);
                 sortedRankingsInstance.put(rank, rus);
             }
@@ -962,12 +962,12 @@ public class LoadBalancerTest {
         }
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
         sortedRankings.setAccessible(true);
-        AtomicReference<TreeMap<Long, Set<ResourceUnit>>> ar = new AtomicReference<TreeMap<Long, Set<ResourceUnit>>>();
+        AtomicReference<TreeMap<Long, Set<ResourceUnit>>> ar = new AtomicReference<>();
         ar.set(sortedRankingsInstance);
         sortedRankings.set(loadManager, ar);
 
         int totalNamespaces = 10;
-        Map<String, Integer> namespaceOwner = new HashMap<String, Integer>();
+        Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
             ResourceUnit found = loadManager
                     .getLeastLoaded(TopicName.get("persistent://pulsar/use/primary-ns/topic" + i)).get();
@@ -1014,7 +1014,7 @@ public class LoadBalancerTest {
                 // get the object set and put the rd in it
                 sortedRankingsInstance.get(rank).add(ru1);
             } else {
-                Set<ResourceUnit> rus = new HashSet<ResourceUnit>();
+                Set<ResourceUnit> rus = new HashSet<>();
                 rus.add(ru1);
                 sortedRankingsInstance.put(rank, rus);
             }
@@ -1023,12 +1023,12 @@ public class LoadBalancerTest {
 
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
         sortedRankings.setAccessible(true);
-        AtomicReference<TreeMap<Long, Set<ResourceUnit>>> ar = new AtomicReference<TreeMap<Long, Set<ResourceUnit>>>();
+        AtomicReference<TreeMap<Long, Set<ResourceUnit>>> ar = new AtomicReference<>();
         ar.set(sortedRankingsInstance);
         sortedRankings.set(loadManager, ar);
 
         int totalNamespaces = 1000;
-        Map<String, Integer> namespaceOwner = new HashMap<String, Integer>();
+        Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
             ResourceUnit found = loadManager
                     .getLeastLoaded(TopicName.get("persistent://pulsar/use/primary-ns/topic-" + i)).get();
