@@ -1566,7 +1566,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testHasMessageAvaialableOnEmptyTopic() throws Exception {
+    public void testHasMessageAvailableOnEmptyTopic() throws Exception {
         String topic = newTopicName();
 
         @Cleanup

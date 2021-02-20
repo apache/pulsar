@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Queues;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
@@ -1899,24 +1900,40 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // allow the last one to be read when read head inclusively.
             if (startMessageId.equals(MessageId.latest)) {
 
-                internalGetLastMessageIdAsync()
-                        .thenAccept(response -> {
-                            MessageIdImpl lastMessageId = MessageIdImpl.convertToMessageIdImpl(response.lastMessageId);
-                            MessageIdImpl markDeletePosition = MessageIdImpl
-                                    .convertToMessageIdImpl(response.markDeletePosition);
+                CompletableFuture<GetLastMessageIdResponse> future = internalGetLastMessageIdAsync();
+                // if the consumer is configured to read inclusive then we need to seek to the last message
+                if (resetIncludeHead) {
+                    future = future.thenCompose((lastMessageIdResponse) ->
+                            seekAsync(lastMessageIdResponse.lastMessageId)
+                                    .thenApply((ignore) -> lastMessageIdResponse));
+                }
 
-                            if (markDeletePosition != null) {
-                                booleanFuture.complete(markDeletePosition.compareTo(lastMessageId) < 0);
-                            } else if (lastMessageId == null || lastMessageId.getEntryId() < 0) {
-                                booleanFuture.complete(false);
-                            } else {
-                                booleanFuture.complete(resetIncludeHead);
-                            }
-                        }).exceptionally(ex -> {
-                            log.error("[{}][{}] Failed getLastMessageId command", topic, subscription, ex);
-                            booleanFuture.completeExceptionally(ex.getCause());
-                            return null;
-                        });
+                future.thenAccept(response -> {
+                    MessageIdImpl lastMessageId = MessageIdImpl.convertToMessageIdImpl(response.lastMessageId);
+                    MessageIdImpl markDeletePosition = MessageIdImpl
+                            .convertToMessageIdImpl(response.markDeletePosition);
+
+                    if (markDeletePosition != null) {
+                        // we on care about comparing ledger ids and entry ids as mark delete position other ids such as batch index
+                        int result = ComparisonChain.start()
+                                .compare(markDeletePosition.getLedgerId(), lastMessageId.getLedgerId())
+                                .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())
+                                .result();
+                        if (lastMessageId.getEntryId() < 0) {
+                            booleanFuture.complete(false);
+                        } else {
+                            booleanFuture.complete(resetIncludeHead ? result <= 0 : result < 0);
+                        }
+                    } else if (lastMessageId == null || lastMessageId.getEntryId() < 0) {
+                        booleanFuture.complete(false);
+                    } else {
+                        booleanFuture.complete(resetIncludeHead);
+                    }
+                }).exceptionally(ex -> {
+                    log.error("[{}][{}] Failed getLastMessageId command", topic, subscription, ex);
+                    booleanFuture.completeExceptionally(ex.getCause());
+                    return null;
+                });
 
                 return booleanFuture;
             }
