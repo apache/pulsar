@@ -1170,7 +1170,7 @@ $ pulsar-admin namespaces set-message-ttl tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-ttl`, `--messageTTL`|Message TTL in seconds|3600s|
+|`-ttl`, `--messageTTL`|Message TTL in seconds. When the value is set to `0`, TTL is disabled. TTL is disabled by default. |0|
 
 ### `remove-message-ttl`
 Remove the message TTL for a namespace.
@@ -1759,11 +1759,18 @@ Options
 |`--broker`|Broker name to get namespace-isolation policies attached to it||
 
 ## `topics`
-Operations for managing Pulsar topics (both persistent and non persistent)
+Operations for managing Pulsar topics (both persistent and non-persistent). 
 
 Usage
 ```bash
 $ pulsar-admin topics subcommand
+```
+
+From Pulsar 2.7.0, some namespace-level policies are available on topic level. To enable topic-level policy in Pulsar, you need to configure the following parameters in the `broker.conf` file. 
+
+```shell
+systemTopicEnabled=true
+topicLevelPoliciesEnabled=true
 ```
 
 Subcommands
@@ -1812,9 +1819,30 @@ Subcommands
 * `get-message-ttl`
 * `set-message-ttl`
 * `remove-message-ttl`
-* `get-deduplication`
-* `set-deduplication`
-* `remove-deduplication`
+* `get-retention`
+* `set-retention`
+* `remove-retention`
+* `get-dispatch-rate`
+* `set-dispatch-rate`
+* `remove-dispatch-rate`
+* `get-delayed-delivery`
+* `set-delayed-delivery`
+* `remove-delayed-delivery`
+* `get-max-producers`
+* `set-max-producers`
+* `remove-max-producers`
+* `get-max-consumers`
+* `set-max-consumers`
+* `remove-max-consumers`
+* `get-compaction-threshold`
+* `set-compaction-threshold`
+* `remove-compaction-threshold`
+* `get-offload-policies`
+* `set-offload-policies`
+* `remove-offload-policies`
+* `get-inactive-topic-policies`
+* `set-inactive-topic-policies`
+* `remove-inactive-topic-policies`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -1869,7 +1897,7 @@ Options
 ### `create-partitioned-topic`
 Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
 
-> #### Note
+> **Note**
 >
 > By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
 >
@@ -1909,7 +1937,7 @@ $ pulsar-admin topics delete-partitioned-topic {persistent|non-persistent}
 ### `create`
 Creates a non-partitioned topic. A non-partitioned topic must explicitly be created by the user if allowAutoTopicCreation or createIfMissing is disabled.
 
-> #### Note
+> **Note**
 >
 > By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
 >
@@ -2468,54 +2496,6 @@ Remove the maximum number of Consumers for a topic.
 Usage
 ```bash
 $ pulsar-admin topics remove-max-consumers tenant/namespace/topic
-```
-
-### `get-max-unacked-messages-on-subscription`
-Get the maximum number of unacked messages per subscription for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics get-max-unacked-messages-per-subscription tenant/namespace/topic
-```
-
-### `set-max-unacked-messages-on-subscription`
-Set the maximum number of unacked messages per subscription for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics set-max-unacked-messages-per-subscription tenant/namespace/topic options
-```
-
-### `remove-max-unacked-messages-on-subscription`
-Remove the maximum number of unacked messages per subscription for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics remove-max-unacked-messages-per-subscription tenant/namespace/topic
-```
-
-### `get-max-unacked-messages-on-consumer`
-Get the maximum number of unacked messages on consumer for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics get-max-unacked-messages-per-consumer tenant/namespace/topic
-```
-
-### `set-max-unacked-messages-on-consumer`
-Set the maximum number of unacked messages on consumer for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics set-max-unacked-messages-per-consumer tenant/namespace/topic options
-```
-
-### `remove-max-unacked-messages-on-consumer`
-Remove the maximum number of unacked messages on consumer for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics remove-max-unacked-messages-per-consumer tenant/namespace/topic
 ```
 
 ### `get-compaction-threshold`
