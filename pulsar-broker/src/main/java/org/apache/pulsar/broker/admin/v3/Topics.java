@@ -40,12 +40,12 @@ import org.apache.pulsar.websocket.data.ProducerMessages;
 @Path("/persistent/topics")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-@Api(value = "/", description = "Apis for produce,consume and ack message on topics.", tags = "topics")
+@Api(value = "/persistent/topics", description = "Apis for produce,consume and ack message on topics.", tags = "topics")
 public class Topics extends TopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}")
-    @ApiOperation(value = "Produce message to a topic.", response = String.class, responseContainer = "List")
+    @ApiOperation(value = "Produce message to a persistent topic.", response = String.class, responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
@@ -65,7 +65,8 @@ public class Topics extends TopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/partitions/{partition}")
-    @ApiOperation(value = "Produce message to a topic.", response = String.class, responseContainer = "List")
+    @ApiOperation(value = "Produce message to a partition of a persistent topic.",
+            response = String.class, responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),

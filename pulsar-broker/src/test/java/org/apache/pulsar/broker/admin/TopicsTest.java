@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Sets;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -70,7 +69,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -125,10 +123,10 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()).getBytes()));
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()).getBytes()));
+        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(schema.getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(schema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
@@ -159,10 +157,10 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()).getBytes()));
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()).getBytes()));
+        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(schema.getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(schema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
@@ -205,10 +203,10 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()).getBytes()));
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(schema.getSchemaInfo()).getBytes()));
+        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(schema.getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(schema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
@@ -261,10 +259,10 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 AsyncResponse asyncResponse = mock(AsyncResponse.class);
                 Schema<String> schema = StringSchema.utf8();
                 ProducerMessages producerMessages = new ProducerMessages();
-                producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                        writeValueAsString(schema.getSchemaInfo()).getBytes()));
-                producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                        writeValueAsString(schema.getSchemaInfo()).getBytes()));
+                producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
+                        writeValueAsString(schema.getSchemaInfo()));
+                producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                        writeValueAsString(schema.getSchemaInfo()));
                 String message = "[" +
                         "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                         "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
@@ -320,8 +318,8 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         topics.setPulsar(pulsar2);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(Schema.INT64.getSchemaInfo()).getBytes()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[]";
         producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
                 new TypeReference<List<ProducerMessage>>() {}));
@@ -347,8 +345,8 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(Schema.INT64.getSchemaInfo()).getBytes()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[]";
         producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
                 new TypeReference<List<ProducerMessage>>() {}));
@@ -370,8 +368,8 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(Schema.INT64.getSchemaInfo()).getBytes()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"111111111111\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"222222222222\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
@@ -479,36 +477,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         AMD, NVIDIA
     }
 
-    //@Test
-    public void test() throws Exception {
-
-        JSONSchema jsonSchema = JSONSchema.of(SchemaDefinition.builder()
-                .withPojo(PC.class).build());
-        GenericSchema genericJsonSchema = GenericJsonSchema.of(jsonSchema.getSchemaInfo());
-        PC pc = new PC("dell", "alienware", 2021, GPU.AMD, new Seller("WA", "street", 98004));
-        String pStr = ObjectMapperFactory.getThreadLocal().writeValueAsString(pc);
-        JsonNode jsonNode = ObjectMapperFactory.getThreadLocal().readTree(pStr);
-        GenericJsonRecord genericJsonRecord = new GenericJsonRecord(null, null, jsonNode, genericJsonSchema.getSchemaInfo());
-        System.out.println(pStr);
-        System.out.println(jsonNode);
-        System.out.println(genericJsonSchema.decode((genericJsonSchema.encode(genericJsonRecord))));
-        System.out.println(((GenericJsonRecord)genericJsonSchema.decode((genericJsonSchema.encode(genericJsonRecord)))).getJsonNode());
-        ObjectMapperFactory.getThreadLocal().readValue(((GenericJsonRecord)genericJsonSchema.decode((genericJsonSchema.encode(genericJsonRecord)))).getJsonNode().toString(), PC.class);
-        //System.out.println(jsonSchema.encode(pc));
-//        System.out.println(new String(genericJsonSchema.encode(genericJsonRecord)));
-//        System.out.println(jsonSchema.decode((jsonSchema.encode(pc))));
-//        System.out.println(jsonSchema.decode((jsonSchema.encode(genericJsonRecord))));
-        //System.out.println(ObjectMapperFactory.getThreadLocal().treeToValue(((GenericJsonRecord)jsonSchema.decode((jsonSchema.encode(genericJsonRecord)))).getJsonNode(), PC.class));
-
-//        System.out.println(jsonSchema.getSchemaInfo());
-//        System.out.println(ObjectMapperFactory.getThreadLocal().
-//                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-//        System.out.println(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-//                writeValueAsString(StringSchema.utf8().getSchemaInfo()).getBytes()));
-//        System.out.println(new String(StringSchema.utf8().decode(Base64.getDecoder().decode("enhjLXZhbHVl".getBytes()))));
-    }
-
-    //@Test
+    @Test
     public void testProduceWithJsonSchema() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -526,15 +495,15 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(jsonSchema.getSchemaInfo()).getBytes()));
-//        String message = "[" +
-//                "{\"key\":\"my-key\",\"payload\":\""
-//                + ObjectMapperFactory.getThreadLocal().writeValueAsString(pc).replace("\"", "\\\"")
-//                + "\",\"eventTime\":1603045262772,\"sequenceId\":1},"
-//                + "{\"key\":\"my-key\",\"payload\":\""
-//                + ObjectMapperFactory.getThreadLocal().writeValueAsString(anotherPc).replace("\"", "\\\"")
-//                + "\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(jsonSchema.getSchemaInfo()));
+        String message = "[" +
+                "{\"key\":\"my-key\",\"payload\":\""
+                + ObjectMapperFactory.getThreadLocal().writeValueAsString(pc).replace("\"", "\\\"")
+                + "\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\""
+                + ObjectMapperFactory.getThreadLocal().writeValueAsString(anotherPc).replace("\"", "\\\"")
+                + "\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
         ProducerMessage msg1 = new ProducerMessage();
         msg1.setKey("my-key");
         msg1.setPayload(ObjectMapperFactory.getThreadLocal().writeValueAsString(pc));
@@ -545,7 +514,8 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         msg2.setPayload(ObjectMapperFactory.getThreadLocal().writeValueAsString(anotherPc));
         msg2.setEventTime("1603045262772");
         msg2.setSequenceId(2);
-        producerMessages.setMessages(Arrays.asList(msg1, msg2));
+        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
+                new TypeReference<List<ProducerMessage>>() {}));
         topics.produceOnTopic(asyncResponse, testTenant, testNamespace,
                 testTopicName, false, producerMessages);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
@@ -604,10 +574,10 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()).getBytes()));
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()).getBytes()));
+        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
@@ -656,10 +626,10 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()).getBytes()));
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()).getBytes()));
+        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
@@ -736,10 +706,10 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
             producer.send("message");
         }
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()).getBytes()));
-        producerMessages.setValueSchema(Base64.getEncoder().encodeToString(ObjectMapperFactory.getThreadLocal().
-                writeValueAsString(StringSchema.utf8().getSchemaInfo()).getBytes()));
+        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(StringSchema.utf8().getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}," +
@@ -749,6 +719,15 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         topics.produceOnTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getMessage(), "Fail to add or retrieve schema.");
+        Assert.assertTrue(responseCaptor.getValue().getMessage().startsWith("Fail to publish message:"
+                + "java.util.concurrent.ExecutionException: org.apache.pulsar.broker.service.schema.exceptions."
+                + "SchemaException: Unable to add schema SchemaData(type=KEY_VALUE, isDeleted=false, "
+                + "timestamp="));
+        Assert.assertTrue(responseCaptor.getValue().getMessage().endsWith(
+                "user=Rest Producer, data=[0, 0, 0, 0, 0, 0, 0, 0], "
+                + "props={key.schema.properties={\"__charset\":\"UTF-8\"}, value.schema.properties={\"__charset\":"
+                + "\"UTF-8\"}, value.schema.type=STRING, key.schema.name=String, value.schema.name=String, "
+                + "kv.encoding.type=SEPARATED, key.schema.type=STRING}) to topic persistent:"
+                + "//my-tenant/my-namespace/my-topic"));
     }
 }

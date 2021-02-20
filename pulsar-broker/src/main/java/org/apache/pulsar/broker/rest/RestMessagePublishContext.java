@@ -26,7 +26,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
 
 /**
- *
+ * PublishContext implementation for REST message publishing.
  */
 @Slf4j
 public class RestMessagePublishContext implements Topic.PublishContext {
@@ -42,14 +42,14 @@ public class RestMessagePublishContext implements Topic.PublishContext {
     public void completed(Exception exception, long ledgerId, long entryId) {
         if (exception != null) {
             positionFuture.completeExceptionally(exception);
-            if (log.isDebugEnabled()) {
-                log.warn("Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. "
+            if (log.isInfoEnabled()) {
+                log.info("Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. "
                                 + "triggered send callback.",
                         ledgerId, entryId);
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.warn("Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. "
+            if (log.isInfoEnabled()) {
+                log.info("Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. "
                                 + "triggered send callback.",
                         topic.getName(), ledgerId, entryId);
             }
