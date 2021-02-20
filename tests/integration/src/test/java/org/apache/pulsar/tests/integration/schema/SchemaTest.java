@@ -150,7 +150,6 @@ public class SchemaTest extends PulsarTestSuite {
                         (false).withSupportSchemaVersioning(true).
                         withPojo(PersonConsumeSchema.class).build()))
                 .subscriptionName("test")
-                .subscriptionInitialPosition()
                 .topic(fqtn)
                 .subscribe();
 
