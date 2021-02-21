@@ -87,22 +87,22 @@ PulsarAdmin admin = PulsarAdmin.builder()
 ## How to define Pulsar resource names when running Pulsar in Kubernetes
 If you run Pulsar Functions or connectors on Kubernetes, you need to follow Kubernetes naming convention to define the names of your Pulsar resources, whichever admin interface you use.
 
-Kubernetes requires a name that can be used as a DNS subdomain name as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names). Pulsar supports more legal characters than Kubernetes naming convention. If you create a Pulsar resource name with special characters that is not supported by Kubernetes (for example, including colons in a Pulsar namespace name), KubernetesRuntime translates the Pulsar object names to the RFC1123-compliant forms for Kubernetes resource labels. Consequently, you can run functions or connectors using Kubernetes runtime. The rules for translating Pulsar object names to Kubernetes resource labels are as below:
+Kubernetes requires a name that can be used as a DNS subdomain name as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names). Pulsar supports more legal characters than Kubernetes naming convention. If you create a Pulsar resource name with special characters that are not supported by Kubernetes (for example, including colons in a Pulsar namespace name), Kubernetes runtime translates the Pulsar object names into Kubernetes resource labels which are in RFC 1123-compliant forms. Consequently, you can run functions or connectors using Kubernetes runtime. The rules for translating Pulsar object names into Kubernetes resource labels are as below:
 
 - Truncate to 63 characters
   
 - Replace the following characters with dashes (-):
   
-  - Non alphanumeric characters ([a-z0-9A-Z])
+  - Non-alphanumeric characters
   
   - Underscores (_)
   
-  - Dot (.) 
+  - Dots (.) 
   
-- Replace beginning and end non-alphanumeric characters with 0
+- Replace beginning and ending non-alphanumeric characters with 0
   
 > #### Tip
 > 
-> - If you get an error in translating Pulsar object names for Kubernetes resource labels or want to customize the translating rules, see [Customize Kubernetes runtime](https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime).
+> - If you get an error in translating Pulsar object names into Kubernetes resource labels or want to customize the translating rules, see [customize Kubernetes runtime](https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime).
 > 
 > - For how to configure Kubernetes runtime, see [here](https://pulsar.apache.org/docs/en/next/functions-runtime/#configure-kubernetes-runtime).
