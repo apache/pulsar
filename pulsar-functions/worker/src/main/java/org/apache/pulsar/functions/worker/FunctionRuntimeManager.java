@@ -421,15 +421,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                             .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
                 }
 
-                ComponentType componentType = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getComponentType();
-
-                if (ComponentType.SOURCE == componentType) {
-                    this.functionAdmin.sources().restartSource(tenant, namespace, functionName);
-                } else if (ComponentType.SINK == componentType) {
-                    this.functionAdmin.sinks().restartSink(tenant, namespace, functionName);
-                } else {
-                    this.functionAdmin.functions().restartFunction(tenant, namespace, functionName);
-                }
+                restartFunctionByPulsarAdmin(assignment, tenant, namespace, functionName);
             }
         } else {
             for (Assignment assignment : assignments) {
@@ -452,23 +444,26 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         }
                         continue;
                     }
-
-                    ComponentType componentType = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getComponentType();
-
-                    if (ComponentType.SOURCE == componentType) {
-                        this.functionAdmin.sources().restartSource(tenant, namespace, functionName,
-                            assignment.getInstance().getInstanceId());
-                    } else if (ComponentType.SINK == componentType) {
-                        this.functionAdmin.sinks().restartSink(tenant, namespace, functionName,
-                            assignment.getInstance().getInstanceId());
-                    } else {
-                        this.functionAdmin.functions().restartFunction(tenant, namespace, functionName,
-                            assignment.getInstance().getInstanceId());
-                    }
+                    restartFunctionByPulsarAdmin(assignment, tenant, namespace, functionName);
                 }
             }
         }
         return;
+    }
+
+    private void restartFunctionByPulsarAdmin(Assignment assignment, String tenant, String namespace, String functionName)
+            throws PulsarAdminException {
+        ComponentType componentType = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getComponentType();
+        if (ComponentType.SOURCE == componentType) {
+            this.functionAdmin.sources().restartSource(tenant, namespace, functionName,
+                    assignment.getInstance().getInstanceId());
+        } else if (ComponentType.SINK == componentType) {
+            this.functionAdmin.sinks().restartSink(tenant, namespace, functionName,
+                    assignment.getInstance().getInstanceId());
+        } else {
+            this.functionAdmin.functions().restartFunction(tenant, namespace, functionName,
+                    assignment.getInstance().getInstanceId());
+        }
     }
 
     /**
