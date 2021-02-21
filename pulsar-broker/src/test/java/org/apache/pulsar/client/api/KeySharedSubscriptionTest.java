@@ -30,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -68,6 +70,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         return new Object[] {
                 false,
                 true
+        };
+    }
+
+    @DataProvider(name = "partitioned")
+    public Object[][] partitionedProvider() {
+        return new Object[][] {
+                { false },
+                { true }
         };
     }
 
@@ -857,6 +867,66 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         // Wait broker dispatch messages.
         Assert.assertNotNull(consumer2.receive(1, TimeUnit.SECONDS));
         Assert.assertNotNull(consumer3.receive(1, TimeUnit.SECONDS));
+    }
+
+    @Test(dataProvider = "partitioned")
+    public void testOrderingWithConsumerListener(boolean partitioned) throws Exception {
+        final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+        if (partitioned) {
+            admin.topics().createPartitionedTopic(topic, 3);
+        }
+        final String subName = "my-sub";
+        final int messages = 1000;
+        List<Message<Integer>> received = Collections.synchronizedList(new ArrayList<>(1000));
+        Random random = new Random();
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .listenerThreads(8)
+                .build();
+
+        Consumer<Integer> consumer = client.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .messageListener(new MessageListener<Integer>() {
+                    @Override
+                    public void received(Consumer<Integer> consumer, Message<Integer> msg) {
+                        try {
+                            Thread.sleep(random.nextInt(5));
+                            received.add(msg);
+                        } catch (InterruptedException ignore) {
+                        }
+                    }
+                })
+                .subscribe();
+
+
+        Producer<Integer> producer = client.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        String[] keys = new String[]{"key-1", "key-2", "key-3"};
+        for (int i = 0; i < messages; i++) {
+            producer.newMessage().key(keys[i % 3]).value(i).send();
+        }
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                Assert.assertEquals(received.size(), messages));
+
+        Map<String, Integer> maxValueOfKeys = new HashMap<>();
+        for (Message<Integer> msg : received) {
+            String key = msg.getKey();
+            Integer value = msg.getValue();
+            if (maxValueOfKeys.containsKey(key)) {
+                Assert.assertTrue(value > maxValueOfKeys.get(key));
+            }
+            maxValueOfKeys.put(key, value);
+            consumer.acknowledge(msg);
+        }
+
+        producer.close();
+        consumer.close();
+        client.close();
     }
 
     @Test
