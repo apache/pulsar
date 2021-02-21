@@ -805,7 +805,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = "pulsar/partitionedNs-" + isPartitionedTopic;
+        final String namespace = "pulsar/partitionedNs-" + isPartitionedTopic + "-" + System.nanoTime();;
         final String persistentTopicName =
                 "persistent://" + namespace + "/partTopic-" + System.currentTimeMillis() + "-" + isPartitionedTopic;
         final String nonPersistentTopicName =
@@ -852,7 +852,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             }
             assertTrue(e.getCause() instanceof NamingException);
         }
-
+        
     }
 
     @Test
