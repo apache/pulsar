@@ -973,7 +973,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, statsOut);
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = new String(statsOut.toByteArray());
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
