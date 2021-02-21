@@ -20,8 +20,9 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
@@ -52,7 +53,9 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -70,7 +73,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
     protected final ConsumerEventListener consumerEventListener;
-    protected final ExecutorService listenerExecutor;
+    protected final ExecutorProvider executorProvider;
+    protected final ScheduledExecutorService pinnedExecutor;
     final BlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunckedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
@@ -86,7 +90,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final Lock reentrantLock = new ReentrantLock();
 
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
-                           int receiverQueueSize, ExecutorService listenerExecutor,
+                           int receiverQueueSize, ExecutorProvider executorProvider,
                            CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema, ConsumerInterceptors interceptors) {
         super(client, topic);
         this.maxReceiverQueueSize = receiverQueueSize;
@@ -99,8 +103,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         // Always use growable queue since items can exceed the advertised size
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
         this.unAckedChunckedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
-
-        this.listenerExecutor = listenerExecutor;
+        this.executorProvider = executorProvider;
+        this.pinnedExecutor = (ScheduledExecutorService) executorProvider.getExecutor();
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
         this.interceptors = interceptors;
@@ -232,7 +236,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void completePendingReceive(CompletableFuture<Message<T>> receivedFuture, Message<T> message) {
-        listenerExecutor.execute(() -> {
+        pinnedExecutor.execute(() -> {
             if (!receivedFuture.complete(message)) {
                 log.warn("Race condition detected. receive future was already completed (cancelled={}) and message was dropped. message={}",
                         receivedFuture.isCancelled(), message);
@@ -840,6 +844,58 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask, timeToWaitMs, TimeUnit.MILLISECONDS);
         }
+    }
+
+    protected void triggerListener() {
+        // Trigger the notification on the message listener in a separate thread to avoid blocking the networking
+        // thread while the message processing happens
+        Message<T> msg;
+        do {
+            try {
+                msg = internalReceive(0, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    final Message<T> finalMsg = msg;
+                    if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
+                        executorProvider.getExecutor(peekMessageKey(finalMsg)).execute(() ->
+                                callMessageListener(finalMsg));
+                    } else {
+                        pinnedExecutor.execute(() -> callMessageListener(finalMsg));
+                    }
+                }
+            } catch (PulsarClientException e) {
+                log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
+                return;
+            }
+        } while (msg != null);
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Message has been cleared from the queue", topic, subscription);
+        }
+    }
+
+    protected void callMessageListener(Message<T> msg) {
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Calling message listener for message {}", topic, subscription,
+                        msg.getMessageId());
+            }
+            listener.received(ConsumerBase.this, msg);
+        } catch (Throwable t) {
+            log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
+                    msg.getMessageId(), t);
+        }
+    }
+
+    protected static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
+    protected byte[] peekMessageKey(Message<T> msg) {
+        byte[] key = NONE_KEY;
+        if (msg.hasKey()) {
+            key = msg.getKeyBytes();
+        }
+        if (msg.hasOrderingKey()) {
+            key = msg.getOrderingKey();
+        }
+        return key;
     }
 
     protected MessagesImpl<T> getNewMessagesImpl() {
