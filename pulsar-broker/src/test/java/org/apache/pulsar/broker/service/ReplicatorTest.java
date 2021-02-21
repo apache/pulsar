@@ -57,6 +57,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -517,7 +518,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         consumer1.receive(2);
 
-        admin1.topics().resetCursor(dest.toString(), "sub-id", System.currentTimeMillis());
+        admin1.topics().resetCursor(dest.toString(), "sub-id", MessageId.latest);
     }
 
     @Test
