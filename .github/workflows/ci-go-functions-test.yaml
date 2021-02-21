@@ -23,7 +23,6 @@ on:
     branches:
       - master
     paths:
-      - '.github/workflows/**'
       - 'pulsar-function-go/**'
   push:
     branches:

@@ -168,6 +168,10 @@ public class PulsarBrokerStarter {
                 } else {
                     workerConfig = WorkerConfig.load(starterArguments.fnWorkerConfigFile);
                 }
+                brokerConfig.getWebServicePort()
+                    .map(port -> workerConfig.setWorkerPort(port));
+                brokerConfig.getWebServicePortTls()
+                    .map(port -> workerConfig.setWorkerPortTls(port));
                 // worker talks to local broker
                 String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                     brokerConfig.getAdvertisedAddress());

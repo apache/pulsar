@@ -131,7 +131,8 @@ public class WorkerService {
 
             final String functionWebServiceUrl = StringUtils.isNotBlank(workerConfig.getFunctionWebServiceUrl())
                     ? workerConfig.getFunctionWebServiceUrl()
-                    : workerConfig.getWorkerWebAddress();
+                    : (workerConfig.getTlsEnabled()
+                ? workerConfig.getWorkerWebAddressTls() : workerConfig.getWorkerWebAddress());
 
              // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
             if (workerConfig.isBrokerClientAuthenticationEnabled()) {
