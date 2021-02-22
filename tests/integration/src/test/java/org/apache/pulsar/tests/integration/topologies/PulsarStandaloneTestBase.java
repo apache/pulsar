@@ -38,7 +38,7 @@ import org.testng.annotations.DataProvider;
 public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
 
     @DataProvider(name = "StandaloneServiceUrlAndTopics")
-    public static Object[][] serviceUrlAndTopics() {
+    public Object[][] serviceUrlAndTopics() {
         return new Object[][] {
                 // plain text, persistent topic
                 {
@@ -54,7 +54,7 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
     }
 
     @DataProvider(name = "StandaloneServiceUrlAndHttpUrl")
-    public static Object[][] serviceUrlAndHttpUrl() {
+    public Object[][] serviceUrlAndHttpUrl() {
         return new Object[][] {
                 {
                         container.getPlainTextServiceUrl(),
@@ -63,8 +63,8 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         };
     }
 
-    protected static Network network;
-    protected static StandaloneContainer container;
+    protected Network network;
+    protected StandaloneContainer container;
 
     protected void startCluster(final String pulsarImageName) throws Exception {
         network = Network.newNetwork();

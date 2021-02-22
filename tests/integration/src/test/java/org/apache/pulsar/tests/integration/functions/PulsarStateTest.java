@@ -226,7 +226,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 result.getStdout());
     }
 
-    private static void submitExclamationFunction(Runtime runtime,
+    private void submitExclamationFunction(Runtime runtime,
                                                   String inputTopicName,
                                                   String outputTopicName,
                                                   String functionName) throws Exception {
@@ -247,7 +247,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static <T> void submitFunction(Runtime runtime,
+    private <T> void submitFunction(Runtime runtime,
                                            String inputTopicName,
                                            String outputTopicName,
                                            String functionName,
@@ -276,7 +276,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
     }
 
-    private static <T> void ensureSubscriptionCreated(String inputTopicName,
+    private <T> void ensureSubscriptionCreated(String inputTopicName,
                                                       String subscriptionName,
                                                       Schema<T> inputTopicSchema)
             throws Exception {
@@ -293,7 +293,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static void getSinkInfoSuccess(String sinkName) throws Exception {
+    private void getSinkInfoSuccess(String sinkName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks",
@@ -305,7 +305,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"name\": \"" + sinkName + "\""));
     }
 
-    private static void getSourceInfoSuccess(String sourceName) throws Exception {
+    private void getSourceInfoSuccess(String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
@@ -317,7 +317,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"name\": \"" + sourceName + "\""));
     }
 
-    private static void getFunctionInfoSuccess(String functionName) throws Exception {
+    private void getFunctionInfoSuccess(String functionName) throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -329,7 +329,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"name\": \"" + functionName + "\""));
     }
 
-    private static void getFunctionInfoNotFound(String functionName) throws Exception {
+    private void getFunctionInfoNotFound(String functionName) throws Exception {
         try {
             container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
@@ -344,7 +344,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static void getSinkStatus(String sinkName) throws Exception {
+    private void getSinkStatus(String sinkName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks",
@@ -356,7 +356,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
-    private static void getSourceStatus(String sourceName) throws Exception {
+    private void getSourceStatus(String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
@@ -368,7 +368,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
-    private static void getFunctionStatus(String functionName, int numMessages) throws Exception {
+    private void getFunctionStatus(String functionName, int numMessages) throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -381,7 +381,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"numSuccessfullyProcessed\" : " + numMessages));
     }
 
-    private static void queryState(String functionName, String key, int amount)
+    private void queryState(String functionName, String key, int amount)
         throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
@@ -395,7 +395,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"numberValue\": " + amount));
     }
 
-    private static void publishAndConsumeMessages(String inputTopic,
+    private void publishAndConsumeMessages(String inputTopic,
                                                   String outputTopic,
                                                   int numMessages) throws Exception {
         @Cleanup PulsarClient client = PulsarClient.builder()
@@ -420,7 +420,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static void deleteFunction(String functionName) throws Exception {
+    private void deleteFunction(String functionName) throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -433,7 +433,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStderr().isEmpty());
     }
 
-    private static void deleteSource(String sourceName) throws Exception {
+    private void deleteSource(String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sources",
@@ -446,7 +446,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStderr().isEmpty());
     }
 
-    private static void deleteSink(String sinkName) throws Exception {
+    private void deleteSink(String sinkName) throws Exception {
         ContainerExecResult result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks",
@@ -459,7 +459,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStderr().isEmpty());
     }
 
-    private static void getSourceInfoNotFound(String sourceName) throws Exception {
+    private void getSourceInfoNotFound(String sourceName) throws Exception {
         try {
             container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
@@ -474,7 +474,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         }
     }
 
-    private static void getSinkInfoNotFound(String sinkName) throws Exception {
+    private void getSinkInfoNotFound(String sinkName) throws Exception {
         try {
             container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
