@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -947,6 +948,43 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             }
         });
         provider.close();
+    }
+
+    @Test
+    public void testManagedCursorPersistStats() throws Exception {
+        final String subName = "my-sub";
+        final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
+        final int messageSize = 10;
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionName(subName)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        for (int i = 0; i < messageSize; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+            consumer.acknowledge(consumer.receive().getMessageId());
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_ml_cursor_persistLedgerSucceed");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.get(0).tags.get("cursor_name"), subName);
+
+        producer.close();
+        consumer.close();
     }
 
     /**
