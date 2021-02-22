@@ -38,7 +38,7 @@ public class CompressorCodecTest {
 
     private static final String text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras id massa odio. Duis commodo ligula sed efficitur cursus. Aliquam sollicitudin, tellus quis suscipit tincidunt, erat sem efficitur nulla, in feugiat diam ex a dolor. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Vestibulum ac volutpat nisl, vel aliquam elit. Maecenas auctor aliquet turpis, id ullamcorper metus. Ut tincidunt et magna non ultrices. Quisque lacinia metus sed egestas tincidunt. Sed congue lacinia maximus.";
 
-    private static final String noDupText = "abcde";
+    private static final String noRepeatedText = "abcde";
 
     private static final String zipCompressedText = "789c54914d4ec4300c85aff20e50f502acd0b0840542b03789a7b2e4249dd8461c1f7706a16157d5f1fbf9fc3c2637c86ed150878e09130735f6056574e3e2ec31415576b1227d03abf88ad32483543432238c2a63c55388e5566ba30ea86ca104e30a3e9fa5c82153625ad88a47954b50830dd5eba84a5fe0ac1a86cb2193cf4a5a3a5c7a911a3d03f1244fc17627d843951648c79963939c57495dfe06ddfaacf86073f90ccd86d49d7fcbee535ada1c8b1425e786318b40a3787eb323d4a71436ecc3822767f84f51219c62123ffcd32df81a1abea77f17d3055faca0df9237602fc4857b424b3b4fced769da648b24bb1c2c8f2ead8cb9f3445ee000f57e07e008d568eb843efa5fbc15afc92ba5a094f7c97cd7d51bf82d33a6e59fc48ab7fc9d87ddeedfd3b7b434fb010000ffff";
     private static final String lz4CompressedText = "f1aa4c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e73656374657475722061646970697363696e6720656c69742e2043726173206964206d61737361206f64696f2e204475697320636f6d6d6f646f206c6967756c612073656420656666696369747572206375727375732e20416c697175616d20736f6c6c696369747564696e2c2074656c6c757320717569732073757363697069742074696e636964756e742c20657261742073656d206566663600f20e72206e756c6c612c20696e2066657567696174206469616d2065782061d000f3022e20566573746962756c756d20616e7465ed00617072696d69733900f92761756369627573206f726369206c756374757320657420756c74726963657320706f737565726520637562696c69612043757261653b5800f3076320766f6c7574706174206e69736c2c2076656c2061e500023101f2004d616563656e617320617563746f721e00a06574207475727069732c4c0100cc00f7016d636f72706572206d657475732e20550101009500956d61676e61206e6f6e9f00f2022e2051756973717565206c6163696e69613b00027901666765737461734401502e20536564d90118673000706178696d75732e";
@@ -48,15 +48,15 @@ public class CompressorCodecTest {
     @DataProvider(name = "codecAndText")
     public Object[][] codecAndTextProvider() {
         return new Object[][] {
-                { CompressionType.NONE, noDupText },
+                { CompressionType.NONE, noRepeatedText},
                 { CompressionType.NONE, text },
-                { CompressionType.LZ4, noDupText },
+                { CompressionType.LZ4, noRepeatedText},
                 { CompressionType.LZ4, text },
-                { CompressionType.ZLIB, noDupText },
+                { CompressionType.ZLIB, noRepeatedText},
                 { CompressionType.ZLIB, text },
-                { CompressionType.ZSTD, noDupText },
+                { CompressionType.ZSTD, noRepeatedText},
                 { CompressionType.ZSTD, text },
-                { CompressionType.SNAPPY, noDupText },
+                { CompressionType.SNAPPY, noRepeatedText},
                 { CompressionType.SNAPPY, text }
         };
     }
