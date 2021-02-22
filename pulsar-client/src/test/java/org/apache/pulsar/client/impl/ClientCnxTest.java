@@ -35,7 +35,8 @@ import io.netty.channel.Channel;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -94,8 +95,10 @@ public class ClientCnxTest {
         cnxField.set(cnx, ClientCnx.State.SentConnectFrame);
 
         // receive error
-        PulsarApi.CommandError commandError = PulsarApi.CommandError.newBuilder()
-            .setRequestId(-1).setError(PulsarApi.ServerError.AuthenticationError).setMessage("authentication was failed").build();
+        CommandError commandError = new CommandError()
+            .setRequestId(-1)
+            .setError(ServerError.AuthenticationError)
+            .setMessage("authentication was failed");
         try {
             cnx.handleError(commandError);
         } catch (Exception e) {
@@ -135,11 +138,10 @@ public class ClientCnxTest {
         CompletableFuture<?> future = cnx.sendGetLastMessageId(getLastIdCmd, requestId);
 
         // receive error
-        PulsarApi.CommandError commandError = PulsarApi.CommandError.newBuilder()
+        CommandError commandError = new CommandError()
             .setRequestId(requestId)
-            .setError(PulsarApi.ServerError.MetadataError)
-            .setMessage("failed to read")
-            .build();
+            .setError(ServerError.MetadataError)
+            .setMessage("failed to read");
         cnx.handleError(commandError);
 
         try {

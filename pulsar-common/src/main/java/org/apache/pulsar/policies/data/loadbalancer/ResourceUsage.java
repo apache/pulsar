@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import lombok.EqualsAndHashCode;
+
 /**
  * POJO used to represents any system specific resource usage this is the format that load manager expects it in.
  */
+@EqualsAndHashCode
 public class ResourceUsage {
     public double usage;
     public double limit;

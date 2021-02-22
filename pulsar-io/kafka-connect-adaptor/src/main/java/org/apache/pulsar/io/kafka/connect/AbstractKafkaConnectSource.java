@@ -189,7 +189,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         KafkaSchemaWrappedSchema valueSchema;
 
         AbstractKafkaSourceRecord(SourceRecord srcRecord) {
-            this.destinationTopic = Optional.of(topicNamespace + "/" + srcRecord.topic());
+            this.destinationTopic = Optional.of("persistent://"+topicNamespace + "/" + srcRecord.topic());
         }
 
         @Override

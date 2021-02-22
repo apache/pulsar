@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.cli;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -44,7 +46,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -112,6 +113,13 @@ public class CmdProduce {
     @Parameter(names = { "-k", "--key"}, description = "message key to add ")
     private String key;
 
+    @Parameter(names = { "-ekn", "--encryption-key-name" }, description = "The public key name to encrypt payload")
+    private String encKeyName = null;
+
+    @Parameter(names = { "-ekv",
+            "--encryption-key-value" }, description = "The URI of public key to encrypt payload, for example "
+                    + "file:///path/to/public.key or data:application/x-pem-file;base64,*****")
+    private String encKeyValue = null;
 
     private ClientBuilder clientBuilder;
     private Authentication authentication;
@@ -207,6 +215,10 @@ public class CmdProduce {
             if (this.chunkingAllowed) {
                 producerBuilder.enableChunking(true);
                 producerBuilder.enableBatching(false);
+            }
+            if (isNotBlank(this.encKeyName) && isNotBlank(this.encKeyValue)) {
+                producerBuilder.addEncryptionKey(this.encKeyName);
+                producerBuilder.defaultCryptoKeyReader(this.encKeyValue);
             }
             Producer<byte[]> producer = producerBuilder.create();
 

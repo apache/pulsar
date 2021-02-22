@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.proxy.stats.ConnectionStats;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.glassfish.jersey.client.ClientConfig;
@@ -58,8 +59,6 @@ import com.google.gson.reflect.TypeToken;
 
 public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
-
     private ProxyService proxyService;
     private WebServer proxyWebServer;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -72,13 +71,15 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
         Optional<Integer> proxyLogLevel = Optional.of(2);
         assertEquals(proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
@@ -93,7 +94,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
 

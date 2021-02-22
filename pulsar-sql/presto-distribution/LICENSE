@@ -221,7 +221,7 @@ The Apache Software License, Version 2.0
     - jackson-module-jaxb-annotations-2.11.1.jar
     - jackson-module-jsonSchema-2.11.1.jar
  * Guava
-    - guava-30.0-jre.jar
+    - guava-30.1-jre.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
     - failureaccess-1.0.1.jar
  * Google Guice
@@ -237,6 +237,7 @@ The Apache Software License, Version 2.0
     - netty-codec-4.1.51.Final.jar
     - netty-codec-dns-4.1.51.Final.jar
     - netty-codec-http-4.1.51.Final.jar
+    - netty-codec-haproxy-4.1.51.Final.jar
     - netty-common-4.1.51.Final.jar
     - netty-handler-4.1.51.Final.jar
     - netty-reactive-streams-2.0.4.jar
@@ -386,6 +387,7 @@ The Apache Software License, Version 2.0
     - presto-parser-332.jar
     - presto-plugin-toolkit-332.jar
     - presto-spi-332.jar
+    - presto-record-decoder-332.jar
   * RocksDB JNI
     - rocksdbjni-6.10.2.jar
   * SnakeYAML
@@ -395,9 +397,9 @@ The Apache Software License, Version 2.0
   * Objectsize
     - objectsize-0.0.12.jar
   * Dropwizard Metrics
-    - metrics-core-3.1.0.jar
-    - metrics-graphite-3.1.0.jar
-    - metrics-jvm-3.1.0.jar
+    - metrics-core-3.2.5.jar
+    - metrics-graphite-3.2.5.jar
+    - metrics-jvm-3.2.5.jar
   * Prometheus
     - simpleclient-0.5.0.jar
     - simpleclient_common-0.5.0.jar
@@ -410,18 +412,18 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.12.0.jar
-    - bookkeeper-common-allocator-4.12.0.jar
-    - bookkeeper-proto-4.12.0.jar
-    - bookkeeper-server-4.12.0.jar
-    - bookkeeper-stats-api-4.12.0.jar
-    - bookkeeper-tools-framework-4.12.0.jar
-    - circe-checksum-4.12.0.jar
-    - codahale-metrics-provider-4.12.0jar
-    - cpu-affinity-4.12.0.jar
-    - http-server-4.12.0.jar
-    - prometheus-metrics-provider-4.12.0.jar
-    - codahale-metrics-provider-4.12.0.jar
+    - bookkeeper-common-4.12.1.jar
+    - bookkeeper-common-allocator-4.12.1.jar
+    - bookkeeper-proto-4.12.1.jar
+    - bookkeeper-server-4.12.1.jar
+    - bookkeeper-stats-api-4.12.1.jar
+    - bookkeeper-tools-framework-4.12.1.jar
+    - circe-checksum-4.12.1.jar
+    - codahale-metrics-provider-4.12.1jar
+    - cpu-affinity-4.12.1.jar
+    - http-server-4.12.1.jar
+    - prometheus-metrics-provider-4.12.1.jar
+    - codahale-metrics-provider-4.12.1.jar
   * Apache Commons
     - commons-cli-1.2.jar
     - commons-codec-1.10.jar
@@ -432,18 +434,21 @@ The Apache Software License, Version 2.0
     - commons-logging-1.2.jar
   * GSON
     - gson-2.8.6.jar
+  * Snappy
+    - snappy-java-1.1.7.jar
   * Jackson
     - jackson-module-parameter-names-2.10.0.jar
     - jackson-module-parameter-names-2.11.1.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Jetty
-    - jetty-http-9.4.33.v20201020.jar
-    - jetty-io-9.4.33.v20201020.jar
-    - jetty-security-9.4.33.v20201020.jar
-    - jetty-server-9.4.33.v20201020.jar
-    - jetty-servlet-9.4.33.v20201020.jar
-    - jetty-util-9.4.33.v20201020.jar
+    - jetty-http-9.4.35.v20201120.jar
+    - jetty-io-9.4.35.v20201120.jar
+    - jetty-security-9.4.35.v20201120.jar
+    - jetty-server-9.4.35.v20201120.jar
+    - jetty-servlet-9.4.35.v20201120.jar
+    - jetty-util-9.4.35.v20201120.jar
+    - jetty-util-ajax-9.4.35.v20201120.jar
   * Java Native Access
     - jna-4.2.0.jar
     - jna-5.3.1.jar
@@ -453,16 +458,15 @@ The Apache Software License, Version 2.0
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
   * Apache Zookeeper
-    - zookeeper-3.5.7.jar
-    - zookeeper-jute-3.5.7.jar
+    - zookeeper-3.6.2.jar
+    - zookeeper-jute-3.6.2.jar
   * Apache Yetus Audience Annotations
     - audience-annotations-0.5.0.jar
   * Swagger
-    - swagger-annotations-1.5.21.jar
+    - swagger-annotations-1.6.2.jar
 
 Protocol Buffers License
  * Protocol Buffers
-   - protobuf-shaded-2.1.0-incubating.jar
    - protobuf-java-3.11.4.jar
    - protobuf-java-util-3.11.4.jar
 
@@ -568,6 +572,6 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
--    - bcpkix-jdk15on-1.66.jar
--    - bcprov-ext-jdk15on-1.66.jar
--    - bcprov-jdk15on-1.66.jar
+-    - bcpkix-jdk15on-1.68.jar
+-    - bcprov-ext-jdk15on-1.68.jar
+-    - bcprov-jdk15on-1.68.jar

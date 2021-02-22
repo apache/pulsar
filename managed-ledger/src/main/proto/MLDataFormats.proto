@@ -22,8 +22,8 @@ option java_package = "org.apache.bookkeeper.mledger.proto";
 option optimize_for = SPEED;
 
 message KeyValue {
-	required string key = 1;
-	required string value = 2;
+    required string key = 1;
+    required string value = 2;
 }
 
 message OffloadDriverMetadata {
@@ -38,18 +38,29 @@ message OffloadContext {
     optional bool bookkeeperDeleted = 4;
     optional int64 timestamp = 5;
     optional OffloadDriverMetadata driverMetadata = 6;
+    repeated OffloadSegment offloadSegment = 7;
+}
+
+message OffloadSegment {
+    optional int64 uidMsb = 1;
+    optional int64 uidLsb = 2;
+    optional bool complete = 3;
+    optional int64 assignedTimestamp = 4; //timestamp in millisecond
+    optional int64 offloadedTimestamp = 5; //timestamp in millisecond
+    optional int64 endEntryId = 6;
+    optional OffloadDriverMetadata driverMetadata = 7;
 }
 
 message ManagedLedgerInfo {
     message LedgerInfo {
-    	required int64 ledgerId = 1;
-    	optional int64 entries  = 2;
-    	optional int64 size     = 3;
-    	optional int64 timestamp = 4;
+        required int64 ledgerId = 1;
+        optional int64 entries = 2;
+        optional int64 size = 3;
+        optional int64 timestamp = 4;
         optional OffloadContext offloadContext = 5;
     }
-    
-    repeated LedgerInfo ledgerInfo = 1;
+
+  repeated LedgerInfo ledgerInfo = 1;
 
     // If present, it signals the managed ledger has been
     // terminated and this was the position of the last
@@ -61,13 +72,13 @@ message ManagedLedgerInfo {
 }
 
 message PositionInfo {
-	required int64 ledgerId = 1;
-	required int64 entryId  = 2;
+    required int64 ledgerId = 1;
+    required int64 entryId = 2;
     repeated MessageRange individualDeletedMessages = 3;
 
     // Additional custom properties associated with
-	// the current cursor position
-	repeated LongProperty properties = 4;
+    // the current cursor position
+    repeated LongProperty properties = 4;
 
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 5;
@@ -95,18 +106,18 @@ message LongProperty {
 }
 
 message ManagedCursorInfo {
-	// If the ledger id is -1, then the mark-delete position is
-	// the one from the (ledgerId, entryId) snapshot below
-	required int64 cursorsLedgerId = 1;
+    // If the ledger id is -1, then the mark-delete position is
+    // the one from the (ledgerId, entryId) snapshot below
+    required int64 cursorsLedgerId = 1;
 
-	// Last snapshot of the mark-delete position
-	optional int64 markDeleteLedgerId = 2;
-	optional int64 markDeleteEntryId  = 3;
-	repeated MessageRange individualDeletedMessages = 4;
+    // Last snapshot of the mark-delete position
+    optional int64 markDeleteLedgerId = 2;
+    optional int64 markDeleteEntryId = 3;
+    repeated MessageRange individualDeletedMessages = 4;
 
-	// Additional custom properties associated with
-	// the current cursor position
-	repeated LongProperty properties = 5;
+    // Additional custom properties associated with
+    // the current cursor position
+    repeated LongProperty properties = 5;
 
     optional int64 lastActive = 6;
 

@@ -19,6 +19,8 @@
 package org.apache.pulsar.websocket.proxy.v1;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
@@ -38,6 +40,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.client.api.v1.V1_ProducerConsumerBase;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.proxy.SimpleConsumerSocket;
 import org.apache.pulsar.websocket.proxy.SimpleProducerSocket;
@@ -71,7 +74,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         config.setClusterName("use");
         config.setAuthenticationEnabled(true);
         // If this is not set, 500 error occurs.
-        config.setConfigurationStoreServers("dummy");
+        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
 
         if (methodName.equals("authenticatedSocketTest") || methodName.equals("statsTest")) {
@@ -84,7 +87,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         }
 
         service = spy(new WebSocketService(config));
-        doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
@@ -109,8 +112,12 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         executor.shutdownNow();
 
         super.internalCleanup();
-        service.close();
-        proxyServer.stop();
+        if (service != null) {
+            service.close();
+        }
+        if (proxyServer != null) {
+            proxyServer.stop();
+        }
         log.info("Finished Cleaning Up Test setup");
 
     }

@@ -45,7 +45,7 @@ public class TestUniversalConfigurations extends TestBaseOffload {
         log.info("s3 container start finish.");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardownS3() {
         if (null != s3Container) {
             s3Container.stop();

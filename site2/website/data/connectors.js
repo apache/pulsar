@@ -136,7 +136,7 @@ module.exports = [
         longName: 'NSQ source',
         type: 'Source',
         link: 'https://nsq.io/',
-    }
+    },
     {
         name: 'rabbitmq',
         longName: 'RabbitMQ source and sink',

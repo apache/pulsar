@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.base.Objects;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -103,8 +102,10 @@ public class NamespaceName implements ServiceUnitId {
             } else {
                 throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace);
             }
-        } catch (NullPointerException e) {
-            throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace, e);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new IllegalArgumentException("Invalid namespace format."
+                    + " expected <tenant>/<namespace> or <tenant>/<cluster>/<namespace> "
+                    + "but got: " + namespace, e);
         }
         this.namespace = namespace;
     }

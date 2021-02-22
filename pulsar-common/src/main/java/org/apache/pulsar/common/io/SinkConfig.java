@@ -20,7 +20,6 @@ package org.apache.pulsar.common.io;
 
 import java.util.Collection;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

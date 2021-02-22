@@ -23,7 +23,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
-@SuppressWarnings({"serial", "checkstyle:javadoctype"})
+@SuppressWarnings({ "serial", "checkstyle:javadoctype" })
 public class ManagedLedgerException extends Exception {
     public ManagedLedgerException(String msg) {
         super(msg);
@@ -31,6 +31,10 @@ public class ManagedLedgerException extends Exception {
 
     public ManagedLedgerException(Throwable e) {
         super(e);
+    }
+
+    public ManagedLedgerException(String msg, Throwable e) {
+        super(msg, e);
     }
 
     public static ManagedLedgerException getManagedLedgerException(Throwable e) {
@@ -153,6 +157,12 @@ public class ManagedLedgerException extends Exception {
 
     public static class CursorNotFoundException extends ManagedLedgerException {
         public CursorNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class ManagedLedgerInterceptException extends ManagedLedgerException {
+        public ManagedLedgerInterceptException(String msg) {
             super(msg);
         }
     }

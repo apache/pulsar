@@ -19,13 +19,10 @@
 package org.apache.pulsar.broker.stats;
 
 import com.google.common.collect.Maps;
-
 import io.netty.util.Recycler;
-import java.util.Map;
-
-import org.apache.pulsar.common.stats.Metrics;
-
 import io.netty.util.Recycler.Handle;
+import java.util.Map;
+import org.apache.pulsar.common.stats.Metrics;
 
 /**
  */

@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
 
@@ -45,7 +44,6 @@ import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -81,9 +79,10 @@ import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,6 +107,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private long lastStatTimestamp = System.nanoTime();
     private final ScheduledFuture<?> statsTask;
+    private final ScheduledFuture<?> flushCursorsTask;
 
     private final long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
@@ -202,6 +202,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
         this.statsTask = scheduledExecutor.scheduleAtFixedRate(this::refreshStats, 0, StatsPeriodSeconds, TimeUnit.SECONDS);
+        this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(this::flushCursors,
+                config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);
 
 
         this.cacheEvictionTimeThresholdNanos = TimeUnit.MILLISECONDS
@@ -228,6 +230,17 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         public BookKeeper get(EnsemblePlacementPolicyConfig policy) {
             return bkClient;
         }
+    }
+
+    private synchronized void flushCursors() {
+        ledgers.values().forEach(mlfuture -> {
+            if (mlfuture.isDone() && !mlfuture.isCompletedExceptionally()) {
+                ManagedLedgerImpl ml = mlfuture.getNow(null);
+                if (ml != null) {
+                    ml.getCursors().forEach(c -> ((ManagedCursorImpl) c).flush());
+                }
+            }
+        });
     }
 
     private synchronized void refreshStats() {
@@ -483,6 +496,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void shutdown() throws InterruptedException, ManagedLedgerException {
         statsTask.cancel(true);
+        flushCursorsTask.cancel(true);
 
         int numLedgers = ledgers.size();
         final CountDownLatch latch = new CountDownLatch(numLedgers);
@@ -854,42 +868,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
          * @return
          */
         BookKeeper get(EnsemblePlacementPolicyConfig ensemblePlacementPolicyMetadata);
-    }
-
-    public static class EnsemblePlacementPolicyConfig {
-        private final Class<? extends EnsemblePlacementPolicy> policyClass;
-        private final Map<String, Object> properties;
-
-        public EnsemblePlacementPolicyConfig(Class<? extends EnsemblePlacementPolicy> policyClass,
-                Map<String, Object> properties) {
-            super();
-            this.policyClass = policyClass;
-            this.properties = properties;
-        }
-
-        public Class<? extends EnsemblePlacementPolicy> getPolicyClass() {
-            return policyClass;
-        }
-
-        public Map<String, Object> getProperties() {
-            return properties;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(policyClass != null ? policyClass.getName() : "", properties);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof EnsemblePlacementPolicyConfig) {
-                EnsemblePlacementPolicyConfig other = (EnsemblePlacementPolicyConfig) obj;
-                return Objects.equal(this.policyClass == null ? null : this.policyClass.getName(),
-                        other.policyClass == null ? null : other.policyClass.getName())
-                        && Objects.equal(this.properties, other.properties);
-            }
-            return false;
-        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerFactoryImpl.class);

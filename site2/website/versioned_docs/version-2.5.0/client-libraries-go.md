@@ -7,7 +7,7 @@ original_id: client-libraries-go
 
 The Pulsar Go client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
-> #### API docs available as well
+> **API docs available as well**  
 > For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar/pulsar-client-go/pulsar).
 
 
@@ -21,7 +21,7 @@ through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) o
 
 ### Installing go package
 
-> #### Compatibility Warning
+> **Compatibility Warning**  
 > The version number of the Go client **must match** the version number of the Pulsar C++ client library.
 
 You can install the `pulsar` library locally using `go get`.  Note that `go get` doesn't support fetching a specific tag - it will always pull in master's version of the Go client.  You'll need a C++ client library that matches master.
@@ -129,7 +129,7 @@ if err := producer.Send(context.Background(), msg); err != nil {
 }
 ```
 
-> #### Blocking operation
+> **Blocking operation**  
 > When you create a new Pulsar producer, the operation will block (waiting on a go channel) until either a producer is successfully created or an error is thrown.
 
 
@@ -221,7 +221,7 @@ Parameter | Description | Default
 `CompressionType` | The message data compression type used by the producer. The available options are [`LZ4`](https://github.com/lz4/lz4), [`ZLIB`](https://zlib.net/), [`ZSTD`](https://facebook.github.io/zstd/) and [`SNAPPY`](https://google.github.io/snappy/). | No compression
 `MessageRouter` | By default, Pulsar uses a round-robin routing scheme for [partitioned topics](cookbooks-partitioned.md). The `MessageRouter` parameter enables you to specify custom routing logic via a function that takes the Pulsar message and topic metadata as an argument and returns an integer (where the ), i.e. a function signature of `func(Message, TopicMetadata) int`. |
 `Batching` | Control whether automatic batching of messages is enabled for the producer. | false
-`BatchingMaxPublishDelay` | Set the time period within which the messages sent will be batched (default: 10ms) if batch messages are enabled. If set to a non zero value, messages will be queued until this time interval or until | 10ms
+`BatchingMaxPublishDelay` | Set the time period within which the messages sent will be batched (default: 1ms) if batch messages are enabled. If set to a non zero value, messages will be queued until this time interval or until | 1ms
 `BatchingMaxMessages` | Set the maximum number of messages permitted in a batch. (default: 1000) If set to a value greater than 1, messages will be queued until this threshold is reached or batch interval has elapsed | 1000
 
 ## Consumers
@@ -256,7 +256,7 @@ for cm := range msgChannel {
 }
 ```
 
-> #### Blocking operation
+> **Blocking operation**  
 > When you create a new Pulsar consumer, the operation will block (on a go channel) until either a producer is successfully created or an error is thrown.
 
 
@@ -362,7 +362,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 })
 ```
 
-> #### Blocking operation
+> **Blocking operation**  
 > When you create a new Pulsar reader, the operation will block (on a go channel) until either a reader is successfully created or an error is thrown.
 
 
