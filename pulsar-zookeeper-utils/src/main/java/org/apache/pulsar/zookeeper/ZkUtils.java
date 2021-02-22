@@ -85,9 +85,13 @@ public final class ZkUtils {
      * @return the parent path or null if no parent exists
      */
     public static String getParentForPath(final String path) {
-        if (path == null) return null;
+        if (path == null) {
+            return null;
+        }
         final int length = path.length();
-        if (length == 0 || (length == 1 && path.charAt(0) == '/')) return null;
+        if (length == 0 || (length == 1 && path.charAt(0) == '/')) {
+            return null;
+        }
 
         int partStartIndex = 0;
         char lastChar = path.charAt(0);

@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -31,17 +32,13 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
-
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class BacklogQuotaManager {
     private static final Logger log = LoggerFactory.getLogger(BacklogQuotaManager.class);
@@ -78,18 +75,19 @@ public class BacklogQuotaManager {
     public BacklogQuota getBacklogQuota(TopicName topicName) {
         String policyPath = AdminResource.path(POLICIES, topicName.getNamespace());
         if (!isTopicLevelPoliciesEnable) {
-            return getBacklogQuota(topicName.getNamespace(),policyPath);
+            return getBacklogQuota(topicName.getNamespace(), policyPath);
         }
 
         try {
             return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName))
                     .map(TopicPolicies::getBackLogQuotaMap)
                     .map(map -> map.get(BacklogQuotaType.destination_storage.name()))
-                    .orElseGet(() -> getBacklogQuota(topicName.getNamespace(),policyPath));
+                    .orElseGet(() -> getBacklogQuota(topicName.getNamespace(), policyPath));
         } catch (Exception e) {
-            log.warn("Failed to read topic policies data, will apply the namespace backlog quota: topicName={}", topicName, e);
+            log.warn("Failed to read topic policies data, will apply the namespace backlog quota: topicName={}",
+                    topicName, e);
         }
-        return getBacklogQuota(topicName.getNamespace(),policyPath);
+        return getBacklogQuota(topicName.getNamespace(), policyPath);
     }
 
     public long getBacklogQuotaLimit(TopicName topicName) {
@@ -97,10 +95,9 @@ public class BacklogQuotaManager {
     }
 
     /**
-     * Handle exceeded backlog by using policies set in the zookeeper for given topic
+     * Handle exceeded backlog by using policies set in the zookeeper for given topic.
      *
-     * @param persistentTopic
-     *            Topic on which backlog has been exceeded
+     * @param persistentTopic Topic on which backlog has been exceeded
      */
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic) {
         TopicName topicName = TopicName.get(persistentTopic.getName());
@@ -121,7 +118,7 @@ public class BacklogQuotaManager {
     }
 
     /**
-     * Drop the backlog on the topic
+     * Drop the backlog on the topic.
      *
      * @param persistentTopic
      *            The topic from which backlog should be dropped
@@ -195,7 +192,7 @@ public class BacklogQuotaManager {
     }
 
     /**
-     * Disconnect producers on given topic
+     * Disconnect producers on given topic.
      *
      * @param persistentTopic
      *            The topic on which all producers should be disconnected

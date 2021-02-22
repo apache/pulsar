@@ -90,6 +90,12 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
             Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
         }
         Message<Integer> message = consumer.receive();
-        consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+
+        try {
+            consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+            fail();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
+        }
     }
 }

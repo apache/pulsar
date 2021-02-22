@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -38,13 +42,6 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.util.ReferenceCountUtil;
 
 public class PulsarStats implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(PulsarStats.class);
@@ -66,7 +63,7 @@ public class PulsarStats implements Closeable {
         this.topicStatsBuf = Unpooled.buffer(16 * 1024);
         this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
-        this.nsStats = new NamespaceStats();
+        this.nsStats = new NamespaceStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
         this.clusterReplicationMetrics = new ClusterReplicationMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getConfiguration().isReplicationMetricsEnabled());
         this.bundleStats = Maps.newConcurrentMap();
@@ -95,7 +92,8 @@ public class PulsarStats implements Closeable {
     }
 
     public synchronized void updateStats(
-            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>> topicsMap) {
+            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
+                    topicsMap) {
 
         StatsOutputStream topicStatsStream = new StatsOutputStream(tempTopicStatsBuf);
 
@@ -134,12 +132,13 @@ public class PulsarStats implements Closeable {
                                     topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
                                             clusterReplicationMetrics, namespaceName, exposePublisherStats);
                                 } catch (Exception e) {
-                                    log.error("Failed to generate topic stats for topic {}: {}", name, e.getMessage(), e);
+                                    log.error("Failed to generate topic stats for topic {}: {}",
+                                            name, e.getMessage(), e);
                                 }
                                 // this task: helps to activate inactive-backlog-cursors which have caught up and
                                 // connected, also deactivate active-backlog-cursors which has backlog
-                                ((PersistentTopic) topic).checkBackloggedCursors();
-                            }else if (topic instanceof NonPersistentTopic) {
+                                topic.checkBackloggedCursors();
+                            } else if (topic instanceof NonPersistentTopic) {
                                 tempNonPersistentTopics.add((NonPersistentTopic) topic);
                             } else {
                                 log.warn("Unsupported type of topic {}", topic.getClass().getName());
@@ -148,15 +147,16 @@ public class PulsarStats implements Closeable {
                         // end persistent topics section
                         topicStatsStream.endObject();
 
-                        if(!tempNonPersistentTopics.isEmpty()) {
-                         // start non-persistent topic
+                        if (!tempNonPersistentTopics.isEmpty()) {
+                            // start non-persistent topic
                             topicStatsStream.startObject("non-persistent");
                             tempNonPersistentTopics.forEach(topic -> {
                                 try {
                                     topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
                                             clusterReplicationMetrics, namespaceName, exposePublisherStats);
                                 } catch (Exception e) {
-                                    log.error("Failed to generate topic stats for topic {}: {}", topic.getName(), e.getMessage(), e);
+                                    log.error("Failed to generate topic stats for topic {}: {}",
+                                            topic.getName(), e.getMessage(), e);
                                 }
                             });
                             // end non-persistent topics section

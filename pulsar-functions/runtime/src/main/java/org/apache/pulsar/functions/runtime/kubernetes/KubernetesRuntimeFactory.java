@@ -36,13 +36,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.lang.reflect.Field;
@@ -52,6 +53,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 
 /**
@@ -92,11 +94,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String pythonInstanceFile;
     private final String logDirectory = "logs/functions";
     private Resources functionInstanceMinResources;
+    private Resources functionInstanceMaxResources;
     private boolean authenticationEnabled;
     private Integer grpcPort;
     private Integer metricsPort;
     private String narExtractionDirectory;
     private String functionInstanceClassPath;
+    private String downloadDirectory;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -129,6 +133,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
+                           ConnectorsManager connectorsManager,
                            Optional<FunctionAuthProvider> functionAuthProvider,
                            Optional<RuntimeCustomizer> runtimeCustomizer) {
 
@@ -167,6 +172,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.configAdminCLI = "/bin/pulsar-admin";
         }
+        this.downloadDirectory = isNotEmpty(workerConfig.getDownloadDirectory()) ?
+                workerConfig.getDownloadDirectory() : this.pulsarRootDir; // for backward comp
+        if (!Paths.get(this.downloadDirectory).isAbsolute()) {
+            this.downloadDirectory = this.pulsarRootDir + "/" + this.downloadDirectory;
+        }
 
         this.submittingInsidePod = factoryConfig.getSubmittingInsidePod();
         this.installUserCodeDependencies = factoryConfig.getInstallUserCodeDependencies();
@@ -199,6 +209,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.changeConfigMap = factoryConfig.getChangeConfigMap();
         this.changeConfigMapNamespace = factoryConfig.getChangeConfigMapNamespace();
         this.functionInstanceMinResources = workerConfig.getFunctionInstanceMinResources();
+        this.functionInstanceMaxResources = workerConfig.getFunctionInstanceMaxResources();
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.authenticationEnabled = workerConfig.isAuthenticationEnabled();
         this.javaInstanceJarFile = this.pulsarRootDir + "/instances/java-instance.jar";
@@ -256,7 +267,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 instanceFile = pythonInstanceFile;
                 break;
             case GO:
-                throw new UnsupportedOperationException();
+                break;
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
@@ -309,7 +320,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             metricsPort,
             narExtractionDirectory,
             manifestCustomizer,
-            functionInstanceClassPath);
+            functionInstanceClassPath,
+            downloadDirectory);
     }
 
     @Override
@@ -321,7 +333,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     	final String overriddenJobName = getOverriddenName(functionDetails);
         KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
-        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient, 
+        validateMaxResourcesRequired(functionDetails);
+        secretsProviderConfigurator.doAdmissionChecks(appsClient, coreClient,
         		getOverriddenNamespace(functionDetails), overriddenJobName, functionDetails);
     }
 
@@ -416,6 +429,25 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
     }
 
+    void validateMaxResourcesRequired(Function.FunctionDetails functionDetails) {
+        if (functionInstanceMaxResources != null) {
+            Double maxCpu = functionInstanceMaxResources.getCpu();
+            Long maxRam = functionInstanceMaxResources.getRam();
+
+            if (maxCpu != null && functionDetails.getResources().getCpu() > maxCpu) {
+                throw new IllegalArgumentException(
+                        String.format("Per instance CPU requested, %s, for function is greater than the maximum required, %s",
+                                functionDetails.getResources().getCpu(), maxCpu));
+            }
+
+            if (maxRam != null && functionDetails.getResources().getRam() > maxRam) {
+                throw new IllegalArgumentException(
+                        String.format("Per instance RAM requested, %s, for function is greater than the maximum required, %s",
+                                functionDetails.getResources().getRam(), maxRam));
+            }
+        }
+    }
+
     @Override
     public Optional<KubernetesFunctionAuthProvider> getAuthProvider() {
         return authProvider;
@@ -430,7 +462,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace)).orElse(jobNamespace);
     }
-    
+
     private String getOverriddenName(Function.FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map((customizer) -> customizer.customizeName(funcDetails, jobName)).orElse(jobName);

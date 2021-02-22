@@ -102,6 +102,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -598,7 +599,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(invocationCount = 1)
+    @Test
     public void namespaces() throws PulsarAdminException, PulsarServerException, Exception {
         admin.clusters().createCluster("usw", new ClusterData());
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
@@ -634,6 +635,8 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             // Ok, got the non authorized exception since usc cluster is not in the allowed clusters list.
         }
 
+        // no need to clear cache once authorization-provide also start using metadata-store
+        clearCache();
         admin.namespaces().grantPermissionOnNamespace("prop-xyz/use/ns1", "my-role", EnumSet.allOf(AuthAction.class));
 
         Policies policies = new Policies();
@@ -645,7 +648,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.topicDispatchRate.put("test", ConfigHelper.topicDispatchRate(conf));
         policies.subscriptionDispatchRate.put("test", ConfigHelper.subscriptionDispatchRate(conf));
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
-        policies.message_ttl_in_seconds = pulsar.getConfiguration().getTtlDurationDefaultInSeconds();
 
         policies.max_unacked_messages_per_subscription = 200000;
         policies.max_unacked_messages_per_consumer = 50000;
@@ -659,7 +661,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.auth_policies.namespace_auth.remove("my-role");
         assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1"), policies);
 
-        assertEquals(admin.namespaces().getPersistence("prop-xyz/use/ns1"), new PersistencePolicies(2, 2, 2, 0.0));
+        assertEquals(admin.namespaces().getPersistence("prop-xyz/use/ns1"), null);
         admin.namespaces().setPersistence("prop-xyz/use/ns1", new PersistencePolicies(3, 2, 1, 10.0));
         assertEquals(admin.namespaces().getPersistence("prop-xyz/use/ns1"), new PersistencePolicies(3, 2, 1, 10.0));
 
@@ -1755,7 +1757,12 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.subscriptions.get("my-sub2").msgBacklog, 10);
         assertEquals(topicStats.subscriptions.get("my-sub3").msgBacklog, 10);
 
-        admin.topics().expireMessagesForAllSubscriptions("persistent://prop-xyz/use/ns1/ds2", 1);
+        try {
+            admin.topics().expireMessagesForAllSubscriptions("persistent://prop-xyz/use/ns1/ds2", 1);
+        } catch (Exception e) {
+            // my-sub1 has no msg backlog, so expire message won't be issued on that subscription
+            assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
+        }
         Thread.sleep(1000); // wait for 1 seconds to execute expire message as it is async
 
         topicStats = admin.topics().getStats("persistent://prop-xyz/use/ns1/ds2");
@@ -2041,5 +2048,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             LongRunningProcessStatus.Status.ERROR);
         assertTrue(admin.topics().compactionStatus(topicName)
             .lastError.contains("Failed at something"));
+    }
+
+    private void clearCache() {
+        ((MetadataCacheImpl) pulsar.getPulsarResources().getNamespaceResources().getCache()).invalidateAll();
     }
 }

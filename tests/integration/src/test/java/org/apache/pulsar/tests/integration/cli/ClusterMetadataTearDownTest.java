@@ -98,7 +98,7 @@ public class ClusterMetadataTearDownTest {
         admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
     }
 
-    @AfterSuite
+    @AfterSuite(alwaysRun = true)
     public void tearDownCluster() {
         try {
             ledgerManager.close();

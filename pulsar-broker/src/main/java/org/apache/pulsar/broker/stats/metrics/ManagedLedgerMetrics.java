@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 public class ManagedLedgerMetrics extends AbstractMetrics {
 
@@ -53,7 +52,7 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
     }
 
     /**
-     * Aggregation by namespace (not thread-safe)
+     * Aggregation by namespace (not thread-safe).
      *
      * @param ledgersByDimension
      * @return
@@ -74,7 +73,8 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
             for (ManagedLedgerImpl ledger : ledgers) {
                 ManagedLedgerMXBean lStats = ledger.getStats();
 
-                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryBytesRate", lStats.getAddEntryBytesRate());
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryBytesRate",
+                        lStats.getAddEntryBytesRate());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryErrors",
                         (double) lStats.getAddEntryErrors());
 
@@ -90,7 +90,8 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
                         lStats.getReadEntriesBytesRate());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesErrors",
                         (double) lStats.getReadEntriesErrors());
-                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesRate", lStats.getReadEntriesRate());
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesRate",
+                        lStats.getReadEntriesRate());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_ReadEntriesSucceeded",
                         (double) lStats.getReadEntriesSucceeded());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_StoredMessagesSize",
@@ -98,15 +99,20 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
 
                 // handle bucket entries initialization here
                 populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_AddEntryLatencyBuckets",
-                        ENTRY_LATENCY_BUCKETS_MS, lStats.getAddEntryLatencyBuckets());
+                        ENTRY_LATENCY_BUCKETS_MS, lStats.getAddEntryLatencyBuckets(),
+                        ManagedLedgerFactoryImpl.StatsPeriodSeconds);
                 populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_LedgerAddEntryLatencyBuckets",
-                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerAddEntryLatencyBuckets());
+                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerAddEntryLatencyBuckets(),
+                        ManagedLedgerFactoryImpl.StatsPeriodSeconds);
                 populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_LedgerSwitchLatencyBuckets",
-                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerSwitchLatencyBuckets());
+                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerSwitchLatencyBuckets(),
+                        ManagedLedgerFactoryImpl.StatsPeriodSeconds);
 
-                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_EntrySizeBuckets", ENTRY_SIZE_BUCKETS_BYTES,
-                        lStats.getEntrySizeBuckets());
-                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_MarkDeleteRate", lStats.getMarkDeleteRate());
+                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_EntrySizeBuckets",
+                        ENTRY_SIZE_BUCKETS_BYTES, lStats.getEntrySizeBuckets(),
+                        ManagedLedgerFactoryImpl.StatsPeriodSeconds);
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_MarkDeleteRate",
+                        lStats.getMarkDeleteRate());
             }
 
             // SUM up collections of each metrics
@@ -123,7 +129,7 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
     }
 
     /**
-     * Build a map of dimensions key to list of topic stats (not thread-safe)
+     * Build a map of dimensions key to list of topic stats (not thread-safe).
      * <p>
      *
      * @return

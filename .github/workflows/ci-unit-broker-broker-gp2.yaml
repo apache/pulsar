@@ -22,12 +22,13 @@ on:
   pull_request:
     branches:
       - master
+    paths-ignore: ['site2/**', 'deployment/**']
   push:
     branches:
       - branch-*
-
+    paths-ignore: ['site2/**', 'deployment/**']
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -39,22 +40,11 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
 
       - name: Cache local Maven repository
         uses: actions/cache@v2
@@ -65,28 +55,10 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: build modules
-        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
-      - name: run flaky test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/MessagePublishBufferThrottleTest.java' -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/ReplicatorTest.java' -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/TopicOwnerTest.java' -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/AntiAffinityNamespaceGroupTest.java' -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run unit tests for pulsar-broker "org/apache/pulsar/broker/"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn ${MAVEN_CLI_OPTS} test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java' -Dexclude='**/ReplicatorTest.java,**/MessagePublishBufferThrottleTest.java,**/TopicOwnerTest.java,**/AntiAffinityNamespaceGroupTest.java'
+      - name: run unit test 'BROKER_GROUP_2'
+        run: ./build/run_unit_group.sh BROKER_GROUP_2
 
       - name: package surefire artifacts
         if: failure()

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
@@ -25,10 +28,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
-
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This class is responsible for reading assignments from the 'assignments' functions internal topic.
@@ -53,7 +52,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
 
     @Getter
     private MessageId lastMessageId = null;
-    
+
     public FunctionAssignmentTailer(
             FunctionRuntimeManager functionRuntimeManager,
             ReaderBuilder readerBuilder,
@@ -128,7 +127,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             log.error("Failed to stop function assignment tailer", e);
         }
     }
-    
+
     private Reader<byte[]> createReader(MessageId startMessageId) throws PulsarClientException {
         log.info("Assignment tailer will start reading from message id {}", startMessageId);
 
@@ -145,7 +144,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                 try {
                     Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);
                     if (msg == null) {
-                        if (exitOnEndOfTopic && !reader.hasMessageAvailable()) {
+                        if (exitOnEndOfTopic && !reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS)) {
                             break;
                         }
                     } else {

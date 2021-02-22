@@ -35,6 +35,8 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -106,7 +109,6 @@ public class PulsarFunctionLocalRunTest {
     PulsarAdmin admin;
     PulsarClient pulsarClient;
     BrokerStats brokerStatsClient;
-    WorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
@@ -147,7 +149,7 @@ public class PulsarFunctionLocalRunTest {
 
         config = spy(new ServiceConfiguration());
         config.setClusterName(CLUSTER);
-        Set<String> superUsers = Sets.newHashSet("superUser");
+        Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
@@ -177,10 +179,26 @@ public class PulsarFunctionLocalRunTest {
         config.setBrokerClientTlsEnabled(true);
         config.setAllowAutoTopicCreationType("non-partitioned");
 
-        functionsWorkerService = createPulsarFunctionWorker(config);
+        workerConfig = createWorkerConfig(config);
 
-        Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
+        // populate builtin connectors folder
+        if (Arrays.asList(method.getAnnotation(Test.class).groups()).contains("builtin")) {
+            File connectorsDir = new File(workerConfig.getConnectorsDirectory());
+
+            if (connectorsDir.exists()) {
+                FileUtils.deleteDirectory(connectorsDir);
+            }
+
+            if (connectorsDir.mkdir()) {
+                File file = new File(getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile());
+                Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
+            } else {
+                throw new RuntimeException("Failed to create builtin connectors directory");
+            }
+        }
+
+        Optional<WorkerService> functionWorkerService = Optional.empty();
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         String brokerServiceUrl = pulsar.getWebServiceAddressTls();
@@ -199,9 +217,9 @@ public class PulsarFunctionLocalRunTest {
         brokerStatsClient = admin.brokerStats();
         primaryHost = pulsar.getWebServiceAddress();
 
-        // update cluster metadata
+        // create cluster metadata
         ClusterData clusterData = new ClusterData(urlTls.toString());
-        admin.clusters().updateCluster(config.getClusterName(), clusterData);
+        admin.clusters().createCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl());
@@ -218,8 +236,8 @@ public class PulsarFunctionLocalRunTest {
         TenantInfo propAdmin = new TenantInfo();
         propAdmin.getAdminRoles().add("superUser");
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList(CLUSTER)));
-        admin.tenants().updateTenant(tenant, propAdmin);
-        
+        admin.tenants().createTenant(tenant, propAdmin);
+
         // setting up simple web sever to test submitting function via URL
         fileServer = HttpServer.create(new InetSocketAddress(0), 0);
         fileServer.createContext("/pulsar-io-data-generator.nar", he -> {
@@ -279,17 +297,21 @@ public class PulsarFunctionLocalRunTest {
         fileServer.stop(0);
         pulsarClient.close();
         admin.close();
-        functionsWorkerService.stop();
         pulsar.close();
         bkEnsemble.stop();
+
+        File connectorsDir = new File(workerConfig.getConnectorsDirectory());
+        if (connectorsDir.exists()) {
+            FileUtils.deleteDirectory(connectorsDir);
+        }
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
+    private WorkerConfig createWorkerConfig(ServiceConfiguration config) {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
-        workerConfig = new WorkerConfig();
+        WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -321,8 +343,7 @@ public class PulsarFunctionLocalRunTest {
 
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
-
-        return new WorkerService(workerConfig);
+        return workerConfig;
     }
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
@@ -503,6 +524,7 @@ public class PulsarFunctionLocalRunTest {
                 .withPojo(AvroTestObject.class).build());
         //use AVRO schema
         admin.schemas().createSchema(sourceTopic, schema.getSchemaInfo());
+        // please note that in this test the sink topic schema is different from the schema of the source topic
 
         //produce message to sourceTopic
         Producer<AvroTestObject> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
@@ -704,13 +726,17 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
+    @Test(timeOut = 20000, groups = "builtin")
+    public void testPulsarSourceStatsBuiltin() throws Exception {
+        testPulsarSourceLocalRun(String.format("%s://data-generator", Utils.BUILTIN));
+    }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testPulsarSourceLocalRunNoArchive() throws Exception {
         testPulsarSourceLocalRun(null);
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testPulsarSourceLocalRunWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         testPulsarSourceLocalRun(jarFilePathUrl);
@@ -723,7 +749,7 @@ public class PulsarFunctionLocalRunTest {
     }
 
 
-    private void testPulsarSinkStats(String jarFilePathUrl) throws Exception {
+    private void testPulsarSinkLocalRun(String jarFilePathUrl) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
@@ -810,20 +836,25 @@ public class PulsarFunctionLocalRunTest {
 
     }
 
+    @Test(timeOut = 20000, groups = "builtin")
+    public void testPulsarSinkStatsBuiltin() throws Exception {
+        testPulsarSinkLocalRun(String.format("%s://data-generator", Utils.BUILTIN));
+    }
+
     @Test(timeOut = 20000)
     public void testPulsarSinkStatsNoArchive() throws Exception {
-        testPulsarSinkStats(null);
+        testPulsarSinkLocalRun(null);
     }
 
     @Test(timeOut = 20000)
     public void testPulsarSinkStatsWithFile() throws Exception {
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
-        testPulsarSinkStats(jarFilePathUrl);
+        testPulsarSinkLocalRun(jarFilePathUrl);
     }
 
     @Test(timeOut = 40000)
     public void testPulsarSinkStatsWithUrl() throws Exception {
         String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar", fileServer.getAddress().getPort());
-        testPulsarSinkStats(jarFilePathUrl);
+        testPulsarSinkLocalRun(jarFilePathUrl);
     }
 }

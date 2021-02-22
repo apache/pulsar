@@ -47,7 +47,7 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
     public final static String KEYSTORE_PW = "keyStorePassword";
     private final static String DEFAULT_KEYSTORE_TYPE = "JKS";
 
-    private KeyStoreParams keyStoreParams;
+    private transient KeyStoreParams keyStoreParams;
 
     public AuthenticationKeyStoreTls() {
     }

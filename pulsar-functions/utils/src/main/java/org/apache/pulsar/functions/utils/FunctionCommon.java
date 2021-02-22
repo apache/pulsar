@@ -18,23 +18,18 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.net.*;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.UUID;
-
+import com.google.protobuf.AbstractMessage.Builder;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
+import java.io.InputStream;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
@@ -45,18 +40,31 @@ import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
+import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
-import com.google.protobuf.AbstractMessage.Builder;
-import com.google.protobuf.MessageOrBuilder;
-import com.google.protobuf.util.JsonFormat;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.net.MalformedURLException;
+import java.net.ServerSocket;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.UUID;
 
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 /**
  * Utils used for runtime.
@@ -191,7 +199,7 @@ public class FunctionCommon {
         return getSourceType(classLoader.loadClass(className));
     }
 
-    public static Class<?>getSourceType(Class sourceClass) {
+    public static Class<?> getSourceType(Class sourceClass) {
 
         if (Source.class.isAssignableFrom(sourceClass)) {
             return TypeResolver.resolveRawArgument(Source.class, sourceClass);
@@ -205,21 +213,18 @@ public class FunctionCommon {
     }
 
     public static Class<?> getSinkType(String className, ClassLoader classLoader) throws ClassNotFoundException {
+        return getSinkType(classLoader.loadClass(className));
+    }
 
-        Class userClass = classLoader.loadClass(className);
-
-        Class<?> typeArg = TypeResolver.resolveRawArgument(Sink.class, userClass);
-
-        return typeArg;
+    public static Class<?> getSinkType(Class sinkClass) {
+        return TypeResolver.resolveRawArgument(Sink.class, sinkClass);
     }
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
         URL website = new URL(destPkgUrl);
-
-        ReadableByteChannel rbc = Channels.newChannel(website.openStream());
-        log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
-        try (FileOutputStream fos = new FileOutputStream(targetFile)) {
-            fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+        try (InputStream in = website.openStream()) {
+            log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
+            Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
         log.info("Downloading function package from {} to {} completed!", destPkgUrl, targetFile.getAbsoluteFile());
     }
@@ -256,17 +261,8 @@ public class FunctionCommon {
         }
     }
 
-    public static NarClassLoader extractNarClassLoader(Path archivePath, File packageFile,
+    public static NarClassLoader extractNarClassLoader(File packageFile,
                                                        String narExtractionDirectory) {
-        if (archivePath != null) {
-            try {
-                return NarClassLoader.getFromArchive(archivePath.toFile(),
-                            Collections.emptySet(), narExtractionDirectory);
-            } catch (IOException e) {
-                throw new IllegalArgumentException(String.format("The archive %s is corrupted", archivePath));
-            }
-        }
-
         if (packageFile != null) {
             try {
                 return NarClassLoader.getFromArchive(packageFile,
@@ -382,5 +378,133 @@ public class FunctionCommon {
     public static double roundDecimal(double value, int places) {
         double scale = Math.pow(10, places);
         return Math.round(value * scale) / scale;
+    }
+
+    public static ClassLoader getClassLoaderFromPackage(
+            org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType componentType,
+            String className,
+            File packageFile,
+            String narExtractionDirectory) {
+        String connectorClassName = className;
+        ClassLoader jarClassLoader = null;
+        ClassLoader narClassLoader = null;
+
+        Exception jarClassLoaderException = null;
+        Exception narClassLoaderException = null;
+
+        try {
+            jarClassLoader = ClassLoaderUtils.extractClassLoader(packageFile);
+        } catch (Exception e) {
+            jarClassLoaderException = e;
+        }
+        try {
+            narClassLoader = FunctionCommon.extractNarClassLoader(packageFile, narExtractionDirectory);
+        } catch (Exception e) {
+            narClassLoaderException = e;
+        }
+
+        // if connector class name is not provided, we can only try to load archive as a NAR
+        if (isEmpty(connectorClassName)) {
+            if (narClassLoader == null) {
+                throw new IllegalArgumentException(String.format("%s package does not have the correct format. " +
+                                "Pulsar cannot determine if the package is a NAR package or JAR package. " +
+                                "%s classname is not provided and attempts to load it as a NAR package produced the following error.",
+                        capFirstLetter(componentType), capFirstLetter(componentType)),
+                        narClassLoaderException);
+            }
+            try {
+                if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+                    connectorClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
+                } else {
+                    connectorClassName = ConnectorUtils.getIOSinkClass((NarClassLoader) narClassLoader);
+                }
+            } catch (IOException e) {
+                throw new IllegalArgumentException(String.format("Failed to extract %s class from archive",
+                        componentType.toString().toLowerCase()), e);
+            }
+
+            try {
+                narClassLoader.loadClass(connectorClassName);
+                return narClassLoader;
+            } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                throw new IllegalArgumentException(
+                        String.format("%s class %s must be in class path", capFirstLetter(componentType), connectorClassName), e);
+            }
+
+        } else {
+            // if connector class name is provided, we need to try to load it as a JAR and as a NAR.
+            if (jarClassLoader != null) {
+                try {
+                    jarClassLoader.loadClass(connectorClassName);
+                    return jarClassLoader;
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                    // class not found in JAR try loading as a NAR and searching for the class
+                    if (narClassLoader != null) {
+
+                        try {
+                            narClassLoader.loadClass(connectorClassName);
+                            return narClassLoader;
+                        } catch (ClassNotFoundException | NoClassDefFoundError e1) {
+                            throw new IllegalArgumentException(
+                                    String.format("%s class %s must be in class path",
+                                            capFirstLetter(componentType), connectorClassName), e1);
+                        }
+                    } else {
+                        throw new IllegalArgumentException(
+                                String.format("%s class %s must be in class path", capFirstLetter(componentType),
+                                        connectorClassName), e);
+                    }
+                }
+            } else if (narClassLoader != null) {
+                try {
+                    narClassLoader.loadClass(connectorClassName);
+                    return narClassLoader;
+                } catch (ClassNotFoundException | NoClassDefFoundError e1) {
+                    throw new IllegalArgumentException(
+                            String.format("%s class %s must be in class path",
+                                    capFirstLetter(componentType), connectorClassName), e1);
+                }
+            } else {
+                StringBuilder errorMsg = new StringBuilder(capFirstLetter(componentType)
+                        + " package does not have the correct format."
+                        + " Pulsar cannot determine if the package is a NAR package or JAR package.");
+
+                if (jarClassLoaderException != null) {
+                    errorMsg.append(" Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
+                }
+
+                if (narClassLoaderException != null) {
+                    errorMsg.append(" Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
+                }
+
+                throw new IllegalArgumentException(errorMsg.toString());
+            }
+        }
+    }
+
+    public static String capFirstLetter(Enum en) {
+        return StringUtils.capitalize(en.toString().toLowerCase());
+    }
+
+    public static boolean isFunctionCodeBuiltin(org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails) {
+        if (functionDetails.hasSource()) {
+            org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = functionDetails.getSource();
+            if (!isEmpty(sourceSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        if (functionDetails.hasSink()) {
+            org.apache.pulsar.functions.proto.Function.SinkSpec sinkSpec = functionDetails.getSink();
+            if (!isEmpty(sinkSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        if (!isEmpty(functionDetails.getBuiltin())) {
+            return true;
+        }
+
+        return false;
     }
 }

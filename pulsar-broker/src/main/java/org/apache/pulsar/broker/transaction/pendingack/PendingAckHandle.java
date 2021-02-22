@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
-
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Handle for processing pending acks for transactions.
@@ -54,7 +53,8 @@ public interface PendingAckHandle {
      * @throws NotAllowedException if Use this method incorrectly eg. not use
      * PositionImpl or cumulative ack with a list of positions.
      */
-    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Long>> positions);
+    CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
+                                                         List<MutablePair<PositionImpl, Integer>> positions);
 
     /**
      * Acknowledge message(s) for an ongoing transaction.
@@ -83,11 +83,12 @@ public interface PendingAckHandle {
     /**
      * Commit a transaction.
      *
-     * @param txnID         {@link TxnID} to identify the transaction.
-     * @param properties    Additional user-defined properties that can be associated with a particular cursor position.
+     * @param txnID      {@link TxnID} to identify the transaction.
+     * @param properties Additional user-defined properties that can be
+     *                   associated with a particular cursor position.
      * @return the future of this operation.
      */
-    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String,Long> properties);
+    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties);
 
     /**
      * Abort a transaction.
@@ -103,7 +104,7 @@ public interface PendingAckHandle {
      *
      * @param position {@link Position} which position need to sync and carry it batch size
      */
-    void syncBatchPositionAckSetForTransaction(MutablePair<PositionImpl, Long> position);
+    void syncBatchPositionAckSetForTransaction(PositionImpl position);
 
     /**
      * Judge the all ack set point have acked by normal ack and transaction pending ack.

@@ -39,7 +39,7 @@ public class IOUtilsTest {
     InputStream stdin = System.in;
     PrintStream stdout = System.out;
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tearDown() {
         System.setIn(stdin);
         System.setOut(stdout);
