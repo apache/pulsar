@@ -35,6 +35,7 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 
+import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.stats.Metrics;
@@ -126,6 +127,10 @@ public class PrometheusMetricsGenerator {
 
         // generate managedLedger metrics
         parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
+                clusterName, Collector.Type.GAUGE, stream);
+
+        // generate managedCursor metrics
+        parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
 
         // generate loadBalance metrics
