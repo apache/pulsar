@@ -86,8 +86,14 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
     }
 
     protected void stopCluster() throws Exception {
-        container.stop();
-        network.close();
+        if (container != null) {
+            container.stop();
+            container = null;
+        }
+        if (network != null) {
+            network.close();
+            network = null;
+        }
     }
 
 }
