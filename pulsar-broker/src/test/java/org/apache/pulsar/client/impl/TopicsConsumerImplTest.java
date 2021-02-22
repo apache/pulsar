@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -43,6 +44,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -518,7 +520,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         when(mockClient.eventLoopGroup()).thenReturn(new NioEventLoopGroup());
         try {
             ConsumerImpl consumer = new ConsumerImpl(mockClient, "my-topic", consumerConfig,
-            Executors.newSingleThreadExecutor(), 0, false, new CompletableFuture<>(),
+                    new ExecutorProvider(1, new DefaultThreadFactory("test")), 0,
+                    false, new CompletableFuture<>(),
             MessageId.earliest, 100, Schema.BYTES,
                     new ConsumerInterceptors(Collections.emptyList()), false);
         } catch (Exception exception) {
@@ -832,8 +835,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 6;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
+        final String topicName1 = "persistent://my-property/my-ns/topic-1-" + key;
+        final String topicName2 = "persistent://my-property/my-ns/topic-2-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
 
         TenantInfo tenantInfo = createDefaultTenantInfo();
@@ -892,7 +895,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test(timeOut = testTimeout)
     public void testConsumerDistributionInFailoverSubscriptionWhenUpdatePartitions() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testConsumerDistributionInFailoverSubscriptionWhenUpdatePartitions";
+        final String topicName = "persistent://my-property/my-ns/testConsumerDistributionInFailoverSubscriptionWhenUpdatePartitions";
         final String subName = "failover-test";
         TenantInfo tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);

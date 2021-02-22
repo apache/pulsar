@@ -32,9 +32,11 @@ import javax.ws.rs.client.WebTarget;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
@@ -49,6 +51,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     private WebServer webServer;
     private BrokerDiscoveryProvider discoveryProvider;
     private AdminProxyWrapper adminProxyHandler;
+    private PulsarResources resource;
 
     @Override
     @BeforeClass
@@ -74,7 +77,9 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         webServer = new WebServer(proxyConfig, new AuthenticationService(
                                           PulsarConfigurationLoader.convertFrom(proxyConfig)));
 
-        discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
+        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
+                new ZKMetadataStore(mockZooKeeperGlobal));
+        discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
         adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         servletHolder.setInitParameter("preserveHost", "true");
@@ -90,7 +95,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
         webServer.stop();

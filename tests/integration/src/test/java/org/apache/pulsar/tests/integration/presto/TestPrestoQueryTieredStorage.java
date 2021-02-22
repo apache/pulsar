@@ -92,7 +92,7 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         return sb.toString();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardownPresto() {
         log.info("[TestPrestoQueryTieredStorage] tearing down...");
         if (null != s3Container) {

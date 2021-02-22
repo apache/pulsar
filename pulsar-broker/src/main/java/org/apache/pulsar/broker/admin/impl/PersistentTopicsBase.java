@@ -87,9 +87,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -121,8 +123,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,10 +140,11 @@ public class PersistentTopicsBase extends AdminResource {
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         try {
-            policiesCache().get(path(POLICIES, namespaceName.toString()));
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to get topic list {}: Namespace does not exist", clientAppId(), namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+            if (!namespaceResources().exists(path(POLICIES, namespaceName.toString()))) {
+                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+            }
+        } catch (RestException re) {
+            throw re;
         } catch (Exception e) {
             log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
@@ -153,12 +154,12 @@ public class PersistentTopicsBase extends AdminResource {
 
         try {
             String path = String.format("/managed-ledgers/%s/%s", namespaceName.toString(), domain());
-            for (String topic : managedLedgerListCache().get(path)) {
+            for (String topic : getLocalPolicies().getChildren(path)) {
                 if (domain().equals(TopicDomain.persistent.toString())) {
                     topics.add(TopicName.get(domain(), namespaceName, decode(topic)).toString());
                 }
             }
-        } catch (KeeperException.NoNodeException e) {
+        } catch (org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException e) {
             // NoNode means there are no topics in this domain for this namespace
         } catch (Exception e) {
             log.error("[{}] Failed to get topics list for namespace {}", clientAppId(), namespaceName, e);
@@ -171,14 +172,15 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected List<String> internalGetPartitionedTopicList() {
         validateAdminAccessForTenant(namespaceName.getTenant());
-
         // Validate that namespace exists, throws 404 if it doesn't exist
         try {
-            policiesCache().get(path(POLICIES, namespaceName.toString()));
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to get partitioned topic list {}: Namespace does not exist", clientAppId(),
-                    namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+            if (!namespaceResources().exists(path(POLICIES, namespaceName.toString()))) {
+                log.warn("[{}] Failed to get partitioned topic list {}: Namespace does not exist", clientAppId(),
+                        namespaceName);
+                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+            }
+        } catch (RestException e) {
+            throw e;
         } catch (Exception e) {
             log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
@@ -193,7 +195,7 @@ public class PersistentTopicsBase extends AdminResource {
         String topicUri = topicName.toString();
 
         try {
-            Policies policies = policiesCache().get(path(POLICIES, namespaceName.toString()))
+            Policies policies = namespaceResources().get(path(POLICIES, namespaceName.toString()))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
 
             Map<String, Set<AuthAction>> permissions = Maps.newTreeMap();
@@ -319,34 +321,19 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void grantPermissions(String topicUri, String role, Set<AuthAction> actions) {
         try {
-            Stat nodeStat = new Stat();
-            byte[] content = globalZk().getData(path(POLICIES, namespaceName.toString()), null, nodeStat);
-            Policies policies = jsonMapper().readValue(content, Policies.class);
+            namespaceResources().set(path(POLICIES, namespaceName.toString()), (policies) -> {
+                if (!policies.auth_policies.destination_auth.containsKey(topicUri)) {
+                    policies.auth_policies.destination_auth.put(topicUri, new TreeMap<String, Set<AuthAction>>());
+                }
 
-            if (!policies.auth_policies.destination_auth.containsKey(topicUri)) {
-                policies.auth_policies.destination_auth.put(topicUri, new TreeMap<String, Set<AuthAction>>());
-            }
-
-            policies.auth_policies.destination_auth.get(topicUri).put(role, actions);
-
-            // Write the new policies to zookeeper
-            globalZk().setData(path(POLICIES, namespaceName.toString()), jsonMapper().writeValueAsBytes(policies),
-                    nodeStat.getVersion());
-
-            // invalidate the local cache to force update
-            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-
+                policies.auth_policies.destination_auth.get(topicUri).put(role, actions);
+                return policies;
+            });
             log.info("[{}] Successfully granted access for role {}: {} - topic {}", clientAppId(), role, actions,
                     topicUri);
-
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to grant permissions on topic {}: Namespace does not exist", clientAppId(),
-                    topicUri);
+        } catch (org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException e) {
+            log.warn("[{}] Failed to grant permissions on topic {}: Namespace does not exist", clientAppId(), topicUri);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to grant permissions on topic {}: concurrent modification", clientAppId(),
-                    topicUri);
-            throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (Exception e) {
             log.error("[{}] Failed to grant permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
@@ -385,45 +372,28 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void revokePermissions(String topicUri, String role) {
-        Stat nodeStat = new Stat();
         Policies policies;
-
         try {
-            byte[] content = globalZk().getData(path(POLICIES, namespaceName.toString()), null, nodeStat);
-            policies = jsonMapper().readValue(content, Policies.class);
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to revoke permissions on topic {}: Namespace does not exist", clientAppId(),
-                    topicUri);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to revoke permissions on topic {}: concurrent modification", clientAppId(),
-                    topicUri);
-            throw new RestException(Status.CONFLICT, "Concurrent modification");
+            policies = namespaceResources().get(path(POLICIES, namespaceName.toString()))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
         }
-
         if (!policies.auth_policies.destination_auth.containsKey(topicUri)
                 || !policies.auth_policies.destination_auth.get(topicUri).containsKey(role)) {
-            log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
-                    clientAppId(), role, topicUri);
+            log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}", clientAppId(),
+                    role, topicUri);
             throw new RestException(Status.PRECONDITION_FAILED, "Permissions are not set at the topic level");
         }
-
-        policies.auth_policies.destination_auth.get(topicUri).remove(role);
-
         try {
             // Write the new policies to zookeeper
             String namespacePath = path(POLICIES, namespaceName.toString());
-            globalZk().setData(namespacePath, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
-
-            // invalidate the local cache to force update
-            policiesCache().invalidate(namespacePath);
-            globalZkCache().invalidate(namespacePath);
-
-            log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role,
-                    topicUri);
+            namespaceResources().set(namespacePath, (p) -> {
+                p.auth_policies.destination_auth.get(topicUri).remove(role);
+                return p;
+            });
+            log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role, topicUri);
         } catch (Exception e) {
             log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicUri, e);
             throw new RestException(e);
@@ -528,19 +498,15 @@ public class PersistentTopicsBase extends AdminResource {
                 final String path = ZkAdminPaths.partitionedTopicPath(topicName);
                 updatePartitionInOtherCluster(numPartitions, clusters).thenAccept((res) -> {
                     try {
-                        byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
-                        globalZk().setData(path, data, -1, (rc, path1, ctx, stat) -> {
-                            if (rc == KeeperException.Code.OK.intValue()) {
-                                updatePartition.complete(null);
-                            } else {
-                                updatePartition.completeExceptionally(KeeperException
-                                        .create(KeeperException.Code.get(rc), "failed to create update partitions"));
-                            }
-                        }, null);
+                        namespaceResources().getPartitionedTopicResources().setAsync(path, (p) -> {
+                            return new PartitionedTopicMetadata(numPartitions);
+                        }).thenAccept(r -> updatePartition.complete(null)).exceptionally(ex -> {
+                            updatePartition.completeExceptionally(ex.getCause());
+                            return null;
+                        });
                     } catch (Exception e) {
                         updatePartition.completeExceptionally(e);
                     }
-
                 }).exceptionally(ex -> {
                     updatePartition.completeExceptionally(ex);
                     return null;
@@ -737,42 +703,33 @@ public class PersistentTopicsBase extends AdminResource {
                     return;
                 }
             }
-
             // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
             String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(),
                     topicName.getEncodedLocalName());
-
-            globalZk().delete(path, -1, (rc, s, o) -> {
-                if (KeeperException.Code.OK.intValue() == rc) {
-                    try {
-                        globalZkCache().invalidate(path);
-                        globalZk().sync(path, (rc2, s2, ctx) -> {
-                            if (KeeperException.Code.OK.intValue() == rc2) {
-                                log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
-                                asyncResponse.resume(Response.noContent().build());
-                            } else {
-                                log.error("[{}] Failed to delete partitioned topic {}", clientAppId(),
-                                        topicName, KeeperException.create(KeeperException.Code.get(rc2)));
-                                asyncResponse.resume(new RestException(
-                                        KeeperException.create(KeeperException.Code.get(rc2))));
-                            }
-                        }, null);
-                    } catch (Exception e) {
-                        log.error("Failed to delete partitioned topic.", e);
-                        asyncResponse.resume(new RestException(e));
+            try {
+                namespaceResources().getPartitionedTopicResources().deleteAsync(path).thenAccept(r2 -> {
+                    log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex1 -> {
+                    log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, ex1.getCause());
+                    if (ex1.getCause()
+                            instanceof org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(
+                                new RestException(Status.NOT_FOUND, "Partitioned topic does not exist")));
+                    } else if (ex1
+                            .getCause()
+                            instanceof org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException) {
+                        asyncResponse.resume(
+                                new RestException(new RestException(Status.CONFLICT, "Concurrent modification")));
+                    } else {
+                        asyncResponse.resume(new RestException((ex1.getCause())));
                     }
-                } else if (KeeperException.Code.NONODE.intValue() == rc) {
-                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Partitioned topic does not exist"));
-                } else if (KeeperException.Code.BADVERSION.intValue() == rc) {
-                    log.warn("[{}] Failed to delete partitioned topic {}: concurrent modification", clientAppId(),
-                            topicName);
-                    asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
-                } else {
-                    log.error("[{}] Failed to delete partitioned topic {}", clientAppId(),
-                            topicName, KeeperException.create(KeeperException.Code.get(rc)));
-                    asyncResponse.resume(new RestException(KeeperException.create(KeeperException.Code.get(rc))));
-                }
-            }, null);
+                    return null;
+                });
+            } catch (Exception e1) {
+                log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e1);
+                asyncResponse.resume(new RestException(e1));
+            }
         });
     }
 
@@ -1327,7 +1284,7 @@ public class PersistentTopicsBase extends AdminResource {
                 if (perPartition && stats.partitions.isEmpty()) {
                     String path = ZkAdminPaths.partitionedTopicPath(topicName);
                     try {
-                        boolean zkPathExists = zkPathExists(path);
+                        boolean zkPathExists = namespaceResources().getPartitionedTopicResources().exists(path);
                         if (zkPathExists) {
                             stats.partitions.put(topicName.toString(), new TopicStats());
                         } else {
@@ -1336,7 +1293,7 @@ public class PersistentTopicsBase extends AdminResource {
                                             "Internal topics have not been generated yet"));
                             return null;
                         }
-                    } catch (KeeperException | InterruptedException e) {
+                    } catch (Exception e) {
                         asyncResponse.resume(new RestException(e));
                         return null;
                     }
@@ -2513,8 +2470,8 @@ public class PersistentTopicsBase extends AdminResource {
         // Validate that namespace exists, throw 404 if it doesn't exist
         // note that we do not want to load the topic and hence skip validateAdminOperationOnTopic()
         try {
-            policiesCache().get(path(POLICIES, namespaceName.toString()));
-        } catch (KeeperException.NoNodeException e) {
+            namespaceResources().get(path(POLICIES, namespaceName.toString()));
+        } catch (org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException e) {
             log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (Exception e) {
@@ -3433,15 +3390,9 @@ public class PersistentTopicsBase extends AdminResource {
         CompletableFuture<Void> updatePartition = new CompletableFuture<>();
         createSubscriptions(topicName, numPartitions).thenAccept(res -> {
             try {
-                byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
-                globalZk().setData(path, data, -1, (rc, path1, ctx, stat) -> {
-                    if (rc == KeeperException.Code.OK.intValue()) {
-                        updatePartition.complete(null);
-                    } else {
-                        updatePartition.completeExceptionally(KeeperException.create(KeeperException.Code.get(rc),
-                                "failed to create update partitions"));
-                    }
-                }, null);
+                namespaceResources().getPartitionedTopicResources().set(path,
+                        p -> new PartitionedTopicMetadata(numPartitions));
+                updatePartition.complete(null);
             } catch (Exception e) {
                 updatePartition.completeExceptionally(e);
             }
@@ -3818,6 +3769,23 @@ public class PersistentTopicsBase extends AdminResource {
         TopicPolicies topicPolicies = getTopicPolicies(topicName)
             .orElseGet(TopicPolicies::new);
         topicPolicies.setPublishRate(publishRate);
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+    }
+
+    protected Optional<List<SubType>> internalGetSubscriptionTypesEnabled() {
+        preValidation();
+        return getTopicPolicies(topicName).map(TopicPolicies::getSubscriptionTypesEnabled);
+
+    }
+
+    protected CompletableFuture<Void> internalSetSubscriptionTypesEnabled(
+            Set<SubscriptionType> subscriptionTypesEnabled) {
+        List<SubType> subTypes = Lists.newArrayList();
+        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
+        preValidation();
+        TopicPolicies topicPolicies = getTopicPolicies(topicName)
+                .orElseGet(TopicPolicies::new);
+        topicPolicies.setSubscriptionTypesEnabled(subTypes);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 

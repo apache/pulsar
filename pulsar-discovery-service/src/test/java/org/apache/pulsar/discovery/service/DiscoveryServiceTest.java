@@ -41,12 +41,12 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.KeeperException.SessionExpiredException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.AfterMethod;
@@ -119,7 +119,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
             future.get();
             fail("Partition metadata lookup should have failed");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getClass(), SessionExpiredException.class);
+            assertEquals(e.getCause().getClass(), MetadataStoreException.class);
         }
     }
 

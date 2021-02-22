@@ -105,7 +105,7 @@ public abstract class MockedBookKeeperTestCase {
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tearDownClass() {
         executor.shutdown();
         cachedExecutor.shutdown();

@@ -434,7 +434,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public String toString() {
-        return conf != null ? conf.toString() : null;
+        return conf != null ? conf.toString() : "";
     }
 
     @Override

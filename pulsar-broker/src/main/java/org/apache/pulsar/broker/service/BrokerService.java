@@ -100,6 +100,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -166,7 +167,6 @@ import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -2200,26 +2200,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         try {
-            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMetadata);
-
-            ZkUtils.asyncCreateFullPathOptimistic(pulsar.getGlobalZkCache().getZooKeeper(),
-                    partitionedTopicPath(topicName), content,
-                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
-                        if (rc == KeeperException.Code.OK.intValue()) {
-                            // Sync data to all quorums and the observers
-                            pulsar.getGlobalZkCache().getZooKeeper().sync(partitionedTopicPath(topicName),
-                                (rc2, path2, ctx2) -> {
-                                    if (rc2 == KeeperException.Code.OK.intValue()) {
-                                        partitionedTopicFuture.complete(configMetadata);
-                                    } else {
-                                        partitionedTopicFuture.completeExceptionally(KeeperException.create(rc2));
-                                    }
-                            }, null);
-                        } else {
-                            partitionedTopicFuture.completeExceptionally(KeeperException.create(rc));
-                        }
-                    }, null);
-
+            PartitionedTopicResources partitionResources = pulsar.getPulsarResources().getNamespaceResources()
+                    .getPartitionedTopicResources();
+            partitionResources.createAsync(partitionedTopicPath(topicName), configMetadata).thenAccept((r) -> {
+                log.info("partitioned metadata successfully created for {}", topicName);
+                partitionedTopicFuture.complete(configMetadata);
+            }).exceptionally(ex -> {
+                partitionedTopicFuture.completeExceptionally(ex.getCause());
+                return null;
+            });
         } catch (Exception e) {
             log.error("Failed to create default partitioned topic.", e);
             return FutureUtil.failedFuture(e);
@@ -2229,13 +2218,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {
-        // gets the number of partitions from the zk cache
-        return pulsar.getGlobalZkCache().getDataAsync(partitionedTopicPath(topicName), (key, content) -> {
-            return ObjectMapperFactory.getThreadLocal().readValue(content, PartitionedTopicMetadata.class);
-        }).thenApply(metadata -> {
-            // if the partitioned topic is not found in zk, then the topic is not partitioned
-            return metadata.orElseGet(() -> new PartitionedTopicMetadata());
-        });
+        // gets the number of partitions from the configuration cache
+        return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .getAsync(partitionedTopicPath(topicName)).thenApply(metadata -> {
+                    // if the partitioned topic is not found in zk, then the topic is not partitioned
+                    return metadata.orElseGet(() -> new PartitionedTopicMetadata());
+                });
     }
 
     private static String partitionedTopicPath(TopicName topicName) {

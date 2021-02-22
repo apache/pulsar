@@ -134,7 +134,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         log.info("Cluster {} is setup", spec.clusterName());
     }
 
-    @AfterSuite
+    @AfterSuite(alwaysRun = true)
     @Override
     public void tearDownCluster() {
         super.tearDownCluster();
