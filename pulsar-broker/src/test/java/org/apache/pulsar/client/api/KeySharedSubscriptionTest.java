@@ -25,8 +25,12 @@ import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +48,10 @@ import org.apache.curator.shaded.com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -60,7 +66,15 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private static final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
 
     @DataProvider(name = "batch")
-    public Object[][] batchProvider() {
+    public Object[] batchProvider() {
+        return new Object[] {
+                false,
+                true
+        };
+    }
+
+    @DataProvider(name = "partitioned")
+    public Object[][] partitionedProvider() {
         return new Object[][] {
                 { false },
                 { true }
@@ -306,7 +320,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .value(i)
                     .send();
         }
-        int slot = Murmur3_32Hash.getInstance().makeHash(PersistentStickyKeyDispatcherMultipleConsumers.NONE_KEY.getBytes())
+        int slot = Murmur3_32Hash.getInstance().makeHash("NONE_KEY".getBytes())
                 % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
         List<KeyValue<Consumer<Integer>, Integer>> checkList = new ArrayList<>();
         if (slot <= 20000) {
@@ -855,6 +869,132 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Assert.assertNotNull(consumer3.receive(1, TimeUnit.SECONDS));
     }
 
+    @Test(dataProvider = "partitioned")
+    public void testOrderingWithConsumerListener(boolean partitioned) throws Exception {
+        final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+        if (partitioned) {
+            admin.topics().createPartitionedTopic(topic, 3);
+        }
+        final String subName = "my-sub";
+        final int messages = 1000;
+        List<Message<Integer>> received = Collections.synchronizedList(new ArrayList<>(1000));
+        Random random = new Random();
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .listenerThreads(8)
+                .build();
+
+        Consumer<Integer> consumer = client.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .messageListener(new MessageListener<Integer>() {
+                    @Override
+                    public void received(Consumer<Integer> consumer, Message<Integer> msg) {
+                        try {
+                            Thread.sleep(random.nextInt(5));
+                            received.add(msg);
+                        } catch (InterruptedException ignore) {
+                        }
+                    }
+                })
+                .subscribe();
+
+
+        Producer<Integer> producer = client.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        String[] keys = new String[]{"key-1", "key-2", "key-3"};
+        for (int i = 0; i < messages; i++) {
+            producer.newMessage().key(keys[i % 3]).value(i).send();
+        }
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                Assert.assertEquals(received.size(), messages));
+
+        Map<String, Integer> maxValueOfKeys = new HashMap<>();
+        for (Message<Integer> msg : received) {
+            String key = msg.getKey();
+            Integer value = msg.getValue();
+            if (maxValueOfKeys.containsKey(key)) {
+                Assert.assertTrue(value > maxValueOfKeys.get(key));
+            }
+            maxValueOfKeys.put(key, value);
+            consumer.acknowledge(msg);
+        }
+
+        producer.close();
+        consumer.close();
+        client.close();
+    }
+
+    @Test
+    public void testKeySharedConsumerWithEncrypted() throws Exception {
+        final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+        final int totalMessages = 100;
+
+        @Cleanup
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .cryptoKeyReader(new EncKeyReader())
+                .subscribe();
+
+        @Cleanup
+        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .cryptoKeyReader(new EncKeyReader())
+                .subscribe();
+
+        List<Consumer<Integer>> consumers = Lists.newArrayList(consumer1, consumer2);
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .cryptoKeyReader(new EncKeyReader())
+                .create();
+
+        for (int i = 0; i < totalMessages; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        List<Message<Integer>> receives = new ArrayList<>(totalMessages);
+        int[] consumerReceivesCount = new int[] {0, 0};
+
+        for (int i = 0; i < consumers.size(); i++) {
+            while (true) {
+                Message<Integer> received = consumers.get(i).receive(3, TimeUnit.SECONDS);
+                if (received != null) {
+                    receives.add(received);
+                    int current = consumerReceivesCount[i];
+                    consumerReceivesCount[i] = current + 1;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        Assert.assertEquals(receives.size(), totalMessages);
+        Assert.assertEquals(consumerReceivesCount[0] + consumerReceivesCount[1], totalMessages);
+        Assert.assertTrue(consumerReceivesCount[0] > 0);
+        Assert.assertTrue(consumerReceivesCount[1] > 0);
+
+        Map<String, Integer> maxValueOfKey = new HashMap<>();
+        receives.forEach(msg -> {
+            if (maxValueOfKey.containsKey(msg.getKey())) {
+                Assert.assertTrue(msg.getValue() > maxValueOfKey.get(msg.getKey()));
+            }
+            maxValueOfKey.put(msg.getKey(), msg.getValue());
+        });
+    }
+
     private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges) throws PulsarClientException {
         return pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -1035,5 +1175,42 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             assertTrue(allKeys.add(key),
                 "Key "+ key +  "is distributed to multiple consumers." );
         }));
+    }
+
+    private static class EncKeyReader implements CryptoKeyReader {
+
+        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+        @Override
+        public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+            String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                try {
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                    return keyInfo;
+                } catch (IOException e) {
+                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                }
+            } else {
+                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+            }
+            return null;
+        }
+
+        @Override
+        public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+            String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                try {
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                    return keyInfo;
+                } catch (IOException e) {
+                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                }
+            } else {
+                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+            }
+            return null;
+        }
     }
 }

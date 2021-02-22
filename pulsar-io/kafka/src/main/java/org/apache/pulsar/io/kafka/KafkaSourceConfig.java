@@ -94,6 +94,11 @@ public class KafkaSourceConfig implements Serializable {
                 + "Since the deserializer will be set by a specific implementation of `KafkaAbstractSource`.")
     private String valueDeserializationClass = "org.apache.kafka.common.serialization.ByteArrayDeserializer";
     @FieldDoc(
+            defaultValue = "earliest",
+            help =
+                    "The default offset reset policy.")
+    private String autoOffsetReset = "earliest";
+    @FieldDoc(
         defaultValue = "",
         help =
             "The consumer config properties to be passed to Consumer. Note that other properties specified "

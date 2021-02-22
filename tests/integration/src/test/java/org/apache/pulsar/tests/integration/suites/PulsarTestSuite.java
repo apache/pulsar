@@ -33,7 +33,7 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
         super.setupCluster();
     }
 
-    @AfterSuite
+    @AfterSuite(alwaysRun = true)
     @Override
     public void tearDownCluster() {
         super.tearDownCluster();

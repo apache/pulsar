@@ -76,6 +76,9 @@ public interface Topic {
 
         void completed(Exception e, long ledgerId, long entryId);
 
+        default void setMetadataFromEntryData(ByteBuf entryData) {
+        }
+
         default long getHighestSequenceId() {
             return  -1L;
         }
@@ -191,7 +194,7 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStats getStats(boolean getPreciseBacklog);
+    TopicStats getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 

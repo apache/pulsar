@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 
@@ -41,9 +40,10 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     private final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
     private final long tickTimeMillis;
     private final Clock clock;
-    private final static long BASE_OF_MILLIS_TO_SECOND = 1000L;
     private Timeout currentTimeout;
     private final static long INITIAL_TIMEOUT = 1L;
+    // The timeout may wait time longer than the new transaction timeout time, so we should cancel the current timeout
+    // and create a timeout wait time is the new transaction timeout time.
     private long nowTaskTimeoutTime = INITIAL_TIMEOUT;
     private final long tcId;
     private final TransactionMetadataStoreService transactionMetadataStoreService;
@@ -60,21 +60,21 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     @Override
     public CompletableFuture<Boolean> addTransaction(long sequenceId, long timeout) {
         if (timeout < tickTimeMillis) {
-            this.transactionMetadataStoreService.endTransaction(new TxnID(priorityQueue.peekN2(),
-                    priorityQueue.peekN3()), TxnAction.ABORT_VALUE);
+            this.transactionMetadataStoreService.endTransactionForTimeout(new TxnID(tcId, sequenceId));
             return CompletableFuture.completedFuture(false);
         }
         synchronized (this){
-            long nowTime = clock.millis() / BASE_OF_MILLIS_TO_SECOND;
+            long nowTime = clock.millis();
             priorityQueue.add(timeout + nowTime, tcId, sequenceId);
             long nowTransactionTimeoutTime = nowTime + timeout;
             if (nowTaskTimeoutTime == INITIAL_TIMEOUT) {
-                currentTimeout = timer.newTimeout(this, timeout, TimeUnit.SECONDS);
+                currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
                 nowTaskTimeoutTime = nowTransactionTimeoutTime;
             } else if (nowTaskTimeoutTime > nowTransactionTimeoutTime) {
-                currentTimeout.cancel();
-                currentTimeout = timer.newTimeout(this, timeout, TimeUnit.SECONDS);
-                nowTaskTimeoutTime = nowTransactionTimeoutTime;
+                if (currentTimeout.cancel()) {
+                    currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
+                    nowTaskTimeoutTime = nowTransactionTimeoutTime;
+                }
             }
         }
         return CompletableFuture.completedFuture(false);
@@ -82,7 +82,7 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
 
     @Override
     public void replayAddTransaction(long sequenceId, long timeout) {
-        long nowTime = clock.millis() / BASE_OF_MILLIS_TO_SECOND;
+        long nowTime = clock.millis();
         priorityQueue.add(timeout + nowTime, tcId, sequenceId);
     }
 
@@ -94,7 +94,9 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     @Override
     public void close() {
         priorityQueue.close();
-        this.close();
+        if (this.currentTimeout != null) {
+            this.currentTimeout.cancel();
+        }
     }
 
     @Override
@@ -102,14 +104,14 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
         synchronized (this){
             while (!priorityQueue.isEmpty()){
                 long timeoutTime = priorityQueue.peekN1();
-                long nowTime = clock.millis() / BASE_OF_MILLIS_TO_SECOND;
+                long nowTime = clock.millis();
                 if (timeoutTime < nowTime){
-                    transactionMetadataStoreService.endTransaction(new TxnID(priorityQueue.peekN2(),
-                            priorityQueue.peekN3()), TxnAction.ABORT_VALUE);
+                    transactionMetadataStoreService.endTransactionForTimeout(new TxnID(priorityQueue.peekN2(),
+                            priorityQueue.peekN3()));
                 } else {
                     currentTimeout = timer
                             .newTimeout(this,
-                                    timeoutTime - clock.millis() / BASE_OF_MILLIS_TO_SECOND, TimeUnit.SECONDS);
+                                    timeoutTime - clock.millis(), TimeUnit.MILLISECONDS);
                     nowTaskTimeoutTime = nowTime + timeoutTime;
                     break;
                 }

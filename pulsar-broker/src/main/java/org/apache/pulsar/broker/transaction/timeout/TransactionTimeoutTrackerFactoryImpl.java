@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.transaction.timeout;
 
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
@@ -32,42 +30,21 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactor
  */
 public class TransactionTimeoutTrackerFactoryImpl implements TransactionTimeoutTrackerFactory {
 
-    private Timer timer;
+    private final Timer timer;
 
-    private static final long tickTimeMillis = 1L;
+    private static final long tickTimeMillis = 100L;
 
     private final TransactionMetadataStoreService transactionMetadataStoreService;
 
-    public TransactionTimeoutTrackerFactoryImpl(TransactionMetadataStoreService transactionMetadataStoreService) {
+    public TransactionTimeoutTrackerFactoryImpl(TransactionMetadataStoreService transactionMetadataStoreService,
+                                                HashedWheelTimer timer) {
         this.transactionMetadataStoreService = transactionMetadataStoreService;
-    }
-
-    @Override
-    public void initialize() {
-        this.timer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timeout-tracker"),
-                tickTimeMillis, TimeUnit.MILLISECONDS);
+        this.timer = timer;
     }
 
     @Override
     public TransactionTimeoutTracker newTracker(TransactionCoordinatorID tcID) {
-        synchronized (this) {
-            if (timer == null) {
-                initialize();
-            }
-        }
         return new TransactionTimeoutTrackerImpl(tcID.getId(), timer, tickTimeMillis, transactionMetadataStoreService);
-    }
-
-    @Override
-    public void close() {
-        if (timer != null) {
-            timer.stop();
-        }
-    }
-
-    @Override
-    public Timer getTimer() {
-        return timer;
     }
 
 }

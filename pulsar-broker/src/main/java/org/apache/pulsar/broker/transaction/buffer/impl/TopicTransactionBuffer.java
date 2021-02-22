@@ -69,7 +69,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 synchronized (TopicTransactionBuffer.this) {
                     if (!ongoingTxns.containsKey(txnId)) {
                         ongoingTxns.put(txnId, (PositionImpl) position);
@@ -106,7 +106,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
 
         topic.getManagedLedger().asyncAddEntry(commitMarker, new AsyncCallbacks.AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 synchronized (TopicTransactionBuffer.this) {
                     updateMaxReadPosition(txnID);
                     handleLowWaterMark(txnID, lowWaterMark);
@@ -133,7 +133,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
         ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L, txnID.getMostSigBits(), txnID.getLeastSigBits());
         topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
             @Override
-            public void addComplete(Position position, Object ctx) {
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 synchronized (TopicTransactionBuffer.this) {
                     aborts.put(txnID, (PositionImpl) position);
                     updateMaxReadPosition(txnID);
@@ -159,7 +159,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
                         txnID.getMostSigBits(), txnID.getLeastSigBits());
                 topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
                     @Override
-                    public void addComplete(Position position, Object ctx) {
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (TopicTransactionBuffer.this) {
                             aborts.put(firstTxn, (PositionImpl) position);
                             updateMaxReadPosition(firstTxn);

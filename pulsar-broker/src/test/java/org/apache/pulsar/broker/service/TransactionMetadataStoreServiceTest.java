@@ -104,7 +104,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
         Awaitility.await().atMost(1000,  TimeUnit.MILLISECONDS).until(() ->
                 transactionMetadataStoreService.getStores().size() == 1);
-        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5).get();
+        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000).get();
         List<String> partitions = new ArrayList<>();
         partitions.add("ptn-0");
         partitions.add("ptn-1");
@@ -122,7 +122,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
         Awaitility.await().atMost(1000,  TimeUnit.MILLISECONDS).until(() ->
                 transactionMetadataStoreService.getStores().size() == 1);
-        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5).get();
+        TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5000).get();
         List<TransactionSubscription> partitions = new ArrayList<>();
         partitions.add(TransactionSubscription.builder().topic("ptn-1").subscription("sub-1").build());
         partitions.add(TransactionSubscription.builder().topic("ptn-2").subscription("sub-1").build());
@@ -151,8 +151,13 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         field.setAccessible(true);
         ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>> txnMap =
                 (ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>>) field.get(transactionMetadataStore);
-        for (int i = 0; i < 1000; i ++) {
-            transactionMetadataStore.newTransaction(5).get();
+        int i = -1;
+        while (++i < 1000) {
+            try {
+                transactionMetadataStore.newTransaction(5000).get();
+            } catch (Exception e) {
+                //no operation
+            }
         }
 
         txnMap.forEach((txnID, txnMetaListPair) -> {
@@ -180,9 +185,10 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>> txnMap =
                 (ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>>) field.get(transactionMetadataStore);
         new Thread(() -> {
-            for (int i = 0; i < 100; i ++) {
+            int i = -1;
+            while (++i < 100) {
                 try {
-                    transactionMetadataStore.newTransaction(1);
+                    transactionMetadataStore.newTransaction(1000);
                 } catch (Exception e) {
                     //no operation
                 }
@@ -190,9 +196,10 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         }).start();
 
         new Thread(() -> {
-            for (int i = 0; i < 100; i ++) {
+            int i = -1;
+            while (++i < 100) {
                 try {
-                    transactionMetadataStore.newTransaction(3);
+                    transactionMetadataStore.newTransaction(3000);
                 } catch (Exception e) {
                     //no operation
                 }
@@ -200,9 +207,10 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         }).start();
 
         new Thread(() -> {
-            for (int i = 0; i < 100; i ++) {
+            int i = -1;
+            while (++i < 100) {
                 try {
-                    transactionMetadataStore.newTransaction(2);
+                    transactionMetadataStore.newTransaction(2000);
                 } catch (Exception e) {
                     //no operation
                 }
@@ -210,9 +218,10 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         }).start();
 
         new Thread(() -> {
-            for (int i = 0; i < 100; i ++) {
+            int i = -1;
+            while (++i < 100) {
                 try {
-                    transactionMetadataStore.newTransaction(10);
+                    transactionMetadataStore.newTransaction(10000);
                 } catch (Exception e) {
                     //no operation
                 }

@@ -168,6 +168,9 @@ public class PerformanceConsumer {
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
+    
+        @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
+        public boolean batchIndexAck = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -323,6 +326,7 @@ public class PerformanceConsumer {
                 .subscriptionType(arguments.subscriptionType)
                 .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
                 .autoAckOldestChunkedMessageOnQueueFull(arguments.autoAckOldestChunkedMessageOnQueueFull)
+                .enableBatchIndexAcknowledgment(arguments.batchIndexAck)
                 .replicateSubscriptionState(arguments.replicatedSubscription);
         if (arguments.maxPendingChuckedMessage > 0) {
             consumerBuilder.maxPendingChuckedMessage(arguments.maxPendingChuckedMessage);

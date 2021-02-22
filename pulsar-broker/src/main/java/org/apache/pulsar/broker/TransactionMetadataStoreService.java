@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -60,15 +62,17 @@ public class TransactionMetadataStoreService {
     private final TransactionBufferClient tbClient;
     private final TransactionTimeoutTrackerFactory timeoutTrackerFactory;
     private final long endTransactionRetryIntervalTime;
+    private final Timer transactionOpRetryTimer;
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
-                                           long endTransactionRetryIntervalTime) {
+                                           long endTransactionRetryIntervalTime, HashedWheelTimer timer) {
         this.pulsarService = pulsarService;
         this.stores = new ConcurrentHashMap<>();
         this.transactionMetadataStoreProvider = transactionMetadataStoreProvider;
         this.tbClient = tbClient;
-        this.timeoutTrackerFactory = new TransactionTimeoutTrackerFactoryImpl(this);
+        this.timeoutTrackerFactory = new TransactionTimeoutTrackerFactoryImpl(this, timer);
+        this.transactionOpRetryTimer = timer;
         this.endTransactionRetryIntervalTime = endTransactionRetryIntervalTime * 1000;
     }
 
@@ -238,12 +242,32 @@ public class TransactionMetadataStoreService {
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("End transaction op retry! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
                         }
-                        timeoutTrackerFactory.getTimer().newTimeout(timeout -> endTransaction(txnID, txnAction),
+                        transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction),
                                 endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
                     }
                     return null;
                 });
         return completableFuture.thenCompose((future) -> endTxnInTransactionBuffer(txnID, txnAction));
+    }
+
+    public CompletableFuture<Void> endTransactionForTimeout(TxnID txnID) {
+        return getTxnMeta(txnID).thenCompose(txnMeta -> {
+            if (txnMeta.status() == TxnStatus.OPEN) {
+                return endTransaction(txnID, TxnAction.ABORT_VALUE);
+            } else {
+                return null;
+            }
+        }).exceptionally(e -> {
+            if (!(e instanceof TransactionNotFoundException)) {
+                endTransaction(txnID, TxnAction.ABORT_VALUE);
+            } else {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Transaction have been handle complete, "
+                            + "don't need to handle by transaction timeout! TxnId : {}", txnID);
+                }
+            }
+            return null;
+        });
     }
 
     private CompletableFuture<Void> endTxnInTransactionBuffer(TxnID txnID, int txnAction) {

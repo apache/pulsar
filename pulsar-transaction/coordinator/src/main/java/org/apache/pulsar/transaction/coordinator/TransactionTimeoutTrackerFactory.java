@@ -19,19 +19,12 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
-import io.netty.util.Timer;
-
-import java.io.IOException;
 
 /**
  * Factory of TransactionTimeoutTracker objects.
  */
 @Beta
-public interface TransactionTimeoutTrackerFactory extends AutoCloseable {
-    /**
-     * Initialize the factory implementation.
-     */
-    void initialize() throws IOException;
+public interface TransactionTimeoutTrackerFactory {
 
     /**
      * Create a new tracker instance.
@@ -39,14 +32,4 @@ public interface TransactionTimeoutTrackerFactory extends AutoCloseable {
      * @param tcID {@link TransactionCoordinatorID tcID} the id for transaction coordinator
      */
     TransactionTimeoutTracker newTracker(TransactionCoordinatorID tcID);
-
-    /**
-     * Close the factory and release all the resources.
-     */
-    void close() throws IOException;
-
-    /**
-     * Get the timer.
-     */
-    Timer getTimer();
 }

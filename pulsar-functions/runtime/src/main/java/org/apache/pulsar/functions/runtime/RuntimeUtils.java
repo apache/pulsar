@@ -72,7 +72,8 @@ public class RuntimeUtils {
                                           String pythonExtraDependencyRepository,
                                           int metricsPort,
                                           String narExtractionDirectory,
-                                          String functionInstanceClassPath) throws Exception {
+                                          String functionInstanceClassPath,
+                                          String pulsarWebServiceUrl) throws Exception {
 
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
@@ -82,7 +83,7 @@ public class RuntimeUtils {
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
                 pythonExtraDependencyRepository, metricsPort, narExtractionDirectory,
-                functionInstanceClassPath, false));
+                functionInstanceClassPath, false, pulsarWebServiceUrl));
         return cmd;
     }
 
@@ -119,7 +120,8 @@ public class RuntimeUtils {
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
                                                 String originalCodeFileName,
                                                 String pulsarServiceUrl,
-                                                boolean k8sRuntime) throws IOException {
+                                                boolean k8sRuntime,
+                                                int metricsPort) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
@@ -219,6 +221,10 @@ public class RuntimeUtils {
             goInstanceConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
 
+        if (metricsPort > 0 && metricsPort < 65536) {
+            goInstanceConfig.setMetricsPort(metricsPort);
+        }
+
         goInstanceConfig.setKillAfterIdleMs(0);
         goInstanceConfig.setPort(instanceConfig.getPort());
 
@@ -257,11 +263,12 @@ public class RuntimeUtils {
                                       int metricsPort,
                                       String narExtractionDirectory,
                                       String functionInstanceClassPath,
-                                      boolean k8sRuntime) throws Exception {
+                                      boolean k8sRuntime,
+                                      String pulsarWebServiceUrl) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
+            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime, metricsPort);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
@@ -355,6 +362,16 @@ public class RuntimeUtils {
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            // TODO: for now only Java function context exposed pulsar admin, so python/go no need to pass this argument
+            // until pulsar admin client enabled in python/go function context.
+            // For backward compatibility, pass `--web_serviceurl` parameter only if
+            // exposed pulsar admin client enabled.
+            if (instanceConfig.isExposePulsarAdminClientEnabled() && StringUtils.isNotBlank(pulsarWebServiceUrl)) {
+                args.add("--web_serviceurl");
+                args.add(pulsarWebServiceUrl);
+            }
+        }
         if (authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                     && isNotBlank(authConfig.getClientAuthenticationParameters())) {
