@@ -1184,6 +1184,7 @@ public class PulsarFunctionE2ETest {
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/output";
         final String sourceName = "PulsarBatchSource-test";
+
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
