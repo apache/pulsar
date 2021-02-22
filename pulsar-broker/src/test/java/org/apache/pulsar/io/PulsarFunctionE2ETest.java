@@ -1183,8 +1183,12 @@ public class PulsarFunctionE2ETest {
     	final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/output";
+<<<<<<< HEAD
         final String sourceName = "PulsarBatchSource-test";
 
+=======
+        final String sourceName = "PulsarSource-test";
+>>>>>>> Added tests for BatchSource
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
@@ -1200,7 +1204,11 @@ public class PulsarFunctionE2ETest {
             }
         }, 10, 150);
 
+<<<<<<< HEAD
         final String sinkTopic2 = "persistent://" + replNamespace + "/output3";
+=======
+        final String sinkTopic2 = "persistent://" + replNamespace + "/output2";
+>>>>>>> Added tests for BatchSource
         sourceConfig.setTopicName(sinkTopic2);
         admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
 
@@ -1307,13 +1315,21 @@ public class PulsarFunctionE2ETest {
     }
     
     @Test(timeOut = 20000)
+<<<<<<< HEAD
     private void testPulsarBatchSourceStatsWithFile() throws Exception {
+=======
+    private void testPulsarBatchSourceStatsWithFile() {
+>>>>>>> Added tests for BatchSource
     	String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-batch-data-generator.nar").getFile();
     	testPulsarBatchSourceStats(jarFilePathUrl);
     }
     
     @Test(timeOut = 40000)
+<<<<<<< HEAD
     private void testPulsarBatchSourceStatsWithUrl() throws Exception {
+=======
+    private void testPulsarBatchSourceStatsWithUrl() {
+>>>>>>> Added tests for BatchSource
     	String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-batch-data-generator.nar",
                 fileServer.getAddress().getPort());
     	testPulsarBatchSourceStats(jarFilePathUrl);
