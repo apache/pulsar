@@ -295,16 +295,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             SchemaData schemaData) {
         final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
         SchemaVersion schemaVersion;
-        if (schemaData.getType() == SchemaType.AVRO
-                || schemaData.getType() == SchemaType.JSON
-                || schemaData.getType() == SchemaType.PROTOBUF) {
+        if (isUsingAvroSchemaParser(schemaData.getType())) {
             Schema.Parser parser = new Schema.Parser();
             Schema newSchema = parser.parse(new String(schemaData.getData(), UTF_8));
 
             for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
-                if (schemaAndMetadata.schema.getType() == SchemaType.AVRO
-                        || schemaAndMetadata.schema.getType() == SchemaType.JSON
-                        || schemaAndMetadata.schema.getType() == SchemaType.PROTOBUF) {
+                if (isUsingAvroSchemaParser(schemaData.getType())) {
                     Schema.Parser existParser = new Schema.Parser();
                     Schema existSchema = existParser.parse(new String(schemaAndMetadata.schema.getData(), UTF_8));
                     if (newSchema.equals(existSchema)) {
@@ -494,6 +490,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 future.completeExceptionally(e);
             }
             return future;
+        }
+    }
+
+    public static boolean isUsingAvroSchemaParser(SchemaType type) {
+        if (type == SchemaType.AVRO || type == SchemaType.PROTOBUF || type == SchemaType.JSON) {
+            return true;
+        } else {
+            return false;
         }
     }
 
