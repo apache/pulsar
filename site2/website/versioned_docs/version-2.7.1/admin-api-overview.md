@@ -108,7 +108,7 @@ Kubernetes requires a name that can be used as a DNS subdomain name as defined i
   
 - Replace beginning and ending non-alphanumeric characters with 0
   
-> #### Tip
+> **Tip**
 > 
 > - If you get an error in translating Pulsar object names into Kubernetes resource labels or want to customize the translating rules, see [customize Kubernetes runtime](https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime).
 > 

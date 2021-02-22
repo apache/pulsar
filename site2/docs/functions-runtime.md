@@ -284,7 +284,7 @@ Pulsar includes a built-in implementation. To use the basic implementation, set 
 
 Below is an example of `customRuntimeOptions`.
 
-```Json
+```json
 {
   "jobName": "jobname", // the k8s pod name to run this function instance
   "jobNamespace": "namespace", // the k8s namespace to run this function in
