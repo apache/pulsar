@@ -24,6 +24,8 @@ import org.apache.pulsar.client.api.MessageId;
 /**
  */
 public class BatchMessageIdImpl extends MessageIdImpl {
+
+    private static final long serialVersionUID = 1L;
     private final static int NO_BATCH = -1;
     private final int batchIndex;
     private final int batchSize;
@@ -92,7 +94,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     @Override
     public int hashCode() {
-        return (int) (31 * (ledgerId + 31 * entryId) + (31 * partitionIndex) + batchIndex);
+        return (int) (31 * (ledgerId + 31 * entryId) + (31 * (long) partitionIndex) + batchIndex);
     }
 
     @Override

@@ -36,6 +36,7 @@ import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.proto.BookieAddressResolver;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
@@ -92,7 +93,8 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         racks.forEach((group, bookies) ->
                 bookies.forEach((addr, bi) -> {
                     try {
-                        BookieSocketAddress bsa = new BookieSocketAddress(addr);
+                        BookieId bookieId = BookieId.parse(addr);
+                        BookieSocketAddress bsa = getBookieAddressResolver().resolve(bookieId);
                         newRacksWithHost.updateBookie(group, bsa.toString(), bi);
 
                         String hostname = bsa.getSocketAddress().getHostName();
@@ -107,8 +109,8 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                         } else {
                             LOG.info("Network address for {} is unresolvable yet.", addr);
                         }
-                    } catch (UnknownHostException e) {
-                        throw new RuntimeException(e);
+                    } catch (BookieAddressResolver.BookieIdNotResolvedException e) {
+                        LOG.info("Network address for {} is unresolvable yet. error is {}", addr, e);
                     }
                 })
         );

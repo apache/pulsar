@@ -160,7 +160,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		log.info("created AuthenticationSasl");
 	}
 
-	@AfterClass
+	@AfterClass(alwaysRun = true)
 	public static void stopMiniKdc() {
 		System.clearProperty("java.security.auth.login.config");
 		System.clearProperty("java.security.krb5.conf");
@@ -206,7 +206,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	}
 
 	@Override
-	@AfterMethod
+	@AfterMethod(alwaysRun = true)
 	protected void cleanup() throws Exception {
 		super.internalCleanup();
 	}

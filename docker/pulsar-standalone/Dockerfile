@@ -26,6 +26,9 @@ FROM apachepulsar/pulsar-dashboard:latest as dashboard
 # Restart from
 FROM openjdk:8-jdk
 
+# Help to make these directories persist between container restarts
+VOLUME  ["/pulsar/conf", "/pulsar/data"]
+
 # Note that the libpq-dev package is needed here in order to install
 # the required python psycopg2 package (for postgresql) later
 RUN apt-get update \

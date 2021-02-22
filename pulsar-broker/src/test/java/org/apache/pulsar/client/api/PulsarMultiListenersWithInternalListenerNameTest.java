@@ -64,8 +64,9 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         this.conf.setInternalListenerName("internal");
     }
 
-    protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
-        return PulsarClient.builder().serviceUrl(url).listenerName("internal").statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.listenerName("internal");
     }
 
     @Test

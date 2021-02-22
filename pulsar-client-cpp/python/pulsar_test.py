@@ -26,7 +26,8 @@ import uuid
 from datetime import timedelta
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
-            AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition
+            AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition, \
+            CryptoKeyReader
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -121,6 +122,18 @@ class PulsarTest(TestCase):
             i += 1
         self.assertEqual(len(sent_messages), 3)
         client.close()
+
+    def test_producer_send(self):
+        client = Client(self.serviceUrl)
+        topic = 'test_producer_send'
+        producer = client.create_producer(topic)
+        consumer = client.subscribe(topic, 'sub-name')
+        msg_id = producer.send(b'hello')
+        print('send to {}'.format(msg_id))
+        msg = consumer.receive(TM)
+        consumer.acknowledge(msg)
+        print('receive from {}'.format(msg.message_id()))
+        self.assertEqual(msg_id, msg.message_id())
 
     def test_producer_consumer(self):
         client = Client(self.serviceUrl)
@@ -343,6 +356,25 @@ class PulsarTest(TestCase):
         except:
             pass  # Exception is expected
 
+        client.close()
+
+    def test_encryption(self):
+        publicKeyPath = "/pulsar//pulsar-broker/src/test/resources/certificate/public-key.client-rsa.pem"
+        privateKeyPath = "/pulsar/pulsar-broker/src/test/resources/certificate/private-key.client-rsa.pem"
+        crypto_key_reader = CryptoKeyReader(publicKeyPath, privateKeyPath)
+        client = Client(self.serviceUrl)
+        topic = 'my-python-test-end-to-end-encryption'
+        consumer = client.subscribe(topic=topic,
+                                    subscription_name='my-subscription',
+                                    crypto_key_reader=crypto_key_reader)
+        producer = client.create_producer(topic=topic,
+                                          encryption_key="client-rsa.pem",
+                                          crypto_key_reader=crypto_key_reader)
+        producer.send('hello')
+        msg = consumer.receive(TM)
+        self.assertTrue(msg)
+        self.assertEqual(msg.value(), 'hello')
+        consumer.unsubscribe()
         client.close()
 
     def test_tls_auth3(self):
@@ -905,12 +937,12 @@ class PulsarTest(TestCase):
         client = Client(self.serviceUrl)
         topic1 = 'persistent://public/default/my-python-topics-consumer-1'
         topic2 = 'persistent://public/default/my-python-topics-consumer-2'
-        topic3 = 'persistent://public/default/my-python-topics-consumer-3'
+        topic3 = 'persistent://public/default-2/my-python-topics-consumer-3' # topic from different namespace
         topics = [topic1, topic2, topic3]
 
         url1 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-1/partitions'
         url2 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-2/partitions'
-        url3 = self.adminUrl + '/admin/v2/persistent/public/default/my-python-topics-consumer-3/partitions'
+        url3 = self.adminUrl + '/admin/v2/persistent/public/default-2/my-python-topics-consumer-3/partitions'
 
         doHttpPut(url1, '2')
         doHttpPut(url2, '3')

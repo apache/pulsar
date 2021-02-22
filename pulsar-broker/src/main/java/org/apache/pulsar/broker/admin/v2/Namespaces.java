@@ -43,6 +43,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -273,7 +274,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get the message TTL for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public int getNamespaceMessageTTL(@PathParam("tenant") String tenant,
+    public Integer getNamespaceMessageTTL(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.TTL, PolicyOperation.READ);
@@ -686,6 +687,19 @@ public class Namespaces extends NamespacesBase {
         internalSetRetention(retention);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/retention")
+    @ApiOperation(value = " Remove retention configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
+    public void removeRetention(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
+        validateNamespaceName(tenant, namespace);
+        internalSetRetention(null);
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/persistence")
     @ApiOperation(value = "Set the persistence configuration for all the topics on a namespace.")
@@ -905,6 +919,17 @@ public class Namespaces extends NamespacesBase {
         internalSetDelayedDelivery(deliveryPolicies);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/delayedDelivery")
+    @ApiOperation(value = "Delete delayed delivery messages config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"), })
+    public void removeDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetDelayedDelivery(null);
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/inactiveTopicPolicies")
     @ApiOperation(value = "Get inactive topic policies config on a namespace.")
@@ -947,7 +972,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxProducersPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxProducersPerTopic(@PathParam("tenant") String tenant,
+    public Integer getMaxProducersPerTopic(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetMaxProducersPerTopic();
@@ -964,6 +989,18 @@ public class Namespaces extends NamespacesBase {
             @ApiParam(value = "Number of maximum producers per topic", required = true) int maxProducersPerTopic) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxProducersPerTopic(maxProducersPerTopic);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/maxProducersPerTopic")
+    @ApiOperation(value = "Remove maxProducersPerTopic configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void removeMaxProducersPerTopic(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxProducersPerTopic(null);
     }
 
     @GET
@@ -995,7 +1032,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxConsumersPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxConsumersPerTopic(@PathParam("tenant") String tenant,
+    public Integer getMaxConsumersPerTopic(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetMaxConsumersPerTopic();
@@ -1012,6 +1049,18 @@ public class Namespaces extends NamespacesBase {
             @ApiParam(value = "Number of maximum consumers per topic", required = true) int maxConsumersPerTopic) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxConsumersPerTopic(maxConsumersPerTopic);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/maxConsumersPerTopic")
+    @ApiOperation(value = "Remove maxConsumersPerTopic configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void removeMaxConsumersPerTopic(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxConsumersPerTopic(null);
     }
 
     @GET
@@ -1394,6 +1443,34 @@ public class Namespaces extends NamespacesBase {
                     boolean isAllowAutoUpdateSchema) {
         validateNamespaceName(tenant, namespace);
         internalSetIsAllowAutoUpdateSchema(isAllowAutoUpdateSchema);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/subscriptionTypesEnabled")
+    @ApiOperation(value = "The set of whether allow subscription types")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public Set<SubscriptionType> getSubscriptionTypesEnabled(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetSubscriptionTypesEnabled();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/subscriptionTypesEnabled")
+    @ApiOperation(value = "Update set of whether allow share sub type")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setSubscriptionTypesEnabled(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Set of whether allow subscription types", required = true)
+                    Set<SubscriptionType> subscriptionTypesEnabled) {
+        validateNamespaceName(tenant, namespace);
+        internalSetSubscriptionTypesEnabled(subscriptionTypesEnabled);
     }
 
 

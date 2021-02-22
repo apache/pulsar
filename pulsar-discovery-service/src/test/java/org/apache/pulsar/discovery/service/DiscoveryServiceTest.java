@@ -41,12 +41,12 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.KeeperException.SessionExpiredException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.AfterMethod;
@@ -65,6 +65,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import org.awaitility.Awaitility;
 
 public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
 
@@ -76,7 +77,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         super.setup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     private void clean() throws Exception {
         super.cleanup();
     }
@@ -90,9 +91,10 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
     public void testBrokerDiscoveryRoundRobin() throws Exception {
         addBrokerToZk(5);
         String prevUrl = null;
+        BrokerDiscoveryProvider discoveryProvider = service.getDiscoveryProvider();
         for (int i = 0; i < 10; i++) {
-            String current = service.getDiscoveryProvider().nextBroker().getPulsarServiceUrl();
-            assertNotEquals(prevUrl, current);
+            String current = discoveryProvider.nextBroker().getPulsarServiceUrl();
+            assertNotEquals(prevUrl, current, "unexpected " + current + " vs " + prevUrl + ", available " + discoveryProvider.getAvailableBrokers());
             prevUrl = current;
         }
     }
@@ -117,7 +119,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
             future.get();
             fail("Partition metadata lookup should have failed");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getClass(), SessionExpiredException.class);
+            assertEquals(e.getCause().getClass(), MetadataStoreException.class);
         }
     }
 
@@ -245,6 +247,9 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         ZooKeeperChildrenCache availableBrokersCache = (ZooKeeperChildrenCache) field
                 .get(service.getDiscoveryProvider().localZkCache);
         availableBrokersCache.reloadCache(LOADBALANCE_BROKERS_ROOT);
+
+        Awaitility.await().until(()
+                -> service.getDiscoveryProvider().getAvailableBrokers().size() == number);
     }
 
 }

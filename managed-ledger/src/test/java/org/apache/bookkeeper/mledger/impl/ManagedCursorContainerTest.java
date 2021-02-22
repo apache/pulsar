@@ -76,7 +76,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
+        public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                                     PositionImpl maxPosition) {
+            callback.readEntriesComplete(null, ctx);
+        }
+
+        @Override
+        public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                     Object ctx, PositionImpl maxPosition) {
             callback.readEntriesComplete(null, ctx);
         }
 
@@ -254,7 +261,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
+        public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                                           PositionImpl maxPosition) {
+        }
+
+        @Override
+        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                                           Object ctx, PositionImpl maxPosition) {
+
         }
 
         @Override

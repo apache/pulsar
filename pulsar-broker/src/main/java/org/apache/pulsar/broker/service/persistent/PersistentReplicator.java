@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -296,7 +297,8 @@ public class PersistentReplicator extends AbstractReplicator
                     log.debug("[{}][{} -> {}] Schedule read of {} messages", topicName, localCluster, remoteCluster,
                             messagesToRead);
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this, null);
+                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
+                        null, PositionImpl.latest);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Not scheduling read due to pending read. Messages To Read {}", topicName,
@@ -713,16 +715,24 @@ public class PersistentReplicator extends AbstractReplicator
         return 0L;
     }
 
-    public void expireMessages(int messageTTLInSeconds) {
+    public boolean expireMessages(int messageTTLInSeconds) {
         if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
                 || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
-            return;
+            return false;
         }
         if (expiryMonitor != null) {
-            expiryMonitor.expireMessages(messageTTLInSeconds);
+            return expiryMonitor.expireMessages(messageTTLInSeconds);
         }
+        return false;
+    }
+
+    public boolean expireMessages(Position position) {
+        if (expiryMonitor != null) {
+            return expiryMonitor.expireMessages(position);
+        }
+        return false;
     }
 
     @Override

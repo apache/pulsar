@@ -40,14 +40,6 @@ RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.8.2.tar.gz && \
     make && make install && \
     rm -rf /v3.8.2.tar.gz /CMake-3.8.2
 
-# Compile JSON CPP
-RUN curl -O -L  https://github.com/open-source-parsers/jsoncpp/archive/1.8.0.tar.gz && \
-    tar xvfz 1.8.0.tar.gz && \
-    cd jsoncpp-1.8.0 && \
-    cmake . -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
-    make && make install && \
-    rm -rf /1.8.0.tar.gz /jsoncpp-1.8.0
-
 # Download and copile protoubf
 RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz && \
     tar xvfz protobuf-cpp-3.3.0.tar.gz && \

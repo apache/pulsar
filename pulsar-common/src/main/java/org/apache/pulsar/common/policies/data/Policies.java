@@ -22,11 +22,14 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import javax.ws.rs.core.Response.Status;
+
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.RestException;
 
 /**
@@ -79,9 +82,9 @@ public class Policies {
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
     @SuppressWarnings("checkstyle:MemberName")
-    public int max_producers_per_topic = 0;
+    public Integer max_producers_per_topic = null;
     @SuppressWarnings("checkstyle:MemberName")
-    public int max_consumers_per_topic = 0;
+    public Integer max_consumers_per_topic = null;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_subscription = 0;
     @SuppressWarnings("checkstyle:MemberName")
@@ -119,6 +122,8 @@ public class Policies {
 
     public Integer deduplicationSnapshotIntervalSeconds = null;
 
+    public Set<SubType> subscription_types_enabled = Sets.newHashSet();
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -139,7 +144,8 @@ public class Policies {
                 schema_validation_enforced,
                 schema_compatibility_strategy,
                 is_allow_auto_update_schema,
-                offload_policies);
+                offload_policies,
+                subscription_types_enabled);
     }
 
     @Override
@@ -168,8 +174,8 @@ public class Policies {
                     && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
                     && Objects.equals(inactive_topic_policies, other.inactive_topic_policies)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
-                    && max_producers_per_topic == other.max_producers_per_topic
-                    && max_consumers_per_topic == other.max_consumers_per_topic
+                    && Objects.equals(max_producers_per_topic, other.max_producers_per_topic)
+                    && Objects.equals(max_consumers_per_topic, other.max_consumers_per_topic)
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
                     && max_unacked_messages_per_consumer == other.max_unacked_messages_per_consumer
                     && max_unacked_messages_per_subscription == other.max_unacked_messages_per_subscription
@@ -180,7 +186,8 @@ public class Policies {
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
                     && is_allow_auto_update_schema == other.is_allow_auto_update_schema
-                    && Objects.equals(offload_policies, other.offload_policies);
+                    && Objects.equals(offload_policies, other.offload_policies)
+                    && Objects.equals(subscription_types_enabled, other.subscription_types_enabled);
         }
 
         return false;
@@ -239,7 +246,8 @@ public class Policies {
                 .add("schema_validation_enforced", schema_validation_enforced)
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
                 .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
-                .add("offload_policies", offload_policies).toString();
+                .add("offload_policies", offload_policies)
+                .add("subscription_types_enabled", subscription_types_enabled).toString();
     }
 
     private static final long MAX_BUNDLES = ((long) 1) << 32;

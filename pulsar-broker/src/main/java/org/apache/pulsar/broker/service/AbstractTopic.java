@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.tuple.Pair;
@@ -46,7 +45,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
@@ -109,11 +107,11 @@ public abstract class AbstractTopic implements Topic {
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
 
-    protected CompletableFuture<TransactionBuffer> transactionBuffer;
-    protected ReentrantLock transactionBufferLock = new ReentrantLock();
-
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
+    // pointer to the exclusive producer
+    private volatile String exclusiveProducerName;
+
     private final Queue<Pair<Producer, CompletableFuture<Optional<Long>>>> waitingExclusiveProducers =
             new ConcurrentLinkedQueue<>();
 
@@ -165,7 +163,7 @@ public abstract class AbstractTopic implements Topic {
             }
             maxProducers = policies.max_producers_per_topic;
         }
-        maxProducers = maxProducers > 0 ? maxProducers : brokerService.pulsar()
+        maxProducers = maxProducers != null ? maxProducers : brokerService.pulsar()
                 .getConfiguration().getMaxProducersPerTopic();
         if (maxProducers > 0 && maxProducers <= producers.size()) {
             return true;
@@ -196,7 +194,7 @@ public abstract class AbstractTopic implements Topic {
             }
             maxConsumers = policies.max_consumers_per_topic;
         }
-        final int maxConsumersPerTopic = maxConsumers > 0 ? maxConsumers
+        final int maxConsumersPerTopic = maxConsumers != null ? maxConsumers
                 : brokerService.pulsar().getConfiguration().getMaxConsumersPerTopic();
         if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= getNumberOfConsumers()) {
             return true;
@@ -387,8 +385,9 @@ public abstract class AbstractTopic implements Topic {
             switch (producer.getAccessMode()) {
             case Shared:
                 if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
-                    return FutureUtil.failedFuture(new ProducerBusyException(
-                            "Topic has an existing exclusive producer: " + producers.keys().nextElement()));
+                    return FutureUtil.failedFuture(
+                            new ProducerBusyException(
+                                    "Topic has an existing exclusive producer: " + exclusiveProducerName));
                 } else {
                     // Normal producer getting added, we don't need a new epoch
                     return CompletableFuture.completedFuture(topicEpoch);
@@ -396,8 +395,9 @@ public abstract class AbstractTopic implements Topic {
 
             case Exclusive:
                 if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
-                    return FutureUtil.failedFuture(new ProducerFencedException(
-                            "Topic has an existing exclusive producer: " + producers.keys().nextElement()));
+                    return FutureUtil.failedFuture(
+                            new ProducerFencedException(
+                                    "Topic has an existing exclusive producer: " + exclusiveProducerName));
                 } else if (!producers.isEmpty()) {
                     return FutureUtil.failedFuture(new ProducerFencedException("Topic has existing shared producers"));
                 } else if (producer.getTopicEpoch().isPresent()
@@ -410,6 +410,7 @@ public abstract class AbstractTopic implements Topic {
                 } else {
                     // There are currently no existing producers
                     hasExclusiveProducer = true;
+                    exclusiveProducerName = producer.getProducerName();
 
                     CompletableFuture<Long> future;
                     if (producer.getTopicEpoch().isPresent()) {
@@ -419,6 +420,7 @@ public abstract class AbstractTopic implements Topic {
                     }
                     future.exceptionally(ex -> {
                         hasExclusiveProducer = false;
+                        exclusiveProducerName = null;
                         return null;
                     });
 
@@ -445,6 +447,7 @@ public abstract class AbstractTopic implements Topic {
                 } else {
                     // There are currently no existing producers
                     hasExclusiveProducer = true;
+                    exclusiveProducerName = producer.getProducerName();
 
                     CompletableFuture<Long> future;
                     if (producer.getTopicEpoch().isPresent()) {
@@ -454,6 +457,7 @@ public abstract class AbstractTopic implements Topic {
                     }
                     future.exceptionally(ex -> {
                         hasExclusiveProducer = false;
+                        exclusiveProducerName = null;
                         return null;
                     });
 
@@ -469,6 +473,9 @@ public abstract class AbstractTopic implements Topic {
                         new BrokerServiceException("Invalid producer access mode: " + producer.getAccessMode()));
             }
 
+        } catch (Exception e) {
+            log.error("Encountered unexpected error during exclusive producer creation", e);
+            return FutureUtil.failedFuture(new BrokerServiceException(e));
         } finally {
             lock.writeLock().unlock();
         }
@@ -624,17 +631,21 @@ public abstract class AbstractTopic implements Topic {
 
     protected void handleProducerRemoved(Producer producer) {
         // decrement usage only if this was a valid producer close
-        long newCount = USAGE_COUNT_UPDATER.decrementAndGet(this);
-        if (newCount == 0) {
+        USAGE_COUNT_UPDATER.decrementAndGet(this);
+        // this conditional check is an optimization so we don't have acquire the write lock
+        // and execute following routine if there are no exclusive producers
+        if (hasExclusiveProducer) {
             lock.writeLock().lock();
             try {
                 hasExclusiveProducer = false;
+                exclusiveProducerName = null;
                 Pair<Producer, CompletableFuture<Optional<Long>>> nextWaitingProducer =
                         waitingExclusiveProducers.poll();
                 if (nextWaitingProducer != null) {
                     Producer nextProducer = nextWaitingProducer.getKey();
                     CompletableFuture<Optional<Long>> producerFuture = nextWaitingProducer.getValue();
                     hasExclusiveProducer = true;
+                    exclusiveProducerName = nextProducer.getProducerName();
 
                     CompletableFuture<Long> future;
                     if (nextProducer.getTopicEpoch().isPresent()) {
@@ -648,6 +659,7 @@ public abstract class AbstractTopic implements Topic {
                         producerFuture.complete(topicEpoch);
                     }).exceptionally(ex -> {
                         hasExclusiveProducer = false;
+                        exclusiveProducerName = null;
                         producerFuture.completeExceptionally(ex);
                         return null;
                     });
@@ -747,11 +759,11 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public long getMsgOutCounter() {
-        return getStats(false).msgOutCounter;
+        return getStats(false, false).msgOutCounter;
     }
 
     public long getBytesOutCounter() {
-        return getStats(false).bytesOutCounter;
+        return getStats(false, false).bytesOutCounter;
     }
 
     public boolean isDeleteWhileInactive() {

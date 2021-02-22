@@ -21,12 +21,12 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-import lombok.val;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -134,8 +134,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                      nextExpectedId, entryId, lastEntry);
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
-                            val skipped = inputStream.skip(length);
-                            log.info("Skipped {} bytes.", skipped);
+                            long ignored = inputStream.skip(length);
                         }
                     }
 
@@ -195,12 +194,15 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         Blob blob = blobStore.getBlob(bucket, indexKey);
         versionCheck.check(indexKey, blob);
         OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
-        OffloadIndexBlock index = indexBuilder.fromStream(blob.getPayload().openStream());
+        OffloadIndexBlock index;
+        try (InputStream payLoadStream = blob.getPayload().openStream()) {
+            index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
+        }
 
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
-            versionCheck,
-            index.getDataObjectLength(),
-            readBufferSize);
+                versionCheck,
+                index.getDataObjectLength(),
+                readBufferSize);
         return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
     }
 }

@@ -24,6 +24,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.UUID;
@@ -43,12 +44,19 @@ public class ConsumerCleanupTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testAllTimerTaskShouldCanceledAfterConsumerClosed() throws PulsarClientException, InterruptedException {
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackReceiptEnabled)
+            throws PulsarClientException, InterruptedException {
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://public/default/" + UUID.randomUUID().toString())
                 .subscriptionName("test")
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .subscribe();
         consumer.close();
         Thread.sleep(2000);
