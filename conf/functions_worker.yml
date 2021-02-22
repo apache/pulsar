@@ -40,7 +40,7 @@ zooKeeperOperationTimeoutSeconds: 30
 numFunctionPackageReplicas: 1
 downloadDirectory: download/pulsar_functions
 # Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
-# jvmGCMetricsLoggerClassName: 
+# jvmGCMetricsLoggerClassName:
 
 #################################################################
 # Function metadata managment (assignment, scheduling, and etc)
@@ -225,6 +225,14 @@ functionRuntimeFactoryConfigs:
 #   ram: 1073741824
 #   disk: 10737418240
 
+## A set of the maximum amount of resources functions may request.
+## Support for this depends on function runtime.
+## Only kubernetes runtime currently supports this.
+# functionInstanceMaxResources:
+#   cpu: 16
+#   ram: 17179869184
+#   disk: 107374182400
+
 ## The full class-name of an instance of RuntimeCustomizer.
 ## This class receives the customRuntimeOptions string and can customize details of how the runtime operates.
 #runtimeCustomizerClassName: "org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer"
@@ -259,22 +267,22 @@ authenticationProviders:
 # Authorization provider fully qualified class-name
 authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
 # Set of role names that are treated as "super-user", meaning they will be able to access any admin-api
-superUserRoles: 
+superUserRoles:
 
 #### tls configuration for worker service
 # Enable TLS
 tlsEnabled: false
 # Path for the TLS certificate file
-tlsCertificateFilePath: 
+tlsCertificateFilePath:
 # Path for the TLS private key file
-tlsKeyFilePath: 
-# Path for the trusted TLS certificate file 
+tlsKeyFilePath:
+# Path for the trusted TLS certificate file
 tlsTrustCertsFilePath:
-# Accept untrusted TLS certificate from client 
+# Accept untrusted TLS certificate from client
 tlsAllowInsecureConnection: false
 # Whether server hostname must match the common name of the certificate
 tlsEnableHostnameVerification: false
-# Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+# Tls cert refresh duration in seconds (set 0 to check on every new connection)
 tlsCertRefreshCheckDurationSec: 300
 
 ########################

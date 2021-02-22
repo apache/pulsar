@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
@@ -40,7 +42,9 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -73,6 +77,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -89,7 +94,10 @@ import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
+import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
@@ -149,10 +157,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces = spy(new Namespaces());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(namespaces).globalZk();
         doReturn(mockZooKeeper).when(namespaces).localZk();
-        doReturn(pulsar.getConfigurationCache().propertiesCache()).when(namespaces).tenantsCache();
-        doReturn(pulsar.getConfigurationCache().policiesCache()).when(namespaces).policiesCache();
         doReturn(false).when(namespaces).isRequestHttps();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
@@ -279,6 +284,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return op == MockZooKeeper.Op.GET_CHILDREN
                     && path.equals("/admin/policies/my-tenant");
             });
+        // clear caches to load data from metadata-store again
+        MetadataCacheImpl<TenantInfo> tenantCache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
+                .getTenatResources().getCache();
+        AbstractMetadataStore store = (AbstractMetadataStore) tenantCache.getStore();
+        tenantCache.invalidateAll();
+        store.invalidateAll();
         try {
             namespaces.getTenantNamespaces(this.testTenant);
             fail("should have failed");
@@ -525,17 +536,24 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockZooKeeperGlobal.unsetAlwaysFail();
         }
 
-        mockZooKeeperGlobal.failConditional(Code.BADVERSION, (op, path) -> {
+        // clear caches to load data from metadata-store again
+        MetadataCacheImpl<Policies> policiesCache = (MetadataCacheImpl<Policies>) pulsar.getPulsarResources()
+                .getNamespaceResources().getCache();
+        AbstractMetadataStore store = (AbstractMetadataStore) policiesCache.getStore();
+
+        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
                 return op == MockZooKeeper.Op.SET
                     && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
             });
 
+        policiesCache.invalidateAll();
+        store.invalidateAll();
         try {
             namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
                     this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
             fail("should have failed");
         } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
+            assertEquals(e.getResponse().getStatus(), 500);
         }
 
         try {
@@ -560,6 +578,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         pulsar.getConfigurationCache().policiesCache().clear();
 
+        policiesCache.invalidateAll();
+        store.invalidateAll();
         // ensure the ZooKeeper read happens, bypassing the cache
         try {
             namespaces.getNamespaceReplicationClusters(this.testTenant, "global",
@@ -1570,6 +1590,78 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 0, -1);
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, -2, 1);
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, -2);
+    }
+
+    @Test
+    public void testSubscriptionTypesEnabled() throws PulsarAdminException, PulsarClientException {
+        pulsar.getConfiguration().setAuthorizationEnabled(false);
+        pulsar.getConfiguration().setTopicLevelPoliciesEnabled(false);
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        String topic = namespace + "/test-subscription-enabled";
+        admin.namespaces().createNamespace(namespace);
+        Set<SubscriptionType> subscriptionTypes = new HashSet<>();
+        subscriptionTypes.add(SubscriptionType.Shared);
+        subscriptionTypes.add(SubscriptionType.Exclusive);
+        subscriptionTypes.add(SubscriptionType.Failover);
+        subscriptionTypes.add(SubscriptionType.Key_Shared);
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("share");
+
+        consumerBuilder.subscribe().close();
+        subscriptionTypes = admin.namespaces().getSubscriptionTypesEnabled(namespace);
+        assertEquals(SubscriptionType.values().length, subscriptionTypes.size());
+        // All subType this namespace support
+        for (SubscriptionType value : SubscriptionType.values()) {
+            assertTrue(subscriptionTypes.contains(value));
+        }
+
+        // Remove shared subType for this namespace and sub with shared subscription type fail
+        subscriptionTypes.remove(SubscriptionType.Shared);
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        assertFalse(admin.namespaces().getSubscriptionTypesEnabled(namespace).contains(SubscriptionType.Shared));
+
+        try {
+            consumerBuilder.subscribe().close();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+        // Add shared SubType for this namespace and sub with shared subscription type success
+        subscriptionTypes.add(SubscriptionType.Shared);
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        consumerBuilder.subscribe().close();
+
+        // remove failover SubType for this namespace and sub with failover subscription type fail
+        subscriptionTypes.remove(SubscriptionType.Failover);
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        consumerBuilder.subscriptionType(SubscriptionType.Failover);
+        try {
+            consumerBuilder.subscribe().close();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+
+        // clear all namespace subType enabled, add failover to broker.conf and sub with shared will fail
+        subscriptionTypes.clear();
+        admin.namespaces().setSubscriptionTypesEnabled(namespace, subscriptionTypes);
+        consumerBuilder.subscriptionType(SubscriptionType.Shared);
+        HashSet<String> subscriptions = new HashSet<>();
+        subscriptions.add("Failover");
+        conf.setSubscriptionTypesEnabled(subscriptions);
+        try {
+            consumerBuilder.subscribe().close();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+
+        // add shared to broker.conf and sub with shared will success
+        subscriptions.add("Shared");
+        conf.setSubscriptionTypesEnabled(subscriptions);
+        consumerBuilder.subscribe().close();
     }
 
     private void assertValidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,

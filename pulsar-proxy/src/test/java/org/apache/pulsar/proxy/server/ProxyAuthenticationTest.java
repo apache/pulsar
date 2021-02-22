@@ -183,7 +183,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	}
 
 	@Override
-	@AfterMethod
+	@AfterMethod(alwaysRun = true)
 	protected void cleanup() throws Exception {
 		super.internalCleanup();
 	}

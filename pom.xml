@@ -96,7 +96,10 @@ flexible messaging model and an intuitive client API.</description>
     <commons-compress.version>1.19</commons-compress.version>
 
     <bookkeeper.version>4.12.1</bookkeeper.version>
-    <zookeeper.version>3.5.7</zookeeper.version>
+    <zookeeper.version>3.6.2</zookeeper.version>
+    <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
+    <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
+    <curator.version>5.1.0</curator.version>
     <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.33.Final</netty-tc-native.version>
     <jetty.version>9.4.35.v20201120</jetty.version>
@@ -296,7 +299,31 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-
+      <dependency>
+        <groupId>org.apache.zookeeper</groupId>
+        <artifactId>zookeeper-jute</artifactId>
+        <version>${zookeeper.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-core</artifactId>
+        <version>${dropwizardmetrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-graphite</artifactId>
+        <version>${dropwizardmetrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-jvm</artifactId>
+        <version>${dropwizardmetrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
@@ -341,6 +368,18 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>netty-*</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+         <groupId>org.apache.curator</groupId>
+         <artifactId>curator-recipes</artifactId>
+         <version>${curator.version}</version>
+         <exclusions>
+             <exclusion>
+                 <groupId>org.apache.zookeeper</groupId>
+                 <artifactId>*</artifactId>
+             </exclusion>
+         </exclusions>
       </dependency>
 
       <dependency>
@@ -601,7 +640,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jna</artifactId>
         <version>${jna.version}</version>
       </dependency>
-      
+
       <dependency>
          <groupId>com.github.docker-java</groupId>
          <artifactId>docker-java-core</artifactId>
@@ -1080,6 +1119,9 @@ flexible messaging model and an intuitive client API.</description>
               <version>${lombok.version}</version>
             </path>
           </annotationProcessorPaths>
+          <compilerArgs>
+            <arg>-parameters</arg>
+          </compilerArgs>
         </configuration>
       </plugin>
       <plugin>
@@ -1883,18 +1925,24 @@ flexible messaging model and an intuitive client API.</description>
       <id>central</id>
       <layout>default</layout>
       <url>https://repo1.maven.org/maven2</url>
-    </repository>
-    <repository>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
+    </repository>
+    <repository>
       <id>bintray-yahoo-maven</id>
       <name>bintray</name>
       <url>https://yahoo.bintray.com/maven</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </repository>
     <repository>
       <id>confluent</id>
       <url>http://packages.confluent.io/maven/</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </repository>
   </repositories>
 

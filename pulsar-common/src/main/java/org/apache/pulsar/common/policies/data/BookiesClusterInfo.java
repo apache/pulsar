@@ -16,16 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.common.policies.data;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.Map;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
-public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {
+import java.util.List;
 
-    public DynamicConfigurationResources(MetadataStoreExtended store) {
-        super(store, new TypeReference<Map<String, String>>(){});
-    }
+/**
+ * Raw bookies information.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class BookiesClusterInfo {
+
+    private static final long serialVersionUID = 0L;
+
+    private List<RawBookieInfo> bookies;
 
 }

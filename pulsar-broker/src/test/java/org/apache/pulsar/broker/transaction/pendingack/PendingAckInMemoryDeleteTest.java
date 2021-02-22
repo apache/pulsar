@@ -89,7 +89,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         Thread.sleep(1000 * 3);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() {
         super.internalCleanup();
     }

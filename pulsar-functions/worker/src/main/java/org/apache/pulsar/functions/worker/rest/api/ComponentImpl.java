@@ -26,12 +26,13 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
-import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import java.nio.file.Files;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
@@ -59,10 +60,8 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -78,7 +77,6 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -101,7 +99,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -900,7 +897,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throwUnavailableException();
         }
 
-        return this.worker().getConnectorsManager().getConnectors();
+        return this.worker().getConnectorsManager().getConnectorDefinitions();
     }
 
     @Override
@@ -1265,24 +1262,24 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         String pkgPath = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName)
                 .getPackageLocation().getPackagePath();
 
+        return getStreamingOutput(pkgPath);
+    }
+
+    private StreamingOutput getStreamingOutput(String pkgPath) {
         final StreamingOutput streamingOutput = output -> {
             if (pkgPath.startsWith(Utils.HTTP)) {
-                URL url = new URL(pkgPath);
-                IOUtils.copy(url.openStream(), output);
-            } else if (pkgPath.startsWith(Utils.FILE)) {
-                URL url = new URL(pkgPath);
-                File file;
-                try {
-                    file = new File(url.toURI());
-                    IOUtils.copy(new FileInputStream(file), output);
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException("invalid file url path: " + pkgPath);
+                URL url = URI.create(pkgPath).toURL();
+                try (InputStream inputStream = url.openStream()) {
+                    IOUtils.copy(inputStream, output);
                 }
+            } else if (pkgPath.startsWith(Utils.FILE)) {
+                URI url = URI.create(pkgPath);
+                File file = new File(url.getPath());
+                Files.copy(file.toPath(), output);
             } else {
                 WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, pkgPath);
             }
         };
-
         return streamingOutput;
     }
 
@@ -1318,25 +1315,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             }
         }
 
-        final StreamingOutput streamingOutput = output -> {
-            if (path.startsWith(Utils.HTTP)) {
-                URL url = new URL(path);
-                IOUtils.copy(url.openStream(), output);
-            } else if (path.startsWith(Utils.FILE)) {
-                URL url = new URL(path);
-                File file;
-                try {
-                    file = new File(url.toURI());
-                    IOUtils.copy(new FileInputStream(file), output);
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException("invalid file url path: " + path);
-                }
-            } else {
-                WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
-            }
-        };
-
-        return streamingOutput;
+        return getStreamingOutput(path);
     }
 
     private void validateListFunctionRequestParams(final String tenant, final String namespace) throws IllegalArgumentException {

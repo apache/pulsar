@@ -62,7 +62,7 @@ public class ZkBookieRackAffinityMappingTest {
         BOOKIE3 = new BookieSocketAddress("127.0.0.3:3181");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         localZkS.close();
     }

@@ -47,7 +47,7 @@ public class AdminMultiHostTest {
         pulsarCluster.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDownCluster() {
         if (pulsarCluster != null) {
             pulsarCluster.stop();

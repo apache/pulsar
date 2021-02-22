@@ -464,6 +464,42 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    void testAsyncReadWithMaxSizeByte() throws Exception {
+        ManagedLedger ledger = factory.open("testAsyncReadWithMaxSizeByte");
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        for (int i = 0; i < 100; i++) {
+            ledger.addEntry(new byte[1024]);
+        }
+
+        // First time, since we don't have info, we'll get 1 single entry
+        readAndCheck(cursor, 10, 3 * 1024, 1);
+        // We should only return 3 entries, based on the max size
+        readAndCheck(cursor, 20, 3 * 1024, 3);
+        // If maxSize is < avg, we should get 1 entry
+        readAndCheck(cursor, 10, 500, 1);
+    }
+
+    private void readAndCheck(ManagedCursor cursor, int numEntriesToRead,
+                              long maxSizeBytes, int expectedNumRead) throws InterruptedException {
+        CountDownLatch counter = new CountDownLatch(1);
+        cursor.asyncReadEntries(numEntriesToRead, maxSizeBytes, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                Assert.assertEquals(entries.size(), expectedNumRead);
+                entries.forEach(e -> e.release());
+                counter.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                fail(exception.getMessage());
+            }
+        }, null, null);
+        counter.await();
+    }
+
+    @Test(timeOut = 20000)
     void markDeleteWithErrors() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ManagedCursor cursor = ledger.openCursor("c1");

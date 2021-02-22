@@ -69,7 +69,6 @@ import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.ZookeeperSessionExpiredHandlers;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.admin.impl.PulsarResources;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -84,6 +83,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
@@ -495,7 +495,8 @@ public class PulsarService implements AutoCloseable {
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
             configurationMetadataStore = createConfigurationMetadataStore();
-            pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore);
+            pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
+                    config.getZooKeeperOperationTimeoutSeconds());
 
             orderedExecutor = OrderedExecutor.newBuilder()
                     .numThreads(config.getNumOrderedExecutorThreads())
@@ -578,7 +579,8 @@ public class PulsarService implements AutoCloseable {
                     "org.apache.pulsar.broker.lookup", true, attributeMap);
             this.metricsServlet = new PrometheusMetricsServlet(
                     this, config.isExposeTopicLevelMetricsInPrometheus(),
-                    config.isExposeConsumerLevelMetricsInPrometheus());
+                    config.isExposeConsumerLevelMetricsInPrometheus(),
+                    config.isExposeProducerLevelMetricsInPrometheus());
             if (pendingMetricsProviders != null) {
                 pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
                 this.pendingMetricsProviders = null;
@@ -766,7 +768,7 @@ public class PulsarService implements AutoCloseable {
         try {
             // Namespace not created hence no need to unload it
             String nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
-            if (!this.globalZkCache.exists(
+            if (!this.pulsarResources.getNamespaceResources().exists(
                     AdminResource.path(POLICIES) + "/" + nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
@@ -829,7 +831,8 @@ public class PulsarService implements AutoCloseable {
             throw new PulsarServerException(e);
         }
 
-        this.configurationCacheService = new ConfigurationCacheService(globalZkCache, this.config.getClusterName());
+        this.configurationCacheService = new ConfigurationCacheService(globalZkCache, this.config.getClusterName(),
+                pulsarResources);
         this.localZkCacheService = new LocalZooKeeperCacheService(getLocalZkCache(), this.configurationCacheService);
     }
 
@@ -1068,10 +1071,6 @@ public class PulsarService implements AutoCloseable {
 
     public ZooKeeperCache getLocalZkCache() {
         return localZkCache;
-    }
-
-    public ZooKeeperCache getGlobalZkCache() {
-        return globalZkCache;
     }
 
     public ScheduledExecutorService getExecutor() {
@@ -1355,7 +1354,7 @@ public class PulsarService implements AutoCloseable {
             functionWorkerService.get().initInBroker(
                 config,
                 workerConfig,
-                getGlobalZkCache(),
+                pulsarResources,
                 getConfigurationCacheService(),
                 getInternalConfigurationData()
             );

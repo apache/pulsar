@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -42,6 +43,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -209,7 +211,13 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         // verify tenant is able to perform all subscription-admin api
         tenantAdmin.topics().skipAllMessages(topicName, subscriptionName);
         tenantAdmin.topics().skipMessages(topicName, subscriptionName, 1);
-        tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
+        try {
+            tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
+        } catch (Exception e) {
+            // my-sub1 has no msg backlog, so expire message won't be issued on that subscription
+            assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
+        }
+        tenantAdmin.topics().expireMessages(topicName, subscriptionName, new MessageIdImpl(-1, -1, -1), true);
         tenantAdmin.topics().peekMessages(topicName, subscriptionName, 1);
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, 10);
         tenantAdmin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
@@ -240,8 +248,12 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         sub1Admin.topics().skipAllMessages(topicName, subscriptionName);
         sub1Admin.topics().skipMessages(topicName, subscriptionName, 1);
-        sub1Admin.topics().expireMessages(topicName, subscriptionName, 10);
-        sub1Admin.topics().peekMessages(topicName, subscriptionName, 1);
+        try {
+            tenantAdmin.topics().expireMessages(topicName, subscriptionName, 10);
+        } catch (Exception e) {
+            // my-sub1 has no msg backlog, so expire message won't be issued on that subscription
+            assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
+        }        sub1Admin.topics().peekMessages(topicName, subscriptionName, 1);
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
         sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
