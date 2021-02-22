@@ -27,7 +27,6 @@ import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -45,6 +44,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
+import org.apache.pulsar.functions.worker.service.api.Workers;
 
 @Slf4j
 @Path("/worker")
@@ -55,7 +55,6 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
 
     public static final String ATTRIBUTE_WORKER_SERVICE = "worker";
 
-    protected final WorkerImpl worker;
     private WorkerService workerService;
     @Context
     protected ServletContext servletContext;
@@ -64,16 +63,16 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Context
     protected UriInfo uri;
 
-    public WorkerApiV2Resource() {
-        this.worker = new WorkerImpl(this);
-    }
-
     @Override
     public synchronized WorkerService get() {
         if (this.workerService == null) {
             this.workerService = (WorkerService) servletContext.getAttribute(ATTRIBUTE_WORKER_SERVICE);
         }
         return this.workerService;
+    }
+
+    Workers<? extends WorkerService> workers() {
+        return get().getWorkers();
     }
 
     public String clientAppId() {
@@ -95,7 +94,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerInfo> getCluster() {
-        return worker.getCluster(clientAppId());
+        return workers().getCluster(clientAppId());
     }
 
     @GET
@@ -110,7 +109,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/cluster/leader")
     @Produces(MediaType.APPLICATION_JSON)
     public WorkerInfo getClusterLeader() {
-        return worker.getClusterLeader(clientAppId());
+        return workers().getClusterLeader(clientAppId());
     }
 
     @GET
@@ -125,7 +124,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/assignments")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Collection<String>> getAssignments() {
-        return worker.getAssignments(clientAppId());
+        return workers().getAssignments(clientAppId());
     }
 
     @GET
@@ -140,7 +139,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/connectors")
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return worker.getListOfConnectors(clientAppId());
+        return workers().getListOfConnectors(clientAppId());
     }
 
     @PUT
@@ -154,7 +153,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/rebalance")
     public void rebalance() {
-        worker.rebalance(uri.getRequestUri(), clientAppId());
+        workers().rebalance(uri.getRequestUri(), clientAppId());
     }
 
     @GET
@@ -167,6 +166,6 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/cluster/leader/ready")
     public Boolean isLeaderReady() {
-        return worker.isLeaderReady(clientAppId());
+        return workers().isLeaderReady(clientAppId());
     }
 }

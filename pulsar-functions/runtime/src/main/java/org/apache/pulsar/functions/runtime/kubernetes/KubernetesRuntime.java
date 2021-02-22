@@ -55,8 +55,9 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -68,8 +69,10 @@ import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.packages.management.core.common.PackageType;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -87,6 +90,7 @@ import java.util.regex.Pattern;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.left;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 
@@ -105,6 +109,7 @@ public class KubernetesRuntime implements Runtime {
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
     private static final int maxJobNameSize = 55;
+    private static final int maxLabelSize = 63;
     public static final Pattern VALID_POD_NAME_REGEX =
             Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                     Pattern.CASE_INSENSITIVE);
@@ -151,6 +156,7 @@ public class KubernetesRuntime implements Runtime {
     private String narExtractionDirectory;
     private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
     private String functionInstanceClassPath;
+    private String downloadDirectory;
 
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
@@ -186,7 +192,8 @@ public class KubernetesRuntime implements Runtime {
                       Integer metricsPort,
                       String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer,
-                      String functinoInstanceClassPath) throws Exception {
+                      String functinoInstanceClassPath,
+                      String downloadDirectory) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -199,7 +206,8 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarRootDir = pulsarRootDir;
         this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
-        this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
+        this.downloadDirectory = StringUtils.isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
+        this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
@@ -260,7 +268,7 @@ public class KubernetesRuntime implements Runtime {
                         authConfig,
                         "$" + ENV_SHARD_ID,
                         grpcPort,
-                        -1l,
+                        -1L,
                         logConfigFile,
                         secretsProviderClassName,
                         secretsProviderConfig,
@@ -269,7 +277,9 @@ public class KubernetesRuntime implements Runtime {
                         pythonExtraDependencyRepository,
                         metricsPort,
                         narExtractionDirectory,
-                        functinoInstanceClassPath));
+                        functinoInstanceClassPath,
+                        true,
+                        pulsarAdminUrl));
 
         doChecks(instanceConfig.getFunctionDetails(), this.jobName);
     }
@@ -814,13 +824,20 @@ public class KubernetesRuntime implements Runtime {
         return Arrays.asList(
                 "sh",
                 "-c",
-                String.join(" ", getDownloadCommand(instanceConfig.getFunctionDetails().getTenant(),
-                        instanceConfig.getFunctionDetails().getNamespace(),
-                        instanceConfig.getFunctionDetails().getName(),
-                        originalCodeFileName))
+                String.join(" ", getDownloadCommand(instanceConfig.getFunctionDetails(), originalCodeFileName))
                         + " && " + setShardIdEnvironmentVariableCommand()
                         + " && " + String.join(" ", processArgs)
         );
+    }
+
+    private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath) {
+        if (Arrays.stream(PackageType.values()).anyMatch(type ->
+            functionDetails.getPackageUrl().startsWith(type.toString()))) {
+            return getPackageDownloadCommand(functionDetails.getPackageUrl(), userCodeFilePath);
+        } else {
+            return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
+                functionDetails.getName(), userCodeFilePath);
+        }
     }
 
     private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath) {
@@ -865,6 +882,39 @@ public class KubernetesRuntime implements Runtime {
                 name,
                 "--destination-file",
                 userCodeFilePath);
+    }
+
+    private List<String> getPackageDownloadCommand(String packageName, String userCodeFilePath) {
+        // add auth plugin and parameters if necessary
+        if (authenticationEnabled && authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                && isNotBlank(authConfig.getClientAuthenticationParameters())
+                && instanceConfig.getFunctionAuthenticationSpec() != null) {
+                return Arrays.asList(
+                    pulsarRootDir + configAdminCLI,
+                    "--auth-plugin",
+                    authConfig.getClientAuthenticationPlugin(),
+                    "--auth-params",
+                    authConfig.getClientAuthenticationParameters(),
+                    "--admin-url",
+                    pulsarAdminUrl,
+                    "packages",
+                    "download",
+                    packageName,
+                    "--path",
+                    userCodeFilePath);
+            }
+        }
+
+        return Arrays.asList(
+            pulsarRootDir + configAdminCLI,
+            "--admin-url",
+            pulsarAdminUrl,
+            "packages",
+            "download",
+            packageName,
+            "--path",
+            userCodeFilePath);
     }
 
     private static String setShardIdEnvironmentVariableCommand() {
@@ -949,10 +999,11 @@ public class KubernetesRuntime implements Runtime {
                 break;
         }
         labels.put("component", component);
-        labels.put("namespace", functionDetails.getNamespace());
-        labels.put("tenant", functionDetails.getTenant());
-        labels.put("name", functionDetails.getName());
+        labels.put("namespace", toValidLabelName(functionDetails.getNamespace()));
+        labels.put("tenant", toValidLabelName(functionDetails.getTenant()));
+        labels.put("name", toValidLabelName(functionDetails.getName()));
         if (customLabels != null && !customLabels.isEmpty()) {
+            customLabels.replaceAll((k, v) -> toValidLabelName(v));
             labels.putAll(customLabels);
         }
         return labels;
@@ -1103,6 +1154,10 @@ public class KubernetesRuntime implements Runtime {
 
     private static String toValidPodName(String ori) {
         return ori.toLowerCase().replaceAll("[^a-z0-9-\\.]", "-");
+    }
+
+    private static String toValidLabelName(String ori) {
+        return left(ori.toLowerCase().replaceAll("[^a-zA-Z0-9-_\\.]", "-").replaceAll("^[^a-zA-Z0-9]", "0").replaceAll("[^a-zA-Z0-9]$", "0"), maxLabelSize);
     }
     
     private static String createJobName(String jobName, String tenant, String namespace, String functionName) {

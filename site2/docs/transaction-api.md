@@ -1,7 +1,7 @@
 ---
-id: transaction-api
-title: Transaction API(Developer Preview)
-sidebar_label: Transaction API
+id: transactions-api
+title: Transactions API (Developer Preview)
+sidebar_label: Transactions API
 ---
 
 All messages in a transaction is available only to consumers after the transaction is committed. If a transaction is aborted, all the writes and acknowledgments in this transaction rollback. 

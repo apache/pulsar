@@ -460,10 +460,12 @@ Options
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
+|`--retain-key-ordering`|Function consumes and processes messages in key order||
 |`--timeout-ms`|The message timeout in milliseconds||
 |`--tls-allow-insecure`|Allow insecure tls connection|false|
 |`--tls-trust-cert-path`|The tls trust cert file path||
 |`--use-tls`|Use tls connection|false|
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `create`
@@ -508,7 +510,9 @@ Options
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
+|`--retain-key-ordering`|Function consumes and processes messages in key order||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `delete`
@@ -571,7 +575,9 @@ Options
 |`--fqfn`|The Fully Qualified Function Name (FQFN) for the function||
 |`--max-message-retries`|How many times should we try to process a message before giving up||
 |`--retain-ordering`|Function consumes and processes messages in order||
+|`--retain-key-ordering`|Function consumes and processes messages in key order||
 |`--timeout-ms`|The message timeout in milliseconds||
+|`--producer-config`| The custom producer configuration (as a JSON string) | |
 
 
 ### `get`
@@ -845,6 +851,7 @@ Subcommands
 * `set-persistence`
 * `get-message-ttl`
 * `set-message-ttl`
+* `remove-message-ttl`
 * `get-anti-affinity-group`
 * `set-anti-affinity-group`
 * `get-anti-affinity-namespaces`
@@ -1163,7 +1170,16 @@ $ pulsar-admin namespaces set-message-ttl tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-ttl`, `--messageTTL`|Message TTL in seconds|0|
+|`-ttl`, `--messageTTL`|Message TTL in seconds. When the value is set to `0`, TTL is disabled. TTL is disabled by default. |0|
+
+### `remove-message-ttl`
+Remove the message TTL for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-message-ttl tenant/namespace
+```
+
 
 ### `get-anti-affinity-group`
 Get Anti-affinity group name for a namespace
@@ -1743,11 +1759,18 @@ Options
 |`--broker`|Broker name to get namespace-isolation policies attached to it||
 
 ## `topics`
-Operations for managing Pulsar topics (both persistent and non persistent)
+Operations for managing Pulsar topics (both persistent and non-persistent). 
 
 Usage
 ```bash
 $ pulsar-admin topics subcommand
+```
+
+From Pulsar 2.7.0, some namespace-level policies are available on topic level. To enable topic-level policy in Pulsar, you need to configure the following parameters in the `broker.conf` file. 
+
+```shell
+systemTopicEnabled=true
+topicLevelPoliciesEnabled=true
 ```
 
 Subcommands
@@ -1799,6 +1822,36 @@ Subcommands
 * `get-deduplication`
 * `set-deduplication`
 * `remove-deduplication`
+* `get-max-producers`
+* `set-max-producers`
+* `remove-max-producers`
+* `get-max-consumers`
+* `set-max-consumers`
+* `remove-max-consumers`
+* `get-retention`
+* `set-retention`
+* `remove-retention`
+* `get-dispatch-rate`
+* `set-dispatch-rate`
+* `remove-dispatch-rate`
+* `get-compaction-threshold`
+* `set-compaction-threshold`
+* `remove-compaction-threshold`
+* `get-offload-policies`
+* `set-offload-policies`
+* `remove-offload-policies`
+* `get-max-unacked-messages-per-subscription`
+* `set-max-unacked-messages-per-subscription`
+* `remove-max-unacked-messages-per-subscription`
+* `get-max-unacked-messages-per-consumer`
+* `set-max-unacked-messages-per-consumer`
+* `remove-max-unacked-messages-per-consumer`
+* `get-delayed-delivery`
+* `set-delayed-delivery`
+* `remove-delayed-delivery`
+* `get-inactive-topic-policies`
+* `set-inactive-topic-policies`
+* `remove-inactive-topic-policies`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)

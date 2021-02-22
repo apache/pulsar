@@ -52,7 +52,7 @@ public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase
         setupCluster(spec);
     }
 
-    @AfterSuite
+    @AfterSuite(alwaysRun = true)
     @Override
     public void tearDownCluster() {
         super.tearDownCluster();

@@ -22,6 +22,7 @@
 "topic": "test"
 "sessionTimeoutMs": "10000"
 "autoCommitEnabled": "false"
+"autoOffsetReset": "latest"
 "consumerConfigProperties":
     "client.id": "test-pulsar-consumer"
     "security.protocol": "SASL_PLAINTEXT"

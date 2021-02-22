@@ -19,21 +19,17 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import java.lang.reflect.Method;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
-import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockHeaderImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -42,29 +38,22 @@ import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
-
 import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.domain.Credentials;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-
-import com.google.common.util.concurrent.MoreExecutors;
 
 public abstract class BlobStoreManagedLedgerOffloaderBase {
 
     public final static String BUCKET = "pulsar-unittest";
     protected static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     protected static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
-    
+
     protected final OrderedScheduler scheduler;
     protected final PulsarMockBookKeeper bk;
     protected final JCloudBlobStoreProvider provider;
     protected TieredStorageConfiguration config;
     protected BlobStore blobStore = null;
-    
+
     protected BlobStoreManagedLedgerOffloaderBase() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(5).name("offloader").build();
         bk = new PulsarMockBookKeeper(createMockZooKeeper(), scheduler.chooseThread(this));
@@ -82,7 +71,11 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
                 CreateMode.PERSISTENT);
         return zk;
     }
-    
+
+    protected static MockManagedLedger createMockManagedLedger() {
+        return new MockManagedLedger();
+    }
+
     /*
      * Determine which BlobStore Provider to test based on the System properties
      */
@@ -95,7 +88,7 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
             return JCloudBlobStoreProvider.TRANSIENT;
         }
     }
-    
+
     /*
      * Get the credentials to use for the JCloud provider
      * based on the System properties.
@@ -108,7 +101,7 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
              *      props.setProperty("S3Key", "HXXXXXß");
              */
             return () -> new Credentials(System.getProperty("S3ID"), System.getProperty("S3Key"));
-                    
+
         } else if (Boolean.parseBoolean(System.getProperty("testRealGCS", "false"))) {
             /*
              * To use this, must config credentials using "client_email" as GCSID and "private_key" as GCSKey.
@@ -121,17 +114,24 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
             return null;
         }
     }
-    
+
     protected TieredStorageConfiguration getConfiguration(String bucket) {
-        Map<String, String> metaData = new HashMap<String, String> ();
+        return getConfiguration(bucket, null);
+    }
+
+    protected TieredStorageConfiguration getConfiguration(String bucket, Map<String, String> additionalConfig) {
+        Map<String, String> metaData = new HashMap<String, String>();
+        if (additionalConfig != null) {
+            metaData.putAll(additionalConfig);
+        }
         metaData.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, provider.getDriver());
         metaData.put(getConfigKey(TieredStorageConfiguration.METADATA_FIELD_REGION), "");
         metaData.put(getConfigKey(TieredStorageConfiguration.METADATA_FIELD_BUCKET), bucket);
         metaData.put(getConfigKey(TieredStorageConfiguration.METADATA_FIELD_ENDPOINT), "");
-        
+
         TieredStorageConfiguration config = TieredStorageConfiguration.create(metaData);
         config.setProviderCredentials(getBlobStoreCredentials());
-        
+
         return config;
     }
 

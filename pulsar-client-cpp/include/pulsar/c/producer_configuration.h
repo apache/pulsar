@@ -63,7 +63,16 @@ typedef enum {
     pulsar_AutoPublish = -4,
 } pulsar_schema_type;
 
+typedef enum {
+    // This is the default option to fail send if crypto operation fails
+    pulsar_ProducerFail,
+    // Ignore crypto failure and proceed with sending unencrypted messages
+    pulsar_ProducerSend
+} pulsar_producer_crypto_failure_action;
+
 typedef struct _pulsar_producer_configuration pulsar_producer_configuration_t;
+
+typedef struct _pulsar_crypto_key_reader pulsar_crypto_key_reader;
 
 PULSAR_PUBLIC pulsar_producer_configuration_t *pulsar_producer_configuration_create();
 
@@ -167,6 +176,20 @@ PULSAR_PUBLIC unsigned long pulsar_producer_configuration_get_batching_max_publi
 
 PULSAR_PUBLIC void pulsar_producer_configuration_set_property(pulsar_producer_configuration_t *conf,
                                                               const char *name, const char *value);
+
+PULSAR_PUBLIC int pulsar_producer_is_encryption_enabled(pulsar_producer_configuration_t *conf);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_default_crypto_key_reader(
+    pulsar_producer_configuration_t *conf, const char *public_key_path, const char *private_key_path);
+
+PULSAR_PUBLIC pulsar_producer_crypto_failure_action
+pulsar_producer_configuration_get_crypto_failure_action(pulsar_producer_configuration_t *conf);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_crypto_failure_action(
+    pulsar_producer_configuration_t *conf, pulsar_producer_crypto_failure_action cryptoFailureAction);
+
+PULSAR_PUBLIC void pulsar_producer_configuration_set_encryption_key(pulsar_producer_configuration_t *conf,
+                                                                    const char *key);
 
 // const CryptoKeyReaderPtr getCryptoKeyReader() const;
 // ProducerConfiguration &setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);

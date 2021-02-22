@@ -32,7 +32,6 @@ import java.io.Closeable;
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -140,12 +139,15 @@ public class UnAckedMessageTracker implements Closeable {
                     headPartition.clear();
                     timePartitions.addLast(headPartition);
                 } finally {
-                    if (messageIds.size() > 0) {
-                        consumerBase.onAckTimeoutSend(messageIds);
-                        consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                    try {
+                        if (messageIds.size() > 0) {
+                            consumerBase.onAckTimeoutSend(messageIds);
+                            consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                        }
+                        timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                    } finally {
+                        writeLock.unlock();
                     }
-                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
-                    writeLock.unlock();
                 }
             }
         }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
@@ -154,13 +156,13 @@ public class UnAckedMessageTracker implements Closeable {
     public static void addChunkedMessageIdsAndRemoveFromSequnceMap(MessageId messageId, Set<MessageId> messageIds,
             ConsumerBase<?> consumerBase) {
         if (messageId instanceof MessageIdImpl) {
-            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunckedMessageIdSequenceMap.get((MessageIdImpl) messageId);
+            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap.get((MessageIdImpl) messageId);
             if (chunkedMsgIds != null && chunkedMsgIds.length > 0) {
                 for (MessageIdImpl msgId : chunkedMsgIds) {
                     messageIds.add(msgId);
                 }
             }
-            consumerBase.unAckedChunckedMessageIdSequenceMap.remove((MessageIdImpl) messageId);
+            consumerBase.unAckedChunkedMessageIdSequenceMap.remove((MessageIdImpl) messageId);
         }
     }
 

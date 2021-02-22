@@ -20,18 +20,14 @@ package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider.AWS_S3;
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE;
-
 import com.google.common.collect.ImmutableMap;
-
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -57,7 +53,7 @@ import org.jclouds.s3.reference.S3Constants;
  * </p>
  */
 @Slf4j
-public class TieredStorageConfiguration implements Serializable, Cloneable {
+public class TieredStorageConfiguration {
 
     private static final long serialVersionUID = 1L;
     public static final String BLOB_STORE_PROVIDER_KEY = "managedLedgerOffloadDriver";
@@ -65,8 +61,16 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
     public static final String METADATA_FIELD_REGION = "region";
     public static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
     public static final String METADATA_FIELD_MAX_BLOCK_SIZE = "maxBlockSizeInBytes";
+    public static final String METADATA_FIELD_MIN_BLOCK_SIZE = "minBlockSizeInBytes";
     public static final String METADATA_FIELD_READ_BUFFER_SIZE = "readBufferSizeInBytes";
+    public static final String METADATA_FIELD_WRITE_BUFFER_SIZE = "writeBufferSizeInBytes";
     public static final String OFFLOADER_PROPERTY_PREFIX = "managedLedgerOffload";
+    public static final String MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC = "maxOffloadSegmentRolloverTimeInSeconds";
+    public static final String MIN_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC = "minOffloadSegmentRolloverTimeInSeconds";
+    public static final long DEFAULT_MAX_SEGMENT_TIME_IN_SECOND = 600;
+    public static final long DEFAULT_MIN_SEGMENT_TIME_IN_SECOND = 0;
+    public static final String MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES = "maxOffloadSegmentSizeInBytes";
+    public static final long DEFAULT_MAX_SEGMENT_SIZE_IN_BYTES = 1024 * 1024 * 1024;
 
     protected static final int MB = 1024 * 1024;
 
@@ -181,6 +185,30 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
         return null;
     }
 
+    public long getMaxSegmentTimeInSecond() {
+        if (configProperties.containsKey(MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC)) {
+            return Long.parseLong(configProperties.get(MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC));
+        } else {
+            return DEFAULT_MAX_SEGMENT_TIME_IN_SECOND;
+        }
+    }
+
+    public long getMinSegmentTimeInSecond() {
+        if (configProperties.containsKey(MIN_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC)) {
+            return Long.parseLong(configProperties.get(MIN_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC));
+        } else {
+            return DEFAULT_MIN_SEGMENT_TIME_IN_SECOND;
+        }
+    }
+
+    public long getMaxSegmentSizeInBytes() {
+        if (configProperties.containsKey(MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES)) {
+            return Long.parseLong(configProperties.get(MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES));
+        } else {
+            return DEFAULT_MAX_SEGMENT_SIZE_IN_BYTES;
+        }
+    }
+
     public void setServiceEndpoint(String s) {
         configProperties.put(getKeyName(METADATA_FIELD_ENDPOINT), s);
     }
@@ -217,6 +245,15 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
         return new Integer(64 * MB);
     }
 
+    public Integer getMinBlockSizeInBytes() {
+        for (String key : getKeys(METADATA_FIELD_MIN_BLOCK_SIZE)) {
+            if (configProperties.containsKey(key)) {
+                return Integer.valueOf(configProperties.get(key));
+            }
+        }
+        return 5 * MB;
+    }
+
     public Integer getReadBufferSizeInBytes() {
         for (String key : getKeys(METADATA_FIELD_READ_BUFFER_SIZE)) {
             if (configProperties.containsKey(key)) {
@@ -224,6 +261,15 @@ public class TieredStorageConfiguration implements Serializable, Cloneable {
             }
         }
         return new Integer(MB);
+    }
+
+    public Integer getWriteBufferSizeInBytes() {
+        for (String key : getKeys(METADATA_FIELD_WRITE_BUFFER_SIZE)) {
+            if (configProperties.containsKey(key)) {
+                return Integer.valueOf(configProperties.get(key));
+            }
+        }
+        return 10 * MB;
     }
 
     public Supplier<Credentials> getProviderCredentials() {

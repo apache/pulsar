@@ -203,7 +203,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                                                    PulsarConfigurationLoader.convertFrom(proxyConfig))));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

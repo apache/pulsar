@@ -72,7 +72,7 @@ public class PulsarWorkerAssignmentTest {
     PulsarAdmin admin;
     PulsarClient pulsarClient;
     BrokerStats brokerStatsClient;
-    WorkerService functionsWorkerService;
+    PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     final String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
@@ -89,7 +89,7 @@ public class PulsarWorkerAssignmentTest {
 
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
-        final Set<String> superUsers = Sets.newHashSet("superUser");
+        final Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
@@ -99,7 +99,7 @@ public class PulsarWorkerAssignmentTest {
 
         functionsWorkerService = createPulsarFunctionWorker(config);
         final Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build());
@@ -136,7 +136,7 @@ public class PulsarWorkerAssignmentTest {
         }
     }
 
-    private WorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
@@ -161,7 +161,9 @@ public class PulsarWorkerAssignmentTest {
         workerConfig.setWorkerId(workerId);
         workerConfig.setTopicCompactionFrequencySec(1);
 
-        return new WorkerService(workerConfig);
+        PulsarWorkerService workerService = new PulsarWorkerService();
+        workerService.init(workerConfig, null, false);
+        return workerService;
     }
 
     @Test(timeOut = 60000, enabled = false)
@@ -286,8 +288,9 @@ public class PulsarWorkerAssignmentTest {
         // (3) Restart worker service and check registered functions
         final URI dlUri = functionsWorkerService.getDlogUri();
         functionsWorkerService.stop();
-        functionsWorkerService = new WorkerService(workerConfig);
-        functionsWorkerService.start(dlUri, new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)), null, ErrorNotifier.getDefaultImpl());
+        functionsWorkerService = new PulsarWorkerService();
+        functionsWorkerService.init(workerConfig, dlUri, false);
+        functionsWorkerService.start(new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)), null, ErrorNotifier.getDefaultImpl());
         final FunctionRuntimeManager runtimeManager2 = functionsWorkerService.getFunctionRuntimeManager();
         retryStrategically((test) -> {
             try {

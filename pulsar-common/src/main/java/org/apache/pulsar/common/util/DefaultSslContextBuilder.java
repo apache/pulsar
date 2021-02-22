@@ -21,7 +21,6 @@ package org.apache.pulsar.common.util;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 

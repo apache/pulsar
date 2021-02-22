@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
-
-import java.util.concurrent.atomic.LongAdder;
 
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     protected volatile int publishMaxMessageRate = 0;

@@ -26,21 +26,22 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
-import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import java.nio.file.Files;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -79,8 +80,10 @@ import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.service.api.Component;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import java.io.File;
@@ -106,13 +109,13 @@ import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriBuilder;
 
 @Slf4j
-public abstract class ComponentImpl {
+public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
     private final AtomicReference<StorageClient> storageClient = new AtomicReference<>();
-    protected final Supplier<WorkerService> workerServiceSupplier;
+    protected final Supplier<PulsarWorkerService> workerServiceSupplier;
     protected final Function.FunctionDetails.ComponentType componentType;
 
-    public ComponentImpl(Supplier<WorkerService> workerServiceSupplier, Function.FunctionDetails.ComponentType componentType) {
+    public ComponentImpl(Supplier<PulsarWorkerService> workerServiceSupplier, Function.FunctionDetails.ComponentType componentType) {
         this.workerServiceSupplier = workerServiceSupplier;
         this.componentType = componentType;
     }
@@ -250,7 +253,8 @@ public abstract class ComponentImpl {
         }
     }
 
-    protected WorkerService worker() {
+    @Override
+    public PulsarWorkerService worker() {
         try {
             return checkNotNull(workerServiceSupplier.get());
         } catch (Throwable t) {
@@ -337,6 +341,27 @@ public abstract class ComponentImpl {
         return packageLocationMetaDataBuilder;
     }
 
+    private void deleteStatestoreTableAsync(String namespace, String table) {
+        StorageAdminClient adminClient = worker().getStateStoreAdminClient();
+        if (adminClient != null) {
+            adminClient.deleteStream(namespace, table).whenComplete((res, throwable) -> {
+                if ((throwable == null && res.booleanValue())
+                        || (throwable != null &&
+                        (throwable instanceof NamespaceNotFoundException
+                                || throwable instanceof StreamNotFoundException) )) {
+                    log.info("{}/{} table deleted successfully", namespace, table);
+                } else {
+                    if (throwable != null) {
+                        log.error("{}/{} table deletion failed {}  but moving on", namespace, table, throwable);
+                    } else {
+                        log.error("{}/{} table deletion failed but moving on", namespace, table);
+                    }
+                }
+            });
+        }
+    }
+
+    @Override
     public void deregisterFunction(final String tenant,
                                    final String namespace,
                                    final String componentName,
@@ -356,19 +381,6 @@ public abstract class ComponentImpl {
         } catch (PulsarAdminException e) {
             log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, componentName, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
-        // delete state table
-        if (null != worker().getStateStoreAdminClient()) {
-            final String tableNs = getStateNamespace(tenant, namespace);
-            final String tableName = componentName;
-            try {
-                FutureUtils.result(worker().getStateStoreAdminClient().deleteStream(tableNs, tableName));
-            } catch (NamespaceNotFoundException | StreamNotFoundException e) {
-                // ignored if the state table doesn't exist
-            } catch (Exception e) {
-                log.error("{}/{}/{} Failed to delete state table: {}", tenant, namespace, componentName, e.getMessage());
-                throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
-            }
         }
 
         // validate parameters
@@ -400,7 +412,10 @@ public abstract class ComponentImpl {
                         ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
 
         // clean up component files stored in BK
-        if (!functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP) && !functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
+        String functionPackagePath = functionMetaData.getPackageLocation().getPackagePath();
+        if (!functionPackagePath.startsWith(Utils.HTTP)
+                && !functionPackagePath.startsWith(Utils.FILE)
+                && !functionPackagePath.startsWith(Utils.BUILTIN)) {
             try {
                 WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(), functionMetaData.getPackageLocation().getPackagePath());
             } catch (IOException e) {
@@ -408,8 +423,11 @@ public abstract class ComponentImpl {
                   functionMetaData.getPackageLocation().getPackagePath(), e);
             }
         }
+
+        deleteStatestoreTableAsync(getStateNamespace(tenant, namespace), componentName);
     }
 
+    @Override
     public FunctionConfig getFunctionInfo(final String tenant,
                                           final String namespace,
                                           final String componentName,
@@ -453,6 +471,7 @@ public abstract class ComponentImpl {
         return config;
     }
 
+    @Override
     public void stopFunctionInstance(final String tenant,
                                      final String namespace,
                                      final String componentName,
@@ -463,6 +482,7 @@ public abstract class ComponentImpl {
         changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, false, uri, clientRole, clientAuthenticationDataHttps);
     }
 
+    @Override
     public void startFunctionInstance(final String tenant,
                                       final String namespace,
                                       final String componentName,
@@ -528,6 +548,7 @@ public abstract class ComponentImpl {
                         tenant, namespace, componentName, instanceId));
     }
 
+    @Override
     public void restartFunctionInstance(final String tenant,
                                         final String namespace,
                                         final String componentName,
@@ -582,6 +603,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public void stopFunctionInstances(final String tenant,
                                       final String namespace,
                                       final String componentName,
@@ -590,6 +612,7 @@ public abstract class ComponentImpl {
         changeFunctionStatusAllInstances(tenant, namespace, componentName, false, clientRole, clientAuthenticationDataHttps);
     }
 
+    @Override
     public void startFunctionInstances(final String tenant,
                                        final String namespace,
                                        final String componentName,
@@ -756,6 +779,7 @@ public abstract class ComponentImpl {
         return functionStats;
     }
 
+    @Override
     public FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData getFunctionsInstanceStats(final String tenant,
                                                                                                    final String namespace,
                                                                                                    final String componentName,
@@ -819,6 +843,7 @@ public abstract class ComponentImpl {
         return functionInstanceStatsData;
     }
 
+    @Override
     public List<String> listFunctions(final String tenant,
                                       final String namespace,
                                       final String clientRole,
@@ -866,14 +891,16 @@ public abstract class ComponentImpl {
                 updatedVersionMetaData, false, "Update Failed");
     }
 
+    @Override
     public List<ConnectorDefinition> getListOfConnectors() {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
-        return this.worker().getConnectorsManager().getConnectors();
+        return this.worker().getConnectorsManager().getConnectorDefinitions();
     }
 
+    @Override
     public void reloadConnectors(String clientRole) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -891,6 +918,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public String triggerFunction(final String tenant,
                                   final String namespace,
                                   final String functionName,
@@ -1015,6 +1043,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public FunctionState getFunctionState(final String tenant,
                                           final String namespace,
                                           final String functionName,
@@ -1096,6 +1125,7 @@ public abstract class ComponentImpl {
         return value;
     }
 
+    @Override
     public void putFunctionState(final String tenant,
                                  final String namespace,
                                  final String functionName,
@@ -1174,6 +1204,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public void uploadFunction(final InputStream uploadedInputStream, final String path, String clientRole) {
 
         if (!isWorkerServiceAvailable()) {
@@ -1204,6 +1235,7 @@ public abstract class ComponentImpl {
         }
     }
 
+    @Override
     public StreamingOutput downloadFunction(String tenant, String namespace, String componentName,
                                             String clientRole, AuthenticationDataHttps clientAuthenticationDataHttps) {
         if (!isWorkerServiceAvailable()) {
@@ -1230,27 +1262,28 @@ public abstract class ComponentImpl {
         String pkgPath = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName)
                 .getPackageLocation().getPackagePath();
 
+        return getStreamingOutput(pkgPath);
+    }
+
+    private StreamingOutput getStreamingOutput(String pkgPath) {
         final StreamingOutput streamingOutput = output -> {
             if (pkgPath.startsWith(Utils.HTTP)) {
-                URL url = new URL(pkgPath);
-                IOUtils.copy(url.openStream(), output);
-            } else if (pkgPath.startsWith(Utils.FILE)) {
-                URL url = new URL(pkgPath);
-                File file;
-                try {
-                    file = new File(url.toURI());
-                    IOUtils.copy(new FileInputStream(file), output);
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException("invalid file url path: " + pkgPath);
+                URL url = URI.create(pkgPath).toURL();
+                try (InputStream inputStream = url.openStream()) {
+                    IOUtils.copy(inputStream, output);
                 }
+            } else if (pkgPath.startsWith(Utils.FILE)) {
+                URI url = URI.create(pkgPath);
+                File file = new File(url.getPath());
+                Files.copy(file.toPath(), output);
             } else {
                 WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, pkgPath);
             }
         };
-
         return streamingOutput;
     }
 
+    @Override
     public StreamingOutput downloadFunction(final String path, String clientRole, AuthenticationDataHttps clientAuthenticationDataHttps) {
 
         if (!isWorkerServiceAvailable()) {
@@ -1282,25 +1315,7 @@ public abstract class ComponentImpl {
             }
         }
 
-        final StreamingOutput streamingOutput = output -> {
-            if (path.startsWith(Utils.HTTP)) {
-                URL url = new URL(path);
-                IOUtils.copy(url.openStream(), output);
-            } else if (path.startsWith(Utils.FILE)) {
-                URL url = new URL(path);
-                File file;
-                try {
-                    file = new File(url.toURI());
-                    IOUtils.copy(new FileInputStream(file), output);
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException("invalid file url path: " + path);
-                }
-            } else {
-                WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
-            }
-        };
-
-        return streamingOutput;
+        return getStreamingOutput(path);
     }
 
     private void validateListFunctionRequestParams(final String tenant, final String namespace) throws IllegalArgumentException {
@@ -1510,9 +1525,25 @@ public abstract class ComponentImpl {
     }
 
     public boolean isSuperUser(String clientRole) {
-        return clientRole != null
-                && worker().getWorkerConfig().getSuperUserRoles() != null
-                && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
+        if (clientRole != null) {
+            try {
+                if ((worker().getWorkerConfig().getSuperUserRoles() != null
+                    && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole))) {
+                    return true;
+                }
+                return worker().getAuthorizationService().isSuperUser(clientRole, null)
+                    .get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            } catch (InterruptedException e) {
+                log.warn("Time-out {} sec while checking the role {} is a super user role ",
+                    worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), clientRole);
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            } catch (Exception e) {
+                log.warn("Admin-client with Role - failed to check the role {} is a super user role {} ", clientRole,
+                    e.getMessage(), e);
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            }
+        }
+        return false;
     }
 
     public boolean allowFunctionOps(NamespaceName namespaceName, String role,
@@ -1558,5 +1589,11 @@ public abstract class ComponentImpl {
         } catch (IllegalArgumentException e) {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
+    }
+
+    protected ClassLoader getClassLoaderFromPackage(String className,
+                                                  File packageFile,
+                                                  String narExtractionDirectory) {
+        return FunctionCommon.getClassLoaderFromPackage(componentType, className, packageFile, narExtractionDirectory);
     }
 }

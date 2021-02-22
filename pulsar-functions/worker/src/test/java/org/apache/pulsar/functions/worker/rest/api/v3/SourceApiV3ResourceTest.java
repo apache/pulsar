@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
@@ -47,9 +48,11 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
+import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -105,7 +108,7 @@ public class SourceApiV3ResourceTest {
     private String JAR_FILE_PATH;
     private String INVALID_JAR_FILE_PATH;
 
-    private WorkerService mockedWorkerService;
+    private PulsarWorkerService mockedWorkerService;
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
@@ -121,6 +124,7 @@ public class SourceApiV3ResourceTest {
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
     private LeaderService mockedLeaderService;
+    private Packages mockedPackages;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -137,9 +141,10 @@ public class SourceApiV3ResourceTest {
         this.mockedNamespaces = mock(Namespaces.class);
         this.mockedFunctions = mock(Functions.class);
         this.mockedLeaderService = mock(LeaderService.class);
+        this.mockedPackages = mock(Packages.class);
         namespaceList.add(tenant + "/" + namespace);
 
-        this.mockedWorkerService = mock(WorkerService.class);
+        this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
@@ -151,9 +156,11 @@ public class SourceApiV3ResourceTest {
         when(mockedPulsarAdmin.tenants()).thenReturn(mockedTenants);
         when(mockedPulsarAdmin.namespaces()).thenReturn(mockedNamespaces);
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
+        when(mockedPulsarAdmin.packages()).thenReturn(mockedPackages);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
         when(mockedLeaderService.isLeader()).thenReturn(true);
+        doNothing().when(mockedPackages).download(anyString(), anyString());
 
         URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
         if (file == null)  {
@@ -307,6 +314,29 @@ public class SourceApiV3ResourceTest {
         }
     }
 
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package does not have the" +
+            " correct format. Pulsar cannot determine if the package is a NAR package" +
+            " or JAR package. Source classname is not provided and attempts to load it as a NAR package produced the following error.")
+    public void testRegisterSourceMissingPackageDetailsAndClassname() {
+        try {
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    mockedInputStream,
+                    null,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract source class from archive")
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
         try {
@@ -446,6 +476,10 @@ public class SourceApiV3ResourceTest {
     }
 
     private void registerDefaultSource() throws IOException {
+        registerDefaultSourceWithPackageUrl(null);
+    }
+
+    private void registerDefaultSourceWithPackageUrl(String packageUrl) throws IOException {
         SourceConfig sourceConfig = createDefaultSourceConfig();
         resource.registerSource(
             tenant,
@@ -453,7 +487,7 @@ public class SourceApiV3ResourceTest {
                 source,
             new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
-            null,
+            packageUrl,
             sourceConfig,
                 null, null);
     }
@@ -507,6 +541,23 @@ public class SourceApiV3ResourceTest {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
         registerDefaultSource();
+    }
+
+    @Test(timeOut = 20000)
+    public void testRegisterSourceSuccessWithPackageName() throws IOException {
+        registerDefaultSourceWithPackageUrl("source://public/default/test@v1");
+    }
+
+    @Test(timeOut = 20000)
+    public void testRegisterSourceFailedWithWrongPackageName() throws PulsarAdminException, IOException {
+        try {
+            doThrow(new PulsarAdminException("package name is invalid"))
+                .when(mockedPackages).download(anyString(), anyString());
+            registerDefaultSourceWithPackageUrl("source://");
+        } catch (RestException e) {
+            // expected exception
+            assertEquals(e.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+        }
     }
 
     @Test
@@ -826,11 +877,13 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -878,6 +931,10 @@ public class SourceApiV3ResourceTest {
     }
 
     private void updateDefaultSource() throws Exception {
+        updateDefaultSourceWithPackageUrl(null);
+    }
+
+    private void updateDefaultSourceWithPackageUrl(String packageUrl) throws Exception {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -898,11 +955,13 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(File.class), any());
+        FunctionCommon.extractNarClassLoader(any(File.class), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -913,7 +972,7 @@ public class SourceApiV3ResourceTest {
                 source,
                 new FileInputStream(JAR_FILE_PATH),
             mockedFormData,
-            null,
+            packageUrl,
             sourceConfig,
                 null, null, null);
     }
@@ -994,9 +1053,10 @@ public class SourceApiV3ResourceTest {
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
         PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -1058,6 +1118,25 @@ public class SourceApiV3ResourceTest {
         } catch (RestException re){
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
             throw re;
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testUpdateSourceSuccessWithPackageName() throws Exception {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+        updateDefaultSourceWithPackageUrl("source://public/default/test@v1");
+    }
+
+    @Test(timeOut = 20000)
+    public void testUpdateSourceFailedWithWrongPackageName() throws Exception {
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+        try {
+            doThrow(new PulsarAdminException("package name is invalid"))
+                .when(mockedPackages).download(anyString(), anyString());
+            updateDefaultSourceWithPackageUrl("source://");
+        } catch (RestException e) {
+            // expected exception
+            assertEquals(e.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
         }
     }
 
@@ -1180,6 +1259,81 @@ public class SourceApiV3ResourceTest {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
             throw re;
         }
+    }
+
+    @Test
+    public void testDeregisterSourceBKPackageCleanup() throws IOException {
+
+        mockStatic(WorkerUtils.class);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+        String packagePath = "public/default/test/591541f0-c7c5-40c0-983b-610c722f90b0-pulsar-io-batch-data-generator-2.7.0.nar";
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
+                .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
+                        PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+
+        deregisterDefaultSource();
+
+        PowerMockito.verifyStatic(WorkerUtils.class, times(1));
+        WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
+    }
+
+    @Test
+    public void testDeregisterBuiltinSourceBKPackageCleanup() throws IOException {
+
+        mockStatic(WorkerUtils.class);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+        String packagePath = String.format("%s://data-generator", Utils.BUILTIN);
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
+                .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
+                        PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+
+        deregisterDefaultSource();
+
+        // if the source is a builtin source we shouldn't try to clean it up
+        PowerMockito.verifyStatic(WorkerUtils.class, times(0));
+        WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
+    }
+
+    @Test
+    public void testDeregisterHTTPSourceBKPackageCleanup() throws IOException {
+
+        mockStatic(WorkerUtils.class);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+        String packagePath = String.format("http://foo.com/connector.jar", Utils.BUILTIN);
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
+                .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
+                        PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+
+        deregisterDefaultSource();
+
+        // if the source is a is download from a http url, we shouldn't try to clean it up
+        PowerMockito.verifyStatic(WorkerUtils.class, times(0));
+        WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
+    }
+
+    @Test
+    public void testDeregisterFileSourceBKPackageCleanup() throws IOException {
+
+        mockStatic(WorkerUtils.class);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+        String packagePath = String.format("file://foo/connector.jar", Utils.BUILTIN);
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
+                .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
+                        PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+
+        deregisterDefaultSource();
+
+        // if the source has a file url, we shouldn't try to clean it up
+        PowerMockito.verifyStatic(WorkerUtils.class, times(0));
+        WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
     }
 
     //
