@@ -1778,7 +1778,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return Optional.empty();
     }
 
-    private CompletableFuture<Void> seekAsyncFire(long requestId, ByteBuf seek, String seekBy) {
+    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, String seekBy) {
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
 
@@ -1811,7 +1811,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         String seekBy = String.format("the timestamp %d", timestamp);
         return seekAsyncCheckState(seekBy).orElseGet(() -> {
             long requestId = client.newRequestId();
-            return seekAsyncFire(requestId, Commands.newSeek(consumerId, requestId, timestamp), seekBy);
+            return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp), seekBy);
         });
     }
 
@@ -1835,7 +1835,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 MessageIdImpl msgId = (MessageIdImpl) messageId;
                 seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), new long[0]);
             }
-            return seekAsyncFire(requestId, seek, seekBy);
+            return seekAsyncInternal(requestId, seek, seekBy);
         });
     }
 
