@@ -421,7 +421,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                             .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
                 }
 
-                restartFunctionByPulsarAdmin(assignment, tenant, namespace, functionName);
+                restartFunctionUsingPulsarAdmin(assignment, tenant, namespace, functionName);
             }
         } else {
             for (Assignment assignment : assignments) {
@@ -444,14 +444,14 @@ public class FunctionRuntimeManager implements AutoCloseable{
                         }
                         continue;
                     }
-                    restartFunctionByPulsarAdmin(assignment, tenant, namespace, functionName);
+                    restartFunctionUsingPulsarAdmin(assignment, tenant, namespace, functionName);
                 }
             }
         }
         return;
     }
 
-    private void restartFunctionByPulsarAdmin(Assignment assignment, String tenant, String namespace, String functionName)
+    private void restartFunctionUsingPulsarAdmin(Assignment assignment, String tenant, String namespace, String functionName)
             throws PulsarAdminException {
         ComponentType componentType = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getComponentType();
         if (ComponentType.SOURCE == componentType) {

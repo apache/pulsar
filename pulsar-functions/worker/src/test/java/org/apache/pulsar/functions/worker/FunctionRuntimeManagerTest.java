@@ -1113,7 +1113,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.restartFunctionInstances("test-tenant", "test-namespace", "function");
         if (expectRestartByPulsarAdmin) {
             PowerMockito.verifyPrivate(functionRuntimeManager)
-                .invoke("restartFunctionByPulsarAdmin", assignment, "test-tenant", "test-namespace", "function");
+                .invoke("restartFunctionUsingPulsarAdmin", assignment, "test-tenant", "test-namespace", "function");
         } else {
             PowerMockito.verifyPrivate(functionRuntimeManager)
                 .invoke("stopFunction", FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance()), true);
