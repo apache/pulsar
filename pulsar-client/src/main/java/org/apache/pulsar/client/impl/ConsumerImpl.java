@@ -1778,7 +1778,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return Optional.empty();
     }
 
-    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, String seekBy) {
+    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy) {
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
 
@@ -1788,7 +1788,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
             acknowledgmentsGroupingTracker.flushAndClean();
 
-            seekMessageId = new BatchMessageIdImpl((MessageIdImpl) MessageId.earliest);
+            seekMessageId = new BatchMessageIdImpl((MessageIdImpl) seekId);
             duringSeek.set(true);
             lastDequeuedMessageId = MessageId.earliest;
 
@@ -1799,8 +1799,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
             seekFuture.completeExceptionally(
                 PulsarClientException.wrap(e.getCause(),
-                        String.format("Failed to seek the subscription %s of the topic %s to %s",
-                                subscription, topicName.toString(), seekBy)));
+                    String.format("Failed to seek the subscription %s of the topic %s to %s",
+                        subscription, topicName.toString(), seekBy)));
             return null;
         });
         return seekFuture;
@@ -1811,7 +1811,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         String seekBy = String.format("the timestamp %d", timestamp);
         return seekAsyncCheckState(seekBy).orElseGet(() -> {
             long requestId = client.newRequestId();
-            return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp), seekBy);
+            return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp),
+                MessageId.earliest, seekBy);
         });
     }
 
@@ -1835,7 +1836,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 MessageIdImpl msgId = (MessageIdImpl) messageId;
                 seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), new long[0]);
             }
-            return seekAsyncInternal(requestId, seek, seekBy);
+            return seekAsyncInternal(requestId, seek, messageId, seekBy);
         });
     }
 
