@@ -190,7 +190,7 @@ authenticationProviders: ['org.apache.pulsar.broker.authentication.Authenticatio
   saslJaasClientAllowedIds: .*pulsar.*
   saslJaasBrokerSectionName: Broker
 </code></pre>
-<p>如果需要启用<em>Token 认证</em>，就需要在<code>properties</code>节点下添加如下必要的配置。 更多详细信息，请参阅 <a href="/docs/zh-CN/next/security-jwt">Token Authentication</a>。</p>
+<p>如果需要启用<em>Token 认证</em>，就需要在<code>properties</code>节点下添加如下必要的配置。 更多详细信息，请参阅 <a href="/docs/zh-CN/next/security-jwt">Token Authentication</a>。 Note: key files must be DER-encoded</p>
 <pre><code class="hljs">properties:
   tokenSecretKey:       file://my/secret.key 
   # If using public/private

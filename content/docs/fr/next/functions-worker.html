@@ -189,7 +189,7 @@ authenticationProviders: ['org.apache.pulsar.broker.authentication.Authenticatio
   saslJaasClientAllowedIds: .*pulsar.*
   saslJaasBrokerSectionName: Broker
 </code></pre>
-<p>For <em>Token Authentication</em> provider, add necessary settings for <code>properties</code> if needed. See <a href="/docs/fr/next/security-jwt">Token Authentication</a> for more details.</p>
+<p>For <em>Token Authentication</em> provider, add necessary settings for <code>properties</code> if needed. See <a href="/docs/fr/next/security-jwt">Token Authentication</a> for more details. Note: key files must be DER-encoded</p>
 <pre><code class="hljs">properties:
   tokenSecretKey:       file://my/secret.key 
   # If using public/private

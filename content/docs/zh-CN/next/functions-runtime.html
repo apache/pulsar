@@ -296,8 +296,8 @@ io.kubernetes.client.ApiException: Forbidden
   <span class="hljs-bullet">-</span> <span class="hljs-string">superuser</span>
   <span class="hljs-bullet">-</span> <span class="hljs-string">proxy</span>
 <span class="hljs-attr">properties:</span>
-  <span class="hljs-attr">tokenSecretKey:</span> <span class="hljs-string">file:///etc/pulsar/jwt/secret</span> <span class="hljs-comment"># 如果使用 secret 认证</span>
-  <span class="hljs-attr">tokenPublicKey:</span> <span class="hljs-string">file:///etc/pulsar/jwt/public.key</span> <span class="hljs-comment"># 如果使用公钥/私钥</span>
+  <span class="hljs-attr">tokenSecretKey:</span> <span class="hljs-string">file:///etc/pulsar/jwt/secret</span> <span class="hljs-comment"># if using a secret token, key file must be DER-encoded</span>
+  <span class="hljs-attr">tokenPublicKey:</span> <span class="hljs-string">file:///etc/pulsar/jwt/public.key</span> <span class="hljs-comment"># if using public/private key tokens, key file must be DER-encoded</span>
 </code></pre>
 <blockquote>
 <p><strong>注意</strong>  <br>
