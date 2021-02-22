@@ -26,7 +26,6 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGE
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
@@ -38,9 +37,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -62,7 +59,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -81,6 +77,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedger.PositionBound;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
@@ -88,7 +85,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
@@ -582,6 +578,26 @@ public class ManagedCursorImpl implements ManagedCursor {
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition);
         ledger.asyncReadEntries(op);
+    }
+
+    public void asyncReadEntries(int restNumOfEntries, long restMaxSizeBytes, ReadEntriesCallback callback,
+                                 Object ctx, PositionImpl maxPosition, List<Entry> alreadyRead) {
+        checkArgument(restNumOfEntries > 0);
+        if (isClosed()) {
+            callback.readEntriesFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
+            return;
+        }
+
+        int restNumOfEntriesToRead = applyMaxSizeCap(restNumOfEntries, restMaxSizeBytes);
+
+        PENDING_READ_OPS_UPDATER.incrementAndGet(this);
+        OpReadEntry op = OpReadEntry
+                .create(this, readPosition, restNumOfEntriesToRead + alreadyRead.size(), callback, ctx, maxPosition);
+        if (!alreadyRead.isEmpty()) {
+            op.readEntriesComplete(alreadyRead, ctx);
+        } else {
+            ledger.asyncReadEntries(op);
+        }
     }
 
     @Override
@@ -1191,17 +1207,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         // filters out messages which are already acknowledged
-        Set<Position> alreadyAcknowledgedPositions = Sets.newHashSet();
-        lock.readLock().lock();
-        try {
-            positions.stream()
-                    .filter(position -> individualDeletedMessages.contains(((PositionImpl) position).getLedgerId(),
-                            ((PositionImpl) position).getEntryId())
-                            || ((PositionImpl) position).compareTo(markDeletePosition) <= 0)
-                    .forEach(alreadyAcknowledgedPositions::add);
-        } finally {
-            lock.readLock().unlock();
-        }
+        Set<Position> alreadyAcknowledgedPositions = filterAlreadyAcknowledgedCallback(positions);
 
         final int totalValidPositions = positions.size() - alreadyAcknowledgedPositions.size();
         final AtomicReference<ManagedLedgerException> exception = new AtomicReference<>();
@@ -1253,6 +1259,21 @@ public class ManagedCursorImpl implements ManagedCursor {
                     ledger.asyncReadEntry((PositionImpl) p, cb, ctx);
                 });
 
+        return alreadyAcknowledgedPositions;
+    }
+
+    protected Set<Position> filterAlreadyAcknowledgedCallback(Set<? extends Position> positions) {
+        Set<Position> alreadyAcknowledgedPositions = Sets.newHashSet();
+        lock.readLock().lock();
+        try {
+            positions.stream()
+                    .filter(position -> individualDeletedMessages.contains(position.getLedgerId(),
+                            position.getEntryId())
+                            || ((PositionImpl) position).compareTo(markDeletePosition) <= 0)
+                    .forEach(alreadyAcknowledgedPositions::add);
+        } finally {
+            lock.readLock().unlock();
+        }
         return alreadyAcknowledgedPositions;
     }
 
@@ -1494,7 +1515,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return tempDeletedMessages.get();
     }
 
-    boolean hasMoreEntries(PositionImpl position) {
+    public boolean hasMoreEntries(PositionImpl position) {
         PositionImpl lastPositionInLedger = ledger.getLastPosition();
         if (position.compareTo(lastPositionInLedger) <= 0) {
             return getNumberOfEntries(Range.closed(position, lastPositionInLedger)) > 0;

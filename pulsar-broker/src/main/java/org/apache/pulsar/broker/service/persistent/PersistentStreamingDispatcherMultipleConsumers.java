@@ -26,7 +26,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.service.Consumer;
@@ -88,7 +87,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
             log.debug("[{}] Distributing a messages to {} consumers", name, consumerList.size());
         }
 
-        cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
+        cursor.seek(cursor.getManagedLedger()
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
         sendMessagesToConsumers(readType, Lists.newArrayList(entry));
         ctx.recycle();

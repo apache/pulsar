@@ -36,12 +36,12 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -380,7 +380,7 @@ public class PersistentSubscription implements Subscription {
 
     private void deleteTransactionMarker(PositionImpl position, AckType ackType, Map<String, Long> properties) {
         if (position != null) {
-            ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+            ManagedLedger managedLedger = cursor.getManagedLedger();
             PositionImpl nextPosition = managedLedger.getNextValidPosition(position);
             managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
                 @Override
@@ -963,7 +963,7 @@ public class PersistentSubscription implements Subscription {
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
         if (subscriptionBacklogSize) {
-            subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
+            subStats.backlogSize = topic.getManagedLedger()
                     .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
         }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;

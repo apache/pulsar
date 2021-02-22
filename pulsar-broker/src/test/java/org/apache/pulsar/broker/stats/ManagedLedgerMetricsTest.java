@@ -21,9 +21,8 @@ package org.apache.pulsar.broker.stats;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
-
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
@@ -65,7 +64,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        for (Entry<String, ManagedLedgerImpl> ledger : ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory())
+        for (Entry<String, ManagedLedger> ledger : ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory())
                 .getManagedLedgers().entrySet()) {
             ManagedLedgerMBeanImpl stats = (ManagedLedgerMBeanImpl) ledger.getValue().getStats();
             stats.refreshStats(1, TimeUnit.SECONDS);
@@ -78,7 +77,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
-        for (Entry<String, ManagedLedgerImpl> ledger : ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory())
+        for (Entry<String, ManagedLedger> ledger : ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory())
                 .getManagedLedgers().entrySet()) {
             ManagedLedgerMBeanImpl stats = (ManagedLedgerMBeanImpl) ledger.getValue().getStats();
             stats.refreshStats(1, TimeUnit.SECONDS);

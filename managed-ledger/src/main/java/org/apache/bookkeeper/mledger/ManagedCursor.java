@@ -20,11 +20,9 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -233,6 +231,8 @@ public interface ManagedCursor {
      * @return true if there are pending entries to read, false otherwise
      */
     boolean hasMoreEntries();
+
+    boolean hasMoreEntries(PositionImpl position);
 
     /**
      * Return the number of messages that this cursor still has to read.

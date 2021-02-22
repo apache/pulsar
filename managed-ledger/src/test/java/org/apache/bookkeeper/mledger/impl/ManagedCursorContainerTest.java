@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -91,6 +90,11 @@ public class ManagedCursorContainerTest {
         @Override
         public boolean hasMoreEntries() {
             return true;
+        }
+
+        @Override
+        public boolean hasMoreEntries(PositionImpl position) {
+            return false;
         }
 
         @Override

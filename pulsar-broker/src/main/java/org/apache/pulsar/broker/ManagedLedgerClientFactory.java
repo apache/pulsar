@@ -102,7 +102,15 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         };
 
         this.managedLedgerFactory =
-                new ManagedLedgerFactoryImpl(bkFactory, zkClient, managedLedgerFactoryConfig, statsLogger);
+                createManagedLedgerFactory(zkClient, managedLedgerFactoryConfig, statsLogger, bkFactory);
+    }
+
+    protected ManagedLedgerFactoryImpl
+    createManagedLedgerFactory(ZooKeeper zkClient,
+                               ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+                               StatsLogger statsLogger,
+                               BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory) throws Exception {
+        return new ManagedLedgerFactoryImpl(bkFactory, zkClient, managedLedgerFactoryConfig, statsLogger);
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {

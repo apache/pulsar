@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -30,6 +31,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -58,6 +61,19 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
 public interface ManagedLedger {
+
+    /**
+     * Make ManagedLedger ready to work
+     * @param callback
+     * @param ctx
+     */
+    void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx);
+
+    boolean isValidPosition(PositionImpl nextReadPosition);
+
+    boolean hasMoreEntries(PositionImpl nextReadPosition);
+
+    void addWaitingEntryCallBack(WaitingEntryCallBack streamingEntryReader);
 
     /**
      * @return the unique name of this ManagedLedger
@@ -99,6 +115,8 @@ public interface ManagedLedger {
      *            opaque context
      */
     void asyncAddEntry(byte[] data, AddEntryCallback callback, Object ctx);
+
+    void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx);
 
     /**
      * Append a new entry to the end of a managed ledger.
@@ -357,6 +375,24 @@ public interface ManagedLedger {
      */
     long getNumberOfEntries();
 
+    long getEntriesAddedCounter();
+
+    long getLastLedgerCreatedTimestamp();
+
+    long getLastLedgerCreationFailureTimestamp();
+
+    int getWaitingCursorsCount();
+
+    long getCurrentLedgerEntries();
+
+    long getCurrentLedgerSize();
+
+    NavigableMap<Long, LedgerInfo> getLedgersInfo();
+
+    CompletableFuture<String> getLedgerMetadata(long ledgerId);
+
+    boolean ledgerExists(long ledgerId);
+
     /**
      * Get the total number of active entries for this managed ledger.
      *
@@ -386,6 +422,23 @@ public interface ManagedLedger {
      * @return estimated total backlog size
      */
     long getEstimatedBacklogSize();
+
+    /**
+     * Get estimated backlog size from a specific position.
+     * @param pos
+     * @return
+     */
+    long getEstimatedBacklogSize(PositionImpl pos);
+
+    /**
+     * number of entries are in add progress
+     */
+    int getPendingAddEntriesCount();
+
+    /**
+     * Get the total size in bytes of all the entries stored in this cache.
+     */
+    long getCacheSize();
 
     /**
      * Return the size of all ledgers offloaded to 2nd tier storage
@@ -429,6 +482,13 @@ public interface ManagedLedger {
      * @return the managed ledger stats MBean
      */
     ManagedLedgerMXBean getStats();
+
+    /**
+     * Remove all entries already read by active cursors and
+     * remove entries older than the cutoff threshold
+     * @param maxTimestamp
+     */
+    void doCacheEviction(long maxTimestamp);
 
     /**
      * Delete the ManagedLedger.
@@ -503,6 +563,12 @@ public interface ManagedLedger {
      * @return the last confirmed entry id
      */
     Position getLastConfirmedEntry();
+
+    /**
+     * Get state of the managed ledger.
+     * @return
+     */
+    String getState();
 
     /**
      * Signaling managed ledger that we can resume after BK write failure
@@ -591,6 +657,27 @@ public interface ManagedLedger {
     CompletableFuture<Position> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate);
 
     /**
+     * Get the entry position at a given distance from a given position.
+     *
+     * @param startPosition
+     *            starting position
+     * @param n
+     *            number of entries to skip ahead
+     * @param startRange
+     *            specifies whether or not to include the start position in calculating the distance
+     * @return the new position that is n entries ahead
+     */
+    PositionImpl getPositionAfterN(final PositionImpl startPosition, long n,
+                                   ManagedLedgerImpl.PositionBound startRange);
+
+    /**
+     * first position of current topic
+     */
+    PositionImpl getFirstPosition();
+
+    PositionImpl getLastPosition();
+
+    /**
      * Get the ManagedLedgerInterceptor for ManagedLedger.
      * */
     ManagedLedgerInterceptor getManagedLedgerInterceptor();
@@ -600,4 +687,21 @@ public interface ManagedLedger {
      * will got null if corresponding ledger not exists.
      */
     CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId);
+
+    /**
+     * get the valid position next to the given one
+     * @param position current postion
+     */
+    PositionImpl getNextValidPosition(final PositionImpl position);
+
+    interface ManagedLedgerInitializeLedgerCallback {
+        void initializeComplete();
+
+        void initializeFailed(ManagedLedgerException e);
+    }
+
+    // define boundaries for position based seeks and searches
+    enum PositionBound {
+        startIncluded, startExcluded
+    }
 }
