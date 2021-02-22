@@ -146,7 +146,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         namespaces = spy(new Namespaces());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(namespaces).globalZk();
         doReturn(mockZooKeeper).when(namespaces).localZk();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
@@ -165,7 +164,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         persistentTopics = spy(new PersistentTopics());
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
-        doReturn(mockZooKeeperGlobal).when(persistentTopics).globalZk();
         doReturn(mockZooKeeper).when(persistentTopics).localZk();
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn("persistent").when(persistentTopics).domain();

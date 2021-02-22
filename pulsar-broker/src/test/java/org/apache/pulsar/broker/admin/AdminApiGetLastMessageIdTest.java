@@ -78,7 +78,6 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
 
-        doReturn(mockZooKeeper).when(persistentTopics).globalZk();
         doReturn(mockZooKeeper).when(persistentTopics).localZk();
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();

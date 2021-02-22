@@ -67,6 +67,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -1965,7 +1966,10 @@ public class PersistentTopic extends AbstractTopic
         String path = AdminResource.path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace()
                 , topicName.getDomain().value(), topicName.getEncodedLocalName());
         try {
-            if (topicName.isPartitioned() && !getBrokerService().pulsar().getGlobalZkCache().exists(path)) {
+            PartitionedTopicResources partitionedTopicResources = getBrokerService().pulsar().getPulsarResources()
+                    .getNamespaceResources()
+                    .getPartitionedTopicResources();
+            if (topicName.isPartitioned() && !partitionedTopicResources.exists(path)) {
                 return CompletableFuture.completedFuture(null);
             }
             CompletableFuture<Void> deleteMetadataFuture = new CompletableFuture<>();
@@ -1990,17 +1994,12 @@ public class PersistentTopic extends AbstractTopic
                             }
                         }
                     }))
-                    .thenAccept((res) -> getBrokerService().pulsar().getGlobalZkCache().getZooKeeper().delete(path, -1
-                            , (rc, s, o) -> {
-                                if (KeeperException.Code.OK.intValue() == rc
-                                        || KeeperException.Code.NONODE.intValue() == rc) {
-                                    getBrokerService().pulsar().getGlobalZkCache().invalidate(path);
-                                    deleteMetadataFuture.complete(null);
-                                } else {
-                                    deleteMetadataFuture.completeExceptionally(
-                                            KeeperException.create(KeeperException.Code.get(rc)));
-                                }
-                            }, null))
+                    .thenAccept((res) -> partitionedTopicResources.deleteAsync(path).thenAccept((r) -> {
+                        deleteMetadataFuture.complete(null);
+                    }).exceptionally(ex -> {
+                        deleteMetadataFuture.completeExceptionally(ex.getCause());
+                        return null;
+                    }))
                     .exceptionally((e) -> {
                         if (!(e.getCause() instanceof UnsupportedOperationException)) {
                             log.error("delete metadata fail", e);
