@@ -479,16 +479,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         if (ackType == AckType.Cumulative) {
-            Consumer individualConsumer = consumers.get(topicMessageId.getTopicPartitionName());
+            Consumer<?> individualConsumer = consumers.get(topicMessageId.getTopicPartitionName());
             if (individualConsumer != null) {
-                MessageId innerId = topicMessageId.getInnerMessageId();
                 return individualConsumer.reconsumeLaterCumulativeAsync(message, delayTime, unit);
             } else {
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
             }
         } else {
             ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
-            MessageId innerId = topicMessageId.getInnerMessageId();
             return consumer.doReconsumeLater(message, ackType, properties, delayTime, unit)
                      .thenRun(() ->unAckedMessageTracker.remove(topicMessageId));
         }
