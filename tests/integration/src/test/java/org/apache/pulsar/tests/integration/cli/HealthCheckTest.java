@@ -62,7 +62,7 @@ public class HealthCheckTest {
         pulsarCluster.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDownCluster() {
         if (pulsarCluster != null) {
             pulsarCluster.stop();
@@ -108,7 +108,7 @@ public class HealthCheckTest {
     @Test
     public void testBookKeeperDown() throws Exception {
         for (BKContainer b : pulsarCluster.getBookies()) {
-            b.execCmd("pkill", "-STOP", "-f", "BookieServer");
+            b.execCmd("pkill", "-STOP", "-f", "Main");
         }
         assertHealthcheckFailure();
     }

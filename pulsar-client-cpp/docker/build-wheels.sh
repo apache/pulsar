@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -33,6 +33,7 @@ PYTHON_VERSIONS=(
    '3.6 cp36-cp36m'
    '3.7 cp37-cp37m'
    '3.8 cp38-cp38'
+   '3.9 cp39-cp39'
 )
 
 function contains() {

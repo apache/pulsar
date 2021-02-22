@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -25,12 +28,8 @@ import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
 /**
- * Pulsar system topic
+ * Pulsar system topic.
  */
 public interface SystemTopicClient {
 
@@ -63,7 +62,7 @@ public interface SystemTopicClient {
     CompletableFuture<Writer> newWriterAsync();
 
     /**
-     * Close the system topic
+     * Close the system topic.
      */
     void close() throws Exception;
 
@@ -74,23 +73,24 @@ public interface SystemTopicClient {
     CompletableFuture<Void> closeAsync();
 
     /**
-     * Get all writers of the system topic
+     * Get all writers of the system topic.
+     *
      * @return writer list
      */
     List<Writer> getWriters();
 
     /**
-     * Get all readers of the system topic
+     * Get all readers of the system topic.
      * @return reader list
      */
     List<Reader> getReaders();
 
     /**
-     * Writer for system topic
+     * Writer for system topic.
      */
     interface Writer {
         /**
-         * Write event to the system topic
+         * Write event to the system topic.
          * @param event pulsar event
          * @return message id
          * @throws PulsarClientException exception while write event cause
@@ -98,7 +98,7 @@ public interface SystemTopicClient {
         MessageId write(PulsarEvent event) throws PulsarClientException;
 
         /**
-         * Async write event to the system topic
+         * Async write event to the system topic.
          * @param event pulsar event
          * @return message id future
          */
@@ -115,7 +115,7 @@ public interface SystemTopicClient {
         CompletableFuture<Void> closeAsync();
 
         /**
-         * Get the system topic of the writer
+         * Get the system topic of the writer.
          * @return system topic
          */
         SystemTopicClient getSystemTopicClient();
@@ -123,18 +123,18 @@ public interface SystemTopicClient {
     }
 
     /**
-     * Reader for system topic
+     * Reader for system topic.
      */
     interface Reader {
 
         /**
-         * Read event from system topic
+         * Read event from system topic.
          * @return pulsar event
          */
         Message<PulsarEvent> readNext() throws PulsarClientException;
 
         /**
-         * Async read event from system topic
+         * Async read event from system topic.
          * @return pulsar event future
          */
         CompletableFuture<Message<PulsarEvent>> readNextAsync();
@@ -162,7 +162,7 @@ public interface SystemTopicClient {
         CompletableFuture<Void> closeAsync();
 
         /**
-         * Get the system topic of the reader
+         * Get the system topic of the reader.
          * @return system topic
          */
         SystemTopicClient getSystemTopic();

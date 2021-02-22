@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Optional;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -27,4 +29,6 @@ public class ProducerResponse {
     private String producerName;
     private long lastSequenceId;
     private byte[] schemaVersion;
+
+    private Optional<Long> topicEpoch;
 }

@@ -20,7 +20,7 @@ Whether it is persistent or non-persistent topic, you can obtain the topic resou
 
 > **Note**    
 > In REST API, `:schema` stands for persistent or non-persistent. `:tenant`, `:namespace`, `:x` are variables, replace them with the real tenant, namespace, and `x` names when using them.     
-> Take {@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList} as an example, to get the list of persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/persistent/my-tenant/my-namespace`. To get the list of non-persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/non-persistent/my-tenant/my-namespace`.
+> Take {@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]} as an example, to get the list of persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/persistent/my-tenant/my-namespace`. To get the list of non-persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/non-persistent/my-tenant/my-namespace`.
 
 ### List of topics
 
@@ -35,7 +35,7 @@ $ pulsar-admin topics list \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -57,7 +57,7 @@ $ pulsar-admin topics grant-permission \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -88,7 +88,7 @@ $ pulsar-admin topics permissions \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -117,7 +117,7 @@ $ pulsar-admin topics revoke-permission \
 ```
 
 <!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -140,7 +140,7 @@ $ pulsar-admin topics delete \
 ```
 
 <!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -161,7 +161,7 @@ $ pulsar-admin topics unload \
 ```
 
 <!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/unload|operation/unloadTopic}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -313,7 +313,7 @@ $ pulsar-admin topics stats \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -358,6 +358,20 @@ You can get the detailed statistics of a topic.
       -   **size**: The size of messages written to this ledger (in bytes).
 
       -   **offloaded**: Whether this ledger is offloaded.
+      
+      -   **metadata**: The ledger metadata.
+
+  -   **schemaLedgers**: The ordered list of all ledgers for this topic schema.
+  
+      -   **ledgerId**: The ID of this ledger.
+  
+      -   **entries**: The total number of entries belong to this ledger.
+  
+      -   **size**: The size of messages written to this ledger (in bytes).
+  
+      -   **offloaded**: Whether this ledger is offloaded.
+      
+      -   **metadata**: The ledger metadata.
 
   -   **compactedLedger**: The ledgers holding un-acked messages after topic compaction.
  
@@ -395,44 +409,60 @@ The following is an example of the detailed statistics of a topic.
 
 ```json
 {
-    "entriesAddedCounter": 20449518,
-    "numberOfEntries": 3233,
-    "totalSize": 331482,
-    "currentLedgerEntries": 3233,
-    "currentLedgerSize": 331482,
-    "lastLedgerCreatedTimestamp": "2016-06-29 03:00:23.825",
-    "lastLedgerCreationFailureTimestamp": null,
-    "waitingCursorsCount": 1,
-    "pendingAddEntriesCount": 0,
-    "lastConfirmedEntry": "324711539:3232",
-    "state": "LedgerOpened",
-    "ledgers": [
+    "entriesAddedCounter":0,
+    "numberOfEntries":0,
+    "totalSize":0,
+    "currentLedgerEntries":0,
+    "currentLedgerSize":0,
+    "lastLedgerCreatedTimestamp":"2021-01-22T21:12:14.868+08:00",
+    "lastLedgerCreationFailureTimestamp":null,
+    "waitingCursorsCount":0,
+    "pendingAddEntriesCount":0,
+    "lastConfirmedEntry":"3:-1",
+    "state":"LedgerOpened",
+    "ledgers":[
         {
-            "ledgerId": 324711539,
-            "entries": 0,
-            "size": 0,
-            "offloaded": true
+            "ledgerId":3,
+            "entries":0,
+            "size":0,
+            "offloaded":false,
+            "metadata":null
         }
     ],
-    "compactedLedger": {
-        "ledgerId": 324711540,
-        "entries": 10,
-        "size": 100,
-        "offloaded": false
-    },
-    "cursors": {
-        "my-subscription": {
-            "markDeletePosition": "324711539:3133",
-            "readPosition": "324711539:3233",
-            "waitingReadOp": true,
-            "pendingReadOps": 0,
-            "messagesConsumedCounter": 20449501,
-            "cursorLedger": 324702104,
-            "cursorLedgerLastEntry": 21,
-            "individuallyDeletedMessages": "[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]",
-            "lastLedgerSwitchTimestamp": "2016-06-29 01:30:19.313",
-            "state": "Open"
+    "cursors":{
+        "test":{
+            "markDeletePosition":"3:-1",
+            "readPosition":"3:-1",
+            "waitingReadOp":false,
+            "pendingReadOps":0,
+            "messagesConsumedCounter":0,
+            "cursorLedger":4,
+            "cursorLedgerLastEntry":1,
+            "individuallyDeletedMessages":"[]",
+            "lastLedgerSwitchTimestamp":"2021-01-22T21:12:14.966+08:00",
+            "state":"Open",
+            "numberOfEntriesSinceFirstNotAckedMessage":0,
+            "totalNonContiguousDeletedMessagesRange":0,
+            "properties":{
+
+            }
         }
+    },
+    "schemaLedgers":[
+        {
+            "ledgerId":1,
+            "entries":11,
+            "size":10,
+            "offloaded":false,
+            "metadata":null
+        }
+    ],
+    "compactedLedger":{
+        "ledgerId":-1,
+        "entries":-1,
+        "size":-1,
+        "offloaded":false,
+        "metadata":null
     }
 }
 ```
@@ -445,7 +475,7 @@ $ pulsar-admin topics stats-internal \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -471,7 +501,7 @@ msg-payload
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation?version=[[pulsar:version_number]]/peekNthMessage}
 
 <!--Java-->
 ```java
@@ -496,7 +526,7 @@ $ ./bin/pulsar-admin topics get-message-by-id \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -521,7 +551,7 @@ $ pulsar-admin topics skip \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -546,7 +576,7 @@ $ pulsar-admin topics skip-all \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -570,7 +600,7 @@ $ pulsar-admin topics reset-cursor \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -596,7 +626,7 @@ $ pulsar-admin topics lookup \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/}
+{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -620,7 +650,7 @@ $ pulsar-admin topics bundle-range \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -644,7 +674,7 @@ $ pulsar-admin topics subscriptions \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -667,7 +697,7 @@ $ pulsar-admin topics unsubscribe \
 ```
 
 <!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -689,7 +719,7 @@ pulsar-admin topics last-message-id topic-name
 ```
 
 <!--REST API-->
-{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId}
+{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```Java
@@ -722,7 +752,7 @@ $ bin/pulsar-admin topics create \
 > When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic. 
 
 <!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -742,7 +772,7 @@ $ bin/pulsar-admin topics delete \
 ```
 
 <!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -763,7 +793,7 @@ persistent://tenant/namespace/topic2
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -818,7 +848,7 @@ $ pulsar-admin topics stats \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -853,7 +883,7 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 > If a non-partitioned topic with the suffix '-partition-' followed by a numeric value like 'xyz-topic-partition-10', you can not create a partitioned topic with name 'xyz-topic', because the partitions of the partitioned topic could override the existing non-partitioned topic. To create such partitioned topic, you have to delete that non-partitioned topic first.
 
 <!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -878,7 +908,7 @@ $ bin/pulsar-admin topics create-missed-partitions \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createMissedPartitions}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createMissedPartitions?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -909,7 +939,7 @@ $ pulsar-admin topics get-partitioned-topic-metadata \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -936,7 +966,7 @@ $ pulsar-admin topics update-partitioned-topic \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -956,7 +986,7 @@ $ bin/pulsar-admin topics delete-partitioned-topic \
 ```
 
 <!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/:schema/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -976,7 +1006,7 @@ persistent://tenant/namespace/topic2
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getPartitionedTopicList}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getPartitionedTopicList?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -1052,7 +1082,7 @@ $ pulsar-admin topics partitioned-stats \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
@@ -1112,7 +1142,7 @@ $ pulsar-admin topics stats-internal \
 ```
 
 <!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java

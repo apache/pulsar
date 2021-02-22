@@ -19,17 +19,27 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
 
+import java.lang.reflect.Field;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -42,7 +52,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -51,6 +61,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -132,17 +144,17 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction txn1 = getTxn();
         Transaction txn2 = getTxn();
 
-        int txn1MessageCnt = 0;
-        int txn2MessageCnt = 0;
+        int txnMessageCnt = 0;
         int messageCnt = 1000;
         for (int i = 0; i < messageCnt; i++) {
             if (i % 5 == 0) {
-                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
-                txn1MessageCnt ++;
+                MessageId messageId = producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
+                log.info("txnId : {}, messageId : {}", new TxnID(((TransactionImpl)txn1).getTxnIdMostBits(), ((TransactionImpl)txn1).getTxnIdLeastBits()), messageId);
             } else {
-                producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
-                txn2MessageCnt ++;
+                MessageId messageId = producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
+                log.info("txnId : {}, messageId : {}", new TxnID(((TransactionImpl)txn2).getTxnIdMostBits(), ((TransactionImpl)txn2).getTxnIdLeastBits()), messageId);
             }
+            txnMessageCnt++;
         }
 
         // Can't receive transaction messages before commit.
@@ -150,29 +162,18 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         txn1.commit().get();
+        txn2.commit().get();
 
-        // txn1 messages could be received after txn1 committed
         int receiveCnt = 0;
-        for (int i = 0; i < txn1MessageCnt; i++) {
+        for (int i = 0; i < txnMessageCnt; i++) {
             message = consumer.receive();
             Assert.assertNotNull(message);
             receiveCnt ++;
         }
-        Assert.assertEquals(txn1MessageCnt, receiveCnt);
+        Assert.assertEquals(txnMessageCnt, receiveCnt);
 
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
-
-        txn2.commit().get();
-
-        // txn2 messages could be received after txn2 committed
-        receiveCnt = 0;
-        for (int i = 0; i < txn2MessageCnt; i++) {
-            message = consumer.receive();
-            Assert.assertNotNull(message);
-            receiveCnt ++;
-        }
-        Assert.assertEquals(txn2MessageCnt, receiveCnt);
 
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
@@ -183,6 +184,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @Test
     public void produceAbortTest() throws Exception {
         Transaction txn = getTxn();
+        String subName = "test";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -194,7 +196,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         int messageCnt = 10;
         for (int i = 0; i < messageCnt; i++) {
-            producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+            producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
         }
 
         @Cleanup
@@ -202,43 +204,87 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .newConsumer()
                 .topic(TOPIC_OUTPUT)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test")
+                .subscriptionName(subName)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         // Can't receive transaction messages before abort.
-        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
         txn.abort().get();
 
         // Cant't receive transaction messages after abort.
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+            boolean flag = true;
+            for (int partition = 0; partition < TOPIC_PARTITION; partition ++) {
+                String topic;
+                topic = TopicName.get(TOPIC_OUTPUT).getPartition(partition).toString();
+                boolean exist = false;
+                for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
-        Thread.sleep(1000);
-        for (int i = 0; i < TOPIC_PARTITION; i++) {
-            PersistentTopicInternalStats stats =
-                    admin.topics().getInternalStats("persistent://" + TOPIC_OUTPUT + "-partition-" + i);
-            // the transaction abort, the related messages and abort marke should be acked,
-            // so all the entries in this topic should be acked
-            // and the markDeletePosition is equals with the lastConfirmedEntry
-            Assert.assertEquals(stats.cursors.get("test").markDeletePosition, stats.lastConfirmedEntry);
-        }
+                    Field field = BrokerService.class.getDeclaredField("topics");
+                    field.setAccessible(true);
+                    ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                            (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                                    .get(getPulsarServiceList().get(i).getBrokerService());
+                    CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+
+                    if (topicFuture != null) {
+                        Optional<Topic> topicOptional = topicFuture.get();
+                        if (topicOptional.isPresent()) {
+                            PersistentSubscription persistentSubscription =
+                                    (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                            Position markDeletePosition = persistentSubscription.getCursor().getMarkDeletedPosition();
+                            Position lastConfirmedEntry = persistentSubscription.getCursor()
+                                    .getManagedLedger().getLastConfirmedEntry();
+                            exist = true;
+                            if (!markDeletePosition.equals(lastConfirmedEntry)) {
+                                //this because of the transaction commit marker have't delete
+                                //delete commit marker after ack position
+                                //when delete commit marker operation is processing, next delete operation will not do again
+                                //when delete commit marker operation finish, it can run next delete commit marker operation
+                                //so this test may not delete all the position in this manageLedger.
+                                Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
+                                        .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                                //marker is the lastConfirmedEntry, after commit the marker will only be write in
+                                if (!markerPosition.equals(lastConfirmedEntry)) {
+                                    log.error("Mark delete position is not commit marker position!");
+                                    flag = false;
+                                }
+                            }
+                        }
+                    }
+                }
+                assertTrue(exist);
+            }
+            return flag;
+        });
 
         log.info("finished test partitionAbortTest");
     }
 
     @Test
-    public void txnAckTestNoBatchAndSharedSub() throws Exception {
+    public void txnIndividualAckTestNoBatchAndSharedSub() throws Exception {
         txnAckTest(false, 1, SubscriptionType.Shared);
     }
 
     @Test
-    public void txnAckTestBatchAndSharedSub() throws Exception {
+    public void txnIndividualAckTestBatchAndSharedSub() throws Exception {
         txnAckTest(true, 200, SubscriptionType.Shared);
     }
 
+    @Test
+    public void txnIndividualAckTestNoBatchAndFailoverSub() throws Exception {
+        txnAckTest(false, 1, SubscriptionType.Failover);
+    }
+
+    @Test
+    public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
+        txnAckTest(true, 200, SubscriptionType.Failover);
+    }
 
     private void txnAckTest(boolean batchEnable, int maxBatchSize,
                          SubscriptionType subscriptionType) throws Exception {
@@ -250,8 +296,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
-                .ackTimeout(2, TimeUnit.SECONDS)
-                .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
                 .subscribe();
 
         @Cleanup
@@ -277,7 +321,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 log.info("receive msgId: {}, count : {}", message.getMessageId(), i);
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
-            Thread.sleep(2000L);
 
             // the messages are pending ack state and can't be received
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -309,15 +352,14 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof
-                        TransactionCoordinatorClientException.InvalidTxnStatusException);
+                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
         }
     }
 
     @Test
     public void txnMessageAckTest() throws Exception {
-        final String topic = TOPIC_MESSAGE_ACK_TEST;
+        String topic = TOPIC_MESSAGE_ACK_TEST;
         final String subName = "test";
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient
@@ -382,8 +424,46 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
+        for (int partition = 0; partition < TOPIC_PARTITION; partition ++) {
+            topic = TopicName.get(topic).getPartition(partition).toString();
+            boolean exist = false;
+            for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
-        markDeletePositionCheck(topic, subName, true);
+                Field field = BrokerService.class.getDeclaredField("topics");
+                field.setAccessible(true);
+                ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                        (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                                .get(getPulsarServiceList().get(i).getBrokerService());
+                CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+
+                if (topicFuture != null) {
+                    Optional<Topic> topicOptional = topicFuture.get();
+                    if (topicOptional.isPresent()) {
+                        PersistentSubscription persistentSubscription =
+                                (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                        Position markDeletePosition = persistentSubscription.getCursor().getMarkDeletedPosition();
+                        Position lastConfirmedEntry = persistentSubscription.getCursor()
+                                .getManagedLedger().getLastConfirmedEntry();
+                        exist = true;
+                        if (!markDeletePosition.equals(lastConfirmedEntry)) {
+                            //this because of the transaction commit marker have't delete
+                            //delete commit marker after ack position
+                            //when delete commit marker operation is processing, next delete operation will not do again
+                            //when delete commit marker operation finish, it can run next delete commit marker operation
+                            //so this test may not delete all the position in this manageLedger.
+                            Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
+                                    .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                            //marker is the lastConfirmedEntry, after commit the marker will only be write in
+                            if (!markerPosition.equals(lastConfirmedEntry)) {
+                                log.error("Mark delete position is not commit marker position!");
+                                fail();
+                            }
+                        }
+                    }
+                }
+            }
+            assertTrue(exist);
+        }
 
         log.info("receive transaction messages count: {}", receiveCnt);
     }
@@ -476,8 +556,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");
                 Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof
-                        TransactionCoordinatorClientException.InvalidTxnStatusException);
+                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
 
             message = consumer.receive(1, TimeUnit.SECONDS);
@@ -515,12 +594,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @Test
     public void txnMetadataHandlerRecoverTest() throws Exception {
         String topic = NAMESPACE1 + "/tc-metadata-handler-recover";
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
-        Map<TxnID, List<MessageId>> txnIDListMap = new HashMap<>();
+        List<TxnID> txnIDList = new ArrayList<>();
 
         int txnCnt = 20;
         int messageCnt = 10;
@@ -528,15 +608,14 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             TransactionImpl txn = (TransactionImpl) pulsarClient.newTransaction()
                     .withTransactionTimeout(5, TimeUnit.MINUTES)
                     .build().get();
-            List<MessageId> messageIds = new ArrayList<>();
             for (int j = 0; j < messageCnt; j++) {
-                MessageId messageId = producer.newMessage(txn).value("Hello".getBytes()).sendAsync().get();
-                messageIds.add(messageId);
+                producer.newMessage(txn).value("Hello".getBytes()).sendAsync().get();
             }
-            txnIDListMap.put(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()), messageIds);
+            txnIDList.add(new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         }
 
         pulsarClient.close();
+        @Cleanup
         PulsarClientImpl recoverPulsarClient = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -544,10 +623,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build();
 
         TransactionCoordinatorClient tcClient = recoverPulsarClient.getTcClient();
-        for (Map.Entry<TxnID, List<MessageId>> entry : txnIDListMap.entrySet()) {
-            tcClient.commit(entry.getKey(), entry.getValue());
+        for (TxnID txnID : txnIDList) {
+            tcClient.commit(txnID);
         }
 
+        @Cleanup
         Consumer<byte[]> consumer = recoverPulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("test")
@@ -557,6 +637,42 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int i = 0; i < txnCnt * messageCnt; i++) {
             Message<byte[]> message = consumer.receive();
             Assert.assertNotNull(message);
+        }
+    }
+
+    @Test
+    public void produceTxnMessageOrderTest() throws Exception {
+        String topic = NAMESPACE1 + "/txn-produce-order";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .producerName("txn-publish-order")
+                .create();
+
+        for (int ti = 0; ti < 10; ti++) {
+            Transaction txn = pulsarClient
+                    .newTransaction()
+                    .withTransactionTimeout(2, TimeUnit.SECONDS)
+                    .build().get();
+
+            for (int i = 0; i < 1000; i++) {
+                producer.newMessage(txn).value(("" + i).getBytes()).sendAsync();
+            }
+            txn.commit().get();
+
+            for (int i = 0; i < 1000; i++) {
+                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+                Assert.assertEquals(Integer.valueOf(new String(message.getData())), new Integer(i));
+            }
         }
     }
 

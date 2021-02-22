@@ -33,7 +33,7 @@ on:
       - 'pulsar-function-go/**'
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
   check-style:
@@ -45,45 +45,30 @@ jobs:
         go-version: [1.11, 1.12, 1.13, 1.14]
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:
           fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
-
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: steps.docs.outputs.changed_only == 'no'
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: InstallTool
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
           wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
           ./bin/golangci-lint --version
 
       - name: Build
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
           go build ./...
 
       - name: CheckStyle
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
           ./bin/golangci-lint run -c ./golangci.yml ./pf

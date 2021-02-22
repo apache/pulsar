@@ -25,10 +25,10 @@ import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -36,7 +36,6 @@ import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.config.validation.ConfigValidation;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -46,15 +45,12 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Source;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
@@ -149,21 +145,7 @@ public class SourceConfigUtils {
         }
 
         if (sourceConfig.getProducerConfig() != null) {
-            ProducerConfig conf = sourceConfig.getProducerConfig();
-            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (conf.getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(conf.getMaxPendingMessages());
-            }
-            if (conf.getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions());
-            }
-            if (conf.getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(conf.getUseThreadLocalProducers());
-            }
-            if (conf.getCryptoConfig() != null) {
-                pbldr.setCryptoSpec(CryptoUtils.convert(conf.getCryptoConfig()));
-            }
-            sinkSpecBuilder.setProducerSpec(pbldr.build());
+            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(sourceConfig.getProducerConfig()));
         }
 
         functionDetailsBuilder.setSink(sinkSpecBuilder);
@@ -236,19 +218,7 @@ public class SourceConfigUtils {
             sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
         }
         if (sinkSpec.getProducerSpec() != null) {
-            Function.ProducerSpec spec = sinkSpec.getProducerSpec();
-            ProducerConfig producerConfig = new ProducerConfig();
-            if (spec.getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
-            }
-            if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
-            }
-            if (spec.hasCryptoSpec()) {
-                producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
-            }
-            producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
-            sourceConfig.setProducerConfig(producerConfig);
+            sourceConfig.setProducerConfig(ProducerConfigUtils.convertFromSpec(sinkSpec.getProducerSpec()));
         }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
@@ -269,9 +239,9 @@ public class SourceConfigUtils {
         return sourceConfig;
     }
 
-    public static ExtractedSourceDetails validate(SourceConfig sourceConfig, Path archivePath,
-                                                  File sourcePackageFile, String narExtractionDirectory,
-                                                  boolean validateConnectorConfig) {
+    public static ExtractedSourceDetails validateAndExtractDetails(SourceConfig sourceConfig,
+                                                                   ClassLoader sourceClassLoader,
+                                                                   boolean validateConnectorConfig) {
         if (isEmpty(sourceConfig.getTenant())) {
             throw new IllegalArgumentException("Source tenant cannot be null");
         }
@@ -293,110 +263,22 @@ public class SourceConfigUtils {
         if (sourceConfig.getResources() != null) {
             ResourceConfigUtils.validate(sourceConfig.getResources());
         }
-        if (archivePath == null && sourcePackageFile == null) {
-            throw new IllegalArgumentException("Source package is not provided");
-        }
 
-        Class<?> typeArg;
-        ClassLoader classLoader;
         String sourceClassName = sourceConfig.getClassName();
-        ClassLoader jarClassLoader = null;
-        ClassLoader narClassLoader = null;
-
-        Exception jarClassLoaderException = null;
-        Exception narClassLoaderException = null;
-
-        try {
-            jarClassLoader = ClassLoaderUtils.extractClassLoader(archivePath, sourcePackageFile);
-        } catch (Exception e) {
-            jarClassLoaderException = e;
-        }
-        try {
-            narClassLoader = FunctionCommon.extractNarClassLoader(archivePath, sourcePackageFile, narExtractionDirectory);
-        } catch (Exception e) {
-            narClassLoaderException = e;
-        }
-
-        // if source class name is not provided, we can only try to load archive as a NAR
-        if (isEmpty(sourceClassName)) {
-            if (narClassLoader == null) {
-                throw new IllegalArgumentException("Source package does not have the correct format. " +
-                        "Pulsar cannot determine if the package is a NAR package or JAR package." +
-                        "Source classname is not provided and attempts to load it as a NAR package produced the following error.",
-                        narClassLoaderException);
-            }
+        // if class name in source config is not set, this should be a built-in source
+        // thus we should try to find it class name in the NAR service definition
+        if (sourceClassName == null) {
             try {
-                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
+                sourceClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) sourceClassLoader);
             } catch (IOException e) {
                 throw new IllegalArgumentException("Failed to extract source class from archive", e);
-            }
-            if (validateConnectorConfig) {
-                validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
-            }
-            try {
-                narClassLoader.loadClass(sourceClassName);
-                classLoader = narClassLoader;
-            } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                throw new IllegalArgumentException(
-                        String.format("Source class %s must be in class path", sourceClassName), e);
-            }
-
-        } else {
-            // if source class name is provided, we need to try to load it as a JAR and as a NAR.
-            if (jarClassLoader != null) {
-                try {
-                    jarClassLoader.loadClass(sourceClassName);
-                    classLoader = jarClassLoader;
-                } catch (ClassNotFoundException | NoClassDefFoundError e) {
-                    // class not found in JAR try loading as a NAR and searching for the class
-                    if (narClassLoader != null) {
-
-                        try {
-                            narClassLoader.loadClass(sourceClassName);
-                            classLoader = narClassLoader;
-                        } catch (ClassNotFoundException | NoClassDefFoundError e1) {
-                            throw new IllegalArgumentException(
-                                    String.format("Source class %s must be in class path", sourceClassName), e1);
-                        }
-                        if (validateConnectorConfig) {
-                            validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
-                        }
-                    } else {
-                        throw new IllegalArgumentException(
-                                String.format("Source class %s must be in class path", sourceClassName), e);
-                    }
-                }
-            } else if (narClassLoader != null) {
-                if (validateConnectorConfig) {
-                    validateConnectorConfig(sourceConfig, (NarClassLoader)  narClassLoader);
-                }
-                try {
-                    narClassLoader.loadClass(sourceClassName);
-                    classLoader = narClassLoader;
-                } catch (ClassNotFoundException | NoClassDefFoundError e1) {
-                    throw new IllegalArgumentException(
-                            String.format("Source class %s must be in class path", sourceClassName), e1);
-                }
-            } else {
-                StringBuilder errorMsg = new StringBuilder("Source package does not have the correct format." +
-                        " Pulsar cannot determine if the package is a NAR package or JAR package.");
-
-                if (jarClassLoaderException != null) {
-                    errorMsg.append("Attempts to load it as a JAR package produced error: " + jarClassLoaderException.getMessage());
-                }
-
-                if (narClassLoaderException != null) {
-                    errorMsg.append("Attempts to load it as a NAR package produced error: " + narClassLoaderException.getMessage());
-                }
-
-                throw new IllegalArgumentException(errorMsg.toString());
             }
         }
 
         // check if source implements the correct interfaces
         Class sourceClass;
         try {
-            sourceClass = classLoader.loadClass(sourceClassName);
+            sourceClass = sourceClassLoader.loadClass(sourceClassName);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException(
               String.format("Source class %s not found in class loader", sourceClassName, e));
@@ -419,7 +301,7 @@ public class SourceConfigUtils {
         }
 
         // extract type from source class
-        typeArg = getSourceType(sourceClass);
+        Class<?> typeArg = getSourceType(sourceClass);
 
         // Only one of serdeClassName or schemaType should be set
         if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName()) && !StringUtils.isEmpty(sourceConfig.getSchemaType())) {
@@ -427,14 +309,14 @@ public class SourceConfigUtils {
         }
 
         if (!StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
-            ValidatorUtils.validateSerde(sourceConfig.getSerdeClassName(), typeArg, classLoader, false);
+            ValidatorUtils.validateSerde(sourceConfig.getSerdeClassName(), typeArg, sourceClassLoader, false);
         }
         if (!StringUtils.isEmpty(sourceConfig.getSchemaType())) {
-            ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, classLoader, false);
+            ValidatorUtils.validateSchema(sourceConfig.getSchemaType(), typeArg, sourceClassLoader, false);
         }
 
         if (sourceConfig.getProducerConfig() != null && sourceConfig.getProducerConfig().getCryptoConfig() != null) {
-            ValidatorUtils.validateCryptoKeyReader(sourceConfig.getProducerConfig().getCryptoConfig(), classLoader, true);
+            ValidatorUtils.validateCryptoKeyReader(sourceConfig.getProducerConfig().getCryptoConfig(), sourceClassLoader, true);
         }
 
         if (typeArg.equals(TypeResolver.Unknown.class)) {
@@ -442,11 +324,22 @@ public class SourceConfigUtils {
               String.format("Failed to resolve type for Source class %s", sourceClassName));
         }
 
+        // validate user defined config if enabled and source is loaded from NAR
+        if (validateConnectorConfig && sourceClassLoader instanceof NarClassLoader) {
+            validateSourceConfig(sourceConfig, (NarClassLoader) sourceClassLoader);
+        }
+
         return new ExtractedSourceDetails(sourceClassName, typeArg.getName());
     }
 
+    @SneakyThrows
+    public static SourceConfig clone(SourceConfig sourceConfig) {
+        return ObjectMapperFactory.getThreadLocal().readValue(
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(sourceConfig), SourceConfig.class);
+    }
+
     public static SourceConfig validateUpdate(SourceConfig existingConfig, SourceConfig newConfig) {
-        SourceConfig mergedConfig = existingConfig.toBuilder().build();
+        SourceConfig mergedConfig = clone(existingConfig);
         if (!existingConfig.getTenant().equals(newConfig.getTenant())) {
             throw new IllegalArgumentException("Tenants differ");
         }
@@ -572,11 +465,11 @@ public class SourceConfigUtils {
         }
     }
 
-    public static void validateConnectorConfig(SourceConfig sourceConfig, ClassLoader classLoader) {
+    public static void validateSourceConfig(SourceConfig sourceConfig, NarClassLoader narClassLoader) {
         try {
-            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(classLoader);
+            ConnectorDefinition defn = ConnectorUtils.getConnectorDefinition(narClassLoader);
             if (defn.getSourceConfigClass() != null) {
-                Class configClass = Class.forName(defn.getSourceConfigClass(), true, classLoader);
+                Class configClass = Class.forName(defn.getSourceConfigClass(), true, narClassLoader);
                 Object configObject = ObjectMapperFactory.getThreadLocal().convertValue(sourceConfig.getConfigs(), configClass);
                 if (configObject != null) {
                     ConfigValidation.validateConfig(configObject);

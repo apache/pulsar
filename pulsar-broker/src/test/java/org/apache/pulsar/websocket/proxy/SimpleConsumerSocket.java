@@ -105,7 +105,7 @@ public class SimpleConsumerSocket {
     public synchronized ArrayList<String> getBuffer() {
         return consumerBuffer;
     }
-    
+
     public int getReceivedMessagesCount() {
         return receivedMessages.get();
     }

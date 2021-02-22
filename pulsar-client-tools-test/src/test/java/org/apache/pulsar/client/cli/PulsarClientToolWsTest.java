@@ -44,7 +44,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         super.internalSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.resetConfig();

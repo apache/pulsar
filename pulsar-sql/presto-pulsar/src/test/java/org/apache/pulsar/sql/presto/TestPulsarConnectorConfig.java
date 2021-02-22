@@ -94,7 +94,7 @@ public class TestPulsarConnectorConfig {
         Assert.assertNotNull(offloadPolicies);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), managedLedgerOffloadDriver);
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloaderDirectory);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
+        Assert.assertEquals((int) offloadPolicies.getManagedLedgerOffloadMaxThreads(), (int) managedLedgerOffloadMaxThreads);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), bucket);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), region);
         Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), endpoint);

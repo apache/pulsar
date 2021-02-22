@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -97,6 +97,14 @@ $PULSAR_DIR/bin/pulsar-admin namespaces create public/default-3 \
 $PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default-3 \
                         --actions produce,consume \
                         --role "anonymous"
+
+# Create "public/default-4" with encryption required
+$PULSAR_DIR/bin/pulsar-admin namespaces create public/default-4 \
+                        --clusters standalone
+$PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default-4 \
+                        --actions produce,consume \
+                        --role "anonymous"
+$PULSAR_DIR/bin/pulsar-admin namespaces set-encryption-required public/default-4 -e
 
 # Create "private" tenant
 $PULSAR_DIR/bin/pulsar-admin tenants create private -r "" -c "standalone"

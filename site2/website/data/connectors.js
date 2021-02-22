@@ -132,6 +132,12 @@ module.exports = [
         link: 'https://netty.io/'
     },
     {
+        name: 'nsq',
+        longName: 'NSQ source',
+        type: 'Source',
+        link: 'https://nsq.io/',
+    },
+    {
         name: 'rabbitmq',
         longName: 'RabbitMQ source and sink',
         type: 'Source and sink',

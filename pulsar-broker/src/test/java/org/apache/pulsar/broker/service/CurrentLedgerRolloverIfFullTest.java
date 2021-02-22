@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.junit.Test;
 import org.testng.Assert;
-
-import java.util.concurrent.TimeUnit;
 
 public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
     @Override
@@ -90,14 +88,10 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         Assert.assertNotEquals(managedLedger.getCurrentLedgerSize(), 0);
 
         // trigger a ledger rollover
-        // and now we have two ledgers, one with expired data and one for empty
+        // the last ledger will be closed and removed and we have one ledger for empty
         managedLedger.rollCurrentLedgerIfFull();
         Thread.sleep(1000);
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
-
-        // trigger a ledger trimming
-        // and now we only have the empty ledger
-        managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
-        Assert.assertEquals(managedLedger.getCurrentLedgerSize(), 0);
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
+        Assert.assertEquals(managedLedger.getTotalSize(), 0);
     }
 }

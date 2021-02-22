@@ -88,6 +88,7 @@ message FunctionDetails {
     bool retainOrdering = 21;
     bool retainKeyOrdering = 22;
     SubscriptionPosition subscriptionPosition = 23;
+    string externalPulsarsMap = 24;
 }
 
 message ConsumerSpec {
@@ -108,6 +109,7 @@ message ProducerSpec {
     int32 maxPendingMessagesAcrossPartitions = 2;
     bool useThreadLocalProducers = 3;
     CryptoSpec cryptoSpec = 4;
+    string batchBuilder = 5;
 }
 
 message CryptoSpec {

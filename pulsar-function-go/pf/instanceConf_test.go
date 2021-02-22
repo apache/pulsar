@@ -39,6 +39,7 @@ func Test_newInstanceConf(t *testing.T) {
 			pulsarServiceURL:            "pulsar://localhost:6650",
 			killAfterIdle:               50000,
 			expectedHealthCheckInterval: 3,
+			metricsPort:                 50001,
 			funcDetails: pb.FunctionDetails{Tenant: "",
 				Namespace:            "",
 				Name:                 "go-function",

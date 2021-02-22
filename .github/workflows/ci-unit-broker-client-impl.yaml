@@ -22,12 +22,13 @@ on:
   pull_request:
     branches:
       - master
+    paths-ignore: ['site2/**', 'deployment/**']
   push:
     branches:
       - branch-*
-
+    paths-ignore: ['site2/**', 'deployment/**']
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -39,25 +40,13 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 25
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
-
       - name: Cache local Maven repository
-        if: steps.docs.outputs.changed_only == 'no'
         uses: actions/cache@v2
         with:
           path: ~/.m2/repository
@@ -66,12 +55,10 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: build modules
-        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
-      - name: run unit tests for pulsar-broker "org/apache/pulsar/client/impl"
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/client/impl/**/*.java'
+      - name: run unit test 'BROKER_CLIENT_IMPL'
+        run: ./build/run_unit_group.sh BROKER_CLIENT_IMPL
 
       - name: package surefire artifacts
         if: failure()

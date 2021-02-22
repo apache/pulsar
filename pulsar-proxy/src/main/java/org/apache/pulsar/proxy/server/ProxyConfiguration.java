@@ -70,6 +70,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
     @Category
     private static final String CATEGORY_PLUGIN = "proxy plugin";
+    @Category
+    private static final String CATEGORY_WEBSOCKET = "WebSocket";
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -146,6 +148,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
     )
     private String advertisedAddress;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Enable or disable the proxy protocol.")
+    private boolean haProxyProtocolEnabled;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"
@@ -480,6 +487,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
+    @Deprecated
     @FieldContext(
             category = CATEGORY_PLUGIN,
             doc = "The directory to locate proxy additional servlet"
@@ -488,9 +496,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_PLUGIN,
+            doc = "The directory to locate proxy additional servlet"
+    )
+    private String additionalServletDirectory = "./proxyAdditionalServlet";
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
             doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
     private Set<String> proxyAdditionalServlets = Sets.newTreeSet();
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
+    )
+    private Set<String> additionalServlets = Sets.newTreeSet();
 
     @FieldContext(
             category =  CATEGORY_HTTP,
@@ -528,6 +549,20 @@ public class ProxyConfiguration implements PulsarConfiguration {
             )
         }
     )
+
+    /***** --- WebSocket --- ****/
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "Enable or disable the WebSocket servlet"
+    )
+    private boolean webSocketServiceEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "Name of the cluster to which this broker belongs to"
+    )
+    private String clusterName;
+
     private Properties properties = new Properties();
 
     public Properties getProperties() {

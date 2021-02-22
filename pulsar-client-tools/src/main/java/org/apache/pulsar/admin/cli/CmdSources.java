@@ -39,6 +39,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import lombok.Getter;
@@ -73,7 +74,7 @@ public class CmdSources extends CmdBase {
     private final StartSource startSource;
     private final LocalSourceRunner localSourceRunner;
 
-    public CmdSources(PulsarAdmin admin) {
+    public CmdSources(Supplier<PulsarAdmin> admin) {
         super("sources", admin);
         createSource = new CreateSource();
         updateSource = new UpdateSource();
@@ -114,7 +115,7 @@ public class CmdSources extends CmdBase {
                 System.err.println(e.getMessage());
                 System.err.println();
                 String chosenCommand = jcommander.getParsedCommand();
-                usageFormatter.usage(chosenCommand);
+                getUsageFormatter().usage(chosenCommand);
                 return;
             }
             runCmd();
@@ -215,9 +216,9 @@ public class CmdSources extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(this.sourceConfig.getArchive())) {
-                admin.sources().createSourceWithUrl(sourceConfig, sourceConfig.getArchive());
+                getAdmin().sources().createSourceWithUrl(sourceConfig, sourceConfig.getArchive());
             } else {
-                admin.sources().createSource(sourceConfig, sourceConfig.getArchive());
+                getAdmin().sources().createSource(sourceConfig, sourceConfig.getArchive());
             }
             print("Created successfully");
         }
@@ -234,9 +235,9 @@ public class CmdSources extends CmdBase {
             UpdateOptions updateOptions = new UpdateOptions();
             updateOptions.setUpdateAuthData(updateAuthData);
             if (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())) {
-                admin.sources().updateSourceWithUrl(sourceConfig, sourceConfig.getArchive(), updateOptions);
+                getAdmin().sources().updateSourceWithUrl(sourceConfig, sourceConfig.getArchive(), updateOptions);
             } else {
-                admin.sources().updateSource(sourceConfig, sourceConfig.getArchive(), updateOptions);
+                getAdmin().sources().updateSource(sourceConfig, sourceConfig.getArchive(), updateOptions);
             }
             print("Updated successfully");
         }
@@ -273,6 +274,9 @@ public class CmdSources extends CmdBase {
         protected String destinationTopicName;
         @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)")
         protected String producerConfig;
+
+        @Parameter(names = "--batch-builder", description = "BatchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
+        protected String batchBuilder;
 
         @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source", hidden = true)
         protected String DEPRECATED_deserializationClassName;
@@ -360,6 +364,10 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setSchemaType(schemaType);
             }
 
+            if (null != batchBuilder) {
+                sourceConfig.setBatchBuilder(batchBuilder);
+            }
+
             if (null != processingGuarantees) {
                 sourceConfig.setProcessingGuarantees(processingGuarantees);
             }
@@ -439,7 +447,7 @@ public class CmdSources extends CmdBase {
         protected String validateSourceType(String sourceType) throws IOException {
             Set<String> availableSources;
             try {
-                availableSources = admin.sources().getBuiltInSources().stream().map(ConnectorDefinition::getName).collect(Collectors.toSet());
+                availableSources = getAdmin().sources().getBuiltInSources().stream().map(ConnectorDefinition::getName).collect(Collectors.toSet());
             } catch (PulsarAdminException e) {
                 throw new IOException(e);
             }
@@ -489,7 +497,7 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.sources().deleteSource(tenant, namespace, sourceName);
+            getAdmin().sources().deleteSource(tenant, namespace, sourceName);
             print("Delete source successfully");
         }
     }
@@ -499,7 +507,7 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            SourceConfig sourceConfig = admin.sources().getSource(tenant, namespace, sourceName);
+            SourceConfig sourceConfig = getAdmin().sources().getSource(tenant, namespace, sourceName);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(sourceConfig));
         }
@@ -528,7 +536,7 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            List<String> sources = admin.sources().listSources(tenant, namespace);
+            List<String> sources = getAdmin().sources().listSources(tenant, namespace);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(sources));
         }
@@ -543,9 +551,9 @@ public class CmdSources extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (isBlank(instanceId)) {
-                print(admin.sources().getSourceStatus(tenant, namespace, sourceName));
+                print(getAdmin().sources().getSourceStatus(tenant, namespace, sourceName));
             } else {
-                print(admin.sources().getSourceStatus(tenant, namespace, sourceName, Integer.parseInt(instanceId)));
+                print(getAdmin().sources().getSourceStatus(tenant, namespace, sourceName, Integer.parseInt(instanceId)));
             };
         }
     }
@@ -560,12 +568,12 @@ public class CmdSources extends CmdBase {
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.sources().restartSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
+                    getAdmin().sources().restartSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.sources().restartSource(tenant, namespace, sourceName);
+                getAdmin().sources().restartSource(tenant, namespace, sourceName);
             }
             System.out.println("Restarted successfully");
         }
@@ -581,12 +589,12 @@ public class CmdSources extends CmdBase {
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.sources().stopSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
+                    getAdmin().sources().stopSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.sources().stopSource(tenant, namespace, sourceName);
+                getAdmin().sources().stopSource(tenant, namespace, sourceName);
             }
             System.out.println("Stopped successfully");
         }
@@ -602,12 +610,12 @@ public class CmdSources extends CmdBase {
         void runCmd() throws Exception {
             if (isNotBlank(instanceId)) {
                 try {
-                    admin.sources().startSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
+                    getAdmin().sources().startSource(tenant, namespace, sourceName, Integer.parseInt(instanceId));
                 } catch (NumberFormatException e) {
                     System.err.println("instance-id must be a number");
                 }
             } else {
-                admin.sources().startSource(tenant, namespace, sourceName);
+                getAdmin().sources().startSource(tenant, namespace, sourceName);
             }
             System.out.println("Started successfully");
         }
@@ -617,7 +625,7 @@ public class CmdSources extends CmdBase {
     public class ListBuiltInSources extends BaseCommand {
         @Override
         void runCmd() throws Exception {
-            admin.sources().getBuiltInSources().stream().filter(x -> !StringUtils.isEmpty(x.getSourceClass()))
+            getAdmin().sources().getBuiltInSources().stream().filter(x -> !StringUtils.isEmpty(x.getSourceClass()))
                     .forEach(connector -> {
                         System.out.println(connector.getName());
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));
@@ -631,7 +639,7 @@ public class CmdSources extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.sources().reloadBuiltInSources();
+            getAdmin().sources().reloadBuiltInSources();
         }
     }
 }

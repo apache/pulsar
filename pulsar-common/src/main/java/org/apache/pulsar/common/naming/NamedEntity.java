@@ -20,7 +20,6 @@ package org.apache.pulsar.common.naming;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import lombok.experimental.UtilityClass;
 
 /**
