@@ -61,7 +61,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         this.history = new PulsarDatabaseHistory();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

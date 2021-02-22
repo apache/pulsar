@@ -19,10 +19,12 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.jose4j.json.internal.json_simple.JSONObject;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -52,8 +54,10 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(result[2], "-Dfoo=\"bar foo\"");
     }
 
-    @Test
-    public void getGoInstanceCmd() throws IOException {
+    @Test(dataProvider = "k8sRuntime")
+    public void getGoInstanceCmd(boolean k8sRuntime) throws IOException {
+        HashMap<String, String> goInstanceConfig;
+
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setClusterName("kluster");
         instanceConfig.setInstanceId(3000);
@@ -61,6 +65,7 @@ public class RuntimeUtilsTest {
         instanceConfig.setFunctionVersion("1.0.0");
         instanceConfig.setMaxBufferedTuples(5);
         instanceConfig.setPort(1337);
+        instanceConfig.setMetricsPort(60000);
 
 
         JSONObject userConfig = new JSONObject();
@@ -104,10 +109,12 @@ public class RuntimeUtilsTest {
 
         instanceConfig.setFunctionDetails(functionDetails);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650");
-
-        HashMap goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
-
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650", k8sRuntime);
+        if (k8sRuntime) {
+            goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
+        } else {
+            goInstanceConfig = new ObjectMapper().readValue(commands.get(2), HashMap.class);
+        }
         Assert.assertEquals(commands.toArray().length, 3);
         Assert.assertEquals(commands.get(0), "config");
         Assert.assertEquals(commands.get(1), "-instance-conf");
@@ -145,5 +152,18 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("expectedHealthCheckInterval"), 0);
         Assert.assertEquals(goInstanceConfig.get("deadLetterTopic"), "go-func-deadletter");
         Assert.assertEquals(goInstanceConfig.get("userConfig"), userConfig.toString());
+        Assert.assertEquals(goInstanceConfig.get("metricsPort"), 60000);
+    }
+
+    @DataProvider(name = "k8sRuntime")
+    public static Object[][] k8sRuntimeFlag() {
+        return new Object[][] {
+                {
+                        true
+                },
+                {
+                        false
+                }
+        };
     }
 }

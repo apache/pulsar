@@ -19,8 +19,10 @@
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
 
-#include "../lib/Future.h"
-#include "../lib/Utils.h"
+#include "lib/Future.h"
+#include "lib/Utils.h"
+#include "lib/LogUtils.h"
+DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
@@ -70,4 +72,26 @@ TEST(ProducerTest, exactlyOnceWithProducerNameSpecified) {
     Producer producer3;
     Result result = client.createProducer(topicName, producerConfiguration2, producer3);
     ASSERT_EQ(ResultProducerBusy, result);
+}
+
+TEST(ProducerTest, testSynchronouslySend) {
+    Client client(serviceUrl);
+    const std::string topic = "ProducerTestSynchronouslySend";
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub-name", consumer));
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+    MessageId messageId;
+    ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent("hello").build(), messageId));
+    LOG_INFO("Send message to " << messageId);
+
+    Message receivedMessage;
+    ASSERT_EQ(ResultOk, consumer.receive(receivedMessage, 3000));
+    LOG_INFO("Received message from " << receivedMessage.getMessageId());
+    ASSERT_EQ(receivedMessage.getMessageId(), messageId);
+    ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMessage));
+
+    client.close();
 }

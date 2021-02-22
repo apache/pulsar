@@ -42,9 +42,9 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -63,6 +63,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.eq;
@@ -107,7 +108,7 @@ public class FunctionsImplTest {
     private static final String workerId = "worker-0";
     private static final String superUser = "superUser";
 
-    private WorkerService mockedWorkerService;
+    private PulsarWorkerService mockedWorkerService;
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
@@ -138,7 +139,7 @@ public class FunctionsImplTest {
         this.mockedFunctionMetadata = Function.FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
 
-        this.mockedWorkerService = mock(WorkerService.class);
+        this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
         when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
@@ -162,7 +163,7 @@ public class FunctionsImplTest {
         instanceConfig.setMaxBufferedTuples(1024);
 
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                instanceConfig, null, null, null, null, null, null, null);
+                instanceConfig, null, null, null, null, null, null);
         CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture = new CompletableFuture<InstanceCommunication.MetricsData>();
         metricsDataCompletableFuture.complete(javaInstanceRunnable.getMetrics());
         Runtime runtime = mock(Runtime.class);
@@ -208,7 +209,7 @@ public class FunctionsImplTest {
         instanceConfig.setMaxBufferedTuples(1024);
 
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                instanceConfig, null, null, null, null, null, null, null);
+                instanceConfig, null, null, null, null, null, null);
         CompletableFuture<InstanceCommunication.MetricsData> completableFuture = new CompletableFuture<InstanceCommunication.MetricsData>();
         completableFuture.complete(javaInstanceRunnable.getMetrics());
         Runtime runtime = mock(Runtime.class);
@@ -247,6 +248,12 @@ public class FunctionsImplTest {
         // test super user
         assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", superUser, authenticationDataSource));
 
+        // test pulsar super user
+        final String pulsarSuperUser = "pulsarSuperUser";
+        when(authorizationService.isSuperUser(pulsarSuperUser, null)).thenReturn(CompletableFuture.completedFuture(true));
+        assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", pulsarSuperUser, authenticationDataSource));
+        assertTrue(functionImpl.isSuperUser(pulsarSuperUser));
+
         // test normal user
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         doReturn(false).when(functionImpl).allowFunctionOps(any(), any(), any());
@@ -256,6 +263,7 @@ public class FunctionsImplTest {
         when(admin.tenants()).thenReturn(tenants);
         when(this.mockedWorkerService.getBrokerAdmin()).thenReturn(admin);
         when(authorizationService.isTenantAdmin("test-tenant", "test-user", tenantInfo, authenticationDataSource)).thenReturn(CompletableFuture.completedFuture(false));
+        when(authorizationService.isSuperUser("test-user", null)).thenReturn(CompletableFuture.completedFuture(false));
         assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
 
         // if user is tenant admin
@@ -269,6 +277,7 @@ public class FunctionsImplTest {
         when(admin.tenants()).thenReturn(tenants);
         when(this.mockedWorkerService.getBrokerAdmin()).thenReturn(admin);
         when(authorizationService.isTenantAdmin("test-tenant", "test-user", tenantInfo, authenticationDataSource)).thenReturn(CompletableFuture.completedFuture(true));
+        when(authorizationService.isSuperUser("test-user", authenticationDataSource)).thenReturn(CompletableFuture.completedFuture(false));
         assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
 
         // test user allow function action
@@ -300,10 +309,17 @@ public class FunctionsImplTest {
     public void testIsSuperUser() throws PulsarAdminException {
 
         FunctionsImpl functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(authorizationService).when(mockedWorkerService).getAuthorizationService();
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setAuthorizationEnabled(true);
         workerConfig.setSuperUserRoles(Collections.singleton(superUser));
         doReturn(workerConfig).when(mockedWorkerService).getWorkerConfig();
+        when(authorizationService.isSuperUser(anyString(), any()))
+            .thenAnswer((invocationOnMock) -> {
+                String role = invocationOnMock.getArgument(0, String.class);
+                return CompletableFuture.completedFuture(superUser.equals(role));
+            });
 
         AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
         assertTrue(functionImpl.isSuperUser(superUser));
@@ -311,13 +327,13 @@ public class FunctionsImplTest {
         assertFalse(functionImpl.isSuperUser("normal-user"));
         assertFalse(functionImpl.isSuperUser( null));
 
-        // test super roles is null
-
+        // test super roles is null and it's not a pulsar super user
+        when(authorizationService.isSuperUser(superUser, null))
+            .thenReturn(CompletableFuture.completedFuture(false));
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         workerConfig = new WorkerConfig();
         workerConfig.setAuthorizationEnabled(true);
         doReturn(workerConfig).when(mockedWorkerService).getWorkerConfig();
-
         assertFalse(functionImpl.isSuperUser(superUser));
     }
 

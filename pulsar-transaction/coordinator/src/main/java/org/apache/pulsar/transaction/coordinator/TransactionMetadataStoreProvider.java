@@ -19,12 +19,10 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.annotations.Beta;
-
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 
 /**
@@ -58,10 +56,15 @@ public interface TransactionMetadataStoreProvider {
      * Open the transaction metadata store for transaction coordinator
      * identified by <tt>transactionCoordinatorId</tt>.
      *
+     * @param transactionCoordinatorId {@link TransactionCoordinatorID} the coordinator id.
+     * @param managedLedgerFactory {@link ManagedLedgerFactory} the managedLedgerFactory to create managedLedger.
+     * @param managedLedgerConfig {@link ManagedLedgerConfig} the managedLedgerConfig to create managedLedger.
+     * @param timeoutTracker {@link TransactionTimeoutTracker} the timeoutTracker to handle transaction time out.
      * @return a future represents the result of the operation.
      *         an instance of {@link TransactionMetadataStore} is returned
      *         if the operation succeeds.
      */
     CompletableFuture<TransactionMetadataStore> openStore(
-        TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory);
+            TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory,
+            ManagedLedgerConfig managedLedgerConfig, TransactionTimeoutTracker timeoutTracker);
 }

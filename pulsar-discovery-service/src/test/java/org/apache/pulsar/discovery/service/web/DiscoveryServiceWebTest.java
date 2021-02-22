@@ -88,7 +88,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     private void cleanup() throws Exception {
         close();
     }

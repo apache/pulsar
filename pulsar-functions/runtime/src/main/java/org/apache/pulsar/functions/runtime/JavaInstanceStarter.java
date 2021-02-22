@@ -42,7 +42,7 @@ import io.prometheus.jmx.JmxCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -132,6 +132,12 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance", required = false)
     public int maxPendingAsyncRequests = 1000;
 
+    @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
+    public String webServiceUrl = null;
+
+    @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client exposed to function context, default is disabled.", required = false)
+    public Boolean exposePulsarAdminClientEnabled = false;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -155,6 +161,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
+        instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
@@ -166,6 +173,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         Function.FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
+        instanceConfig.setMetricsPort(metrics_port);
 
         Map<String, String> secretsProviderConfigMap = null;
         if (!StringUtils.isEmpty(secretsProviderConfig)) {
@@ -202,7 +210,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
+                secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
+                exposePulsarAdminClientEnabled, webServiceUrl);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

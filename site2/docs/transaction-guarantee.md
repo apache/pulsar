@@ -1,7 +1,7 @@
 ---
-id: transaction-guarantee
-title: Transaction Guarantee
-sidebar_label: Transaction Guarantee
+id: transactions-guarantee
+title: Transactions Guarantee
+sidebar_label: Transactions Guarantee
 ---
 
 Pulsar transactions support the following guarantee.

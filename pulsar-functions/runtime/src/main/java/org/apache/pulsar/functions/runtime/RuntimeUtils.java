@@ -35,7 +35,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -70,9 +70,9 @@ public class RuntimeUtils {
                                           Boolean installUserCodeDependencies,
                                           String pythonDependencyRepository,
                                           String pythonExtraDependencyRepository,
-                                          int metricsPort,
                                           String narExtractionDirectory,
-                                          String functionInstanceClassPath) throws Exception {
+                                          String functionInstanceClassPath,
+                                          String pulsarWebServiceUrl) throws Exception {
 
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
@@ -81,7 +81,8 @@ public class RuntimeUtils {
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
-                pythonExtraDependencyRepository, metricsPort, narExtractionDirectory, functionInstanceClassPath));
+                pythonExtraDependencyRepository, narExtractionDirectory,
+                functionInstanceClassPath, false, pulsarWebServiceUrl));
         return cmd;
     }
 
@@ -117,7 +118,8 @@ public class RuntimeUtils {
 
     public static List<String> getGoInstanceCmd(InstanceConfig instanceConfig,
                                                 String originalCodeFileName,
-                                                String pulsarServiceUrl) throws IOException {
+                                                String pulsarServiceUrl,
+                                                boolean k8sRuntime) throws IOException {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
@@ -217,6 +219,10 @@ public class RuntimeUtils {
             goInstanceConfig.setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
 
+        if (instanceConfig.hasValidMetricsPort()) {
+            goInstanceConfig.setMetricsPort(instanceConfig.getMetricsPort());
+        }
+
         goInstanceConfig.setKillAfterIdleMs(0);
         goInstanceConfig.setPort(instanceConfig.getPort());
 
@@ -224,11 +230,13 @@ public class RuntimeUtils {
         ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
         String configContent = objectMapper.writeValueAsString(goInstanceConfig);
 
-        // Nit: at present, the implementation of go function depends on pulsar-client-go,
-        // pulsar-client-go uses cgo, so the currently uploaded executable doesn't support cross-compilation.
         args.add(originalCodeFileName);
         args.add("-instance-conf");
-        args.add("'" + configContent + "'");
+        if (k8sRuntime) {
+            args.add("'" + configContent + "'");
+        } else {
+            args.add(configContent);
+        }
         return args;
     }
 
@@ -250,13 +258,14 @@ public class RuntimeUtils {
                                       Boolean installUserCodeDependencies,
                                       String pythonDependencyRepository,
                                       String pythonExtraDependencyRepository,
-                                      int metricsPort,
                                       String narExtractionDirectory,
-                                      String functionInstanceClassPath) throws Exception {
+                                      String functionInstanceClassPath,
+                                      boolean k8sRuntime,
+                                      String pulsarWebServiceUrl) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
-            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl);
+            return getGoInstanceCmd(instanceConfig, originalCodeFileName, pulsarServiceUrl, k8sRuntime);
         }
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
@@ -350,6 +359,16 @@ public class RuntimeUtils {
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            // TODO: for now only Java function context exposed pulsar admin, so python/go no need to pass this argument
+            // until pulsar admin client enabled in python/go function context.
+            // For backward compatibility, pass `--web_serviceurl` parameter only if
+            // exposed pulsar admin client enabled.
+            if (instanceConfig.isExposePulsarAdminClientEnabled() && StringUtils.isNotBlank(pulsarWebServiceUrl)) {
+                args.add("--web_serviceurl");
+                args.add(pulsarWebServiceUrl);
+            }
+        }
         if (authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                     && isNotBlank(authConfig.getClientAuthenticationParameters())) {
@@ -376,7 +395,7 @@ public class RuntimeUtils {
         args.add(String.valueOf(grpcPort));
 
         args.add("--metrics_port");
-        args.add(String.valueOf(metricsPort));
+        args.add(String.valueOf(instanceConfig.getMetricsPort()));
 
         // state storage configs
         if (null != stateStorageServiceUrl) {

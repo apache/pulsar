@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.utils;
 
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.CryptoConfig;
@@ -33,14 +32,11 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.common.util.Reflections.createInstance;
 
 @Slf4j
 public class ValidatorUtils {

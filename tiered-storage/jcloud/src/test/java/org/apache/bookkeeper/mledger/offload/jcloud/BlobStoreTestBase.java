@@ -69,7 +69,7 @@ public class BlobStoreTestBase {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (blobStore != null &&
             (!Boolean.parseBoolean(System.getProperty("testRealAWS", "false")) &&

@@ -107,7 +107,21 @@ class PULSAR_PUBLIC ProducerConfiguration {
      */
     const SchemaInfo& getSchema() const;
 
+    /**
+     * The getter associated with getSendTimeout()
+     */
     ProducerConfiguration& setSendTimeout(int sendTimeoutMs);
+
+    /**
+     * Get the send timeout is milliseconds.
+     *
+     * If a message is not acknowledged by the server before the sendTimeout expires, an error will be
+     * reported.
+     *
+     * If the timeout is zero, there will be no timeout.
+     *
+     * @return the send timeout in milliseconds (Default: 30000)
+     */
     int getSendTimeout() const;
 
     ProducerConfiguration& setInitialSequenceId(int64_t initialSequenceId);
@@ -159,7 +173,15 @@ class PULSAR_PUBLIC ProducerConfiguration {
     ProducerConfiguration& setHashingScheme(const HashingScheme& scheme);
     HashingScheme getHashingScheme() const;
 
+    /**
+     * The setter associated with getBlockIfQueueFull()
+     */
     ProducerConfiguration& setBlockIfQueueFull(bool);
+
+    /**
+     * @return whether Producer::send or Producer::sendAsync operations should block when the outgoing message
+     * queue is full. (Default: false)
+     */
     bool getBlockIfQueueFull() const;
 
     // Zero queue size feature will not be supported on consumer end if batching is enabled
@@ -188,8 +210,28 @@ class PULSAR_PUBLIC ProducerConfiguration {
     ProducerCryptoFailureAction getCryptoFailureAction() const;
     ProducerConfiguration& setCryptoFailureAction(ProducerCryptoFailureAction action);
 
+    /**
+     * @return all the encryption keys added
+     */
     const std::set<std::string>& getEncryptionKeys() const;
+
+    /**
+     * @return true if encryption keys are added
+     */
     bool isEncryptionEnabled() const;
+
+    /**
+     * Add public encryption key, used by producer to encrypt the data key.
+     *
+     * At the time of producer creation, Pulsar client checks if there are keys added to encryptionKeys. If
+     * keys are found, a callback getKey(String keyName) is invoked against each key to load the values of the
+     * key. Application should implement this callback to return the key in pkcs8 format. If compression is
+     * enabled, message is encrypted after compression. If batch messaging is enabled, the batched message is
+     * encrypted.
+     *
+     * @key the encryption key to add
+     * @return the ProducerConfiguration self
+     */
     ProducerConfiguration& addEncryptionKey(std::string key);
 
     /**
