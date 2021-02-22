@@ -93,6 +93,7 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -113,6 +114,7 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.io.batchdiscovery.ImmediateTriggerer;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -426,6 +428,13 @@ public class PulsarFunctionE2ETest {
         sinkConfig.setCleanupSubscription(true);
         return sinkConfig;
     }
+    
+    private static BatchSourceConfig createBatchSourceConfig() {
+        return BatchSourceConfig.builder()
+                 .discoveryTriggererClassName(ImmediateTriggerer.class.getName())
+                 .build();
+    }
+    
     /**
      * Validates pulsar sink e2e functionality on functions.
      *
@@ -1143,6 +1152,145 @@ public class PulsarFunctionE2ETest {
                 fileServer.getAddress().getPort());
         testPulsarSourceStats(jarFilePathUrl);
     }
+    
+    private void testPulsarBatchSourceStats(String jarFilePathUrl) throws Exception {
+    	final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String sourceName = "PulsarSource-test";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, sourceName, sinkTopic);
+        sourceConfig.setBatchSourceConfig(createBatchSourceConfig());
+        
+        retryStrategically((test) -> {
+            try {
+                return (admin.topics().getStats(sinkTopic).publishers.size() == 1);
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 10, 150);
+
+        final String sinkTopic2 = "persistent://" + replNamespace + "/output2";
+        sourceConfig.setTopicName(sinkTopic2);
+        admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats sourceStats = admin.topics().getStats(sinkTopic2);
+                return sourceStats.publishers.size() == 1
+                        && sourceStats.publishers.get(0).metadata != null
+                        && sourceStats.publishers.get(0).metadata.containsKey("id")
+                        && sourceStats.publishers.get(0).metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        TopicStats sourceStats = admin.topics().getStats(sinkTopic2);
+        assertEquals(sourceStats.publishers.size(), 1);
+        assertNotNull(sourceStats.publishers.get(0).metadata);
+        assertTrue(sourceStats.publishers.get(0).metadata.containsKey("id"));
+        assertEquals(sourceStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+
+        retryStrategically((test) -> {
+            try {
+                return (admin.topics().getStats(sinkTopic2).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic2, false).numberOfEntries > 4);
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        assertEquals(admin.topics().getStats(sinkTopic2).publishers.size(), 1);
+
+        String prometheusMetrics = getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        log.info("prometheusMetrics: {}", prometheusMetrics);
+
+        Map<String, Metric> metrics = parseMetrics(prometheusMetrics);
+        Metric m = metrics.get("pulsar_source_received_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sourceName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertTrue(m.value > 0.0);
+        m = metrics.get("pulsar_source_received_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sourceName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertTrue(m.value > 0.0);
+        m = metrics.get("pulsar_source_written_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sourceName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertTrue(m.value > 0.0);
+        m = metrics.get("pulsar_source_written_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sourceName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertTrue(m.value > 0.0);
+        m = metrics.get("pulsar_source_source_exceptions_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sourceName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_source_source_exceptions_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sourceName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_source_system_exceptions_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sourceName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_source_system_exceptions_total_1min");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sourceName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.value, 0.0);
+        m = metrics.get("pulsar_source_last_invocation");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sourceName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertTrue(m.value > 0.0);
+
+        // make sure all temp files are deleted
+        File dir = new File(System.getProperty("java.io.tmpdir"));
+        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
+
+        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+    }
+    
+    @Test(timeOut = 20000)
+    private void testPulsarBatchSourceStatsWithFile() {
+    	String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-batch-data-generator.nar").getFile();
+    	testPulsarBatchSourceStats(jarFilePathUrl);
+    }
+    
+    @Test(timeOut = 40000)
+    private void testPulsarBatchSourceStatsWithUrl() {
+    	String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-batch-data-generator.nar",
+                fileServer.getAddress().getPort());
+    	testPulsarBatchSourceStats(jarFilePathUrl);
+    }
 
     @Test(timeOut = 20000)
     public void testPulsarFunctionStats() throws Exception {
@@ -1831,7 +1979,6 @@ public class PulsarFunctionE2ETest {
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
     }
-
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
         StringBuilder result = new StringBuilder();
