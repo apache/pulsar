@@ -19,14 +19,11 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
@@ -177,9 +174,20 @@ public class MetaStoreImpl implements MetaStore {
         }
 
         store.put(path, content, Optional.of(expectedVersion))
-                .thenAcceptAsync(optStat -> callback.operationComplete(null, optStat), executor.chooseThread(ledgerName))
+                .thenAcceptAsync(optStat -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Updating consumer {} on meta-data store with {} success", ledgerName,
+                                cursorName, info);
+                    }
+                    callback.operationComplete(null, optStat);
+                }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Updating consumer {} on meta-data store with {} failed", ledgerName, cursorName,
+                                info, ex);
+                    }
+                    executor.executeOrdered(ledgerName,
+                            SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
                     return null;
                 });
     }

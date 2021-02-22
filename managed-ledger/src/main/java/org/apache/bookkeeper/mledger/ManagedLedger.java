@@ -393,6 +393,8 @@ public interface ManagedLedger {
 
     boolean ledgerExists(long ledgerId);
 
+    void asyncDeleteLedgerFromBookKeeper(long ledgerId);
+
     /**
      * Get the total number of active entries for this managed ledger.
      *

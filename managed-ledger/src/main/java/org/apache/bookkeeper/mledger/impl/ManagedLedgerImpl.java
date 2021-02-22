@@ -2521,7 +2521,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    protected void asyncDeleteLedgerFromBookKeeper(long ledgerId) {
+    public void asyncDeleteLedgerFromBookKeeper(long ledgerId) {
         asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
     }
 
