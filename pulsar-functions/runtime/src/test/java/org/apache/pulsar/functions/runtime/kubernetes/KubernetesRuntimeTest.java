@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
@@ -994,7 +995,7 @@ public class KubernetesRuntimeTest {
         }
 
         factory.initialize(workerConfig, null, new TestSecretProviderConfigurator(),
-                Mockito.mock(ConnectorsManager.class), Optional.empty(), manifestCustomizer);
+                Optional.empty(), manifestCustomizer);
         return factory;
     }
 
