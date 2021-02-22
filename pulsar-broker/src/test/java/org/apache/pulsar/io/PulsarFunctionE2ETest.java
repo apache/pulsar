@@ -1224,13 +1224,13 @@ public class PulsarFunctionE2ETest {
     }
     
     @Test(timeOut = 20000)
-    private void testPulsarBatchSourceStatsWithFile() {
+    private void testPulsarBatchSourceStatsWithFile() throws Exception {
     	String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-batch-data-generator.nar").getFile();
     	testPulsarBatchSourceStats(jarFilePathUrl);
     }
     
     @Test(timeOut = 40000)
-    private void testPulsarBatchSourceStatsWithUrl() {
+    private void testPulsarBatchSourceStatsWithUrl() throws Exception {
     	String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-batch-data-generator.nar",
                 fileServer.getAddress().getPort());
     	testPulsarBatchSourceStats(jarFilePathUrl);
