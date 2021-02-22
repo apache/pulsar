@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Integration - Function State
+name: CI - Integration - Function & IO
 on:
   pull_request:
     branches:
@@ -78,4 +78,4 @@ jobs:
         run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
 
       - name: run integration tests
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-function-state.xml -DintegrationTests -DredirectTestOutputToFile=false
+        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-function.xml -DintegrationTests -DredirectTestOutputToFile=false
