@@ -1897,7 +1897,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         PositionImpl previousPosition = ledger.getPreviousPosition(position);
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(), previousPosition.getEntryId(),
                             position.getLedgerId(), position.getEntryId());
-                        ++messagesConsumedCounter;
+                        MSG_CONSUMED_COUNTER_UPDATER.incrementAndGet(this);
                         BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
                         if (bitSetRecyclable != null) {
                             bitSetRecyclable.recycle();
