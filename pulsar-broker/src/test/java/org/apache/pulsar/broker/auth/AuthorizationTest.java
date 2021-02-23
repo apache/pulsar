@@ -198,11 +198,11 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         try {
             assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "sub1"));
             fail();
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
         try {
             assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "sub2"));
             fail();
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
 
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "role1-sub1"));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"));
@@ -216,7 +216,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     private static void waitForChange() {
         try {
             Thread.sleep(100);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException ignored) {
         }
     }
 }

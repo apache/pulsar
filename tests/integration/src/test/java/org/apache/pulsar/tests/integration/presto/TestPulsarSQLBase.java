@@ -57,7 +57,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         validateData(topic, messageCnt);
     }
 
-    private void waitPulsarSQLReady() throws Exception {
+    public void waitPulsarSQLReady() throws Exception {
         // wait until presto worker started
         ContainerExecResult result;
         do {
@@ -102,7 +102,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         throw new Exception("Unsupported operation prepareData.");
     }
 
-    private void validateMetadata(TopicName topicName) throws Exception {
+    public void validateMetadata(TopicName topicName) throws Exception {
         ContainerExecResult result = execQuery("show schemas in pulsar;");
         assertThat(result.getExitCode()).isEqualTo(0);
         assertThat(result.getStdout()).contains(topicName.getNamespace());
@@ -122,7 +122,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         );
     }
 
-    private void validateData(TopicName topicName, int messageNum) throws Exception {
+    public void validateData(TopicName topicName, int messageNum) throws Exception {
         String namespace = topicName.getNamespace();
         String topic = topicName.getLocalName();
 
