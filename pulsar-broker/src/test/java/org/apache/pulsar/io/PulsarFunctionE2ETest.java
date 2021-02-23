@@ -1183,12 +1183,7 @@ public class PulsarFunctionE2ETest {
     	final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/output";
-<<<<<<< HEAD
         final String sourceName = "PulsarBatchSource-test";
-
-=======
-        final String sourceName = "PulsarSource-test";
->>>>>>> Added tests for BatchSource
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
@@ -1204,11 +1199,7 @@ public class PulsarFunctionE2ETest {
             }
         }, 10, 150);
 
-<<<<<<< HEAD
         final String sinkTopic2 = "persistent://" + replNamespace + "/output3";
-=======
-        final String sinkTopic2 = "persistent://" + replNamespace + "/output2";
->>>>>>> Added tests for BatchSource
         sourceConfig.setTopicName(sinkTopic2);
         admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
 
