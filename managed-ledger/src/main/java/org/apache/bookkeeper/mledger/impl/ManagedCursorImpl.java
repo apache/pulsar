@@ -76,6 +76,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedger.PositionBound;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -83,7 +84,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
-import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -582,7 +582,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     public void asyncReadEntries(int restNumOfEntries, long restMaxSizeBytes, ReadEntriesCallback callback,
                                  Object ctx, PositionImpl maxPosition, List<Entry> alreadyRead) {
-        checkArgument(restNumOfEntries > 0);
+        checkArgument(restNumOfEntries >= 0);
         if (isClosed()) {
             callback.readEntriesFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;

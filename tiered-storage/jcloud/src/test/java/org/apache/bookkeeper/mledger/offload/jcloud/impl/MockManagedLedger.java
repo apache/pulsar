@@ -243,6 +243,11 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public void asyncDeleteLedgerFromBookKeeper(long ledgerId) {
+
+    }
+
+    @Override
     public long getNumberOfActiveEntries() {
         return 0;
     }
