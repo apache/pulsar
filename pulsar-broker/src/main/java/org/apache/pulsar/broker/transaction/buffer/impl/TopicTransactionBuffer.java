@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
@@ -117,7 +118,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Failed to commit for txn {}", txnID, exception);
-                completableFuture.completeExceptionally(exception);
+                completableFuture.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
         return completableFuture;
@@ -145,7 +146,7 @@ public class TopicTransactionBuffer implements TransactionBuffer {
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Failed to abort for txn {}", txnID, exception);
-                completableFuture.completeExceptionally(exception);
+                completableFuture.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
         return completableFuture;

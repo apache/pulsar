@@ -648,7 +648,7 @@ public class PulsarService implements AutoCloseable {
 
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
-                        transactionBufferClient, config.getEndTxnOpRetryIntervalTime(), transactionTimer);
+                        transactionBufferClient, transactionTimer);
                 transactionMetadataStoreService.start();
 
                 transactionBufferProvider = TransactionBufferProvider

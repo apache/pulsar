@@ -28,10 +28,13 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.RequestTimeoutException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -46,6 +49,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactor
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionMetadataStoreStateException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
@@ -61,19 +65,18 @@ public class TransactionMetadataStoreService {
     private final PulsarService pulsarService;
     private final TransactionBufferClient tbClient;
     private final TransactionTimeoutTrackerFactory timeoutTrackerFactory;
-    private final long endTransactionRetryIntervalTime;
+    private static final long endTransactionRetryIntervalTime = 1000;
     private final Timer transactionOpRetryTimer;
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
-                                           long endTransactionRetryIntervalTime, HashedWheelTimer timer) {
+                                           HashedWheelTimer timer) {
         this.pulsarService = pulsarService;
         this.stores = new ConcurrentHashMap<>();
         this.transactionMetadataStoreProvider = transactionMetadataStoreProvider;
         this.tbClient = tbClient;
         this.timeoutTrackerFactory = new TransactionTimeoutTrackerFactoryImpl(this, timer);
         this.transactionOpRetryTimer = timer;
-        this.endTransactionRetryIntervalTime = endTransactionRetryIntervalTime * 1000;
     }
 
     public void start() {
@@ -231,10 +234,9 @@ public class TransactionMetadataStoreService {
         }
 
         completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
-                .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction))
-                .exceptionally(e -> {
-                    if (e.getCause() instanceof TransactionNotFoundException
-                            || e.getCause() instanceof InvalidTxnStatusException) {
+                .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction));
+        completableFuture.exceptionally(e -> {
+                    if (!isRetryableException(e)) {
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("End transaction op retry fail! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
                         }
@@ -247,7 +249,7 @@ public class TransactionMetadataStoreService {
                     }
                     return null;
                 });
-        return completableFuture.thenCompose((future) -> endTxnInTransactionBuffer(txnID, txnAction));
+        return completableFuture;
     }
 
     public CompletableFuture<Void> endTransactionForTimeout(TxnID txnID) {
@@ -324,13 +326,24 @@ public class TransactionMetadataStoreService {
         return resultFuture.thenCompose((future) -> endTxnInTransactionMetadataStore(txnID, txnAction));
     }
 
+    private static boolean isRetryableException(Throwable e) {
+        if (e instanceof TransactionMetadataStoreStateException
+                || e instanceof RequestTimeoutException
+                || e instanceof ManagedLedgerException
+                || e instanceof PulsarClientException.BrokerPersistenceException) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     private CompletableFuture<Void> endTxnInTransactionMetadataStore(TxnID txnID, int txnAction) {
         if (TxnAction.COMMIT.getValue() == txnAction) {
             return updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING);
         } else if (TxnAction.ABORT.getValue() == txnAction) {
             return updateTxnStatus(txnID, TxnStatus.ABORTED, TxnStatus.ABORTING);
         } else {
-            return FutureUtil.failedFuture(new Throwable("Unsupported txnAction " + txnAction));
+            return FutureUtil.failedFuture(new InvalidTxnStatusException("Unsupported txnAction " + txnAction));
         }
     }
 

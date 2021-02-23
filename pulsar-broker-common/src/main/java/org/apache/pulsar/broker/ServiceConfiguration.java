@@ -1932,12 +1932,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean transactionCoordinatorEnabled = false;
 
     @FieldContext(
-            category = CATEGORY_TRANSACTION,
-            doc = "End transaction operation retry interval time. (unit:second)"
-    )
-    private long endTxnOpRetryIntervalTime = 5;
-
-    @FieldContext(
         category = CATEGORY_TRANSACTION,
             doc = "Class name for transaction metadata store provider"
     )
