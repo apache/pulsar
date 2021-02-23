@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarSQLTestSuite;
@@ -145,7 +146,8 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         String topic = topicName.getLocalName();
 
         final String queryAllDataSql;
-        if (schemaType.isStruct()) {
+        if (schema.getSchemaInfo().getType().isStruct()
+                || schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
             queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\" order by entryid;", namespace, topic);
         } else {
             queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\";", namespace, topic);
@@ -158,8 +160,8 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                     log.info("select sql query output \n{}", containerExecResult.getStdout());
                     String[] split = containerExecResult.getStdout().split("\n");
                     assertThat(split.length).isEqualTo(messageNum);
-                    String[] split2 = containerExecResult.getStdout().split("\n|,");
-                    validateContent(messageNum, split2, schema);
+                    String[] contentArr = containerExecResult.getStdout().split("\n|,");
+                    validateContent(messageNum, contentArr, schema);
                 }
         );
 
