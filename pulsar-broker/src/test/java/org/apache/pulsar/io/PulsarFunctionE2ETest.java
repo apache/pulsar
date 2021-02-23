@@ -282,6 +282,8 @@ public class PulsarFunctionE2ETest {
                         FileInputStream fileInputStream = new FileInputStream(file);
                         BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
                         bufferedInputStream.read(bytes, 0, bytes.length);
+                        bufferedInputStream.close();
+                        fileInputStream.close();
 
                         he.sendResponseHeaders(200, file.length());
                         OutputStream outputStream = he.getResponseBody();
@@ -304,6 +306,8 @@ public class PulsarFunctionE2ETest {
                         FileInputStream fileInputStream = new FileInputStream(file);
                         BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
                         bufferedInputStream.read(bytes, 0, bytes.length);
+                        bufferedInputStream.close();
+                        fileInputStream.close();
 
                         he.sendResponseHeaders(200, file.length());
                         OutputStream outputStream = he.getResponseBody();
@@ -326,6 +330,8 @@ public class PulsarFunctionE2ETest {
                         FileInputStream fileInputStream = new FileInputStream(file);
                         BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
                         bufferedInputStream.read(bytes, 0, bytes.length);
+                        bufferedInputStream.close();
+                        fileInputStream.close();
 
                         he.sendResponseHeaders(200, file.length());
                         OutputStream outputStream = he.getResponseBody();
