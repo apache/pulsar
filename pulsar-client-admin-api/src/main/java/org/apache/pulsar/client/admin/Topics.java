@@ -30,6 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -2878,6 +2879,47 @@ public interface Topics {
      * @return
      */
     CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String topic);
+
+    /**
+     * Set is enable sub types.
+     *
+     * @param topic
+     * @param subscriptionTypesEnabled
+     *            is enable subTypes
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionTypesEnabled(String topic,
+                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
+
+    /**
+     * Set is enable sub types asynchronously.
+     *
+     * @param topic
+     * @param subscriptionTypesEnabled
+     *            is enable subTypes
+     */
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String topic,
+                                                             Set<SubscriptionType> subscriptionTypesEnabled);
+
+    /**
+     * Get is enable sub types.
+     *
+     * @param topic
+     *            is topic for get is enable sub types
+     * @return set of enable sub types {@link Set<SubscriptionType>}
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Set<SubscriptionType> getSubscriptionTypesEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * Get is enable sub types asynchronously.
+     *
+     * @param topic
+     *            is topic for get is enable sub types
+     */
+    CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic);
 
     /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).

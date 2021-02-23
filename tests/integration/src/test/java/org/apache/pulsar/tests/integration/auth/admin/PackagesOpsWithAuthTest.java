@@ -100,7 +100,7 @@ public class PackagesOpsWithAuthTest {
         pulsarCluster.start();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardown() {
         if (cmdContainer != null) {
             cmdContainer.stop();

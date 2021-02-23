@@ -284,9 +284,7 @@ public abstract class MockedPulsarServiceBaseTest {
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
         doReturn(new CounterBrokerInterceptor()).when(pulsar).getBrokerInterceptor();
 
-        doAnswer((invocation) -> {
-                return spy(invocation.callRealMethod());
-            }).when(pulsar).newCompactor();
+        doAnswer((invocation) -> spy(invocation.callRealMethod())).when(pulsar).newCompactor();
     }
 
     protected void waitForZooKeeperWatchers() {
@@ -320,7 +318,7 @@ public abstract class MockedPulsarServiceBaseTest {
         return zk;
     }
 
-    public static MockZooKeeper createMockZooKeeperGlobal() throws Exception {
+    public static MockZooKeeper createMockZooKeeperGlobal() {
         return  MockZooKeeper.newInstanceForGlobalZK(MoreExecutors.newDirectExecutorService());
     }
 

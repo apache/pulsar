@@ -31,7 +31,7 @@ public class PulsarStandaloneTestSuite2_4 extends PulsarStandaloneTestBase imple
         super.startCluster(PulsarContainer.PULSAR_2_4_IMAGE_NAME);
     }
 
-    @AfterSuite
+    @AfterSuite(alwaysRun = true)
     public void tearDownCluster() throws Exception {
         super.stopCluster();
     }

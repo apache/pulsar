@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import static org.apache.bookkeeper.common.util.MathUtils.signSafeMod;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -28,18 +27,17 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.proxy.server.util.ZookeeperCacheLoader;
-import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
@@ -56,7 +54,8 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 public class BrokerDiscoveryProvider implements Closeable {
 
     final ZookeeperCacheLoader localZkCache;
-    final GlobalZooKeeperCache globalZkCache;
+    final PulsarResources pulsarResources;
+
     private final AtomicInteger counter = new AtomicInteger();
 
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(4)
@@ -66,16 +65,13 @@ public class BrokerDiscoveryProvider implements Closeable {
 
     private static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
 
-    public BrokerDiscoveryProvider(ProxyConfiguration config, ZooKeeperClientFactory zkClientFactory)
+    public BrokerDiscoveryProvider(ProxyConfiguration config, ZooKeeperClientFactory zkClientFactory,
+            PulsarResources pulsarResources)
             throws PulsarServerException {
         try {
             localZkCache = new ZookeeperCacheLoader(zkClientFactory, config.getZookeeperServers(),
                     config.getZookeeperSessionTimeoutMs());
-            globalZkCache = new GlobalZooKeeperCache(zkClientFactory, config.getZookeeperSessionTimeoutMs(),
-                    (int) TimeUnit.MILLISECONDS.toSeconds(config.getZookeeperSessionTimeoutMs()),
-                    config.getConfigurationStoreServers(), orderedExecutor, scheduledExecutorScheduler,
-                    config.getZookeeperSessionTimeoutMs());
-            globalZkCache.start();
+            this.pulsarResources = pulsarResources;
         } catch (Exception e) {
             LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
@@ -108,10 +104,7 @@ public class BrokerDiscoveryProvider implements Closeable {
             checkAuthorization(service, topicName, role, authenticationData);
             final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
                     topicName.getNamespaceObject().toString(), "persistent", topicName.getEncodedLocalName());
-            // gets the number of partitions from the zk cache
-            globalZkCache
-                    .getDataAsync(path,
-                            (key, content) -> getThreadLocal().readValue(content, PartitionedTopicMetadata.class))
+            pulsarResources.getNamespaceResources().getPartitionedTopicResources().getAsync(path)
                     .thenAccept(metadata -> {
                         // if the partitioned topic is not found in zk, then the topic
                         // is not partitioned
@@ -173,7 +166,6 @@ public class BrokerDiscoveryProvider implements Closeable {
     @Override
     public void close() throws IOException {
         localZkCache.close();
-        globalZkCache.close();
         orderedExecutor.shutdown();
         scheduledExecutorScheduler.shutdownNow();
     }

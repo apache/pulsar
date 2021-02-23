@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
+
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {

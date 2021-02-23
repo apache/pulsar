@@ -174,7 +174,7 @@ public class KubernetesRuntimeTest {
         System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
     }
     
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (null != this.factory) {
             this.factory.close();
@@ -876,6 +876,7 @@ public class KubernetesRuntimeTest {
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
         config.setClusterName("standalone");
+        config.setMetricsPort(4331);
 
         return config;
     }

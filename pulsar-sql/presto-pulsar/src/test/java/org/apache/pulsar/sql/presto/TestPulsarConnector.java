@@ -686,7 +686,7 @@ public abstract class TestPulsarConnector {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() {
         completedBytes = 0L;
     }

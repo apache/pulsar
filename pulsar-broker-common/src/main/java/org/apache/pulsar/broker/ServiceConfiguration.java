@@ -403,6 +403,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int subscriptionExpiryCheckIntervalInMinutes = 5;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Enable subscription types (default is all type enabled)"
+    )
+    private Set<String> subscriptionTypesEnabled =
+            Sets.newHashSet("Exclusive", "Shared", "Failover", "Key_Shared");
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "Enable Key_Shared subscription (default is enabled)"

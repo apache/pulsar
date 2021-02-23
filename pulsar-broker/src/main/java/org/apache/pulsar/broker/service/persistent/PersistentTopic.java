@@ -67,6 +67,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -110,6 +111,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -279,7 +281,7 @@ public class PersistentTopic extends AbstractTopic
                 inactiveTopicPolicies = policies.inactive_topic_policies;
             }
 
-            maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(policies);
+            updateUnackedMessagesExceededOnConsumer(policies);
             maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(policies);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
@@ -632,6 +634,20 @@ public class PersistentTopic extends AbstractTopic
             );
             return future;
         }
+
+        try {
+            if (!topic.endsWith(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)
+                    && !checkSubscriptionTypesEnable(subType)) {
+                future.completeExceptionally(
+                        new NotAllowedException("Topic[{" + topic + "}] don't support "
+                                + subType.name() + " sub type!"));
+                return future;
+            }
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+            return future;
+        }
+
         if (isBlank(subscriptionName)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Empty subscription name", topic);
@@ -744,12 +760,26 @@ public class PersistentTopic extends AbstractTopic
         return maxUnackedMessages;
     }
 
-    private int unackedMessagesExceededOnConsumer(Policies data) {
-        final int maxUnackedMessages = data.max_unacked_messages_per_consumer > -1
-                ? data.max_unacked_messages_per_consumer
-                : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+    private void updateUnackedMessagesExceededOnConsumer(Policies data) {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
+            maxUnackedMessagesOnConsumerAppilied = topicPolicies.getMaxUnackedMessagesOnConsumer();
+        } else {
+            maxUnackedMessagesOnConsumerAppilied =
+                    data != null && data.max_unacked_messages_per_consumer != null
+                            ? data.max_unacked_messages_per_consumer
+                            : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+        }
+        getSubscriptions().forEach((name, sub) -> {
+            if (sub != null) {
+                sub.getConsumers().forEach(consumer -> {
+                    if (consumer.getMaxUnackedMessages() != maxUnackedMessagesOnConsumerAppilied) {
+                        consumer.setMaxUnackedMessages(maxUnackedMessagesOnConsumerAppilied);
+                    }
+                });
+            }
+        });
 
-        return maxUnackedMessages;
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -1950,7 +1980,10 @@ public class PersistentTopic extends AbstractTopic
         String path = AdminResource.path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace()
                 , topicName.getDomain().value(), topicName.getEncodedLocalName());
         try {
-            if (topicName.isPartitioned() && !getBrokerService().pulsar().getGlobalZkCache().exists(path)) {
+            PartitionedTopicResources partitionedTopicResources = getBrokerService().pulsar().getPulsarResources()
+                    .getNamespaceResources()
+                    .getPartitionedTopicResources();
+            if (topicName.isPartitioned() && !partitionedTopicResources.exists(path)) {
                 return CompletableFuture.completedFuture(null);
             }
             CompletableFuture<Void> deleteMetadataFuture = new CompletableFuture<>();
@@ -1975,17 +2008,12 @@ public class PersistentTopic extends AbstractTopic
                             }
                         }
                     }))
-                    .thenAccept((res) -> getBrokerService().pulsar().getGlobalZkCache().getZooKeeper().delete(path, -1
-                            , (rc, s, o) -> {
-                                if (KeeperException.Code.OK.intValue() == rc
-                                        || KeeperException.Code.NONODE.intValue() == rc) {
-                                    getBrokerService().pulsar().getGlobalZkCache().invalidate(path);
-                                    deleteMetadataFuture.complete(null);
-                                } else {
-                                    deleteMetadataFuture.completeExceptionally(
-                                            KeeperException.create(KeeperException.Code.get(rc)));
-                                }
-                            }, null))
+                    .thenAccept((res) -> partitionedTopicResources.deleteAsync(path).thenAccept((r) -> {
+                        deleteMetadataFuture.complete(null);
+                    }).exceptionally(ex -> {
+                        deleteMetadataFuture.completeExceptionally(ex.getCause());
+                        return null;
+                    }))
                     .exceptionally((e) -> {
                         if (!(e.getCause() instanceof UnsupportedOperationException)) {
                             log.error("delete metadata fail", e);
@@ -2098,7 +2126,7 @@ public class PersistentTopic extends AbstractTopic
 
         schemaValidationEnforced = data.schema_validation_enforced;
 
-        maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(data);
+        updateUnackedMessagesExceededOnConsumer(data);
         maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
         maxSubscriptionsPerTopic = data.max_subscriptions_per_topic;
 
@@ -2637,11 +2665,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public int getMaxUnackedMessagesOnConsumer() {
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
-            return topicPolicies.getMaxUnackedMessagesOnConsumer();
-        }
-        return maxUnackedMessagesOnConsumer;
+        return maxUnackedMessagesOnConsumerAppilied;
     }
 
     public boolean isDelayedDeliveryEnabled() {
@@ -2713,6 +2737,7 @@ public class PersistentTopic extends AbstractTopic
         }
         replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                 .ifPresent(DispatchRateLimiter::updateDispatchRate));
+        updateUnackedMessagesExceededOnConsumer(null);
     }
 
     private Optional<Policies> getNamespacePolicies() {
@@ -2778,6 +2803,40 @@ public class PersistentTopic extends AbstractTopic
         }
 
         return false;
+    }
+
+    public boolean checkSubscriptionTypesEnable(SubType subType) throws Exception {
+        TopicName topicName = TopicName.get(topic);
+        if (brokerService.pulsar().getConfiguration().isTopicLevelPoliciesEnabled()) {
+            TopicPolicies topicPolicies =
+                    brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
+            if (topicPolicies == null) {
+                return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+            } else {
+                if (topicPolicies.getSubscriptionTypesEnabled().isEmpty()) {
+                    return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+                }
+                return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
+            }
+        } else {
+            return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+        }
+    }
+
+    private boolean checkNsAndBrokerSubscriptionTypesEnable(TopicName topicName, SubType subType) throws Exception {
+        Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
+        if (policies.isPresent()) {
+            if (policies.get().subscription_types_enabled.isEmpty()) {
+                return getBrokerService().getPulsar().getConfiguration()
+                        .getSubscriptionTypesEnabled().contains(subType.name());
+            } else {
+                return policies.get().subscription_types_enabled.contains(subType);
+            }
+        } else {
+            return getBrokerService().getPulsar().getConfiguration()
+                    .getSubscriptionTypesEnabled().contains(subType.name());
+        }
     }
 
     public PositionImpl getMaxReadPosition() {
