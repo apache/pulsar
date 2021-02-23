@@ -52,6 +52,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -805,7 +806,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = "pulsar/partitionedNs-" + isPartitionedTopic + "-" + System.nanoTime();;
+        final String namespace = BrokerTestUtil.newUniqueNamespace("pulsar/partitionedNs-" + isPartitionedTopic);
         final String persistentTopicName =
                 "persistent://" + namespace + "/partTopic-" + System.currentTimeMillis() + "-" + isPartitionedTopic;
         final String nonPersistentTopicName =
@@ -908,7 +909,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
-        final String namespace = "pulsar/ns-" + System.nanoTime();
+        final String namespace = BrokerTestUtil.newUniqueNamespace("pulsar/ns");
         final String topicName = "persistent://" + namespace + "/topic1";
         int startPartitions = 4;
         int newPartitions = 8;
@@ -960,7 +961,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
-        final String namespace = "pulsar/ns-" + System.nanoTime();
+        final String namespace = BrokerTestUtil.newUniqueNamespace("pulsar/ns");
         final String partitionedTopicName = topicPrefix + namespace + topicName + "-partitioned";
         final String nonPartitionedTopicName = topicPrefix + namespace + topicName + "-non-partitioned";
         final int startPartitions = 4;
