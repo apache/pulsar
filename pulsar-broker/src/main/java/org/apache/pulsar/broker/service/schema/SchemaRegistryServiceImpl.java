@@ -494,10 +494,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     public static boolean isUsingAvroSchemaParser(SchemaType type) {
-        if (type == SchemaType.AVRO || type == SchemaType.PROTOBUF || type == SchemaType.JSON) {
-            return true;
-        } else {
-            return false;
+        switch (type) {
+            case AVRO:
+            case JSON:
+            case PROTOBUF:
+                return true;
+            default:
+                return false;
         }
     }
 
