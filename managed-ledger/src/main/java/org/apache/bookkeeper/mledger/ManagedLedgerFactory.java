@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger;
 
 import java.util.function.Supplier;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -113,7 +112,9 @@ public interface ManagedLedgerFactory {
      * @param ctx
      */
     void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
-            OpenReadOnlyCursorCallback callback, Object ctx);
+                                 OpenReadOnlyCursorCallback callback, Object ctx);
+
+    void close(ManagedLedger ledger);
 
     /**
      * Get the current metadata info for a managed ledger.

@@ -482,7 +482,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         });
     }
 
-    void close(ManagedLedger ledger) {
+    public void close(ManagedLedger ledger) {
         // Remove the ledger from the internal factory cache
         ledgers.remove(ledger.getName());
         entryCacheManager.removeEntryCache(ledger.getName());
