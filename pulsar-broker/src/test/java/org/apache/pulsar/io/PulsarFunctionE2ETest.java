@@ -219,6 +219,10 @@ public class PulsarFunctionE2ETest {
             if (connectorsDir.mkdir()) {
                 File file = new File(getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile());
                 Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
+                
+                file = new File(getClass().getClassLoader().getResource("pulsar-io-batch-data-generator.nar").getFile());
+                Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
+                
             } else {
                 throw new RuntimeException("Failed to create builtin connectors directory");
             }
@@ -266,6 +270,28 @@ public class PulsarFunctionE2ETest {
         fileServerThread = new Thread(() -> {
             try {
                 fileServer = HttpServer.create(new InetSocketAddress(0), 0);
+                fileServer.createContext("/pulsar-io-batch-data-generator.nar", he -> {
+                    try {
+
+                        Headers headers = he.getResponseHeaders();
+                        headers.add("Content-Type", "application/octet-stream");
+
+                        File file = new File(getClass().getClassLoader().getResource("pulsar-io-batch-data-generator.nar").getFile());
+                        byte[] bytes  = new byte [(int)file.length()];
+
+                        FileInputStream fileInputStream = new FileInputStream(file);
+                        BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
+                        bufferedInputStream.read(bytes, 0, bytes.length);
+
+                        he.sendResponseHeaders(200, file.length());
+                        OutputStream outputStream = he.getResponseBody();
+                        outputStream.write(bytes, 0, bytes.length);
+                        outputStream.close();
+
+                    } catch (Exception e) {
+                        log.error("Error when downloading: {}", e, e);
+                    }
+                });
                 fileServer.createContext("/pulsar-io-data-generator.nar", he -> {
                     try {
 
@@ -1157,7 +1183,7 @@ public class PulsarFunctionE2ETest {
     	final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/output";
-        final String sourceName = "PulsarSource-test";
+        final String sourceName = "PulsarBatchSource-test";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
@@ -1173,7 +1199,7 @@ public class PulsarFunctionE2ETest {
             }
         }, 10, 150);
 
-        final String sinkTopic2 = "persistent://" + replNamespace + "/output2";
+        final String sinkTopic2 = "persistent://" + replNamespace + "/output3";
         sourceConfig.setTopicName(sinkTopic2);
         admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
 
