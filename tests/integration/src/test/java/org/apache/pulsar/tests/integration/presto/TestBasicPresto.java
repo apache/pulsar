@@ -67,37 +67,42 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 { Schema.STRING, null},
                 { AvroSchema.of(Stock.class), null},
                 { JSONSchema.of(Stock.class), null},
-                { Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.INLINE },
-                { Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.SEPARATED }
+                { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.INLINE) },
+                { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.SEPARATED) }
         };
     }
 
     @Test
     public void testSimpleSQLQueryBatched() throws Exception {
         TopicName topicName = TopicName.get("public/default/stocks_batched_" + randomName(5));
-        pulsarSQLBasicTest(topicName, true, false, JSONSchema.of(Stock.class), null);
+        pulsarSQLBasicTest(topicName, true, false, JSONSchema.of(Stock.class));
     }
 
     @Test
     public void testSimpleSQLQueryNonBatched() throws Exception {
         TopicName topicName = TopicName.get("public/default/stocks_nonbatched_" + randomName(5));
-        pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class), null);
+        pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class));
     }
 
     @Test(dataProvider = "schemaProvider")
-    public void testForSchema(Schema schema, KeyValueEncodingType keyValueEncodingType) throws Exception {
-        String topic = String.format("public/default/schema_%s_test_%s",
-                schema.getSchemaInfo().getName(), randomName(5));
-        log.info("Pulsar SQL test for schema. topic: {}", topic);
-        pulsarSQLBasicTest(TopicName.get(topic), false, false, schema, keyValueEncodingType);
+    public void testForSchema(Schema schema) throws Exception {
+        String schemaFlag;
+        if (schema.getSchemaInfo().getType().isStruct()
+                || schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
+            schemaFlag = schema.getSchemaInfo().getType().name();
+        } else {
+            // Because some schema types are same(such as BYTES and BYTEBUFFER), so use the schema name as flag.
+            schemaFlag = schema.getSchemaInfo().getName();
+        }
+        String topic = String.format("public/default/schema_%s_test_%s", schemaFlag, randomName(5)).toLowerCase();
+        pulsarSQLBasicTest(TopicName.get(topic), false, false, schema);
     }
 
     @Override
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
-                              KeyValueEncodingType keyValueEncodingType) throws Exception {
+                              Schema schema) throws Exception {
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -111,7 +116,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 || schema.getSchemaInfo().getType().equals(SchemaType.AVRO)) {
             prepareDataForStructSchema(pulsarClient, topicName, isBatch, schema);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
-            prepareDataForKeyValueSchema(pulsarClient, topicName, isBatch, keyValueEncodingType);
+            prepareDataForKeyValueSchema(pulsarClient, topicName, isBatch, schema);
         }
 
         return NUM_OF_STOCKS;
@@ -167,11 +172,11 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     private void prepareDataForKeyValueSchema(PulsarClient pulsarClient,
                                               TopicName topicName,
                                               boolean isBatch,
-                                              KeyValueEncodingType keyValueEncodingType) throws Exception {
+                                              Schema<KeyValue<Stock, Stock>> schema) throws Exception {
         @Cleanup
-        Producer<KeyValue<Stock,Stock>> producer = pulsarClient.newProducer(Schema
-                .KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), keyValueEncodingType))
+        Producer<KeyValue<Stock,Stock>> producer = pulsarClient.newProducer(schema)
                 .topic(topicName.toString())
+                .enableBatching(isBatch)
                 .create();
 
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {

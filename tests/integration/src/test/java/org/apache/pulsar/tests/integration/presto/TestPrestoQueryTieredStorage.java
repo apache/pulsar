@@ -36,7 +36,6 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.testcontainers.shaded.org.apache.commons.lang.StringUtils;
 import org.testng.Assert;
@@ -109,22 +108,21 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
     public void testQueryTieredStorage1() throws Exception {
         TopicName topicName = TopicName.get(
                 TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_nons_" + randomName(5));
-        pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class), null);
+        pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class));
     }
 
     @Test
     public void testQueryTieredStorage2() throws Exception {
         TopicName topicName = TopicName.get(
                 TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_ns_" + randomName(5));
-        pulsarSQLBasicTest(topicName, false, true, JSONSchema.of(Stock.class), null);
+        pulsarSQLBasicTest(topicName, false, true, JSONSchema.of(Stock.class));
     }
 
     @Override
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
-                              KeyValueEncodingType keyValueEncodingType) throws Exception {
+                              Schema schema) throws Exception {
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())

@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -55,17 +54,20 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected void pulsarSQLBasicTest(TopicName topic,
                                       boolean isBatch,
                                       boolean useNsOffloadPolices,
-                                      Schema schema,
-                                      KeyValueEncodingType keyValueEncodingType) throws Exception {
+                                      Schema schema) throws Exception {
+        log.info("Pulsar SQL basic test. topic: {}", topic);
+
         waitPulsarSQLReady();
 
         log.info("start prepare data for query. topic: {}", topic);
-        int messageCnt = prepareData(topic, isBatch, useNsOffloadPolices, schema, keyValueEncodingType);
+        int messageCnt = prepareData(topic, isBatch, useNsOffloadPolices, schema);
         log.info("finish prepare data for query. topic: {}, messageCnt: {}", topic, messageCnt);
 
         validateMetadata(topic);
 
         validateData(topic, messageCnt, schema);
+
+        log.info("Finish Pulsar SQL basic test. topic: {}", topic);
     }
 
     public void waitPulsarSQLReady() throws Exception {
@@ -112,8 +114,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
-                              KeyValueEncodingType keyValueEncodingType) throws Exception {
+                              Schema schema) throws Exception {
         throw new Exception("Unsupported operation prepareData.");
     }
 
