@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.cli;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -115,6 +117,11 @@ public class CmdConsume {
     @Parameter(names = { "-ac",
             "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+    @Parameter(names = { "-ekv",
+            "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
+                    + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
+    private String encKeyValue;
     
     private ClientBuilder clientBuilder;
     private Authentication authentication;
@@ -218,6 +225,10 @@ public class CmdConsume {
             }
 
             builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
+
+            if (isNotBlank(this.encKeyValue)) {
+                builder.defaultCryptoKeyReader(this.encKeyValue);
+            }
 
             Consumer<byte[]> consumer = builder.subscribe();
 

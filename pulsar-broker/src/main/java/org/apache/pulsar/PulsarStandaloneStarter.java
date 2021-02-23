@@ -53,8 +53,10 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             return;
         }
 
-        this.config = PulsarConfigurationLoader.create(
-                (new FileInputStream(this.getConfigFile())), ServiceConfiguration.class);
+        try (FileInputStream inputStream = new FileInputStream(this.getConfigFile())) {
+            this.config = PulsarConfigurationLoader.create(
+                    inputStream, ServiceConfiguration.class);
+        }
 
         String zkServers = "127.0.0.1";
 

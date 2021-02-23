@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -1272,6 +1273,80 @@ public interface Namespaces {
             String namespace, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride);
 
     /**
+     * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "subscriptionTypesEnabled" : {"Shared", "Failover"}
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param subscriptionTypesEnabled
+     *            is enable subscription types
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionTypesEnabled(String namespace,
+                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
+
+    /**
+     * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "subscriptionTypesEnabled" : {"Shared", "Failover"}
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param subscriptionTypesEnabled
+     *            is enable subscription types
+     */
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String namespace,
+                                                        Set<SubscriptionType> subscriptionTypesEnabled);
+
+    /**
+     * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return subscription types {@link Set<SubscriptionType>} the subscription types
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Set<SubscriptionType> getSubscriptionTypesEnabled(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return the future of subscription types {@link Set<SubscriptionType>} the subscription types
+     */
+    CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace);
+
+    /**
      * Removes the autoSubscriptionCreation policy for a given namespace.
      * <p/>
      * Allowing the broker to dictate the subscription auto-creation policy.
@@ -1692,6 +1767,20 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<Void> setRetentionAsync(String namespace, RetentionPolicies retention);
+
+    /**
+     * Remove the retention configuration for all the topics on a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeRetention(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the retention configuration for all the topics on a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeRetentionAsync(String namespace);
 
     /**
      * Get the retention configuration for a namespace.

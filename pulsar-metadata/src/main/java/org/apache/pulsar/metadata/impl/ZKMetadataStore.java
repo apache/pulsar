@@ -34,6 +34,7 @@ import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -54,6 +55,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
+    private ZKSessionWatcher sessionWatcher;
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
         try {
@@ -61,7 +63,14 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             zkc = ZooKeeperClient.newBuilder().connectString(metadataURL)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
-                    .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis()).build();
+                    .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
+                    .watchers(Collections.singleton(event -> {
+                        if (sessionWatcher != null) {
+                            sessionWatcher.process(event);
+                        }
+                    }))
+                    .build();
+            sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
         } catch (Throwable t) {
             throw new MetadataStoreException(t);
         }
@@ -71,6 +80,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     public ZKMetadataStore(ZooKeeper zkc) {
         this.isZkManaged = false;
         this.zkc = zkc;
+        this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
     }
 
     @Override
@@ -271,6 +281,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         if (isZkManaged) {
             zkc.close();
         }
+        sessionWatcher.close();
         super.close();
     }
 
@@ -286,6 +297,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             return new BadVersionException(ex);
         case NONODE:
             return new NotFoundException(ex);
+        case NODEEXISTS:
+            return new AlreadyExistsException(ex);
         default:
             return new MetadataStoreException(ex);
         }

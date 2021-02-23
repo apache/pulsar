@@ -57,10 +57,16 @@ if (WIN32)
     string(APPEND LIB_NAME_SHARED dll)
 endif()
 
-add_library(pulsarShared SHARED ${PULSAR_SOURCES})
-set_property(TARGET pulsarShared PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED})
-set_property(TARGET pulsarShared PROPERTY VERSION ${LIBRARY_VERSION})
-target_link_libraries(pulsarShared ${COMMON_LIBS} ${CMAKE_DL_LIBS})
+# this is the "object library" target: compiles the sources only once
+add_library(PULSAR_OBJECT_LIB OBJECT ${PULSAR_SOURCES})
+set_property(TARGET PULSAR_OBJECT_LIB PROPERTY POSITION_INDEPENDENT_CODE 1)
+
+if (BUILD_DYNAMIC_LIB)
+    add_library(pulsarShared SHARED $<TARGET_OBJECTS:PULSAR_OBJECT_LIB>)
+    set_property(TARGET pulsarShared PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED})
+    set_property(TARGET pulsarShared PROPERTY VERSION ${LIBRARY_VERSION})
+    target_link_libraries(pulsarShared ${COMMON_LIBS} ${CMAKE_DL_LIBS})
+endif()
 
 
 ### pulsarSharedNossl not static link ssl, it could avoid rebuild libpulsar when ssl lib need update.
@@ -75,15 +81,19 @@ if (NOT ${RECORD_OPENSSL_CRYPTO_LIBRARY} MATCHES ".+\\.a$")
     LIST(APPEND COMMON_LIBS_NOSSL ${RECORD_OPENSSL_CRYPTO_LIBRARY})
 endif ()
 
-add_library(pulsarSharedNossl SHARED ${PULSAR_SOURCES})
-set_property(TARGET pulsarSharedNossl PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED}nossl)
-set_property(TARGET pulsarSharedNossl PROPERTY VERSION ${LIBRARY_VERSION})
-target_link_libraries(pulsarSharedNossl ${COMMON_LIBS_NOSSL} ${CMAKE_DL_LIBS})
+if (BUILD_DYNAMIC_LIB AND LINK_STATIC)
+    add_library(pulsarSharedNossl SHARED $<TARGET_OBJECTS:PULSAR_OBJECT_LIB>)
+    set_property(TARGET pulsarSharedNossl PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED}nossl)
+    set_property(TARGET pulsarSharedNossl PROPERTY VERSION ${LIBRARY_VERSION})
+    target_link_libraries(pulsarSharedNossl ${COMMON_LIBS_NOSSL} ${CMAKE_DL_LIBS})
+endif()
 
-add_library(pulsarStatic STATIC ${PULSAR_SOURCES})
-set_property(TARGET pulsarStatic PROPERTY OUTPUT_NAME ${LIB_NAME})
-set_property(TARGET pulsarStatic PROPERTY VERSION ${LIBRARY_VERSION})
-target_compile_definitions(pulsarStatic PRIVATE PULSAR_STATIC)
+if (BUILD_STATIC_LIB)
+    add_library(pulsarStatic STATIC $<TARGET_OBJECTS:PULSAR_OBJECT_LIB>)
+    set_property(TARGET pulsarStatic PROPERTY OUTPUT_NAME ${LIB_NAME})
+    set_property(TARGET pulsarStatic PROPERTY VERSION ${LIBRARY_VERSION})
+    target_compile_definitions(pulsarStatic PRIVATE PULSAR_STATIC)
+endif()
 
 if (MSVC)
     target_include_directories(pulsarStatic PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
@@ -93,7 +103,7 @@ endif()
 
 # When linking statically, install a libpulsar.a that contains all the
 # required dependencies except ssl
-if (LINK_STATIC)
+if (LINK_STATIC AND BUILD_STATIC_LIB)
     if (MSVC)
 
         # This function is to remove either "debug" or "optimized" library names
@@ -136,13 +146,22 @@ if (LINK_STATIC)
                 DEPENDS pulsarStatic
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
     endif(MSVC)
-else()
+elseif(BUILD_STATIC_LIB)
     # Install regular libpulsar.a
     target_link_libraries(pulsarStatic ${COMMON_LIBS})
     install(TARGETS pulsarStatic DESTINATION lib)
 endif(LINK_STATIC)
 
-install(TARGETS pulsarStatic DESTINATION lib)
-install(TARGETS pulsarShared RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
-install(TARGETS pulsarSharedNossl RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+if (BUILD_STATIC_LIB)
+    install(TARGETS pulsarStatic DESTINATION lib)
+endif()
+
+if (BUILD_DYNAMIC_LIB)
+    install(TARGETS pulsarShared RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+endif()
+
+if (BUILD_DYNAMIC_LIB AND LINK_STATIC)
+    install(TARGETS pulsarSharedNossl RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+endif()
+
 install(DIRECTORY "../include/pulsar" DESTINATION include)

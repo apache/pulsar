@@ -269,6 +269,20 @@
       </plugin>
 
       <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>spotbugs</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
         <!-- This plugin is used to run a script after the package phase in order to rename
             libnetty_transport_native_epoll_x86_64.so from Netty into
             liborg_apache_pulsar_shade_netty_transport_native_epoll_x86_64.so

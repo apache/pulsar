@@ -484,9 +484,10 @@ public class ClientCnx extends PulsarHandler {
             log.debug("{} Received success GetLastMessageId response from server: {}", ctx.channel(), success.getRequestId());
         }
         long requestId = success.getRequestId();
-        CompletableFuture<MessageIdData> requestFuture = (CompletableFuture<MessageIdData>) pendingRequests.remove(requestId);
+        CompletableFuture<CommandGetLastMessageIdResponse> requestFuture =
+                (CompletableFuture<CommandGetLastMessageIdResponse>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(success.getLastMessageId());
+            requestFuture.complete(success);
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
@@ -505,7 +506,7 @@ public class ClientCnx extends PulsarHandler {
             // We got a success operation but the producer is not ready. This means that the producer has been queued up
             // in broker. We need to leave the future pending until we get the final confirmation. We just mark that
             // we have received a response, in order to avoid the timeout.
-            TimedCompletableFuture<?> requestFuture = (TimedCompletableFuture<?>) pendingRequests.get(requestId);
+            TimedCompletableFuture<?> requestFuture = pendingRequests.get(requestId);
             if (requestFuture != null) {
                 log.info("{} Producer {} has been queued up at broker. request: {}", ctx.channel(),
                         success.getProducerName(), requestId);
@@ -874,7 +875,7 @@ public class ClientCnx extends PulsarHandler {
         return future;
     }
 
-    public CompletableFuture<MessageIdData> sendGetLastMessageId(ByteBuf request, long requestId) {
+    public CompletableFuture<CommandGetLastMessageIdResponse> sendGetLastMessageId(ByteBuf request, long requestId) {
         return sendRequestAndHandleTimeout(request, requestId, RequestType.GetLastMessageId, true);
     }
 
@@ -1137,10 +1138,11 @@ public class ClientCnx extends PulsarHandler {
                 break;
             }
             request = requestTimeoutQueue.poll();
-            TimedCompletableFuture<?> requestFuture = pendingRequests.remove(request.requestId);
+            TimedCompletableFuture<?> requestFuture = pendingRequests.get(request.requestId);
             if (requestFuture != null
                     && !requestFuture.isDone()
                     && !requestFuture.hasGotResponse()) {
+                pendingRequests.remove(request.requestId, requestFuture);
                 String timeoutMessage = String.format("%d %s timedout after ms %d", request.requestId, request.requestType.getDescription(), operationTimeoutMs);
                 if (requestFuture.completeExceptionally(new TimeoutException(timeoutMessage))) {
                     log.warn("{} {}", ctx.channel(), timeoutMessage);

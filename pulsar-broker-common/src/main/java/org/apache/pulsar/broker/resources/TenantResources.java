@@ -16,24 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.broker.resources;
 
-import lombok.AccessLevel;
-import lombok.Getter;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-@Getter(AccessLevel.PUBLIC)
-public class PulsarResources {
-
-    private TenantResources tenatResources;
-    private ClusterResources clusterResources;
-    private NamespaceResources namespaceResources;
-    private DynamicConfigurationResources dynamicConfigResources;
-
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore) {
-        tenatResources = new TenantResources(configurationMetadataStore);
-        clusterResources = new ClusterResources(configurationMetadataStore);
-        namespaceResources = new NamespaceResources(configurationMetadataStore);
-        dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore);
+public class TenantResources extends BaseResources<TenantInfo> {
+    public TenantResources(MetadataStoreExtended store, int operationTimeoutSec) {
+        super(store, TenantInfo.class, operationTimeoutSec);
     }
 }

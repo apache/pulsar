@@ -108,7 +108,7 @@ public class PulsarFunctionTlsTest {
 
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
-        Set<String> superUsers = Sets.newHashSet("superUser");
+        Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         Set<String> providers = new HashSet<>();
@@ -124,7 +124,7 @@ public class PulsarFunctionTlsTest {
         PulsarAdmin admin = mock(PulsarAdmin.class);
         Tenants tenants = mock(Tenants.class);
         when(admin.tenants()).thenReturn(tenants);
-        Set<String> admins = Sets.newHashSet("superUser");
+        Set<String> admins = Sets.newHashSet("superUser", "admin");
         TenantInfo tenantInfo = new TenantInfo(admins, null);
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
         Namespaces namespaces = mock(Namespaces.class);

@@ -22,9 +22,11 @@ import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -58,6 +60,46 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         super.internalCleanup();
         resetConfig();
+    }
+
+    @Test(timeOut = 30000)
+    public void testNamespacePolicy() throws Exception {
+        pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(3);
+        admin.namespaces().createNamespace("max-unacked-messages/policy-on-consumers");
+        final String namespace = "max-unacked-messages/policy-on-consumers";
+        final String topic = "persistent://" + namespace + "/testNamespacePolicy";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().receiverQueueSize(1)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub").topic(topic).subscribe();
+        //set namespace-level policy
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 1);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(persistentTopic.getSubscription("sub")
+                        .getConsumers().get(0).getMaxUnackedMessages(), 1));
+        //consumer-throttling should take effect
+        for (int i = 0; i < 20; i++) {
+            producer.send("msg".getBytes());
+        }
+        Message<byte[]> message = consumer.receive(500, TimeUnit.MILLISECONDS);
+        assertNotNull(message);
+        Message<byte[]> nullMsg = consumer.receive(500, TimeUnit.MILLISECONDS);
+        assertNull(nullMsg);
+
+        //disable limit check
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(persistentTopic.getSubscription("sub")
+                        .getConsumers().get(0).getMaxUnackedMessages(), 0));
+        consumer.acknowledge(message);
+        message = consumer.receive(500, TimeUnit.MILLISECONDS);
+        assertNotNull(message);
     }
 
     @Test

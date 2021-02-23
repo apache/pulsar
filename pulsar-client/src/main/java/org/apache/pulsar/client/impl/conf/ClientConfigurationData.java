@@ -49,7 +49,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    private Authentication authentication = AuthenticationDisabled.INSTANCE;
+    private Authentication authentication;
     private String authPluginClassName;
 
     @Secret

@@ -16,36 +16,48 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Getter;
+
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+@Getter
 public class NamespaceResources extends BaseResources<Policies> {
-    @Getter
     private IsolationPolicyResources isolationPolicies;
+    private PartitionedTopicResources partitionedTopicResources;
+    private MetadataStoreExtended configurationStore;
 
-    public NamespaceResources(MetadataStoreExtended store) {
-        super(store, Policies.class);
-        isolationPolicies = new IsolationPolicyResources(store);
+    public NamespaceResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
+        super(configurationStore, Policies.class, operationTimeoutSec);
+        this.configurationStore = configurationStore;
+        isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
+        partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
     }
 
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationData>> {
-        public IsolationPolicyResources(MetadataStoreExtended store) {
+        public IsolationPolicyResources(MetadataStoreExtended store, int operationTimeoutSec) {
             super(store, new TypeReference<Map<String, NamespaceIsolationData>>() {
-            });
+            }, operationTimeoutSec);
         }
 
         public Optional<NamespaceIsolationPolicies> getPolicies(String path) throws MetadataStoreException {
             Optional<Map<String, NamespaceIsolationData>> data = super.get(path);
             return data.isPresent() ? Optional.of(new NamespaceIsolationPolicies(data.get())) : Optional.empty();
+        }
+    }
+
+    public static class PartitionedTopicResources extends BaseResources<PartitionedTopicMetadata> {
+        public PartitionedTopicResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
+            super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
         }
     }
 }
