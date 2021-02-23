@@ -1031,7 +1031,7 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
-    public void testFunctionInstancesRestart() throws Exception {
+    public void testThreadFunctionInstancesRestart() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -1065,6 +1065,20 @@ public class FunctionRuntimeManagerTest {
         MembershipManager membershipManager = mock(MembershipManager.class);
         doReturn(workerInfos).when(membershipManager).getCurrentMembership();
 
+        // build three types of FunctionMetaData
+        Function.FunctionMetaData function = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant").setNamespace("test-namespace").setName("function")
+                        .setComponentType(Function.FunctionDetails.ComponentType.FUNCTION)).build();
+        Function.FunctionMetaData source = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant").setNamespace("test-namespace").setName("source")
+                        .setComponentType(Function.FunctionDetails.ComponentType.SOURCE)).build();
+        Function.FunctionMetaData sink = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
+                        .setTenant("test-tenant").setNamespace("test-namespace").setName("sink")
+                        .setComponentType(Function.FunctionDetails.ComponentType.SINK)).build();
+
         FunctionRuntimeManager functionRuntimeManager = PowerMockito.spy(new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
@@ -1076,33 +1090,98 @@ public class FunctionRuntimeManagerTest {
                 mock(WorkerStatsManager.class),
                 mock(ErrorNotifier.class)));
 
+        // verify restart function/source/sink using different assignment
+        verifyRestart(functionRuntimeManager, function, "worker-1", false, false);
+        verifyRestart(functionRuntimeManager, function, "worker-2", false, true);
+        verifyRestart(functionRuntimeManager, source, "worker-1", false, false);
+        verifyRestart(functionRuntimeManager, source, "worker-2", false, true);
+        verifyRestart(functionRuntimeManager, sink, "worker-1", false, false);
+        verifyRestart(functionRuntimeManager, sink, "worker-2", false, true);
+    }
+
+    @Test
+    public void testKubernetesFunctionInstancesRestart() throws Exception {
+
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+        workerConfig.setStateStorageServiceUrl("foo");
+        workerConfig.setFunctionAssignmentTopicName("assignments");
+        WorkerConfig.KubernetesContainerFactory kubernetesContainerFactory
+                = new WorkerConfig.KubernetesContainerFactory();
+        workerConfig.setKubernetesContainerFactory(kubernetesContainerFactory);
+        KubernetesRuntimeFactory mockedKubernetesRuntimeFactory = spy(new KubernetesRuntimeFactory());
+        doNothing().when(mockedKubernetesRuntimeFactory).initialize(
+                any(WorkerConfig.class),
+                any(AuthenticationConfig.class),
+                any(SecretsProviderConfigurator.class),
+                any(),
+                any(),
+                any()
+        );
+        doNothing().when(mockedKubernetesRuntimeFactory).setupClient();
+        doReturn(true).when(mockedKubernetesRuntimeFactory).externallyManaged();
+        PowerMockito.whenNew(KubernetesRuntimeFactory.class)
+                .withNoArguments().thenReturn(mockedKubernetesRuntimeFactory);
+
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
+        // mock pulsarAdmin sources sinks functions
+        PulsarAdmin pulsarAdmin = mock(PulsarAdmin.class);
+        Sources sources = mock(Sources.class);
+        doNothing().when(sources).restartSource(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
+        doReturn(sources).when(pulsarAdmin).sources();
+        Sinks sinks = mock(Sinks.class);
+        doReturn(sinks).when(pulsarAdmin).sinks();
+        Functions functions = mock(Functions.class);
+        doNothing().when(functions).restartFunction(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
+        doReturn(functions).when(pulsarAdmin).functions();
+
+        doReturn(pulsarAdmin).when(workerService).getFunctionAdmin();
+        mockStatic(RuntimeFactory.class);
+        List<WorkerInfo> workerInfos = new LinkedList<>();
+        workerInfos.add(WorkerInfo.of("worker-1", "localhost", 0));
+        workerInfos.add(WorkerInfo.of("worker-2", "localhost", 0));
+        PowerMockito.when(RuntimeFactory.getFuntionRuntimeFactory(eq(ThreadRuntimeFactory.class.getName())))
+                .thenReturn(new ThreadRuntimeFactory());
+        MembershipManager membershipManager = mock(MembershipManager.class);
+        doReturn(workerInfos).when(membershipManager).getCurrentMembership();
+
         // build three types of FunctionMetaData
         Function.FunctionMetaData function = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("function")
                         .setComponentType(Function.FunctionDetails.ComponentType.FUNCTION)).build();
-
         Function.FunctionMetaData source = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("source")
                         .setComponentType(Function.FunctionDetails.ComponentType.SOURCE)).build();
-
         Function.FunctionMetaData sink = Function.FunctionMetaData.newBuilder().setFunctionDetails(
                 Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("sink")
                         .setComponentType(Function.FunctionDetails.ComponentType.SINK)).build();
 
+        FunctionRuntimeManager functionRuntimeManager = PowerMockito.spy(new FunctionRuntimeManager(
+                workerConfig,
+                workerService,
+                mock(Namespace.class),
+                membershipManager,
+                mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
+                mock(FunctionMetaDataManager.class),
+                mock(WorkerStatsManager.class),
+                mock(ErrorNotifier.class)));
+
         // verify restart function/source/sink using different assignment
-        verifyRestart(functionRuntimeManager, function, "worker-1", false);
-        verifyRestart(functionRuntimeManager, function, "worker-2", true);
-        verifyRestart(functionRuntimeManager, source, "worker-1", false);
-        verifyRestart(functionRuntimeManager, source, "worker-2", true);
-        verifyRestart(functionRuntimeManager, sink, "worker-1", false);
-        verifyRestart(functionRuntimeManager, sink, "worker-2", true);
+        verifyRestart(functionRuntimeManager, function, "worker-1",true, false);
+        verifyRestart(functionRuntimeManager, function, "worker-2", true, true);
+        verifyRestart(functionRuntimeManager, source, "worker-1", true, false);
+        verifyRestart(functionRuntimeManager, source, "worker-2", true, true);
+        verifyRestart(functionRuntimeManager, sink, "worker-1", true, false);
+        verifyRestart(functionRuntimeManager, sink, "worker-2", true, true);
     }
 
     private static void verifyRestart(FunctionRuntimeManager functionRuntimeManager, Function.FunctionMetaData function,
-             String workerId, boolean expectRestartByPulsarAdmin) throws Exception {
+             String workerId, boolean externallyManaged, boolean expectRestartByPulsarAdmin) throws Exception {
         Function.Assignment assignment = Function.Assignment.newBuilder()
                 .setWorkerId(workerId)
                 .setInstance(Function.Instance.newBuilder()
@@ -1113,7 +1192,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.restartFunctionInstances("test-tenant", "test-namespace", "function");
         if (expectRestartByPulsarAdmin) {
             PowerMockito.verifyPrivate(functionRuntimeManager)
-                .invoke("restartFunctionUsingPulsarAdmin", assignment, "test-tenant", "test-namespace", "function");
+                .invoke("restartFunctionUsingPulsarAdmin", assignment, "test-tenant", "test-namespace", "function", externallyManaged);
         } else {
             PowerMockito.verifyPrivate(functionRuntimeManager)
                 .invoke("stopFunction", FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance()), true);
