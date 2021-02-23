@@ -2612,8 +2612,8 @@ public class PersistentTopic extends AbstractTopic
                     log.debug("[{}]Transaction buffer not recover complete!", topic);
                 }
                 publishContext.completed(new BrokerServiceException
-                        .ServiceUnitNotReadyException("[{" + topic + "}]Transaction buffer not "
-                        + "recover complete!"), -1, -1);
+                        .TransactionBufferNotRecoverException("[{" + topic + "}]Transaction buffer not "
+                        + "recover completely!"), -1, -1);
                 return;
             }
         }

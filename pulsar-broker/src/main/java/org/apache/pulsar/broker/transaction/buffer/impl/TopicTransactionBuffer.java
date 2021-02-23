@@ -36,7 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TransactionBufferNotRecoverException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
@@ -88,9 +88,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 .getTransactionBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
         this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
-                .getConfiguration().getTransactionBufferTakeSnapshotIntervalNumber();
+                .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
-                .getConfiguration().getTransactionBufferTakeSnapshotIntervalTime();
+                .getConfiguration().getTransactionBufferSnapshotMinTimeInMills();
         this.topic.getBrokerService().getPulsar().getTransactionExecutor()
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
@@ -185,8 +185,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 log.debug("[{}]Transaction buffer not recover complete!", topic.getName());
             }
             return FutureUtil.failedFuture(
-                    new ServiceUnitNotReadyException("[{" + topic.getName()
-                            + "}]Transaction buffer not recover complete!"));
+                    new TransactionBufferNotRecoverException("[{" + topic.getName()
+                            + "}]Transaction buffer not recover completely!"));
         }
 
         if (log.isDebugEnabled()) {
@@ -224,8 +224,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 log.debug("[{}]Transaction buffer not recover complete!", topic.getName());
             }
             return FutureUtil.failedFuture(
-                    new ServiceUnitNotReadyException("[{" + topic.getName()
-                            + "}]Transaction buffer not recover complete!"));
+                    new TransactionBufferNotRecoverException("[{" + topic.getName()
+                            + "}]Transaction buffer not recover completely!"));
         }
 
         if (log.isDebugEnabled()) {
@@ -280,13 +280,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
-    private synchronized void takeSnapshotByChangeTimes() {
+    private void takeSnapshotByChangeTimes() {
         if (changeMaxReadPositionAndAddAbortTimes.get() >= takeSnapshotIntervalNumber) {
             takeSnapshot();
         }
     }
 
-    private synchronized void takeSnapshotByTimeout() {
+    private void takeSnapshotByTimeout() {
         if (changeMaxReadPositionAndAddAbortTimes.get() > 0) {
             takeSnapshot();
         }
@@ -298,19 +298,21 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         changeMaxReadPositionAndAddAbortTimes.set(0);
         takeSnapshotWriter.thenAccept(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
-            snapshot.setTopicName(topic.getName());
-            snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
-            snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
-            List<AbortTxnMetadata> list = new ArrayList<>();
-            aborts.forEach((k, v) -> {
-                AbortTxnMetadata abortTxnMetadata = new AbortTxnMetadata();
-                abortTxnMetadata.setTxnIdMostBits(k.getMostSigBits());
-                abortTxnMetadata.setTxnIdLeastBits(k.getLeastSigBits());
-                abortTxnMetadata.setLedgerId(v.getLedgerId());
-                abortTxnMetadata.setEntryId(v.getEntryId());
-                list.add(abortTxnMetadata);
-            });
-            snapshot.setAborts(list);
+            synchronized (TopicTransactionBuffer.this) {
+                snapshot.setTopicName(topic.getName());
+                snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
+                snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
+                List<AbortTxnMetadata> list = new ArrayList<>();
+                aborts.forEach((k, v) -> {
+                    AbortTxnMetadata abortTxnMetadata = new AbortTxnMetadata();
+                    abortTxnMetadata.setTxnIdMostBits(k.getMostSigBits());
+                    abortTxnMetadata.setTxnIdLeastBits(k.getLeastSigBits());
+                    abortTxnMetadata.setLedgerId(v.getLedgerId());
+                    abortTxnMetadata.setEntryId(v.getEntryId());
+                    list.add(abortTxnMetadata);
+                });
+                snapshot.setAborts(list);
+            }
             writer.writeAsync(snapshot).thenAccept((messageId) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}]Transaction buffer take snapshot success! "

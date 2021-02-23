@@ -119,8 +119,8 @@ public class TransactionTestBase {
             conf.setTransactionCoordinatorEnabled(true);
             conf.setBrokerDeduplicationEnabled(true);
             conf.setSystemTopicEnabled(true);
-            conf.setTransactionBufferTakeSnapshotIntervalNumber(2);
-            conf.setTransactionBufferTakeSnapshotIntervalTime(2000);
+            conf.setTransactionBufferSnapshotMaxTransactionCount(2);
+            conf.setTransactionBufferSnapshotMinTimeInMills(2000);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));
