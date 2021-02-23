@@ -173,6 +173,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         Function.FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
+        instanceConfig.setMetricsPort(metrics_port);
 
         Map<String, String> secretsProviderConfigMap = null;
         if (!StringUtils.isEmpty(secretsProviderConfig)) {
