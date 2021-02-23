@@ -227,6 +227,28 @@ Key | Type | Required? | Explanation
 
 NB: in this mode it's possible to acknowledge messages in a different connection.
 
+#### Check if reach end of topic
+
+Consumer can check if it has reached end of topic by sending `isEndOfTopic` request.
+
+**Request**
+```json
+{
+  "type": "isEndOfTopic"
+}
+```
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`type`| string | yes | Type of command. Must be `isEndOfTopic`
+
+**Response**
+```json
+{
+   "endOfTopic": "true/false"
+ }
+```
+
 ### Reader endpoint
 
 The reader endpoint requires you to specify a tenant, namespace, and topic in the URL:
@@ -281,6 +303,29 @@ If you don't send acknowledgements, Pulsar WebSocket service will stop sending m
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `messageId`| string | yes | Message ID of the processed message
+
+#### Check if reach end of topic
+
+Consumer can check if it has reached end of topic by sending `isEndOfTopic` request.
+
+**Request**
+```json
+{
+  "type": "isEndOfTopic"
+}
+```
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`type`| string | yes | Type of command. Must be `isEndOfTopic`
+
+**Response**
+```json
+{
+   "endOfTopic": "true/false"
+ }
+```
+
 
 
 ### Error codes

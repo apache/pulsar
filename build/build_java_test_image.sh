@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,33 +18,13 @@
 # under the License.
 #
 
-name: Pulsar Bot
-on:
-  issue_comment:
-    types: [created]
-  pull_request:
-    types: [closed]
-
-env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
-
-jobs:
-
-  action-runner:
-    name:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 100
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Execute pulsarbot command
-        id:   pulsarbot
-        if: github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/pulsarbot')
-        env:
-          GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
-        uses: apache/pulsar-test-infra/pulsarbot@master
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "$SCRIPT_DIR/.."
+SQUASH_PARAM=""
+# check if docker experimental mode is enabled which is required for
+# using "docker build --squash" for squashing all intermediate layers of the build to a single layer
+if [[ "$(docker version -f '{{.Server.Experimental}}' 2>/dev/null)" == "true" ]]; then
+  SQUASH_PARAM="-Ddockerfile.build.squash=true"
+fi
+mvn -am -pl tests/docker-images/java-test-image install -Pcore-modules,integrationTests,docker \
+  -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true $SQUASH_PARAM "$@"
