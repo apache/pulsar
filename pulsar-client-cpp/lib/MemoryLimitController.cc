@@ -54,7 +54,7 @@ void MemoryLimitController::releaseMemory(uint64_t size) {
 
     if (newUsage + size > memoryLimit_ && newUsage <= memoryLimit_) {
         // We just crossed the limit. Now we have more space
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         condition_.notify_all();
     }
 }
