@@ -105,6 +105,8 @@ In the exclusive and failover subscription modes, consumers only negatively ackn
 
 In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
 
+Be aware that doing negative ack on ordered subscription type like Exclusive, Failover and Key_Share can cause failed messages arrive consumer out of original order.
+
 > **Note**
 > If batching is enabled, other messages in the same batch may be redelivered to the consumer as well as the negatively acknowledged messages.
 
