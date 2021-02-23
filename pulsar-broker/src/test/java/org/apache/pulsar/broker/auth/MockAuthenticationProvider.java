@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MockAuthenticationProvider implements AuthenticationProvider {
-    private static Logger log = LoggerFactory.getLogger(MockAuthenticationProvider.class);
+    private static final Logger log = LoggerFactory.getLogger(MockAuthenticationProvider.class);
 
     @Override
     public void close() throws IOException {}
@@ -55,12 +55,13 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
 
         String[] parts = principal.split("\\.");
         if (parts.length == 2) {
-            if (parts[0].equals("pass")) {
-                return principal;
-            } else if (parts[0].equals("fail")) {
-                throw new AuthenticationException("Do not pass");
-            } else if (parts[0].equals("error")) {
-                throw new RuntimeException("Error in authn");
+            switch (parts[0]) {
+                case "pass":
+                    return principal;
+                case "fail":
+                    throw new AuthenticationException("Do not pass");
+                case "error":
+                    throw new RuntimeException("Error in authn");
             }
         }
         throw new IllegalArgumentException(

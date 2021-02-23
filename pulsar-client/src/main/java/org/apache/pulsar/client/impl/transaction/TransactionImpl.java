@@ -83,7 +83,6 @@ public class TransactionImpl implements Transaction {
 
     // register the topics that will be modified by this transaction
     public synchronized CompletableFuture<Void> registerProducedTopic(String topic) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         // we need to issue the request to TC to register the produced topic
         return registerPartitionMap.compute(topic, (key, future) -> {
             if (future != null) {
@@ -102,7 +101,6 @@ public class TransactionImpl implements Transaction {
 
     // register the topics that will be modified by this transaction
     public synchronized CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         // we need to issue the request to TC to register the acked topic
         return registerSubscriptionMap.compute(topic, (key, future) -> {
             if (future != null) {

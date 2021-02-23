@@ -480,7 +480,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                     .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
             txn.registerAckOp(ackFuture);
         } else {
-            ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
+            ackFuture = doAcknowledge(messageIdList, ackType, properties, null);
         }
         return ackFuture;
     }
@@ -884,7 +884,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
+    static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
     protected byte[] peekMessageKey(Message<T> msg) {
         byte[] key = NONE_KEY;
         if (msg.hasKey()) {

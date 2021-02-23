@@ -102,7 +102,7 @@ public class Consumer {
 
     private final ConsumerStats stats;
 
-    private final int maxUnackedMessages;
+    private volatile int maxUnackedMessages;
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
     private volatile int unackedMessages = 0;
@@ -689,11 +689,12 @@ public class Consumer {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
             }
-            // unblock consumer-throttling when receives half of maxUnackedMessages => consumer can start again
-            // consuming messages
-            if (((addAndGetUnAckedMsgs(ackOwnedConsumer, -totalAckedMsgs) <= (maxUnackedMessages / 2))
-                    && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
-                    && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs()) {
+            // unblock consumer-throttling when limit check is disabled or receives half of maxUnackedMessages =>
+            // consumer can start again consuming messages
+            int unAckedMsgs = addAndGetUnAckedMsgs(ackOwnedConsumer, -totalAckedMsgs);
+            if ((((unAckedMsgs <= maxUnackedMessages / 2) && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
+                    && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs())
+                    || !shouldBlockConsumerOnUnackMsgs()) {
                 ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
                 flowConsumerBlockedPermits(ackOwnedConsumer);
             }
@@ -790,6 +791,14 @@ public class Consumer {
 
     public void setReadPositionWhenJoining(PositionImpl readPositionWhenJoining) {
         this.readPositionWhenJoining = readPositionWhenJoining;
+    }
+
+    public int getMaxUnackedMessages() {
+        return maxUnackedMessages;
+    }
+
+    public void setMaxUnackedMessages(int maxUnackedMessages) {
+        this.maxUnackedMessages = maxUnackedMessages;
     }
 
     public TransportCnx cnx() {
