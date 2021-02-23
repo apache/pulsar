@@ -535,7 +535,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                         + "Configure the public key to be used to validate auth tokens"
                         + " The key can be specified like:\n\n"
                         + "tokenPublicKey=data:;base64,xxxxxxxxx\n"
-                        + "tokenPublicKey=file:///my/public.key")
+                        + "tokenPublicKey=file:///my/public.key  ( Note: key file must be DER-encoded )")
             ),
             @PropertyContext(
                 key = "tokenSecretKey",
@@ -545,7 +545,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                         + "Configure the secret key to be used to validate auth tokens"
                         + "The key can be specified like:\n\n"
                         + "tokenSecretKey=data:;base64,xxxxxxxxx\n"
-                        + "tokenSecretKey=file:///my/secret.key")
+                        + "tokenSecretKey=file:///my/secret.key  ( Note: key file must be DER-encoded )")
             )
         }
     )

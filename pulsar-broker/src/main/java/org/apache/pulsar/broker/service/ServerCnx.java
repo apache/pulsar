@@ -66,6 +66,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -1574,12 +1575,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
-            Position position = topic.getLastPosition();
+            Position lastPosition = topic.getLastPosition();
             int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+
+            Position markDeletePosition = null;
+            if (consumer.getSubscription() instanceof PersistentSubscription) {
+                markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor()
+                        .getMarkDeletedPosition();
+            }
 
             getLargestBatchIndexWhenPossible(
                     topic,
-                    (PositionImpl) position,
+                    (PositionImpl) lastPosition,
+                    (PositionImpl) markDeletePosition,
                     partitionIndex,
                     requestId,
                     consumer.getSubscription().getName());
@@ -1592,7 +1600,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private void getLargestBatchIndexWhenPossible(
             Topic topic,
-            PositionImpl position,
+            PositionImpl lastPosition,
+            PositionImpl markDeletePosition,
             int partitionIndex,
             long requestId,
             String subscriptionName) {
@@ -1601,15 +1610,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
 
         // If it's not pointing to a valid entry, respond messageId of the current position.
-        if (position.getEntryId() == -1) {
-            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, position.getLedgerId(),
-                    position.getEntryId(), partitionIndex, -1));
+        if (lastPosition.getEntryId() == -1) {
+            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                    lastPosition.getLedgerId(), lastPosition.getEntryId(), partitionIndex, -1,
+                    markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                    markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
             return;
         }
 
         // For a valid position, we read the entry out and parse the batch size from its metadata.
         CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
-        ml.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+        ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 entryFuture.complete(entry);
@@ -1638,11 +1649,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
-                            topic.getName(), subscriptionName, position, partitionIndex);
+                            topic.getName(), subscriptionName, lastPosition, partitionIndex);
                 }
 
-                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, position.getLedgerId(),
-                        position.getEntryId(), partitionIndex, largestBatchIndex));
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, lastPosition.getLedgerId(),
+                        lastPosition.getEntryId(), partitionIndex, largestBatchIndex,
+                        markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                        markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
             }
         });
     }

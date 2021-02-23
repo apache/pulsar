@@ -61,7 +61,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         resetConfig();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }

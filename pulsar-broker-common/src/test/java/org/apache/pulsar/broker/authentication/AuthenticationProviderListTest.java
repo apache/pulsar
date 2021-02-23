@@ -125,7 +125,7 @@ public class AuthenticationProviderListTest {
             Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         this.authProvider.close();
     }

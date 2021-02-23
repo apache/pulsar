@@ -21,13 +21,14 @@ package org.apache.pulsar.client.impl;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 
 public class ReaderImpl<T> implements Reader<T> {
@@ -38,7 +39,7 @@ public class ReaderImpl<T> implements Reader<T> {
     private final ConsumerImpl<T> consumer;
 
     public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                      ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema)
+                      ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema)
             throws PulsarClientException.InvalidConfigurationException {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
@@ -102,7 +103,7 @@ public class ReaderImpl<T> implements Reader<T> {
 
         final int partitionIdx = TopicName.getPartitionIndex(readerConfiguration.getTopicName());
         consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration,
-                listenerExecutor, partitionIdx, false, consumerFuture,
+                executorProvider, partitionIdx, false, consumerFuture,
                 readerConfiguration.getStartMessageId(), readerConfiguration.getStartMessageFromRollbackDurationInSec(),
                 schema, null, true /* createTopicIfDoesNotExist */);
     }
