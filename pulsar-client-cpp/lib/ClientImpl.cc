@@ -82,6 +82,7 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       state_(Open),
       serviceUrl_(serviceUrl),
       clientConfiguration_(detectTls(serviceUrl, clientConfiguration)),
+      memoryLimitController_(clientConfiguration.getMemoryLimit()),
       ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getIOThreads())),
       listenerExecutorProvider_(
           std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),
@@ -124,6 +125,8 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
 ClientImpl::~ClientImpl() { shutdown(); }
 
 const ClientConfiguration& ClientImpl::conf() const { return clientConfiguration_; }
+
+MemoryLimitController& ClientImpl::getMemoryLimitController() { return memoryLimitController_; }
 
 ExecutorServiceProviderPtr ClientImpl::getIOExecutorProvider() { return ioExecutorProvider_; }
 

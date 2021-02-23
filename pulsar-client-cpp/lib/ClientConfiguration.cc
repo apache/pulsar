@@ -31,6 +31,13 @@ ClientConfiguration& ClientConfiguration::operator=(const ClientConfiguration& x
     return *this;
 }
 
+ClientConfiguration& ClientConfiguration::setMemoryLimit(uint64_t memoryLimitBytes) {
+    impl_->memoryLimit = memoryLimitBytes;
+    return *this;
+}
+
+uint64_t ClientConfiguration::getMemoryLimit() const { return impl_->memoryLimit; }
+
 ClientConfiguration& ClientConfiguration::setAuth(const AuthenticationPtr& authentication) {
     impl_->authenticationPtr = authentication;
     return *this;

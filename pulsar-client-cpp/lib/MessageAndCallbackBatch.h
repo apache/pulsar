@@ -71,10 +71,16 @@ class MessageAndCallbackBatch : public boost::noncopyable {
     const MessageImplPtr& msgImpl() const { return msgImpl_; }
     uint64_t sequenceId() const noexcept { return sequenceId_; }
 
+    uint32_t messagesCount() const { return messagesCount_; }
+    uint64_t messagesSize() const { return messagesSize_; }
+
    private:
     MessageImplPtr msgImpl_;
     std::vector<SendCallback> callbacks_;
     std::atomic<uint64_t> sequenceId_{static_cast<uint64_t>(-1L)};
+
+    uint32_t messagesCount_{0};
+    uint64_t messagesSize_{0ull};
 };
 
 }  // namespace pulsar

@@ -34,8 +34,8 @@ BatchMessageContainer::BatchMessageContainer(const ProducerImpl& producer)
 
 BatchMessageContainer::~BatchMessageContainer() {
     LOG_DEBUG(*this << " destructed");
-    LOG_INFO("[numberOfBatchesSent = " << numberOfBatchesSent_
-                                       << "] [averageBatchSize_ = " << averageBatchSize_ << "]");
+    LOG_DEBUG("[numberOfBatchesSent = " << numberOfBatchesSent_
+                                        << "] [averageBatchSize_ = " << averageBatchSize_ << "]");
 }
 
 bool BatchMessageContainer::add(const Message& msg, const SendCallback& callback) {

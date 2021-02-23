@@ -156,6 +156,9 @@ const char* strResult(Result result) {
 
         case ResultProducerFenced:
             return "ResultProducerFenced";
+
+        case ResultMemoryBufferIsFull:
+            return "ResultMemoryBufferIsFull";
     };
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding

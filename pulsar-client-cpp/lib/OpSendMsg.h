@@ -34,18 +34,20 @@ struct OpSendMsg {
     uint64_t producerId_;
     uint64_t sequenceId_;
     boost::posix_time::ptime timeout_;
+    uint32_t messagesCount_;
+    uint64_t messagesSize_;
 
     OpSendMsg() = default;
 
     OpSendMsg(const Message& msg, const SendCallback& sendCallback, uint64_t producerId, uint64_t sequenceId,
-              int sendTimeoutMs)
+              int sendTimeoutMs, uint32_t messagesCount, uint64_t messagesSize)
         : msg_(msg),
           sendCallback_(sendCallback),
           producerId_(producerId),
           sequenceId_(sequenceId),
-          timeout_(TimeUtils::now() + milliseconds(sendTimeoutMs)) {}
-
-    uint32_t num_messages_in_batch() const { return msg_.impl_->metadata.num_messages_in_batch(); }
+          timeout_(TimeUtils::now() + milliseconds(sendTimeoutMs)),
+          messagesCount_(messagesCount),
+          messagesSize_(messagesSize) {}
 };
 
 }  // namespace pulsar
