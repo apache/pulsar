@@ -31,7 +31,7 @@ RUN apt-get update && \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless openjdk-11-jdk-headless clang-format-5.0 \
-                gnupg2 golang-1.13-go zip unzip libzstd-dev libsnappy-dev python3-pip
+                gnupg2 golang-1.13-go zip unzip libzstd-dev libsnappy-dev python3-pip python-pip
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
