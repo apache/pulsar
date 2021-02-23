@@ -28,10 +28,18 @@ RUN apt-get update && \
     add-apt-repository ppa:openjdk-r/ppa && \
     apt-get update && \
     apt-get install -y tig g++ cmake libssl-dev libcurl4-openssl-dev \
-                liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
+                liblog4cxx-dev libprotobuf-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless openjdk-11-jdk-headless clang-format-5.0 \
                 gnupg2 golang-1.13-go zip unzip libzstd-dev libsnappy-dev python3-pip
+
+# Compile and install Boost because Boost.Python for Python3 is required
+RUN apt-get install -y curl
+RUN cd /usr/src && curl -O -L https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.gz && \
+    tar zxf boost_1_75_0.tar.gz && cd boost_1_75_0 && \
+    ./bootstrap.sh --with-python=/usr/bin/python3 --with-libraries=program_options,filesystem,regex,thread,system,python && \
+    ./b2 address-model=64 cxxflags=-fPIC link=static threading=multi variant=release install && \
+    cd .. && rm -rf boost_1_75_0 boost_1_75_0.tar.gz
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
