@@ -91,6 +91,7 @@ flexible messaging model and an intuitive client API.</description>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
     <docker.organization>apachepulsar</docker.organization>
+    <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
 
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
@@ -369,7 +370,7 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-      
+
       <dependency>
          <groupId>org.apache.curator</groupId>
          <artifactId>curator-recipes</artifactId>
@@ -640,7 +641,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jna</artifactId>
         <version>${jna.version}</version>
       </dependency>
-      
+
       <dependency>
          <groupId>com.github.docker-java</groupId>
          <artifactId>docker-java-core</artifactId>
@@ -1119,6 +1120,9 @@ flexible messaging model and an intuitive client API.</description>
               <version>${lombok.version}</version>
             </path>
           </annotationProcessorPaths>
+          <compilerArgs>
+            <arg>-parameters</arg>
+          </compilerArgs>
         </configuration>
       </plugin>
       <plugin>
@@ -1391,6 +1395,7 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
           <version>${maven-assembly-plugin.version}</version>
+          <inherited>false</inherited>
           <dependencies>
               <dependency>
                   <groupId>org.apache.apache.resources</groupId>
@@ -1406,6 +1411,7 @@ flexible messaging model and an intuitive client API.</description>
                       <goal>single</goal>
                   </goals>
                   <configuration>
+                      <skipAssembly>${skipSourceReleaseAssembly}</skipAssembly>
                       <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
                       <descriptorRefs>
                           <!-- defined in Apache Parent Pom -->
@@ -1748,6 +1754,9 @@ flexible messaging model and an intuitive client API.</description>
     <!-- core profile focused of pulsar java modules -->
     <profile>
       <id>core-modules</id>
+      <properties>
+        <skipSourceReleaseAssembly>true</skipSourceReleaseAssembly>
+      </properties>
       <modules>
         <module>buildtools</module>
         <module>testmocks</module>
@@ -1914,6 +1923,12 @@ flexible messaging model and an intuitive client API.</description>
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>integrationTests</id>
+      <modules>
+        <module>tests</module>
+      </modules>
     </profile>
   </profiles>
 

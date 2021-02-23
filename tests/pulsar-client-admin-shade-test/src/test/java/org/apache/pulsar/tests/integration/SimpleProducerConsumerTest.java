@@ -84,7 +84,7 @@ public class SimpleProducerConsumerTest {
         admin.close();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup() throws PulsarClientException {
         pulsarClient.close();
         pulsarContainer.stop();

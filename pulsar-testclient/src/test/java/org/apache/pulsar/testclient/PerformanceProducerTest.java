@@ -50,7 +50,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

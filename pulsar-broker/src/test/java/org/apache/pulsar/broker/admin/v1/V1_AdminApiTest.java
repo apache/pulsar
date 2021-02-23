@@ -599,7 +599,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(invocationCount = 1)
+    @Test
     public void namespaces() throws PulsarAdminException, PulsarServerException, Exception {
         admin.clusters().createCluster("usw", new ClusterData());
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
@@ -650,7 +650,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
 
         policies.max_unacked_messages_per_subscription = 200000;
-        policies.max_unacked_messages_per_consumer = 50000;
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/use/ns1"), policies.auth_policies.namespace_auth);

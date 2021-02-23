@@ -67,7 +67,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
-import org.apache.zookeeper.KeeperException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,12 +103,11 @@ public class Namespaces extends NamespacesBase {
                     property, cluster);
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         }
-
         try {
-            for (String namespace : globalZk().getChildren(path(POLICIES, property, cluster), false)) {
+            for (String namespace : clusterResources().getChildren(path(POLICIES, property, cluster))) {
                 namespaces.add(String.format("%s/%s/%s", property, cluster, namespace));
             }
-        } catch (KeeperException.NoNodeException e) {
+        } catch (NotFoundException e) {
             // NoNode means there are no namespaces for this property on the specified cluster, returning empty list
         } catch (Exception e) {
             log.error("[{}] Failed to get namespaces list: {}", clientAppId(), e);
