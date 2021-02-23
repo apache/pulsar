@@ -326,7 +326,7 @@ class SchemaTest(TestCase):
         s = JsonSchema(Example)
         r = Example(a=1, b=2)
         data = s.encode(r)
-        self.assertEqual(json.loads(data), {'a': 1, 'b': 2})
+        self.assertEqual(json.loads(data.decode()), {'a': 1, 'b': 2})
 
         r2 = s.decode(data)
         self.assertEqual(r2.__class__.__name__, 'Example')

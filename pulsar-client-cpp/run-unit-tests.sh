@@ -45,10 +45,10 @@ popd
 if [ $RES -eq 0 ]; then
     pushd python
     echo "---- Build Python Wheel file"
-    python setup.py bdist_wheel
+    python3 setup.py bdist_wheel
 
     echo "---- Installing  Python Wheel file"
-    pip install dist/pulsar_client-*-linux_x86_64.whl
+    pip3 install dist/pulsar_client-*-linux_x86_64.whl
 
     echo "---- Running Python unit tests"
 
@@ -57,7 +57,7 @@ if [ $RES -eq 0 ]; then
     cp *_test.py /tmp
     pushd /tmp
 
-    python pulsar_test.py
+    python3 pulsar_test.py
     RES=$?
 
     echo "---- Running Python Function Instance unit tests"
