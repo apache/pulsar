@@ -112,12 +112,15 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Is return precise backlog or imprecise backlog")
-            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
+            @ApiParam(value = "If return precise backlog or imprecise backlog")
+            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
+            @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
+                    + "not to use when there's heavy traffic.")
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminOperationOnTopic(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog);
+        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, subscriptionBacklogSize);
     }
 
     @GET
@@ -336,8 +339,14 @@ public class NonPersistentTopics extends PersistentTopics {
                         bundleRange);
                 asyncResponse.resume(Response.noContent().build());
             } else {
-                NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles,
+                NamespaceBundle nsBundle;
+                try {
+                    nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles,
                         bundleRange, true, true);
+                } catch (WebApplicationException wae) {
+                    asyncResponse.resume(wae);
+                    return;
+                }
                 try {
                     final List<String> topicList = Lists.newArrayList();
                     pulsar().getBrokerService().forEachTopic(topic -> {
@@ -348,11 +357,20 @@ public class NonPersistentTopics extends PersistentTopics {
                     });
                     asyncResponse.resume(topicList);
                 } catch (Exception e) {
-                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(),
+                    log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
                             namespaceName, bundleRange, e);
                     asyncResponse.resume(new RestException(e));
                 }
             }
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
+                namespaceName, bundleRange, ex);
+            if (ex.getCause() instanceof WebApplicationException) {
+                asyncResponse.resume(ex.getCause());
+            } else {
+                asyncResponse.resume(new RestException(ex.getCause()));
+            }
+            return null;
         });
     }
 

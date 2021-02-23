@@ -255,6 +255,7 @@ enum ProtocolVersion {
               // Added Key_Shared subscription
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
     v16 = 16; // Add support for raw message metadata
+    v17 = 17; // Added support ack receipt
 }
 
 message CommandConnect {
@@ -701,6 +702,7 @@ message CommandGetLastMessageId {
 message CommandGetLastMessageIdResponse {
     required MessageIdData last_message_id = 1;
     required uint64 request_id  = 2;
+    optional MessageIdData consumer_mark_delete_position = 3;
 }
 
 message CommandGetTopicsOfNamespace {

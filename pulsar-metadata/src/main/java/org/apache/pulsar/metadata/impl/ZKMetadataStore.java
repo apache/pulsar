@@ -20,8 +20,8 @@ package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import java.io.IOException;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -32,14 +32,16 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.metadata.api.GetResult;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -49,20 +51,28 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 
 @Slf4j
-public class ZKMetadataStore extends AbstractMetadataStore implements MetadataStore, Watcher {
+public class ZKMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended, Watcher {
 
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
+    private ZKSessionWatcher sessionWatcher;
 
-    public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws IOException {
+    public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
         try {
             isZkManaged = true;
             zkc = ZooKeeperClient.newBuilder().connectString(metadataURL)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
-                    .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis()).build();
-        } catch (KeeperException | InterruptedException e) {
-            throw new IOException(e);
+                    .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
+                    .watchers(Collections.singleton(event -> {
+                        if (sessionWatcher != null) {
+                            sessionWatcher.process(event);
+                        }
+                    }))
+                    .build();
+            sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+        } catch (Throwable t) {
+            throw new MetadataStoreException(t);
         }
     }
 
@@ -70,6 +80,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     public ZKMetadataStore(ZooKeeper zkc) {
         this.isZkManaged = false;
         this.zkc = zkc;
+        this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
     }
 
     @Override
@@ -81,7 +92,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                 executor.execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
-                        future.complete(Optional.of(new GetResult(data, getStat(stat))));
+                        future.complete(Optional.of(new GetResult(data, getStat(path1, stat))));
                     } else if (code == Code.NONODE) {
                         // Place a watch on the non-existing node, so we'll get notified
                         // when it gets created and we can invalidate the negative cache.
@@ -182,6 +193,12 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
     @Override
     public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> optExpectedVersion) {
+        return put(path, value, optExpectedVersion, EnumSet.noneOf(CreateOption.class));
+    }
+
+    @Override
+    public CompletableFuture<Stat> storePut(String path, byte[] value, Optional<Long> optExpectedVersion,
+            EnumSet<CreateOption> options) {
         boolean hasVersion = optExpectedVersion.isPresent();
         int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
@@ -190,11 +207,11 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         try {
             if (hasVersion && expectedVersion == -1) {
                 ZkUtils.asyncCreateFullPathOptimistic(zkc, path, value, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT, (rc, path1, ctx, name) -> {
+                        getCreateMode(options), (rc, path1, ctx, name) -> {
                             executor.execute(() -> {
                                 Code code = Code.get(rc);
                                 if (code == Code.OK) {
-                                    future.complete(new Stat(0, 0, 0));
+                                    future.complete(new Stat(name, 0, 0, 0));
                                 } else if (code == Code.NODEEXISTS) {
                                     // We're emulating a request to create node, so the version is invalid
                                     future.completeExceptionally(getException(Code.BADVERSION, path));
@@ -208,7 +225,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     executor.execute(() -> {
                         Code code = Code.get(rc);
                         if (code == Code.OK) {
-                            future.complete(getStat(stat));
+                            future.complete(getStat(path1, stat));
                         } else if (code == Code.NONODE) {
                             if (hasVersion) {
                                 // We're emulating here a request to update or create the znode, depending on
@@ -236,7 +253,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     }
 
     @Override
-    public CompletableFuture<Void> delete(String path, Optional<Long> optExpectedVersion) {
+    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
         int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -264,11 +281,12 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         if (isZkManaged) {
             zkc.close();
         }
+        sessionWatcher.close();
         super.close();
     }
 
-    private static Stat getStat(org.apache.zookeeper.data.Stat zkStat) {
-        return new Stat(zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime());
+    private static Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
+        return new Stat(path, zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime());
     }
 
     private static MetadataStoreException getException(Code code, String path) {
@@ -279,6 +297,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             return new BadVersionException(ex);
         case NONODE:
             return new NotFoundException(ex);
+        case NODEEXISTS:
+            return new AlreadyExistsException(ex);
         default:
             return new MetadataStoreException(ex);
         }
@@ -318,5 +338,19 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         }
 
         receivedNotification(new Notification(type, event.getPath()));
+    }
+
+    private static CreateMode getCreateMode(EnumSet<CreateOption> options) {
+        if (options.contains(CreateOption.Ephemeral)) {
+            if (options.contains(CreateOption.Sequential)) {
+                return CreateMode.EPHEMERAL_SEQUENTIAL;
+            } else {
+                return CreateMode.EPHEMERAL;
+            }
+        } else if (options.contains(CreateOption.Sequential)) {
+            return CreateMode.PERSISTENT_SEQUENTIAL;
+        } else {
+            return CreateMode.PERSISTENT;
+        }
     }
 }

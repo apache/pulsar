@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
@@ -58,6 +59,33 @@ public class ConsumerBuilderImplTest {
         when(consumerBuilderImpl.subscribeAsync())
                 .thenReturn(CompletableFuture.completedFuture(consumer));
         assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
+    }
+
+    @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
+    public void testConsumerBuilderImplDLQForKeySharedNotAllowed() throws PulsarClientException {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConsumerBuilderImpl consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
+        consumerBuilderImpl.topic("my-topic")
+                .subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
+                .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic("my-DLQ").build())
+                .subscribe();
+    }
+
+    @Test
+    public void testConsumerBuilderImplDLQForRetry() throws PulsarClientException {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        CompletableFuture future = new CompletableFuture<>();
+        future.complete(null);
+        when(client.subscribeAsync(any(), any(), any())).thenReturn(future);
+        ConsumerBuilderImpl consumerBuilderImpl = new ConsumerBuilderImpl(client, Schema.BYTES);
+        consumerBuilderImpl.topic("my-topic")
+                .subscriptionName("my-sub")
+                .enableRetry(true)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
+                .subscribe();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -119,6 +147,29 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .cryptoKeyReader(null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullString() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader((String) null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyString() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName").defaultCryptoKeyReader("");
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullMap() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader((Map<String, String>) null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyMap() {
+        consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
+                .defaultCryptoKeyReader(new HashMap<String, String>());
     }
 
     @Test(expectedExceptions = NullPointerException.class)

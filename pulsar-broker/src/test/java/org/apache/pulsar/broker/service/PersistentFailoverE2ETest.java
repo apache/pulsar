@@ -270,6 +270,11 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @Test
     public void testSimpleConsumerEventsWithPartition() throws Exception {
+        // Resetting ActiveConsumerFailoverDelayTimeMillis else if testActiveConsumerFailoverWithDelay get executed
+        // first could cause this test to fail.
+        conf.setActiveConsumerFailoverDelayTimeMillis(0);
+        restartBroker();
+
         int numPartitions = 4;
 
         final String topicName = "persistent://prop/use/ns-abc/testSimpleConsumerEventsWithPartition-" + System.nanoTime();

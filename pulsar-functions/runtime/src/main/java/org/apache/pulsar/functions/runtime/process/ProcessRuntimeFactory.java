@@ -34,6 +34,7 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import java.nio.file.Paths;
@@ -50,6 +51,7 @@ import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuth
 public class ProcessRuntimeFactory implements RuntimeFactory {
 
     private String pulsarServiceUrl;
+    private String pulsarWebServiceUrl;
     private String stateStorageServiceUrl;
     private boolean authenticationEnabled;
     private AuthenticationConfig authConfig;
@@ -72,6 +74,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
+                                 String pulsarWebServiceUrl,
                                  String stateStorageServiceUrl,
                                  AuthenticationConfig authConfig,
                                  String javaInstanceJarFile,
@@ -84,7 +87,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  Optional<FunctionAuthProvider> functionAuthProvider,
                                  Optional<RuntimeCustomizer> runtimeCustomizer) {
 
-        initialize(pulsarServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
+        initialize(pulsarServiceUrl, pulsarWebServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
                 pythonInstanceFile, logDirectory, extraDependenciesDir, narExtractionDirectory,
                 secretsProviderConfigurator, authenticationEnabled, functionAuthProvider, runtimeCustomizer);
     }
@@ -92,12 +95,14 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     @Override
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
+                           ConnectorsManager connectorsManager,
                            Optional<FunctionAuthProvider> authProvider,
                            Optional<RuntimeCustomizer> runtimeCustomizer) {
         ProcessRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
                 workerConfig.getFunctionRuntimeFactoryConfigs(), ProcessRuntimeFactoryConfig.class);
 
         initialize(workerConfig.getPulsarServiceUrl(),
+                workerConfig.getPulsarWebServiceUrl(),
                 workerConfig.getStateStorageServiceUrl(),
                 authenticationConfig,
                 factoryConfig.getJavaInstanceJarLocation(),
@@ -112,6 +117,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     }
 
     private void initialize(String pulsarServiceUrl,
+                            String pulsarWebServiceUrl,
                             String stateStorageServiceUrl,
                             AuthenticationConfig authConfig,
                             String javaInstanceJarFile,
@@ -124,6 +130,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                             Optional<FunctionAuthProvider> functionAuthProvider,
                             Optional<RuntimeCustomizer> runtimeCustomizer) {
         this.pulsarServiceUrl = pulsarServiceUrl;
+        this.pulsarWebServiceUrl = pulsarWebServiceUrl;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.authConfig = authConfig;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
@@ -220,7 +227,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             stateStorageServiceUrl,
             authConfig,
             secretsProviderConfigurator,
-            expectedHealthCheckInterval);
+            expectedHealthCheckInterval,
+            pulsarWebServiceUrl);
     }
 
     @Override

@@ -261,7 +261,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
             }
             // first time init
             headers.put(SASL_HEADER_STATE, SASL_STATE_CLIENT_INIT);
-            AuthData initData = authData.authenticate(AuthData.of(AuthData.INIT_AUTH_DATA));
+            AuthData initData = authData.authenticate(AuthData.INIT_AUTH_DATA);
             headers.put(SASL_AUTH_TOKEN,
                 Base64.getEncoder().encodeToString(initData.getBytes()));
         } else {

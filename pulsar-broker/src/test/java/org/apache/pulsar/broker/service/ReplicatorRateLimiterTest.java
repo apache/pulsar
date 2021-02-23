@@ -69,6 +69,9 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     @AfterClass(alwaysRun = true, timeOut = 300000)
     void shutdown() throws Exception {
         super.shutdown();
+        resetConfig1();
+        resetConfig2();
+        resetConfig3();
     }
 
     enum DispatchRateType {

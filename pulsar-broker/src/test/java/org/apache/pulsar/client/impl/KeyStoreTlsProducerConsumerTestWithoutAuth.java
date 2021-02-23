@@ -121,7 +121,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuth extends ProducerConsumer
             authParams.put(AuthenticationKeyStoreTls.KEYSTORE_PW, CLIENT_KEYSTORE_PW);
             clientBuilder.authentication(AuthenticationKeyStoreTls.class.getName(), authParams);
         }
-        pulsarClient = clientBuilder.build();
+        replacePulsarClient(clientBuilder);
     }
 
     protected void internalSetUpForNamespace() throws Exception {

@@ -112,7 +112,7 @@ public abstract class BookKeeperClusterTestCase {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         // stop bookkeeper service
         stopBKCluster();

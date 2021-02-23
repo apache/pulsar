@@ -82,6 +82,12 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                     Object ctx, PositionImpl maxPosition) {
+            callback.readEntriesComplete(null, ctx);
+        }
+
+        @Override
         public boolean hasMoreEntries() {
             return true;
         }

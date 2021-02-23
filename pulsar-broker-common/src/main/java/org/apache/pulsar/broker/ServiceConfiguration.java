@@ -403,6 +403,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int subscriptionExpiryCheckIntervalInMinutes = 5;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Enable subscription types (default is all type enabled)"
+    )
+    private Set<String> subscriptionTypesEnabled =
+            Sets.newHashSet("Exclusive", "Shared", "Failover", "Key_Shared");
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "Enable Key_Shared subscription (default is enabled)"
@@ -684,6 +692,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
          doc = "Precise dispatcher flow control according to history message number of each entry"
     )
     private boolean preciseDispatcherFlowControl = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed " +
+                "in subsequent release."
+    )
+    private boolean streamingDispatch = false;
 
     @FieldContext(
         dynamic = true,
@@ -1070,6 +1085,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " and resolving its metadata service location"
     )
     private String bookkeeperMetadataServiceUri;
+
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Authentication plugin to use when connecting to bookies"
@@ -1339,6 +1355,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "if allowAutoTopicCreationType is partitioned."
     )
     private int defaultNumPartitions = 1;
+    @FieldContext(
+        category = CATEGORY_STORAGE_ML,
+        doc = "The class of the managed ledger storage"
+    )
+    private String managedLedgerStorageClassName = "org.apache.pulsar.broker.ManagedLedgerClientFactory";
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger tasks dispatching"
@@ -1815,6 +1836,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeConsumerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "If true, export producer level metrics otherwise namespace level"
+    )
+    private boolean exposeProducerLevelMetricsInPrometheus = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 
@@ -1825,6 +1851,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             " this would be more efficient but may be inaccurate. Default is false."
     )
     private boolean exposePreciseBacklogInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable expose the backlog size for each subscription when generating stats.\n" +
+                    " Locking is used for fetching the status so default to false."
+    )
+    private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(
