@@ -29,6 +29,9 @@ import java.util.Objects;
 import java.util.Optional;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
@@ -37,11 +40,15 @@ import org.apache.pulsar.common.api.raw.RawMessageImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 
@@ -72,6 +79,9 @@ public class TestPulsarKeyValueSchemaHandler {
     private final static Boo boo;
 
     private final Integer KEY_FIELD_NAME_PREFIX_LENGTH = PulsarColumnMetadata.KEY_SCHEMA_COLUMN_PREFIX.length();
+
+    private Schema<KeyValue<Boo, Foo>> schema5 =
+            Schema.KeyValue(Schema.AVRO(Boo.class), Schema.AVRO(Foo.class), KeyValueEncodingType.SEPARATED);
 
     static {
         foo = new Foo();
@@ -108,7 +118,7 @@ public class TestPulsarKeyValueSchemaHandler {
         List<PulsarColumnHandle> columnHandleList = getColumnHandlerList(columnMetadataList);
 
         KeyValueSchemaHandler keyValueSchemaHandler =
-                new KeyValueSchemaHandler(null, null,schema1.getSchemaInfo(), columnHandleList);
+                new KeyValueSchemaHandler(null, null, schema1.getSchemaInfo(), columnHandleList);
 
         RawMessageImpl message = mock(RawMessageImpl.class);
         Mockito.when(message.getData()).thenReturn(
@@ -219,6 +229,68 @@ public class TestPulsarKeyValueSchemaHandler {
         Assert.assertEquals(keyValueSchemaHandler.extractField(2, object),
                 boo.getValue(columnHandleList.get(2).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
         Assert.assertEquals(keyValueSchemaHandler.extractField(3, object), valueData);
+    }
+
+    @Test
+    public void testKeyValueSeparatedSchema() throws IOException, PulsarAdminException {
+        final Boo boo = new Boo();
+        boo.field1 = "field1-value";
+        boo.field2 = true;
+        boo.field3 = 10.2;
+
+        final Foo foo = new Foo();
+        foo.field1 = "file2-value";
+        foo.field2 = 200;
+
+        List<ColumnMetadata> columnMetadataList =
+                PulsarMetadata.getPulsarColumns(topicName, schema3.getSchemaInfo(),
+                        true, null);
+        int keyCount = 0;
+        int valueCount = 0;
+        for (ColumnMetadata columnMetadata : columnMetadataList) {
+            PulsarColumnMetadata pulsarColumnMetadata = (PulsarColumnMetadata) columnMetadata;
+            if (pulsarColumnMetadata.isKey()) {
+                keyCount++;
+            } else if (pulsarColumnMetadata.isValue()) {
+                valueCount++;
+            }
+        }
+        Assert.assertEquals(keyCount, 3);
+        Assert.assertEquals(valueCount, 1);
+
+        List<PulsarColumnHandle> columnHandleList = getColumnHandlerList(columnMetadataList);
+
+        PulsarConnectorConfig pulsarConnectorConfig = mock(PulsarConnectorConfig.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        Schemas schemas = mock(Schemas.class);
+        doReturn(admin).when(pulsarConnectorConfig).getPulsarAdmin();
+        doReturn(schemas).when(admin).schemas();
+        doReturn(schema5.getSchemaInfo()).when(schemas).getSchemaInfo(anyString(), anyLong());
+        KeyValueSchemaHandler keyValueSchemaHandler =
+                new KeyValueSchemaHandler(topicName, pulsarConnectorConfig, schema5.getSchemaInfo(), columnHandleList);
+
+        RawMessage message = mock(RawMessage.class);
+        Mockito.when(message.getKeyBytes()).thenReturn(
+                Optional.of(Unpooled.wrappedBuffer(
+                        ((KeyValueSchema) schema5).getKeySchema().encode(boo)
+                ))
+        );
+        Mockito.when(message.getData()).thenReturn(
+                Unpooled.wrappedBuffer(schema5.encode(new KeyValue<>(boo, foo)))
+        );
+
+        KeyValue<ByteBuf, ByteBuf> byteBufKeyValue = getKeyValueByteBuf(message, schema5);
+        Object object = keyValueSchemaHandler.deserialize(byteBufKeyValue.getKey(), byteBufKeyValue.getValue(), new LongSchemaVersion(1).bytes());
+        Assert.assertEquals(keyValueSchemaHandler.extractField(0, object).toString(),
+                boo.getValue(columnHandleList.get(0).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
+        Assert.assertEquals(keyValueSchemaHandler.extractField(1, object),
+                boo.getValue(columnHandleList.get(1).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
+        Assert.assertEquals(keyValueSchemaHandler.extractField(2, object),
+                boo.getValue(columnHandleList.get(2).getName().substring(KEY_FIELD_NAME_PREFIX_LENGTH)));
+        Assert.assertEquals(keyValueSchemaHandler.extractField(3, object),
+                foo.getValue(columnHandleList.get(3).getName()));
+        Assert.assertEquals(keyValueSchemaHandler.extractField(4, object),
+                foo.getValue(columnHandleList.get(4).getName()));
     }
 
     @Test

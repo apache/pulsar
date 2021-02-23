@@ -52,9 +52,9 @@ public class KeyValueSchemaHandler implements SchemaHandler {
         this.columnHandles = columnHandles;
         KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
         keySchemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(topicName, pulsarConnectorConfig,
-                kvSchemaInfo.getKey(), columnHandles);
+                kvSchemaInfo.getKey(), columnHandles, PulsarSqlSchemaInfoProvider.Type.Key);
         valueSchemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(topicName, pulsarConnectorConfig,
-                kvSchemaInfo.getValue(), columnHandles);
+                kvSchemaInfo.getValue(), columnHandles, PulsarSqlSchemaInfoProvider.Type.Value);
         keyValueEncodingType = KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo);
     }
 

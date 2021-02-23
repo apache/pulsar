@@ -33,7 +33,8 @@ class PulsarSchemaHandlers {
     static SchemaHandler newPulsarSchemaHandler(TopicName topicName,
                                                 PulsarConnectorConfig pulsarConnectorConfig,
                                                 SchemaInfo schemaInfo,
-                                                List<PulsarColumnHandle> columnHandles) throws RuntimeException{
+                                                List<PulsarColumnHandle> columnHandles,
+                                                PulsarSqlSchemaInfoProvider.Type type) throws RuntimeException{
         if (schemaInfo.getType().isPrimitive()) {
             return new PulsarPrimitiveSchemaHandler(schemaInfo);
         } else if (schemaInfo.getType().isStruct()) {
@@ -42,7 +43,7 @@ class PulsarSchemaHandlers {
                     case JSON:
                         return new JSONSchemaHandler(columnHandles);
                     case AVRO:
-                        return new AvroSchemaHandler(topicName, pulsarConnectorConfig, schemaInfo, columnHandles);
+                        return new AvroSchemaHandler(topicName, pulsarConnectorConfig, schemaInfo, columnHandles, type);
                     default:
                         throw new PrestoException(NOT_SUPPORTED, "Not supported schema type: " + schemaInfo.getType());
                 }
