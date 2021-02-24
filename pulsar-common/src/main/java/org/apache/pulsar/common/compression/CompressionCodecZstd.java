@@ -95,7 +95,7 @@ public class CompressionCodecZstd implements CompressionCodec {
         } else {
             ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
             ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
-            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio, uncompressedLength);
+            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
             ZSTD_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
         }
 

@@ -24,7 +24,9 @@ import org.apache.pulsar.client.api.KeyStoreParams;
 
 @Slf4j
 public class AuthenticationDataKeyStoreTls implements AuthenticationDataProvider {
-    private final KeyStoreParams keyStoreParams;
+
+    private static final long serialVersionUID = 1L;
+    private transient final KeyStoreParams keyStoreParams;
 
     public AuthenticationDataKeyStoreTls(KeyStoreParams keyStoreParams) throws Exception {
         this.keyStoreParams = keyStoreParams;

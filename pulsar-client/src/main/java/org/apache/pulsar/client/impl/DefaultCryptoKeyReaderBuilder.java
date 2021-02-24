@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.util.HashMap;
 import java.util.Map;
- 
 import org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData;
  
 public class DefaultCryptoKeyReaderBuilder implements Cloneable {
