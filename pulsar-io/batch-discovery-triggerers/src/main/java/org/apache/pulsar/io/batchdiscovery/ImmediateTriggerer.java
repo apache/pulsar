@@ -26,11 +26,6 @@ import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
-<<<<<<< HEAD
-=======
-
-import lombok.extern.slf4j.Slf4j;
->>>>>>> Simplified the implementation. Removed unnecessary thread
 
 @Slf4j
 public class ImmediateTriggerer implements BatchSourceTriggerer {
@@ -39,7 +34,6 @@ public class ImmediateTriggerer implements BatchSourceTriggerer {
   public void init(Map<String, Object> map, SourceContext sourceContext) throws Exception {
     log.info("Initialized ImmediateTrigger at: {}",  DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(LocalDate.now()));
   }
-<<<<<<< HEAD
 
   @Override
   public void start(Consumer<String> consumer) {
@@ -47,15 +41,6 @@ public class ImmediateTriggerer implements BatchSourceTriggerer {
   }
 
   @Override
-=======
-
-  @Override
-  public void start(Consumer<String> consumer) {
-    consumer.accept("");
-  }
-
-  @Override
->>>>>>> Simplified the implementation. Removed unnecessary thread
   public void stop() {
 
   }
