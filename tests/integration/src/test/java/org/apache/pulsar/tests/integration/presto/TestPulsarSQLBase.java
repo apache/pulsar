@@ -216,7 +216,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         assertThat(returnedTimestamps.size()).isEqualTo(0);
     }
 
-    public static ContainerExecResult execQuery(final String query) throws Exception {
+    public ContainerExecResult execQuery(final String query) throws Exception {
         ContainerExecResult containerExecResult;
 
         containerExecResult = pulsarCluster.getPrestoWorkerContainer()
