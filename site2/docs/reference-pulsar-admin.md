@@ -1819,12 +1819,21 @@ Subcommands
 * `get-message-ttl`
 * `set-message-ttl`
 * `remove-message-ttl`
+* `get-deduplication`
+* `set-deduplication`
+* `remove-deduplication`
 * `get-retention`
 * `set-retention`
 * `remove-retention`
 * `get-dispatch-rate`
 * `set-dispatch-rate`
 * `remove-dispatch-rate`
+* `get-max-unacked-messages-per-subscription`
+* `set-max-unacked-messages-per-subscription`
+* `remove-max-unacked-messages-per-subscription`
+* `get-max-unacked-messages-per-consumer`
+* `set-max-unacked-messages-per-consumer`
+* `remove-max-unacked-messages-per-consumer`
 * `get-delayed-delivery`
 * `set-delayed-delivery`
 * `remove-delayed-delivery`
@@ -2348,6 +2357,30 @@ Options
 |`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
 |`--disable`, `-d`|Disable message deduplication on the specified topic.|false|
 
+### `get-deduplication`
+Get a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-deduplication tenant/namespace/topic
+```
+
+### `set-deduplication`
+Set a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-deduplication tenant/namespace/topic options
+```
+
+### `remove-deduplication`
+Remove a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-deduplication tenant/namespace/topic
+```
+
 ### `get-retention`
 Get the retention policy that is applied to a topic.
 
@@ -2394,6 +2427,54 @@ Remove the message dispatch rate for a topic.
 Usage
 ```bash
 $ pulsar-admin topics remove-dispatch-rate tenant/namespace/topic
+```
+
+### `get-max-unacked-messages-per-subscription`
+Get the maximum number of unacked messages per subscription for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-max-unacked-messages-per-subscription tenant/namespace/topic
+```
+
+### `set-max-unacked-messages-per-subscription`
+Set the maximum number of unacked messages per subscription for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-max-unacked-messages-per-subscription tenant/namespace/topic options
+```
+
+### `remove-max-unacked-messages-per-subscription`
+Remove the maximum number of unacked messages per subscription for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-max-unacked-messages-per-subscription tenant/namespace/topic
+```
+
+### `get-max-unacked-messages-per-consumer`
+Get the maximum number of unacked messages per consumer for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-max-unacked-messages-per-consumer tenant/namespace/topic
+```
+
+### `set-max-unacked-messages-per-consumer`
+Set the maximum number of unacked messages per consumer for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-max-unacked-messages-per-consumer tenant/namespace/topic options
+```
+
+### `remove-max-unacked-messages-per-consumer`
+Remove the maximum number of unacked messages per consumer for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-max-unacked-messages-per-consumer tenant/namespace/topic
 ```
 
 ### `get-delayed-delivery`
