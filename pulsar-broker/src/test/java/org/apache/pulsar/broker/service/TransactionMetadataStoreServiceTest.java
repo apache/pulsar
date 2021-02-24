@@ -233,7 +233,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
     @Test
     public void testEndTransactionOpRetry() throws Exception {
-        int timeOut = 10000;
+        int timeOut = 3000;
         pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
         Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS)
                 .until(() -> pulsar.getTransactionMetadataStoreService()

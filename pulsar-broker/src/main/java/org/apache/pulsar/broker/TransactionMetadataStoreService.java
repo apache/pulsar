@@ -236,7 +236,7 @@ public class TransactionMetadataStoreService {
         completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
                 .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction));
         completableFuture.exceptionally(e -> {
-                    if (!isRetryableException(e)) {
+                    if (!isRetryableException(e.getCause())) {
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("End transaction op retry fail! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
                         }
