@@ -195,9 +195,7 @@ public class PulsarFunctionLocalRunTest {
             if (connectorsDir.mkdir()) {
                 File file = new File(getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile());
                 Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
-                
-                file = new File(getClass().getClassLoader().getResource("pulsar-io-batch-data-generator.nar").getFile());
-                Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
+
             } else {
                 throw new RuntimeException("Failed to create builtin connectors directory");
             }
@@ -419,13 +417,7 @@ public class PulsarFunctionLocalRunTest {
         sinkConfig.setCleanupSubscription(true);
         return sinkConfig;
     }
-    
-    private static BatchSourceConfig createBatchSourceConfig() {
-        return BatchSourceConfig.builder()
-                 .discoveryTriggererClassName(ImmediateTriggerer.class.getName())
-                 .build();
-    }
-    
+
     /**
      * Validates pulsar sink e2e functionality on functions.
      *
@@ -785,107 +777,6 @@ public class PulsarFunctionLocalRunTest {
     public void testPulsarSourceLocalRunWithUrl() throws Exception {
         String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-data-generator.nar", fileServer.getAddress().getPort());
         testPulsarSourceLocalRun(jarFilePathUrl);
-    }
-
-    private void testPulsarBatchSourceLocalRun(String jarFilePathUrl) throws Exception {
-        final String namespacePortion = "io";
-        final String replNamespace = tenant + "/" + namespacePortion;
-        final String sinkTopic = "persistent://" + replNamespace + "/output";
-        final String sourceName = "PulsarBatchSource-test";
-        admin.namespaces().createNamespace(replNamespace);
-        Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
-
-        SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, sourceName, sinkTopic);
-        sourceConfig.setBatchSourceConfig(createBatchSourceConfig());
-        
-        if (jarFilePathUrl == null || !jarFilePathUrl.endsWith(".nar")) {
-            sourceConfig.setClassName(BatchDataGeneratorSource.class.getName());
-        }
-
-        sourceConfig.setArchive(jarFilePathUrl);
-        LocalRunner localRunner = LocalRunner.builder()
-                .sourceConfig(sourceConfig)
-                .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
-                .useTls(true)
-                .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
-                .tlsAllowInsecureConnection(true)
-                .tlsHostNameVerificationEnabled(false)
-                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
-
-        localRunner.start(false);
-
-        retryStrategically((test) -> {
-            try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 1);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 10, 150);
-
-        retryStrategically((test) -> {
-            try {
-                TopicStats sourceStats = admin.topics().getStats(sinkTopic);
-                return sourceStats.publishers.size() == 1
-                        && sourceStats.publishers.get(0).metadata != null
-                        && sourceStats.publishers.get(0).metadata.containsKey("id")
-                        && sourceStats.publishers.get(0).metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
-
-        TopicStats sourceStats = admin.topics().getStats(sinkTopic);
-        assertEquals(sourceStats.publishers.size(), 1);
-        assertNotNull(sourceStats.publishers.get(0).metadata);
-        assertTrue(sourceStats.publishers.get(0).metadata.containsKey("id"));
-        assertEquals(sourceStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
-
-        retryStrategically((test) -> {
-            try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 1)
-                        && (admin.topics().getInternalStats(sinkTopic, false).numberOfEntries > 4);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 50, 150);
-        assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 1);
-
-        localRunner.stop();
-
-        retryStrategically((test) -> {
-            try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
-            } catch (PulsarAdminException e) {
-                return e.getStatusCode() == 404;
-            }
-        }, 10, 150);
-
-        try {
-            assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 0);
-        } catch (PulsarAdminException e) {
-            if (e.getStatusCode() != 404) {
-                fail();
-            }
-        }
-    }
-    
-    @Test(timeOut = 20000)
-    public void testPulsarBatchSourceLocalRunNoArchive() throws Exception {
-        testPulsarBatchSourceLocalRun(null);
-    }
-
-    @Test(timeOut = 20000)
-    public void testPulsarBatchSourceLocalRunWithFile() throws Exception {
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-batch-data-generator.nar").getFile();
-        testPulsarBatchSourceLocalRun(jarFilePathUrl);
-    }
-
-    @Test(timeOut = 40000)
-    public void testPulsarBatchSourceLocalRunWithUrl() throws Exception {
-        String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-io-batch-data-generator.nar", fileServer.getAddress().getPort());
-        testPulsarBatchSourceLocalRun(jarFilePathUrl);
     }
 
     private void testPulsarSinkLocalRun(String jarFilePathUrl) throws Exception {
