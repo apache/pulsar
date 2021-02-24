@@ -86,7 +86,8 @@ public class RawMessageImpl implements RawMessage {
     public Map<String, String> getProperties() {
         if (singleMessageMetadata != null && singleMessageMetadata.getPropertiesCount() > 0) {
             return singleMessageMetadata.getPropertiesList().stream()
-                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
+                        (oldValue, newValue) -> newValue));
         } else if (msgMetadata.get().getPropertiesCount() > 0) {
             return msgMetadata.get().getPropertiesList().stream()
                     .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
