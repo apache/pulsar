@@ -1141,7 +1141,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testForceDeleteNamespace() throws Exception {
-        String namespace = BrokerTestUtil.newUniqueNamespace(this.testTenant + "/namespace");
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         String topic = namespace + "/topic";
 
         admin.namespaces().createNamespace(namespace, 100);
@@ -1361,7 +1361,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteNonPartitionedTopicMultipleTimes() throws Exception {
-        String namespace = BrokerTestUtil.newUniqueNamespace(this.testTenant + "/namespace");
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         String topic = namespace + "/topic";
 
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
@@ -1389,7 +1389,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeletePartitionedTopicMultipleTimes() throws Exception {
-        String namespace = BrokerTestUtil.newUniqueNamespace(this.testTenant + "/namespace");
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         String topic = namespace + "/topic";
 
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
@@ -1418,7 +1418,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRetentionPolicyValidation() throws Exception {
-        String namespace = BrokerTestUtil.newUniqueNamespace(this.testTenant + "/namespace");
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
 
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
 
@@ -1597,7 +1597,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testSubscriptionTypesEnabled() throws PulsarAdminException, PulsarClientException {
         pulsar.getConfiguration().setAuthorizationEnabled(false);
         pulsar.getConfiguration().setTopicLevelPoliciesEnabled(false);
-        String namespace = BrokerTestUtil.newUniqueNamespace(this.testTenant + "/namespace");
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         String topic = namespace + "/test-subscription-enabled";
         admin.namespaces().createNamespace(namespace);
         Set<SubscriptionType> subscriptionTypes = new HashSet<>();
@@ -1667,7 +1667,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     private void assertValidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
                                                                int retentionSizeInMB) throws PulsarAdminException {
-        String namespace = BrokerTestUtil.newUniqueNamespace(this.testTenant + "/namespace");
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
         policies.retention_policies = retention;
         admin.namespaces().createNamespace(namespace, policies);
@@ -1676,7 +1676,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     private void assertInvalidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
                                                                  int retentionSizeInMB) {
-        String namespace = BrokerTestUtil.newUniqueNamespace(this.testTenant + "/namespace");
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         try {
             RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
             policies.retention_policies = retention;

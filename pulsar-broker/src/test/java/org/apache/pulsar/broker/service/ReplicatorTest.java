@@ -291,7 +291,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // runtime.
         // Run a set of producer tasks to create the topics
         final TopicName dest = TopicName
-                .get(String.format("persistent://%s/repltopic-%d", namespace, System.nanoTime()));
+                .get(BrokerTestUtil.newUniqueName("persistent://" + namespace + "/repltopic"));
 
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -370,7 +370,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Run a set of producer tasks to create the topics
         for (int i = 0; i < 10; i++) {
             final TopicName dest = TopicName
-                    .get(String.format("persistent://pulsar/ns/repltopic-%d", System.nanoTime()));
+                    .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/repltopic"));
 
             @Cleanup
             MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -503,7 +503,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // This test is to verify that reset cursor fails on global topic
         final TopicName dest = TopicName
-                .get(String.format("persistent://pulsar/ns/resetrepltopic-%d", System.nanoTime()));
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/resetrepltopic"));
 
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -527,7 +527,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // Run a set of producer tasks to create the topics
         final TopicName dest = TopicName
-                .get(String.format("persistent://pulsar/ns/repltopicbatch-%d", System.nanoTime()));
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/repltopicbatch"));
 
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest, true);
@@ -806,11 +806,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = BrokerTestUtil.newUniqueNamespace("pulsar/partitionedNs-" + isPartitionedTopic);
-        final String persistentTopicName =
-                "persistent://" + namespace + "/partTopic-" + System.currentTimeMillis() + "-" + isPartitionedTopic;
-        final String nonPersistentTopicName =
-                "non-persistent://" + namespace + "/partTopic-" + System.currentTimeMillis() + "-"+ isPartitionedTopic;
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/partitionedNs-" + isPartitionedTopic);
+        final String persistentTopicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/partTopic-" + isPartitionedTopic);
+        final String nonPersistentTopicName = BrokerTestUtil.newUniqueName("non-persistent://" + namespace + "/partTopic-" + isPartitionedTopic);
         BrokerService brokerService = pulsar1.getBrokerService();
 
         admin1.namespaces().createNamespace(namespace);
@@ -909,8 +907,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
-        final String namespace = BrokerTestUtil.newUniqueNamespace("pulsar/ns");
-        final String topicName = "persistent://" + namespace + "/topic1";
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/ns");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/topic1");
         int startPartitions = 4;
         int newPartitions = 8;
         final String subscriberName = "sub1";
@@ -961,9 +959,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
-        final String namespace = BrokerTestUtil.newUniqueNamespace("pulsar/ns");
-        final String partitionedTopicName = topicPrefix + namespace + topicName + "-partitioned";
-        final String nonPartitionedTopicName = topicPrefix + namespace + topicName + "-non-partitioned";
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/ns");
+        final String partitionedTopicName = BrokerTestUtil.newUniqueName(topicPrefix + namespace + topicName + "-partitioned");
+        final String nonPartitionedTopicName = BrokerTestUtil.newUniqueName(topicPrefix + namespace + topicName + "-non-partitioned");
         final int startPartitions = 4;
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));

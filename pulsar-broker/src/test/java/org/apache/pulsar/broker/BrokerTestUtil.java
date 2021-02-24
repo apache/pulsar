@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.broker;
 
+import java.util.UUID;
+
 /**
  * Holds util methods used in test.
  */
 public class BrokerTestUtil {
-    // Generate unique namespace name for different test run.
-    public static String newUniqueNamespace(String prefix) { return prefix + "-" + System.nanoTime(); }
+    // Generate unique name for different test run.
+    public static String newUniqueName(String prefix) {
+        return prefix + "-" + UUID.randomUUID();
+    }
 
 }

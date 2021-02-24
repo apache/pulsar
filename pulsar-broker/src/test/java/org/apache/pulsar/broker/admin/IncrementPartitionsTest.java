@@ -109,7 +109,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testIncrementPartitionsWithNoSubscriptions() throws Exception {
         final String partitionedTopicName =
-                BrokerTestUtil.newUniqueNamespace("persistent://prop-xyz/use/ns1/test-topic");
+                BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic");
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
@@ -135,7 +135,8 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testIncrementPartitionsWithReaders() throws Exception {
-        TopicName partitionedTopicName = TopicName.get("persistent://prop-xyz/use/ns1/test-topic-" + System.nanoTime());
+        TopicName partitionedTopicName = TopicName.get(
+                BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic"));
 
         admin.topics().createPartitionedTopic(partitionedTopicName.toString(), 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName.toString()).partitions, 1);
