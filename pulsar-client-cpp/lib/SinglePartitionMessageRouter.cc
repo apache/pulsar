@@ -33,7 +33,8 @@ SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int numberOfPar
     selectedSinglePartition_ = dist(rng) % numberOfPartitions;
 }
 
-SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex, const int numberOfPartitions,
+SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
+                                                           const int numberOfPartitions,
                                                            ProducerConfiguration::HashingScheme hashingScheme)
     : MessageRouterBase(hashingScheme) {
     selectedSinglePartition_ = partitionIndex;
