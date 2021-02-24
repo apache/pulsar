@@ -1138,7 +1138,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // Expected: cannot delete non-empty tenant
         }
 
-        //
+        // delete tenant forcefully
         admin.tenants().deleteTenant(tenant, true);
         assertFalse(admin.tenants().getTenants().contains(tenant));
 
