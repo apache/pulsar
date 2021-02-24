@@ -925,19 +925,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     partitionIndex -> {
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
-                        ConsumerImpl<T> newConsumer = null;
-                        try {
-                            newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
+                        ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                                     configurationData, client.externalExecutorProvider(),
                                     partitionIndex, true, subFuture,
                                     startMessageId, schema, interceptors,
                                     createIfDoesNotExist, startMessageRollbackDurationInSec);
-                        } catch (PulsarClientException.InvalidConfigurationException e) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Deadletter topic on Key_Shared subscription type is not supported.");
-                            }
-                            subFuture.completeExceptionally(e);
-                        }
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
                     })
@@ -954,20 +946,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             allTopicPartitionsNumber.incrementAndGet();
 
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
-            ConsumerImpl<T> newConsumer = null;
-            try {
-                newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
+            ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
                         client.externalExecutorProvider(), -1,
                         true, subFuture, null, schema, interceptors,
                         createIfDoesNotExist);
                 consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
-
-            } catch (PulsarClientException.InvalidConfigurationException e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Deadletter topic on Key_Shared subscription type is not supported.");
-                }
-                subFuture.completeExceptionally(e);
-            }
 
             futureList = Collections.singletonList(subFuture);
         }
@@ -1239,19 +1222,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         int partitionIndex = TopicName.getPartitionIndex(partitionName);
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
-                        ConsumerImpl<T> newConsumer = null;
-                        try {
-                            newConsumer = ConsumerImpl.newConsumerImpl(
+                        ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
                                 client, partitionName, configurationData,
                                 client.externalExecutorProvider(),
                                 partitionIndex, true, subFuture, null, schema, interceptors,
                                 true /* createTopicIfDoesNotExist */);
-                        } catch (PulsarClientException.InvalidConfigurationException e) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Deadletter topic on Key_Shared subscription type is not supported.");
-                            }
-                            subFuture.completeExceptionally(e);
-                        }
                         synchronized (pauseMutex) {
                             if (paused) {
                                 newConsumer.pause();

@@ -53,7 +53,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     @Test
-    public void testInitialzation() throws InterruptedException, ExecutionException, PulsarAdminException {
+    public void testInitialization() throws InterruptedException, ExecutionException, PulsarAdminException {
 
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
@@ -91,7 +91,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 if(subscriptions.size() == 1){
                     break;
                 }
-            } catch (Exception e){
+            } catch (Exception ignored){
             }
             Thread.sleep(200);
         }
@@ -155,7 +155,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 if (subscriptions.size() == 0) {
                     break;
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
             Thread.sleep(200);
         }
@@ -192,7 +192,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 if (subscriptions.size() == 1) {
                     break;
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
             Thread.sleep(200);
         }
@@ -242,7 +242,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
             try {
                 List<String> subscriptions = admin.topics().getSubscriptions(topicName);
                 isCreated = (subscriptions.size() == 1);
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
             return isCreated;
         });
