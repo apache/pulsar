@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -32,16 +33,14 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.stats.Metrics;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
 abstract class AbstractMetrics {
 
     protected static final String METRICS_VERSION_SUFFIX = "v2";
 
     protected static final Pattern V2_LEDGER_NAME_PATTERN = Pattern.compile("^(([^/]+)/([^/]+)/([^/]+))/(.*)$");
 
-    protected static final double[] ENTRY_LATENCY_BUCKETS_MS = new double[ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC.length];
+    protected static final double[] ENTRY_LATENCY_BUCKETS_MS =
+            new double[ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC.length];
 
     static {
         // Convert buckets boundaries from usec to millis
@@ -50,7 +49,8 @@ abstract class AbstractMetrics {
         }
     }
 
-    protected static final double[] ENTRY_SIZE_BUCKETS_BYTES = new double[ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES.length];
+    protected static final double[] ENTRY_SIZE_BUCKETS_BYTES =
+            new double[ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES.length];
 
     static {
         // Convert buckets boundaries from usec to millis
@@ -84,7 +84,7 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Returns the managed ledger cache statistics from ML factory
+     * Returns the managed ledger cache statistics from ML factory.
      *
      * @return
      */
@@ -93,7 +93,7 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Returns managed ledgers map from ML factory
+     * Returns managed ledgers map from ML factory.
      *
      * @return
      */
@@ -138,10 +138,9 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Creates a dimension key for metrics
+     * Creates a dimension key for metrics.
      *
-     * @param namespace
-     *          Namespace of metric
+     * @param namespace Namespace of metric
      * @return
      */
     protected Metrics createMetricsByDimension(String namespace) {
@@ -153,7 +152,7 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Creates a dimension key for replication metrics
+     * Creates a dimension key for replication metrics.
      *
      * @param namespace
      * @param fromClusterName
@@ -171,7 +170,7 @@ abstract class AbstractMetrics {
     }
 
     protected void populateBucketEntries(Map<String, Double> map, String mkey, double[] boundaries,
-            long[] bucketValues) {
+            long[] bucketValues, int period) {
 
         // bucket values should be one more that the boundaries to have the last element as OVERFLOW
         if (bucketValues != null && bucketValues.length != boundaries.length + 1) {
@@ -191,7 +190,7 @@ abstract class AbstractMetrics {
                 bucketKey = String.format("%s_OVERFLOW", mkey);
             }
 
-            value = (bucketValues == null) ? 0.0D : (double) bucketValues[i];
+            value = (bucketValues == null) ? 0.0D : ((double) bucketValues[i] / (period > 0 ? period : 1));
 
             Double val = map.getOrDefault(bucketKey, 0.0);
             map.put(bucketKey, val + value);
@@ -219,7 +218,7 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Helper to manage populating topics map
+     * Helper to manage populating topics map.
      *
      * @param ledgersByDimensionMap
      * @param metrics

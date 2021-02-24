@@ -18,27 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.io.StringWriter;
-import java.io.Writer;
-import java.util.Enumeration;
-
-import org.apache.bookkeeper.stats.NullStatsProvider;
-import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.broker.PulsarService;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-
-import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
-import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
-import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.Collector;
@@ -48,7 +28,25 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
-import org.apache.pulsar.functions.worker.FunctionsStatsGenerator;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
+import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
+import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
@@ -76,31 +74,46 @@ public class PrometheusMetricsGenerator {
 
         // metric to export pulsar version info
         Gauge.build("pulsar_version_info", "-")
-            .labelNames("version", "commit").create()
-            .setChild(new Child() {
-                @Override
-                public double get() {
-                    return 1.0;
-                }}, PulsarVersion.getVersion(), PulsarVersion.getGitSha())
-            .register(CollectorRegistry.defaultRegistry);
+                .labelNames("version", "commit").create()
+                .setChild(new Child() {
+                    @Override
+                    public double get() {
+                        return 1.0;
+                    }
+                }, PulsarVersion.getVersion(), PulsarVersion.getGitSha())
+                .register(CollectorRegistry.defaultRegistry);
     }
 
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, OutputStream out) throws IOException {
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+        boolean includeProducerMetrics, OutputStream out) throws IOException {
+        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, out, null);
+    }
+
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+        boolean includeProducerMetrics, OutputStream out, List<PrometheusRawMetricsProvider> metricsProviders)
+        throws IOException {
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
-            NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics, stream);
+            NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
+                    includeProducerMetrics, stream);
 
-            FunctionsStatsGenerator.generate(pulsar.getWorkerService(),
-                    pulsar.getConfiguration().getClusterName(), stream);
+            if (pulsar.getWorkerServiceOpt().isPresent()) {
+                pulsar.getWorkerService().generateFunctionsStats(stream);
+            }
 
             generateBrokerBasicMetrics(pulsar, stream);
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
 
+            if (metricsProviders != null) {
+                for (PrometheusRawMetricsProvider metricsProvider : metricsProviders) {
+                    metricsProvider.generate(stream);
+                }
+            }
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {
             buf.release();
@@ -115,6 +128,10 @@ public class PrometheusMetricsGenerator {
 
         // generate managedLedger metrics
         parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
+                clusterName, Collector.Type.GAUGE, stream);
+
+        // generate managedCursor metrics
+        parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
 
         // generate loadBalance metrics
@@ -150,9 +167,15 @@ public class PrometheusMetricsGenerator {
                         continue;
                     }
                 } else {
-                    stream.write("# TYPE ").write(entry.getKey().replace("brk_", "pulsar_")).write(' ')
-                            .write(getTypeStr(metricType)).write('\n');
-                    stream.write(entry.getKey().replace("brk_", "pulsar_"))
+
+
+                    String name = entry.getKey();
+                    if (!names.contains(name)) {
+                        stream.write("# TYPE ").write(entry.getKey().replace("brk_", "pulsar_")).write(' ')
+                                .write(getTypeStr(metricType)).write('\n');
+                        names.add(name);
+                    }
+                    stream.write(name.replace("brk_", "pulsar_"))
                             .write("{cluster=\"").write(cluster).write('"');
                 }
 

@@ -127,12 +127,12 @@ authenticationEnabled=true
 authorizationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 
-# If using secret key
+# If using secret key (Note: key files must be DER-encoded)
 tokenSecretKey=file:///path/to/secret.key
 # The key can also be passed inline:
 # tokenSecretKey=data:;base64,FLFyW0oLJ2Fi22KKCm21J18mbAdztfSHN/lAT5ucEKU=
 
-# If using public/private
+# If using public/private (Note: key files must be DER-encoded)
 # tokenPublicKey=file:///path/to/public.key
 ```
 
@@ -152,7 +152,7 @@ tokenSecretKey=file:///path/to/secret.key
 
 # For the proxy to connect to brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
-brokerClientAuthenticationParameters=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw
+brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
 # Or, alternatively, read token from file
 # brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
 ```

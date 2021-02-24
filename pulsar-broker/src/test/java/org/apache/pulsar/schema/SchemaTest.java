@@ -18,9 +18,16 @@
  */
 package org.apache.pulsar.schema;
 
-import com.google.common.collect.Sets;
-import lombok.extern.slf4j.Slf4j;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import java.util.Collections;
+
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -31,15 +38,14 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
+import com.google.common.collect.Sets;
 
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
-import static org.junit.Assert.assertEquals;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SchemaTest extends MockedPulsarServiceBaseTest {
@@ -188,5 +194,16 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.close();
         consumer.close();
         consumer1.close();
+    }
+
+    @Test
+    public void testIsUsingAvroSchemaParser() {
+        for (SchemaType value : SchemaType.values()) {
+            if (value == SchemaType.AVRO || value == SchemaType.JSON || value == SchemaType.PROTOBUF) {
+                assertTrue(SchemaRegistryServiceImpl.isUsingAvroSchemaParser(value));
+            } else {
+                assertFalse(SchemaRegistryServiceImpl.isUsingAvroSchemaParser(value));
+            }
+        }
     }
 }

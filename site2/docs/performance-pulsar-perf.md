@@ -4,13 +4,9 @@ title: Pulsar Perf
 sidebar_label: Pulsar Perf
 ---
 
-This document describes how to use the Pulsar Perf for performance testing. For detailed information about performance tuning, see [here](https://streamnative.io/whitepaper/taking-a-deep-dive-into-apache-pulsar-architecture-for-performance-tuning/).
+The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can use the Pulsar Perf to test message writing or reading performance. For detailed information about performance tuning, see [here](https://streamnative.io/en/blog/tech/2021-01-14-pulsar-architecture-performance-tuning).
 
-## Pulsar Perf
-
-The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can use the Pulsar Perf to test message writing or reading performance.
-
-### Produce messages
+## Produce messages
 
 This example shows how the Pulsar Perf produces messages with default options. For all configuration options available for the `pulsar-perf produce` command, see [configuration options](#configuration-options-for-pulsar-perf-produce).
 
@@ -38,7 +34,7 @@ After the command is executed, the test data is continuously output on the Conso
 
 From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. After the Pulsar Perf is stopped, the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory. The document looks like `perf-producer-1589370810837.hgrm`. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
 
-#### Configuration options for `pulsar-perf produce`
+### Configuration options for `pulsar-perf produce`
 
 You can get all options by executing the `bin/pulsar-perf produce -h` command. Therefore, you can modify these options as required.
 
@@ -75,7 +71,7 @@ The following table lists configuration options available for the `pulsar-perf p
 | trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
 | warmup-time | Set the warm-up time. | 1s |
 
-### Consume messages
+## Consume messages
 
 This example shows how the Pulsar Perf consumes messages with default options.
 
@@ -102,7 +98,7 @@ After the command is executed, the test data is continuously output on the Conso
 
 From the output test data, you can get the throughput statistics and the end-to-end latency statistics. The aggregated statistics is printed after the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf.
 
-#### Configuration options for `pulsar-perf consume`
+### Configuration options for `pulsar-perf consume`
 
 You can get all options by executing the `bin/pulsar-perf consume -h` command. Therefore, you can modify these options as required.
 
@@ -128,8 +124,9 @@ The following table lists configuration options available for the `pulsar-perf c
 | subscriber-name | Set the subscriber name prefix. | sub |
 | subscription-type | Set the subscription type. <li> Exclusive <li> Shared <li> Failover <li> Key_Shared | Exclusive |
 | trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
+| batch-index-ack | Enable or disable the batch index acknowledgment. | false |
 
-### Configurations
+## Configurations
 
 By default, the Pulsar Perf uses `conf/client.conf` as the default configuration and uses `conf/log4j2.yaml` as the default Log4j configuration. If you want to connect to other Pulsar clusters, you can update the `brokerServiceUrl` in the client configuration.
 

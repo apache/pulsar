@@ -27,6 +27,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -82,6 +83,9 @@ public class TopicOwnerTest {
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
     protected PulsarService leaderPulsar;
     protected PulsarAdmin leaderAdmin;
+    protected String testCluster = "my-cluster";
+    protected String testTenant = "my-tenant";
+    protected String testNamespace = testTenant + "/my-ns";
 
     @BeforeMethod
     void setup() throws Exception {
@@ -117,6 +121,12 @@ public class TopicOwnerTest {
         leaderPulsar = pulsarServices[0];
         leaderAdmin = pulsarAdmins[0];
         Thread.sleep(1000);
+
+        pulsarAdmins[0].clusters().createCluster(testCluster, new ClusterData(pulsarServices[0].getWebServiceAddress()));
+        TenantInfo tenantInfo = new TenantInfo();
+        tenantInfo.setAllowedClusters(Sets.newHashSet(testCluster));
+        pulsarAdmins[0].tenants().createTenant(testTenant, tenantInfo);
+        pulsarAdmins[0].namespaces().createNamespace(testNamespace, 16);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -231,12 +241,6 @@ public class TopicOwnerTest {
 
     @Test
     public void testAcquireOwnershipWithZookeeperDisconnectedBeforeOwnershipNodeCreated() throws Exception {
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
-        pulsarAdmins[0].tenants().createTenant("my-tenant", tenantInfo);
-        pulsarAdmins[0].namespaces().createNamespace("my-tenant/my-ns", 16);
-
         String topic1 = "persistent://my-tenant/my-ns/topic-1";
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
         NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
@@ -286,12 +290,6 @@ public class TopicOwnerTest {
 
     @Test
     public void testAcquireOwnershipWithZookeeperDisconnectedAfterOwnershipNodeCreated() throws Exception {
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
-        pulsarAdmins[0].tenants().createTenant("my-tenant", tenantInfo);
-        pulsarAdmins[0].namespaces().createNamespace("my-tenant/my-ns", 16);
-
         String topic1 = "persistent://my-tenant/my-ns/topic-1";
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
         NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
@@ -340,12 +338,6 @@ public class TopicOwnerTest {
 
     @Test
     public void testReestablishOwnershipAfterInvalidateCache() throws Exception {
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
-        pulsarAdmins[0].tenants().createTenant("my-tenant", tenantInfo);
-        pulsarAdmins[0].namespaces().createNamespace("my-tenant/my-ns", 16);
-
         String topic1 = "persistent://my-tenant/my-ns/topic-1";
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
         NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
@@ -399,12 +391,6 @@ public class TopicOwnerTest {
 
     @Test
     public void testReleaseOwnershipWithZookeeperDisconnectedBeforeOwnershipNodeDeleted() throws Exception {
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
-        pulsarAdmins[0].tenants().createTenant("my-tenant", tenantInfo);
-        pulsarAdmins[0].namespaces().createNamespace("my-tenant/my-ns", 16);
-
         String topic1 = "persistent://my-tenant/my-ns/topic-1";
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
         NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
@@ -458,12 +444,6 @@ public class TopicOwnerTest {
 
     @Test
     public void testReleaseOwnershipWithZookeeperDisconnectedAfterOwnershipNodeDeleted() throws Exception {
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
-        pulsarAdmins[0].tenants().createTenant("my-tenant", tenantInfo);
-        pulsarAdmins[0].namespaces().createNamespace("my-tenant/my-ns", 16);
-
         String topic1 = "persistent://my-tenant/my-ns/topic-1";
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
         NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
@@ -517,12 +497,6 @@ public class TopicOwnerTest {
 
     @Test
     public void testConnectToInvalidateBundleCacheBroker() throws Exception {
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
-        pulsarAdmins[0].tenants().createTenant("my-tenant", tenantInfo);
-        pulsarAdmins[0].namespaces().createNamespace("my-tenant/my-ns", 16);
-
         Assert.assertEquals(pulsarAdmins[0].namespaces().getPolicies("my-tenant/my-ns").bundles.getNumBundles(), 16);
 
         final String topic1 = "persistent://my-tenant/my-ns/topic-1";
@@ -554,12 +528,6 @@ public class TopicOwnerTest {
 
     @Test
     public void testLookupPartitionedTopic() throws Exception {
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet("my-cluster"));
-        pulsarAdmins[0].tenants().createTenant("my-tenant", tenantInfo);
-        pulsarAdmins[0].namespaces().createNamespace("my-tenant/my-ns", 16);
-
         final int partitions = 5;
         final String topic = "persistent://my-tenant/my-ns/partitionedTopic";
 
@@ -580,5 +548,30 @@ public class TopicOwnerTest {
             Assert.assertTrue(entry.getValue().equalsIgnoreCase(partitionedMap.get(entry.getKey())));
         }
 
+    }
+
+    @Test
+    public void testListNonPersistentTopic() throws Exception {
+        final String topicName = "non-persistent://my-tenant/my-ns/my-topic";
+        pulsarAdmins[0].topics().createPartitionedTopic(topicName, 16);
+
+        PulsarClient client = PulsarClient.builder().
+                serviceUrl(pulsarServices[0].getBrokerServiceUrl())
+                .build();
+
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscribe();
+
+        List<String> topics = pulsarAdmins[0].topics().getList("my-tenant/my-ns");
+        Assert.assertEquals(topics.size(), 16);
+        for (String topic : topics) {
+            Assert.assertTrue(topic.contains("non-persistent"));
+            Assert.assertTrue(topic.contains("my-tenant/my-ns/my-topic"));
+        }
+
+        consumer.close();
+        client.close();
     }
 }

@@ -20,7 +20,6 @@ package org.apache.pulsar.client.admin.internal.http;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Configuration;
-
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.glassfish.jersey.client.spi.Connector;
 import org.glassfish.jersey.client.spi.ConnectorProvider;
@@ -32,21 +31,25 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
 
     private final ClientConfigurationData conf;
     private Connector connector;
+    private final int autoCertRefreshTimeSeconds;
 
-    public AsyncHttpConnectorProvider(ClientConfigurationData conf) {
+    public AsyncHttpConnectorProvider(ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
         this.conf = conf;
+        this.autoCertRefreshTimeSeconds = autoCertRefreshTimeSeconds;
     }
 
     @Override
     public Connector getConnector(Client client, Configuration runtimeConfig) {
         if (connector == null) {
-            connector = new AsyncHttpConnector(client, conf);
+            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds);
         }
         return connector;
     }
 
 
-    public AsyncHttpConnector getConnector(int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs) {
-        return new AsyncHttpConnector(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, conf);
+    public AsyncHttpConnector getConnector(int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs,
+            int autoCertRefreshTimeSeconds) {
+        return new AsyncHttpConnector(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds,
+                conf);
     }
 }

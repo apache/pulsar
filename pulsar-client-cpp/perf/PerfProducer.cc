@@ -62,6 +62,7 @@ struct Arguments {
     unsigned int batchingMaxMessages;
     long batchingMaxAllowedSizeInBytes;
     long batchingMaxPublishDelayMs;
+    bool poolConnections;
     std::string encKeyName;
     std::string encKeyValueFile;
     std::string compression;
@@ -278,6 +279,9 @@ int main(int argc, char** argv) {
          po::value<long>(&args.batchingMaxPublishDelayMs)->default_value(3000),
          "Use only is batch-size > 1, Default is 3 seconds")  //
 
+        ("pool-connections", po::value<bool>(&args.poolConnections)->default_value(false),
+         "whether pool connections used")  //
+
         ("encryption-key-name,k", po::value<std::string>(&args.encKeyName)->default_value(""),
          "The public key name to encrypt payload")  //
 
@@ -376,7 +380,7 @@ int main(int argc, char** argv) {
         conf.setAuth(auth);
     }
 
-    pulsar::Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, false));
+    pulsar::Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, args.poolConnections));
 
     std::atomic<bool> exitCondition(false);
     startPerfProducer(args, producerConf, client, exitCondition);

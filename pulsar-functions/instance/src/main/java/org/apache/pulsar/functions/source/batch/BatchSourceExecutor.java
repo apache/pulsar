@@ -69,7 +69,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
   private String intermediateTopicName;
   private volatile Exception currentError = null;
   private volatile boolean isRunning = false;
-  private ExecutorService discoveryThread = Executors.newSingleThreadExecutor(new DefaultThreadFactory("batch-source-discovery"));
+  private ExecutorService discoveryThread;
 
   @Override
   public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
@@ -77,6 +77,11 @@ public class BatchSourceExecutor<T> implements Source<T> {
     this.sourceContext = sourceContext;
     this.intermediateTopicName = SourceConfigUtils.computeBatchSourceIntermediateTopicName(sourceContext.getTenant(),
       sourceContext.getNamespace(), sourceContext.getSourceName()).toString();
+    this.discoveryThread = Executors.newSingleThreadExecutor(
+      new DefaultThreadFactory(
+        String.format("%s-batch-source-discovery",
+          FunctionCommon.getFullyQualifiedName(
+            sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()))));
     this.getBatchSourceConfigs(config);
     this.initializeBatchSource();
     this.start();
@@ -223,6 +228,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       discoveryThread.awaitTermination(10, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       log.warn("Shutdown of discovery thread was interrupted");
+      Thread.currentThread().interrupt();
     }
 
     if (intermediateTopicConsumer != null) {

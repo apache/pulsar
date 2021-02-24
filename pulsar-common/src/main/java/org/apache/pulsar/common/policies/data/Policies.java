@@ -22,10 +22,15 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import javax.ws.rs.core.Response.Status;
+
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.util.RestException;
 
 /**
  * Definition of Pulsar policies.
@@ -77,15 +82,17 @@ public class Policies {
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
     @SuppressWarnings("checkstyle:MemberName")
-    public int max_producers_per_topic = 0;
+    public Integer max_producers_per_topic = null;
     @SuppressWarnings("checkstyle:MemberName")
-    public int max_consumers_per_topic = 0;
+    public Integer max_consumers_per_topic = null;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_consumers_per_subscription = 0;
     @SuppressWarnings("checkstyle:MemberName")
-    public int max_unacked_messages_per_consumer = -1;
+    public Integer max_unacked_messages_per_consumer = null;
     @SuppressWarnings("checkstyle:MemberName")
     public int max_unacked_messages_per_subscription = -1;
+    @SuppressWarnings("checkstyle:MemberName")
+    public Integer max_subscriptions_per_topic = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     public long compaction_threshold = 0;
@@ -93,6 +100,8 @@ public class Policies {
     public long offload_threshold = -1;
     @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
+    @SuppressWarnings("checkstyle:MemberName")
+    public Integer max_topics_per_namespace = null;
 
     @SuppressWarnings("checkstyle:MemberName")
     @Deprecated
@@ -112,6 +121,8 @@ public class Policies {
     public OffloadPolicies offload_policies = null;
 
     public Integer deduplicationSnapshotIntervalSeconds = null;
+
+    public Set<SubType> subscription_types_enabled = Sets.newHashSet();
 
     @Override
     public int hashCode() {
@@ -133,7 +144,8 @@ public class Policies {
                 schema_validation_enforced,
                 schema_compatibility_strategy,
                 is_allow_auto_update_schema,
-                offload_policies);
+                offload_policies,
+                subscription_types_enabled);
     }
 
     @Override
@@ -162,10 +174,10 @@ public class Policies {
                     && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
                     && Objects.equals(inactive_topic_policies, other.inactive_topic_policies)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
-                    && max_producers_per_topic == other.max_producers_per_topic
-                    && max_consumers_per_topic == other.max_consumers_per_topic
+                    && Objects.equals(max_producers_per_topic, other.max_producers_per_topic)
+                    && Objects.equals(max_consumers_per_topic, other.max_consumers_per_topic)
+                    && Objects.equals(max_unacked_messages_per_consumer, other.max_unacked_messages_per_consumer)
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
-                    && max_unacked_messages_per_consumer == other.max_unacked_messages_per_consumer
                     && max_unacked_messages_per_subscription == other.max_unacked_messages_per_subscription
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
@@ -174,7 +186,8 @@ public class Policies {
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
                     && is_allow_auto_update_schema == other.is_allow_auto_update_schema
-                    && Objects.equals(offload_policies, other.offload_policies);
+                    && Objects.equals(offload_policies, other.offload_policies)
+                    && Objects.equals(subscription_types_enabled, other.subscription_types_enabled);
         }
 
         return false;
@@ -233,6 +246,30 @@ public class Policies {
                 .add("schema_validation_enforced", schema_validation_enforced)
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
                 .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
-                .add("offload_policies", offload_policies).toString();
+                .add("offload_policies", offload_policies)
+                .add("subscription_types_enabled", subscription_types_enabled).toString();
+    }
+
+    private static final long MAX_BUNDLES = ((long) 1) << 32;
+
+    public static BundlesData getBundles(int numBundles) {
+        if (numBundles <= 0) {
+            throw new RestException(Status.BAD_REQUEST,
+                "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
+        }
+        Long maxVal = MAX_BUNDLES;
+        Long segSize = maxVal / numBundles;
+        List<String> partitions = Lists.newArrayList();
+        partitions.add(String.format("0x%08x", 0L));
+        Long curPartition = segSize;
+        for (int i = 0; i < numBundles; i++) {
+            if (i != numBundles - 1) {
+                partitions.add(String.format("0x%08x", curPartition));
+            } else {
+                partitions.add(String.format("0x%08x", maxVal - 1));
+            }
+            curPartition += segSize;
+        }
+        return new BundlesData(partitions);
     }
 }

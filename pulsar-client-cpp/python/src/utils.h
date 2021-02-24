@@ -43,3 +43,10 @@ struct AuthenticationWrapper {
     AuthenticationWrapper();
     AuthenticationWrapper(const std::string& dynamicLibPath, const std::string& authParamsString);
 };
+
+struct CryptoKeyReaderWrapper {
+    CryptoKeyReaderPtr cryptoKeyReader;
+
+    CryptoKeyReaderWrapper();
+    CryptoKeyReaderWrapper(const std::string& publicKeyPath, const std::string& privateKeyPath);
+};

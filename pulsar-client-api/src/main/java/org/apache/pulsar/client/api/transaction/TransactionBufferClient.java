@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.client.api.transaction;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -38,12 +36,13 @@ public interface TransactionBufferClient {
      * @param topic topic name
      * @param txnIdMostBits the most bits of txn id
      * @param txnIdLeastBits the least bits of txn id
+     * @param lowWaterMark the low water mark of this txn;
      * @return the future represents the commit result
      */
     CompletableFuture<TxnID> commitTxnOnTopic(String topic,
                                               long txnIdMostBits,
                                               long txnIdLeastBits,
-                                              List<MessageId> messageIdList);
+                                              long lowWaterMark);
 
     /**
      * Abort the transaction associated with the topic.
@@ -51,12 +50,13 @@ public interface TransactionBufferClient {
      * @param topic topic name
      * @param txnIdMostBits the most bits of txn id
      * @param txnIdLeastBits the least bits of txn id
+     * @param lowWaterMark the low water mark of this txn
      * @return the future represents the abort result
      */
     CompletableFuture<TxnID> abortTxnOnTopic(String topic,
-                                            long txnIdMostBits,
-                                            long txnIdLeastBits,
-                                             List<MessageId> messageIdList);
+                                             long txnIdMostBits,
+                                             long txnIdLeastBits,
+                                             long lowWaterMark);
 
     /**
      * Commit the transaction associated with the topic subscription.

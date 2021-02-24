@@ -25,7 +25,7 @@ on:
     types: [closed]
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -38,7 +38,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 25
+          fetch-depth: 100
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Execute pulsarbot command
@@ -47,26 +47,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
         uses: apache/pulsar-test-infra/pulsarbot@master
-
-      # Just use a github user who has permission to create a branch on the apache/pulsar repo.
-      # We can consider creating a bot user to do this.
-      - name: Cherry-pick prompt
-        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
-        uses: apache/pulsar-test-infra/cherry-pick@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
-        with:
-          type: prompt-comment
-          github_user: codelipenghui
-          github_email: 'penghui@apache.org'
-          github_repos: 'apache/pulsar'
-
-      - name: Cherry-pick
-        if: github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/pulsarbot cherry-pick')
-        uses: apache/pulsar-test-infra/cherry-pick@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
-        with:
-          github_user: codelipenghui
-          github_email: 'penghui@apache.org'
-          github_repos: 'apache/pulsar'
