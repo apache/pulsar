@@ -18,9 +18,22 @@
  */
 #include "SinglePartitionMessageRouter.h"
 
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+#include <chrono>
+
 namespace pulsar {
 SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
-SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
+
+SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int numberOfPartitions,
+                                                           ProducerConfiguration::HashingScheme hashingScheme)
+    : MessageRouterBase(hashingScheme) {
+    boost::random::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    boost::random::uniform_int_distribution<int> dist;
+    selectedSinglePartition_ = dist(rng) % numberOfPartitions;
+}
+
+SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex, const int numberOfPartitions,
                                                            ProducerConfiguration::HashingScheme hashingScheme)
     : MessageRouterBase(hashingScheme) {
     selectedSinglePartition_ = partitionIndex;
