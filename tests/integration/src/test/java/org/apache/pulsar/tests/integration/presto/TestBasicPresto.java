@@ -62,11 +62,11 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     @DataProvider(name = "schemaProvider")
     public Object[][] schemaProvider() {
         return new Object[][] {
-                { Schema.BYTES, null},
-                { Schema.BYTEBUFFER, null},
-                { Schema.STRING, null},
-                { AvroSchema.of(Stock.class), null},
-                { JSONSchema.of(Stock.class), null},
+                { Schema.BYTES},
+                { Schema.BYTEBUFFER},
+                { Schema.STRING},
+                { AvroSchema.of(Stock.class)},
+                { JSONSchema.of(Stock.class)},
                 { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.INLINE) },
                 { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.SEPARATED) }
         };
