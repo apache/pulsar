@@ -1363,7 +1363,7 @@ $ pulsar-admin namespaces get-subscription-dispatch-rate tenant/namespace
 ```
 
 ### `set-subscription-expiration-time`
-Set subscription expiration time in minutes for a namespace
+Set the subscription expiration time for a namespace (in minutes).
 
 Usage
 ```bash
@@ -1376,7 +1376,7 @@ Options
 |`-t`, `--time`|Subscription expiration time in minutes|0|
 
 ### `get-subscription-expiration-time`
-Get subscription expiration time for a namespace
+Get the subscription expiration time for a namespace (in minutes).
 
 Usage
 ```bash
