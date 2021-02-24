@@ -222,7 +222,6 @@ public class PulsarFunctionE2ETest {
                 
                 file = new File(getClass().getClassLoader().getResource("pulsar-io-batch-data-generator.nar").getFile());
                 Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
-                
             } else {
                 throw new RuntimeException("Failed to create builtin connectors directory");
             }
