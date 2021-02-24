@@ -162,4 +162,18 @@ public interface ConnectorContext {
      * @return the state value for the key.
      */
     CompletableFuture<ByteBuffer> getStateAsync(String key);
+
+    /**
+     * Delete the state value for the key.
+     *
+     * @param key   name of the key
+     */
+    void deleteState(String key);
+
+    /**
+     * Delete the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key   name of the key
+     */
+    CompletableFuture<Void> deleteStateAsync(String key);
 }

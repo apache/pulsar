@@ -331,6 +331,16 @@ public class IOConfigUtilsTest {
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
             return null;
         }
+        
+        @Override
+        public void deleteState(String key) {
+        	
+        }
+        
+        @Override
+        public CompletableFuture<Void> deleteStateAsync(String key) {
+        	return null;
+        }
     }
 
     @Test
