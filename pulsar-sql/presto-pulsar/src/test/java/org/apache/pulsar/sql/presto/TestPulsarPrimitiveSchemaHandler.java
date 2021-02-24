@@ -141,7 +141,7 @@ public class TestPulsarPrimitiveSchemaHandler {
                 null,
                 null,
                 StringSchema.utf8().getSchemaInfo(),
-                null);
+                null, PulsarSqlSchemaInfoProvider.Type.NONE);
 
         String stringValue = "test";
         when(rawMessage.getData()).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(StringSchema.utf8().encode(stringValue)));
