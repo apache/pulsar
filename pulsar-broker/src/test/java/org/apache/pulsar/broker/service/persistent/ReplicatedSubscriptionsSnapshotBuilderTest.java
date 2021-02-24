@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.mockito.Mockito.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -35,13 +35,11 @@ import java.util.List;
 
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ClusterMessageId;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotRequest;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshotResponse;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -93,24 +91,22 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(request.getSourceCluster(), localCluster);
 
         // Simulate the responses coming back
-        builder.receivedSnapshotResponse(new PositionImpl(1, 1),
-                ReplicatedSubscriptionsSnapshotResponse.newBuilder()
-                        .setSnapshotId("snapshot-1")
-                        .setCluster(ClusterMessageId.newBuilder()
-                                .setCluster("b")
-                                .setMessageId(MessageIdData.newBuilder()
-                                        .setLedgerId(11)
-                                        .setEntryId(11)
-                                        .build()))
-                        .build());
+        ReplicatedSubscriptionsSnapshotResponse response = new ReplicatedSubscriptionsSnapshotResponse()
+                .setSnapshotId("snapshot-1");
+        response.setCluster()
+                .setCluster("b")
+                .setMessageId()
+                .setLedgerId(11)
+                .setEntryId(11);
+        builder.receivedSnapshotResponse(new PositionImpl(1, 1), response);
 
         // At this point the snapshot should be created
         assertEquals(markers.size(), 1);
         ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(markers.remove(0));
         assertEquals(snapshot.getClustersCount(), 1);
-        assertEquals(snapshot.getClusters(0).getCluster(), "b");
-        assertEquals(snapshot.getClusters(0).getMessageId().getLedgerId(), 11);
-        assertEquals(snapshot.getClusters(0).getMessageId().getEntryId(), 11);
+        assertEquals(snapshot.getClusterAt(0).getCluster(), "b");
+        assertEquals(snapshot.getClusterAt(0).getMessageId().getLedgerId(), 11);
+        assertEquals(snapshot.getClusterAt(0).getMessageId().getEntryId(), 11);
 
         assertEquals(snapshot.getLocalMessageId().getLedgerId(), 1);
         assertEquals(snapshot.getLocalMessageId().getEntryId(), 1);
@@ -134,30 +130,26 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(request.getSourceCluster(), localCluster);
 
         // Simulate the responses coming back
-        builder.receivedSnapshotResponse(new PositionImpl(1, 1),
-                ReplicatedSubscriptionsSnapshotResponse.newBuilder()
-                        .setSnapshotId("snapshot-1")
-                        .setCluster(ClusterMessageId.newBuilder()
-                                .setCluster("b")
-                                .setMessageId(MessageIdData.newBuilder()
-                                        .setLedgerId(11)
-                                        .setEntryId(11)
-                                        .build()))
-                        .build());
+        ReplicatedSubscriptionsSnapshotResponse response1 = new ReplicatedSubscriptionsSnapshotResponse()
+                .setSnapshotId("snapshot-1");
+        response1.setCluster()
+                .setCluster("b")
+                .setMessageId()
+                .setLedgerId(11)
+                .setEntryId(11);
+        builder.receivedSnapshotResponse(new PositionImpl(1, 1), response1);
 
         // No markers should be sent out
         assertTrue(markers.isEmpty());
 
-        builder.receivedSnapshotResponse(new PositionImpl(2, 2),
-                ReplicatedSubscriptionsSnapshotResponse.newBuilder()
-                        .setSnapshotId("snapshot-1")
-                        .setCluster(ClusterMessageId.newBuilder()
-                                .setCluster("c")
-                                .setMessageId(MessageIdData.newBuilder()
-                                        .setLedgerId(22)
-                                        .setEntryId(22)
-                                        .build()))
-                        .build());
+        ReplicatedSubscriptionsSnapshotResponse response2 = new ReplicatedSubscriptionsSnapshotResponse()
+                .setSnapshotId("snapshot-1");
+        response2.setCluster()
+                .setCluster("c")
+                .setMessageId()
+                .setLedgerId(22)
+                .setEntryId(22);
+        builder.receivedSnapshotResponse(new PositionImpl(2, 2), response2);
 
         // Since we have 2 remote clusters, a 2nd round of snapshot will be taken
         assertEquals(markers.size(), 1);
@@ -165,42 +157,38 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(request.getSourceCluster(), localCluster);
 
         // Responses coming back
-        builder.receivedSnapshotResponse(new PositionImpl(3, 3),
-                ReplicatedSubscriptionsSnapshotResponse.newBuilder()
-                        .setSnapshotId("snapshot-1")
-                        .setCluster(ClusterMessageId.newBuilder()
-                                .setCluster("b")
-                                .setMessageId(MessageIdData.newBuilder()
-                                        .setLedgerId(33)
-                                        .setEntryId(33)
-                                        .build()))
-                        .build());
+        ReplicatedSubscriptionsSnapshotResponse response3 = new ReplicatedSubscriptionsSnapshotResponse()
+                .setSnapshotId("snapshot-1");
+        response3.setCluster()
+                .setCluster("b")
+                .setMessageId()
+                .setLedgerId(33)
+                .setEntryId(33);
+        builder.receivedSnapshotResponse(new PositionImpl(3, 3), response3);
 
         // No markers should be sent out
         assertTrue(markers.isEmpty());
 
-        builder.receivedSnapshotResponse(new PositionImpl(4, 4),
-                ReplicatedSubscriptionsSnapshotResponse.newBuilder()
-                        .setSnapshotId("snapshot-1")
-                        .setCluster(ClusterMessageId.newBuilder()
-                                .setCluster("c")
-                                .setMessageId(MessageIdData.newBuilder()
-                                        .setLedgerId(44)
-                                        .setEntryId(44)
-                                        .build()))
-                        .build());
+        ReplicatedSubscriptionsSnapshotResponse response4 = new ReplicatedSubscriptionsSnapshotResponse()
+                .setSnapshotId("snapshot-1");
+        response4.setCluster()
+                .setCluster("c")
+                .setMessageId()
+                .setLedgerId(44)
+                .setEntryId(44);
+        builder.receivedSnapshotResponse(new PositionImpl(4, 4), response4);
 
         // At this point the snapshot should be created
         assertEquals(markers.size(), 1);
         ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(markers.remove(0));
         assertEquals(snapshot.getClustersCount(), 2);
-        assertEquals(snapshot.getClusters(0).getCluster(), "b");
-        assertEquals(snapshot.getClusters(0).getMessageId().getLedgerId(), 11);
-        assertEquals(snapshot.getClusters(0).getMessageId().getEntryId(), 11);
+        assertEquals(snapshot.getClusterAt(0).getCluster(), "b");
+        assertEquals(snapshot.getClusterAt(0).getMessageId().getLedgerId(), 11);
+        assertEquals(snapshot.getClusterAt(0).getMessageId().getEntryId(), 11);
 
-        assertEquals(snapshot.getClusters(1).getCluster(), "c");
-        assertEquals(snapshot.getClusters(1).getMessageId().getLedgerId(), 22);
-        assertEquals(snapshot.getClusters(1).getMessageId().getEntryId(), 22);
+        assertEquals(snapshot.getClusterAt(1).getCluster(), "c");
+        assertEquals(snapshot.getClusterAt(1).getMessageId().getLedgerId(), 22);
+        assertEquals(snapshot.getClusterAt(1).getMessageId().getEntryId(), 22);
 
         assertEquals(snapshot.getLocalMessageId().getLedgerId(), 4);
         assertEquals(snapshot.getLocalMessageId().getEntryId(), 4);

@@ -32,7 +32,6 @@ env:
 jobs:
 
   schema:
-    name:
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -40,7 +39,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 25
+          fetch-depth: 100
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Cache local Maven repository

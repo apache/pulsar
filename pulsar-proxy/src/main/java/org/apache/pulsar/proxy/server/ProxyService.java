@@ -48,10 +48,14 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.cache.ConfigurationMetadataCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlets;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -69,10 +73,13 @@ public class ProxyService implements Closeable {
     private final ProxyConfiguration proxyConfig;
     private String serviceUrl;
     private String serviceUrlTls;
-    private ConfigurationCacheService configurationCacheService;
+    private ConfigurationMetadataCacheService configurationCacheService;
     private final AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
     private ZooKeeperClientFactory zkClientFactory = null;
+    private MetadataStoreExtended localMetadataStore;
+    private MetadataStoreExtended configMetadataStore;
+    private PulsarResources pulsarResources;
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
@@ -118,7 +125,7 @@ public class ProxyService implements Closeable {
     @Getter
     private final Map<String, TopicStats> topicStats;
     @Getter
-    private ProxyAdditionalServlets proxyAdditionalServlets;
+    private AdditionalServlets proxyAdditionalServlets;
 
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws IOException {
@@ -152,13 +159,17 @@ public class ProxyService implements Closeable {
                 stats.calculate();
             });
         }, 60, TimeUnit.SECONDS);
-        this.proxyAdditionalServlets = ProxyAdditionalServlets.load(proxyConfig);
+        this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
     }
 
     public void start() throws Exception {
         if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getConfigurationStoreServers())) {
-            discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
-            this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
+            localMetadataStore = createLocalMetadataStore();
+            configMetadataStore = createConfigurationMetadataStore();
+            pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
+            discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory(),
+                    pulsarResources);
+            this.configurationCacheService = new ConfigurationMetadataCacheService(pulsarResources, null);
             authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig),
                                                             configurationCacheService);
         }
@@ -241,6 +252,20 @@ public class ProxyService implements Closeable {
             proxyAdditionalServlets = null;
         }
 
+        if (localMetadataStore != null) {
+            try {
+                localMetadataStore.close();
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        }
+        if (configMetadataStore != null) {
+            try {
+                configMetadataStore.close();
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        }
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
     }
@@ -269,7 +294,7 @@ public class ProxyService implements Closeable {
         return configurationCacheService;
     }
 
-    public void setConfigurationCacheService(ConfigurationCacheService configurationCacheService) {
+    public void setConfigurationCacheService(ConfigurationMetadataCacheService configurationCacheService) {
         this.configurationCacheService = configurationCacheService;
     }
 
@@ -295,6 +320,16 @@ public class ProxyService implements Closeable {
         } else {
             return Optional.empty();
         }
+    }
+
+    public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
+        return PulsarResources.createMetadataStore(proxyConfig.getZookeeperServers(),
+                proxyConfig.getZookeeperSessionTimeoutMs());
+    }
+
+    public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
+        return PulsarResources.createMetadataStore(proxyConfig.getConfigurationStoreServers(),
+                proxyConfig.getZookeeperSessionTimeoutMs());
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);

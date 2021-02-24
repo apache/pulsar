@@ -30,13 +30,14 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
-import lombok.Setter;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.cache.ConfigurationMetadataCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -44,13 +45,11 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.stats.ProxyStats;
-import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,10 +70,10 @@ public class WebSocketService implements Closeable {
                     new DefaultThreadFactory("pulsar-websocket"));
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder()
             .numThreads(WebSocketProxyConfiguration.GLOBAL_ZK_THREADS).name("pulsar-websocket-ordered").build();
-    private GlobalZooKeeperCache globalZkCache;
-    private ZooKeeperClientFactory zkClientFactory;
+    private PulsarResources pulsarResources;
+    private MetadataStoreExtended configMetadataStore;
     private ServiceConfiguration config;
-    private ConfigurationCacheService configurationCacheService;
+    private ConfigurationMetadataCacheService configurationCacheService;
 
     private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
@@ -99,18 +98,14 @@ public class WebSocketService implements Closeable {
             DeploymentException {
 
         if (isNotBlank(config.getConfigurationStoreServers())) {
-            this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                    (int) config.getZooKeeperSessionTimeoutMillis(),
-                    (int) TimeUnit.MILLISECONDS.toSeconds(config.getZooKeeperSessionTimeoutMillis()),
-                    config.getConfigurationStoreServers(), this.orderedExecutor, this.executor,
-                    config.getZooKeeperCacheExpirySeconds());
             try {
-                this.globalZkCache.start();
-            } catch (IOException e) {
+                configMetadataStore = createMetadataStore(config.getConfigurationStoreServers(),
+                        (int) config.getZooKeeperSessionTimeoutMillis());
+            } catch (MetadataStoreException e) {
                 throw new PulsarServerException(e);
             }
-            this.configurationCacheService = new ConfigurationCacheService(getGlobalZkCache());
-            log.info("Global Zookeeper cache started");
+            pulsarResources = new PulsarResources(null, configMetadataStore);
+            this.configurationCacheService = new ConfigurationMetadataCacheService(pulsarResources, null);
         }
 
         // start authorizationService
@@ -126,6 +121,11 @@ public class WebSocketService implements Closeable {
         log.info("Pulsar WebSocket Service started");
     }
 
+    public MetadataStoreExtended createMetadataStore(String serverUrls, int sessionTimeoutMs)
+            throws MetadataStoreException {
+        return PulsarResources.createMetadataStore(serverUrls, sessionTimeoutMs);
+    }
+
     @Override
     public void close() throws IOException {
         if (pulsarClient != null) {
@@ -136,8 +136,12 @@ public class WebSocketService implements Closeable {
             authenticationService.close();
         }
 
-        if (globalZkCache != null) {
-            globalZkCache.close();
+        if (configMetadataStore != null) {
+            try {
+                configMetadataStore.close();
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
         }
 
         executor.shutdown();
@@ -150,18 +154,6 @@ public class WebSocketService implements Closeable {
 
     public AuthorizationService getAuthorizationService() {
         return authorizationService;
-    }
-
-    public ZooKeeperCache getGlobalZkCache() {
-        return globalZkCache;
-    }
-
-    public ZooKeeperClientFactory getZooKeeperClientFactory() {
-        if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperClientFactoryImpl();
-        }
-        // Return default factory
-        return zkClientFactory;
     }
 
     public synchronized PulsarClient getPulsarClient() throws IOException {
@@ -228,8 +220,8 @@ public class WebSocketService implements Closeable {
         }
         try {
             String path = "/admin/clusters/" + config.getClusterName();
-            return localCluster = configurationCacheService.clustersCache().get(path)
-                    .orElseThrow(() -> new KeeperException.NoNodeException(path));
+            return localCluster = pulsarResources.getClusterResources().get(path)
+                    .orElseThrow(() -> new NotFoundException(path));
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }

@@ -18,6 +18,7 @@
  */
 #ifndef PULSAR_PARTITIONED_CONSUMER_HEADER
 #define PULSAR_PARTITIONED_CONSUMER_HEADER
+#include "gtest/gtest_prod.h"
 #include "ConsumerImpl.h"
 #include "ClientImpl.h"
 #include <vector>
@@ -118,11 +119,15 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     void failPendingReceiveCallback();
     virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
     Promise<Result, ConsumerImplBaseWeakPtr> partitionedConsumerCreatedPromise_;
-    UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
+    UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
     std::queue<ReceiveCallback> pendingReceives_;
     void runPartitionUpdateTask();
     void getPartitionMetadata();
     void handleGetPartitions(const Result result, const LookupDataResultPtr& lookupDataResult);
+
+    friend class PulsarFriend;
+
+    FRIEND_TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery);
 };
 typedef std::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
 typedef std::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;

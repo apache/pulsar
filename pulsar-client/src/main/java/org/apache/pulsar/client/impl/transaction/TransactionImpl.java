@@ -83,7 +83,6 @@ public class TransactionImpl implements Transaction {
 
     // register the topics that will be modified by this transaction
     public synchronized CompletableFuture<Void> registerProducedTopic(String topic) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         // we need to issue the request to TC to register the produced topic
         return registerPartitionMap.compute(topic, (key, future) -> {
             if (future != null) {
@@ -102,7 +101,6 @@ public class TransactionImpl implements Transaction {
 
     // register the topics that will be modified by this transaction
     public synchronized CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         // we need to issue the request to TC to register the acked topic
         return registerSubscriptionMap.compute(topic, (key, future) -> {
             if (future != null) {
@@ -128,16 +126,12 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        List<MessageId> sendMessageIdList = new ArrayList<>(sendFutureList.size());
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         allOpComplete().whenComplete((v, e) -> {
             if (e != null) {
                 abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
             } else {
-                for (CompletableFuture<MessageId> future : sendFutureList) {
-                    future.thenAccept(sendMessageIdList::add);
-                }
-                tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList)
+                tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                         .whenComplete((vx, ex) -> {
                     if (ex != null) {
                         commitFuture.completeExceptionally(ex);
@@ -152,21 +146,17 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
-        List<MessageId> sendMessageIdList = new ArrayList<>(sendFutureList.size());
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
         allOpComplete().whenComplete((v, e) -> {
             if (e != null) {
                 log.error(e.getMessage());
-            }
-            for (CompletableFuture<MessageId> future : sendFutureList) {
-                future.thenAccept(sendMessageIdList::add);
             }
             if (cumulativeAckConsumers != null) {
                 cumulativeAckConsumers.forEach((consumer, integer) ->
                         cumulativeAckConsumers
                                 .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
             }
-            tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits), sendMessageIdList).whenComplete((vx, ex) -> {
+            tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
                 if (cumulativeAckConsumers != null) {
                     cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
                     cumulativeAckConsumers.clear();

@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
@@ -51,6 +52,7 @@ import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -304,6 +306,29 @@ public class SourceApiV3ResourceTest {
                     outputSerdeClassName,
                 className,
                 parallelism,
+                    null
+            );
+        } catch (RestException re){
+            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw re;
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package does not have the" +
+            " correct format. Pulsar cannot determine if the package is a NAR package" +
+            " or JAR package. Source classname is not provided and attempts to load it as a NAR package produced the following error.")
+    public void testRegisterSourceMissingPackageDetailsAndClassname() {
+        try {
+            testRegisterSourceMissingArguments(
+                    tenant,
+                    namespace,
+                    source,
+                    mockedInputStream,
+                    null,
+                    outputTopic,
+                    outputSerdeClassName,
+                    null,
+                    parallelism,
                     null
             );
         } catch (RestException re){
@@ -852,11 +877,13 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -928,11 +955,13 @@ public class SourceApiV3ResourceTest {
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
+
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(File.class), any());
+        FunctionCommon.extractNarClassLoader(any(File.class), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -1024,9 +1053,10 @@ public class SourceApiV3ResourceTest {
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(eq(TwitterFireHose.class));
         PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
+        PowerMockito.when(FunctionCommon.class, "getClassLoaderFromPackage", any(), any(), any(), any()).thenCallRealMethod();
 
         doReturn(classLoader).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -1229,6 +1259,81 @@ public class SourceApiV3ResourceTest {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
             throw re;
         }
+    }
+
+    @Test
+    public void testDeregisterSourceBKPackageCleanup() throws IOException {
+
+        mockStatic(WorkerUtils.class);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+        String packagePath = "public/default/test/591541f0-c7c5-40c0-983b-610c722f90b0-pulsar-io-batch-data-generator-2.7.0.nar";
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
+                .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
+                        PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+
+        deregisterDefaultSource();
+
+        PowerMockito.verifyStatic(WorkerUtils.class, times(1));
+        WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
+    }
+
+    @Test
+    public void testDeregisterBuiltinSourceBKPackageCleanup() throws IOException {
+
+        mockStatic(WorkerUtils.class);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+        String packagePath = String.format("%s://data-generator", Utils.BUILTIN);
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
+                .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
+                        PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+
+        deregisterDefaultSource();
+
+        // if the source is a builtin source we shouldn't try to clean it up
+        PowerMockito.verifyStatic(WorkerUtils.class, times(0));
+        WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
+    }
+
+    @Test
+    public void testDeregisterHTTPSourceBKPackageCleanup() throws IOException {
+
+        mockStatic(WorkerUtils.class);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+        String packagePath = String.format("http://foo.com/connector.jar", Utils.BUILTIN);
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
+                .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
+                        PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+
+        deregisterDefaultSource();
+
+        // if the source is a is download from a http url, we shouldn't try to clean it up
+        PowerMockito.verifyStatic(WorkerUtils.class, times(0));
+        WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
+    }
+
+    @Test
+    public void testDeregisterFileSourceBKPackageCleanup() throws IOException {
+
+        mockStatic(WorkerUtils.class);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
+
+        String packagePath = String.format("file://foo/connector.jar", Utils.BUILTIN);
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source)))
+                .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
+                        PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+
+        deregisterDefaultSource();
+
+        // if the source has a file url, we shouldn't try to clean it up
+        PowerMockito.verifyStatic(WorkerUtils.class, times(0));
+        WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
     }
 
     //

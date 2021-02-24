@@ -22,7 +22,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.List;
@@ -37,8 +36,6 @@ import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -154,9 +151,6 @@ public class PerformanceConsumer {
                 "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
         public Boolean tlsAllowInsecureConnection = null;
 
-        @Parameter(names = { "-k", "--encryption-key-name" }, description = "The private key name to decrypt payload")
-        public String encKeyName = null;
-
         @Parameter(names = { "-v",
                 "--encryption-key-value-file" }, description = "The file which contains the private key to decrypt payload")
         public String encKeyFile = null;
@@ -168,6 +162,9 @@ public class PerformanceConsumer {
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
+    
+        @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
+        public boolean batchIndexAck = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -292,28 +289,6 @@ public class PerformanceConsumer {
 
         PulsarClient pulsarClient = clientBuilder.build();
 
-        class EncKeyReader implements CryptoKeyReader {
-
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-
-            EncKeyReader(byte[] value) {
-                keyInfo.setKey(value);
-            }
-
-            @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                return null;
-            }
-
-            @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                if (keyName.equals(arguments.encKeyName)) {
-                    return keyInfo;
-                }
-                return null;
-            }
-        }
-
         List<Future<Consumer<byte[]>>> futures = Lists.newArrayList();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer() //
                 .messageListener(listener) //
@@ -323,6 +298,7 @@ public class PerformanceConsumer {
                 .subscriptionType(arguments.subscriptionType)
                 .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
                 .autoAckOldestChunkedMessageOnQueueFull(arguments.autoAckOldestChunkedMessageOnQueueFull)
+                .enableBatchIndexAcknowledgment(arguments.batchIndexAck)
                 .replicateSubscriptionState(arguments.replicatedSubscription);
         if (arguments.maxPendingChuckedMessage > 0) {
             consumerBuilder.maxPendingChuckedMessage(arguments.maxPendingChuckedMessage);
@@ -332,10 +308,8 @@ public class PerformanceConsumer {
                     TimeUnit.MILLISECONDS);
         }
 
-        if (arguments.encKeyName != null) {
-            byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
-            EncKeyReader keyReader = new EncKeyReader(pKey);
-            consumerBuilder.cryptoKeyReader(keyReader);
+        if (isNotBlank(arguments.encKeyFile)) {
+            consumerBuilder.defaultCryptoKeyReader(arguments.encKeyFile);
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {

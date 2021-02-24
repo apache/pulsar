@@ -36,13 +36,13 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: apachepulsar/pulsar-build:latest
-    timeout-minutes: 120
+    timeout-minutes: 45
 
     steps:
       - name: checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 25
+          fetch-depth: 100
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check if this pull request only changes documentation

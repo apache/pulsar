@@ -24,7 +24,7 @@ import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +71,8 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
     }
 
     public abstract boolean isConsumerAvailable(Consumer consumer);
+
+    protected void cancelPendingRead() {}
 
     /**
      * <pre>

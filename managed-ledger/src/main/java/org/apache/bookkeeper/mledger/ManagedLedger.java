@@ -19,10 +19,8 @@
 package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
-
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -33,7 +31,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 
 /**
  * A ManagedLedger it's a superset of a BookKeeper ledger concept.
@@ -583,6 +582,7 @@ public interface ManagedLedger {
     /**
      * Roll current ledger if it is full
      */
+    @Deprecated
     void rollCurrentLedgerIfFull();
 
     /**
@@ -594,4 +594,10 @@ public interface ManagedLedger {
      * Get the ManagedLedgerInterceptor for ManagedLedger.
      * */
     ManagedLedgerInterceptor getManagedLedgerInterceptor();
+
+    /**
+     * Get basic ledger summary.
+     * will got null if corresponding ledger not exists.
+     */
+    CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId);
 }

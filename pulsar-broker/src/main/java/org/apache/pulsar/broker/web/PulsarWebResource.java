@@ -21,12 +21,19 @@ package org.apache.pulsar.broker.web;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.admin.AdminResource.POLICIES_READONLY_FLAG_PATH;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -49,6 +56,16 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.BaseResources;
+import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
+import org.apache.pulsar.broker.resources.LocalPoliciesResources;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -63,7 +80,10 @@ import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
-import org.apache.zookeeper.KeeperException;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.zookeeper.common.PathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,7 +187,7 @@ public abstract class PulsarWebResource {
      * @throws WebApplicationException
      *             if not authorized
      */
-    protected void validateSuperUserAccess() {
+    public void validateSuperUserAccess() {
         if (config().isAuthenticationEnabled()) {
             String appId = clientAppId();
             if (log.isDebugEnabled()) {
@@ -243,15 +263,8 @@ public abstract class PulsarWebResource {
                     (isClientAuthenticated(clientAppId)), clientAppId);
         }
 
-        TenantInfo tenantInfo;
-
-        try {
-            tenantInfo = pulsar.getConfigurationCache().propertiesCache().get(path(POLICIES, tenant))
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("Failed to get tenant info data for non existing tenant {}", tenant);
-            throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
-        }
+        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+                .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId)) {
@@ -306,7 +319,7 @@ public abstract class PulsarWebResource {
     protected void validateClusterForTenant(String tenant, String cluster) {
         TenantInfo tenantInfo;
         try {
-            tenantInfo = pulsar().getConfigurationCache().propertiesCache().get(path(POLICIES, tenant))
+            tenantInfo = pulsar().getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (RestException e) {
             log.warn("Failed to get tenant admin data for tenant {}", tenant);
@@ -356,14 +369,19 @@ public abstract class PulsarWebResource {
     }
 
     private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
-        URL webUrl = null;
-        if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
-                && StringUtils.isNotBlank(differentClusterData.getServiceUrlTls())) {
-            webUrl = new URL(differentClusterData.getServiceUrlTls());
-        } else {
-            webUrl = new URL(differentClusterData.getServiceUrl());
+        try {
+            PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
+            if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
+                    && StringUtils.isNotBlank(differentClusterData.getServiceUrlTls())) {
+                serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrlTls());
+            } else {
+                serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrl());
+            }
+            URL webUrl = new URL(serviceNameResolver.resolveHostUri().toString());
+            return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
+        } catch (PulsarClientException.InvalidServiceURL exception) {
+            throw new MalformedURLException(exception.getMessage());
         }
-        return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
     }
 
     protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
@@ -788,12 +806,7 @@ public abstract class PulsarWebResource {
     }
 
     protected static boolean isLeaderBroker(PulsarService pulsar) {
-
-        String leaderAddress = pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl();
-
-        String myAddress = pulsar.getSafeWebServiceAddress();
-
-        return myAddress.equals(leaderAddress); // If i am the leader, my decisions are
+        return  pulsar.getLeaderElectionService().isLeader();
     }
 
     // Non-Usual HTTP error codes
@@ -856,5 +869,242 @@ public abstract class PulsarWebResource {
                                 operation.toString(), namespaceName, policy.toString()));
             }
         }
+    }
+
+    protected PulsarResources getPulsarResources() {
+        return pulsar().getPulsarResources();
+    }
+
+    protected TenantResources tenantResources() {
+        return pulsar().getPulsarResources().getTenatResources();
+    }
+
+    protected ClusterResources clusterResources() {
+        return pulsar().getPulsarResources().getClusterResources();
+    }
+
+    protected NamespaceResources namespaceResources() {
+        return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected LocalPoliciesResources getLocalPolicies() {
+        return pulsar().getPulsarResources().getLocalPolicies();
+    }
+
+    protected IsolationPolicyResources namespaceIsolationPolicies(){
+        return namespaceResources().getIsolationPolicies();
+    }
+
+    protected DynamicConfigurationResources dynamicConfigurationResources() {
+        return pulsar().getPulsarResources().getDynamicConfigResources();
+    }
+
+    public static ObjectMapper jsonMapper() {
+        return ObjectMapperFactory.getThreadLocal();
+    }
+
+    public void validatePoliciesReadOnlyAccess() {
+        try {
+            if (clusterResources().existsAsync(AdminResource.POLICIES_READONLY_FLAG_PATH).get()) {
+                log.debug("Policies are read-only. Broker cannot do read-write operations");
+                throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
+            }
+        } catch (Exception e) {
+            log.warn("Unable to fetch read-only policy config {}", POLICIES_READONLY_FLAG_PATH, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected CompletableFuture<Void> hasActiveNamespace(String tenant) {
+        CompletableFuture<Void> activeNamespaceFuture = new CompletableFuture<>();
+        tenantResources().getChildrenAsync(path(POLICIES, tenant)).thenAccept(clusterOrNamespaceList -> {
+            if (clusterOrNamespaceList == null || clusterOrNamespaceList.isEmpty()) {
+                activeNamespaceFuture.complete(null);
+                return;
+            }
+            List<CompletableFuture<Void>> activeNamespaceListFuture = Lists.newArrayList();
+            clusterOrNamespaceList.forEach(clusterOrNamespace -> {
+                // get list of active V1 namespace
+                CompletableFuture<Void> checkNs = new CompletableFuture<>();
+                activeNamespaceListFuture.add(checkNs);
+                tenantResources().getChildrenAsync(path(POLICIES, tenant, clusterOrNamespace))
+                        .whenComplete((children, ex) -> {
+                            if (ex != null) {
+                                checkNs.completeExceptionally(ex);
+                                return;
+                            }
+                            if (children != null && !children.isEmpty()) {
+                                checkNs.completeExceptionally(
+                                        new RestException(Status.PRECONDITION_FAILED, "Tenant has active namespace"));
+                                return;
+                            }
+                            String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
+                            // if the length is 0 then this is probably a leftover cluster from namespace
+                            // created
+                            // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to
+                            // add it to the list
+                            namespaceResources().getAsync(path(POLICIES, namespace)).thenApply(data -> {
+                                if (data.isPresent()) {
+                                    checkNs.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                                            "Tenant has active namespace"));
+                                } else {
+                                    checkNs.complete(null);
+                                }
+                                return null;
+                            }).exceptionally(ex2 -> {
+                                if (ex2.getCause() instanceof MetadataStoreException.ContentDeserializationException) {
+                                    // it's not a valid namespace-node
+                                    checkNs.complete(null);
+                                } else {
+                                    checkNs.completeExceptionally(
+                                            new RestException(Status.INTERNAL_SERVER_ERROR, ex2.getCause()));
+                                }
+                                return null;
+                            });
+                        });
+                FutureUtil.waitForAll(activeNamespaceListFuture).thenAccept(r -> {
+                    activeNamespaceFuture.complete(null);
+                }).exceptionally(ex -> {
+                    activeNamespaceFuture.completeExceptionally(ex.getCause());
+                    return null;
+                });
+            });
+        }).exceptionally(ex -> {
+            activeNamespaceFuture.completeExceptionally(ex.getCause());
+            return null;
+        });
+        return activeNamespaceFuture;
+    }
+
+    protected void validateClusterExists(String cluster) {
+        try {
+            if (!clusterResources().get(path("clusters", cluster)).isPresent()) {
+                throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
+            }
+        } catch (Exception e) {
+            throw new RestException(e);
+        }
+    }
+
+    protected CompletableFuture<Void> canUpdateCluster(String tenant, Set<String> oldClusters,
+            Set<String> newClusters) {
+        List<CompletableFuture<Void>> activeNamespaceFuture = Lists.newArrayList();
+        for (String cluster : oldClusters) {
+            if (Constants.GLOBAL_CLUSTER.equals(cluster) || newClusters.contains(cluster)) {
+                continue;
+            }
+            CompletableFuture<Void> checkNs = new CompletableFuture<>();
+            activeNamespaceFuture.add(checkNs);
+            tenantResources().getChildrenAsync(path(POLICIES, tenant, cluster)).whenComplete((activeNamespaces, ex) -> {
+                if (ex != null) {
+                    log.warn("Failed to get namespaces under {}-{}, {}", tenant, cluster, ex.getCause().getMessage());
+                    checkNs.completeExceptionally(ex.getCause());
+                    return;
+                }
+                if (activeNamespaces.size() > 0) {
+                    log.warn("{}/{} Active-namespaces {}", tenant, cluster, activeNamespaces);
+                    checkNs.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, "Active namespaces"));
+                    return;
+                }
+                checkNs.complete(null);
+            });
+        }
+        return activeNamespaceFuture.isEmpty() ? CompletableFuture.completedFuture(null)
+                : FutureUtil.waitForAll(activeNamespaceFuture);
+    }
+
+    /**
+     * Redirect the call to the specified broker.
+     *
+     * @param broker
+     *            Broker name
+     * @throws MalformedURLException
+     *             In case the redirect happens
+     */
+    protected void validateBrokerName(String broker) throws MalformedURLException {
+        String brokerUrl = String.format("http://%s", broker);
+        String brokerUrlTls = String.format("https://%s", broker);
+        if (!brokerUrl.equals(pulsar().getSafeWebServiceAddress())
+                && !brokerUrlTls.equals(pulsar().getWebServiceAddressTls())) {
+            String[] parts = broker.split(":");
+            checkArgument(parts.length == 2, String.format("Invalid broker url %s", broker));
+            String host = parts[0];
+            int port = Integer.parseInt(parts[1]);
+
+            URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(host).port(port).build();
+            log.debug("[{}] Redirecting the rest call to {}: broker={}", clientAppId(), redirect, broker);
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+        }
+    }
+
+    /*
+     * Get the list of namespaces (on every cluster) for a given property.
+     *
+     * @param property the property name
+     * @return the list of namespaces
+     */
+    protected List<String> getListOfNamespaces(String tenant) throws Exception {
+        List<String> namespaces = Lists.newArrayList();
+
+        if (!tenantResources().exists(path(POLICIES, tenant))) {
+            throw new RestException(Status.NOT_FOUND, tenant + " doesn't exist");
+        }
+        // this will return a cluster in v1 and a namespace in v2
+        for (String clusterOrNamespace : tenantResources().getChildren(path(POLICIES, tenant))) {
+            // Then get the list of namespaces
+            final List<String> children = tenantResources().getChildren(path(POLICIES, tenant, clusterOrNamespace));
+            if (children == null || children.isEmpty()) {
+                String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
+                // if the length is 0 then this is probably a leftover cluster from namespace created
+                // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
+                try {
+                    if (namespaceResources().get(path(POLICIES, namespace)).isPresent()) {
+                        namespaces.add(namespace);
+                    }
+                } catch (MetadataStoreException.ContentDeserializationException e) {
+                    // not a namespace node
+                }
+
+            } else {
+                children.forEach(ns -> {
+                    namespaces.add(NamespaceName.get(tenant, clusterOrNamespace, ns).toString());
+                });
+            }
+        }
+
+        namespaces.sort(null);
+        return namespaces;
+    }
+
+    public static void deleteRecursive(BaseResources resources, final String pathRoot) throws MetadataStoreException {
+        PathUtils.validatePath(pathRoot);
+        List<String> tree = listSubTreeBFS(resources, pathRoot);
+        log.debug("Deleting {} with size {}", tree, tree.size());
+        log.debug("Deleting " + tree.size() + " subnodes ");
+        for (int i = tree.size() - 1; i >= 0; --i) {
+            // Delete the leaves first and eventually get rid of the root
+            resources.delete(tree.get(i));
+        }
+    }
+
+    public static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)
+            throws MetadataStoreException {
+        Deque<String> queue = new LinkedList<String>();
+        List<String> tree = new ArrayList<String>();
+        queue.add(pathRoot);
+        tree.add(pathRoot);
+        while (true) {
+            String node = queue.pollFirst();
+            if (node == null) {
+                break;
+            }
+            List<String> children = resources.getChildren(node);
+            for (final String child : children) {
+                final String childPath = node + "/" + child;
+                queue.add(childPath);
+                tree.add(childPath);
+            }
+        }
+        return tree;
     }
 }

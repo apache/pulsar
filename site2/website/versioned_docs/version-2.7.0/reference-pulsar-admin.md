@@ -866,6 +866,8 @@ Subcommands
 * `get-subscribe-rate`
 * `set-subscription-dispatch-rate`
 * `get-subscription-dispatch-rate`
+* `set-subscription-expiration-time`
+* `get-subscription-expiration-time`
 * `clear-backlog`
 * `unsubscribe`
 * `set-encryption-required`
@@ -1168,7 +1170,7 @@ $ pulsar-admin namespaces set-message-ttl tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-ttl`, `--messageTTL`|Message TTL in seconds|3600s|
+|`-ttl`, `--messageTTL`|Message TTL in seconds. When the value is set to `0`, TTL is disabled. TTL is disabled by default. |0|
 
 ### `remove-message-ttl`
 Remove the message TTL for a namespace.
@@ -1362,6 +1364,27 @@ Get subscription configured message-dispatch-rate for all topics of the namespac
 Usage
 ```bash
 $ pulsar-admin namespaces get-subscription-dispatch-rate tenant/namespace
+```
+
+### `set-subscription-expiration-time`
+Set the subscription expiration time for a namespace (in minutes).
+
+Usage
+```bash
+$ pulsar-admin namespaces set-subscription-expiration-time tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-t`, `--time`|Subscription expiration time in minutes|0|
+
+### `get-subscription-expiration-time`
+Get the subscription expiration time for a namespace (in minutes).
+
+Usage
+```bash
+$ pulsar-admin namespaces get-subscription-expiration-time tenant/namespace
 ```
 
 ### `clear-backlog`
@@ -1764,6 +1787,13 @@ Usage
 $ pulsar-admin topics subcommand
 ```
 
+Some namespace-level policies are available on topic level. To enable topic-level policy in Pulsar, you need to configure the following parameters in the `broker.conf` file. 
+
+```shell
+systemTopicEnabled=true
+topicLevelPoliciesEnabled=true
+```
+
 Subcommands
 * `compact`
 * `compaction-status`
@@ -1813,6 +1843,36 @@ Subcommands
 * `get-deduplication`
 * `set-deduplication`
 * `remove-deduplication`
+* `get-max-producers`
+* `set-max-producers`
+* `remove-max-producers`
+* `get-max-consumers`
+* `set-max-consumers`
+* `remove-max-consumers`
+* `get-retention`
+* `set-retention`
+* `remove-retention`
+* `get-dispatch-rate`
+* `set-dispatch-rate`
+* `remove-dispatch-rate`
+* `get-compaction-threshold`
+* `set-compaction-threshold`
+* `remove-compaction-threshold`
+* `get-offload-policies`
+* `set-offload-policies`
+* `remove-offload-policies`
+* `get-max-unacked-messages-per-subscription`
+* `set-max-unacked-messages-per-subscription`
+* `remove-max-unacked-messages-per-subscription`
+* `get-max-unacked-messages-per-consumer`
+* `set-max-unacked-messages-per-consumer`
+* `remove-max-unacked-messages-per-consumer`
+* `get-delayed-delivery`
+* `set-delayed-delivery`
+* `remove-delayed-delivery`
+* `get-inactive-topic-policies`
+* `set-inactive-topic-policies`
+* `remove-inactive-topic-policies`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)

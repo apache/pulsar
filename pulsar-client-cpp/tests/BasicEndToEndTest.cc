@@ -1284,7 +1284,7 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
 TEST(BasicEndToEndTest, testRSAEncryption) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "my-rsaenctopic";
+    std::string topicNames[] = {"my-rsaenctopic", "persistent://public/default-4/my-rsaenctopic"};
     std::string subName = "my-sub-name";
     Producer producer;
 
@@ -1301,48 +1301,51 @@ TEST(BasicEndToEndTest, testRSAEncryption) {
     conf.addEncryptionKey("client-rsa.pem");
     conf.setCryptoKeyReader(keyReader);
 
-    Promise<Result, Producer> producerPromise;
-    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
-    Future<Result, Producer> producerFuture = producerPromise.getFuture();
-    Result result = producerFuture.get(producer);
-    ASSERT_EQ(ResultOk, result);
+    for (const auto &topicName : topicNames) {
+        Promise<Result, Producer> producerPromise;
+        client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+        Future<Result, Producer> producerFuture = producerPromise.getFuture();
+        Result result = producerFuture.get(producer);
+        ASSERT_EQ(ResultOk, result);
 
-    ConsumerConfiguration consConfig;
-    consConfig.setCryptoKeyReader(keyReader);
-    // consConfig.setCryptoFailureAction(ConsumerCryptoFailureAction::CONSUME);
+        ConsumerConfiguration consConfig;
+        consConfig.setCryptoKeyReader(keyReader);
+        // consConfig.setCryptoFailureAction(ConsumerCryptoFailureAction::CONSUME);
 
-    Consumer consumer;
-    Promise<Result, Consumer> consumerPromise;
-    client.subscribeAsync(topicName, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
-    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
-    result = consumerFuture.get(consumer);
-    ASSERT_EQ(ResultOk, result);
+        Consumer consumer;
+        Promise<Result, Consumer> consumerPromise;
+        client.subscribeAsync(topicName, subName, consConfig,
+                              WaitForCallbackValue<Consumer>(consumerPromise));
+        Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+        result = consumerFuture.get(consumer);
+        ASSERT_EQ(ResultOk, result);
 
-    // Send 1000 messages synchronously
-    std::string msgContent = "msg-content";
-    LOG_INFO("Publishing 1000 messages synchronously");
-    int msgNum = 0;
-    for (; msgNum < 1000; msgNum++) {
-        std::stringstream stream;
-        stream << msgContent << msgNum;
-        Message msg = MessageBuilder().setContent(stream.str()).build();
-        ASSERT_EQ(ResultOk, producer.send(msg));
+        // Send 1000 messages synchronously
+        std::string msgContent = "msg-content";
+        LOG_INFO("Publishing 1000 messages synchronously");
+        int msgNum = 0;
+        for (; msgNum < 1000; msgNum++) {
+            std::stringstream stream;
+            stream << msgContent << msgNum;
+            Message msg = MessageBuilder().setContent(stream.str()).build();
+            ASSERT_EQ(ResultOk, producer.send(msg));
+        }
+
+        LOG_INFO("Trying to receive 1000 messages");
+        Message msgReceived;
+        for (msgNum = 0; msgNum < 1000; msgNum++) {
+            consumer.receive(msgReceived, 1000);
+            LOG_DEBUG("Received message :" << msgReceived.getMessageId());
+            std::stringstream expected;
+            expected << msgContent << msgNum;
+            ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
+            ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
+        }
+
+        ASSERT_EQ(ResultOk, consumer.unsubscribe());
+        ASSERT_EQ(ResultAlreadyClosed, consumer.close());
+        ASSERT_EQ(ResultOk, producer.close());
     }
-
-    LOG_INFO("Trying to receive 1000 messages");
-    Message msgReceived;
-    for (msgNum = 0; msgNum < 1000; msgNum++) {
-        consumer.receive(msgReceived, 1000);
-        LOG_DEBUG("Received message :" << msgReceived.getMessageId());
-        std::stringstream expected;
-        expected << msgContent << msgNum;
-        ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
-        ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
-    }
-
-    ASSERT_EQ(ResultOk, consumer.unsubscribe());
-    ASSERT_EQ(ResultAlreadyClosed, consumer.close());
-    ASSERT_EQ(ResultOk, producer.close());
     ASSERT_EQ(ResultOk, client.close());
 }
 
@@ -1837,33 +1840,41 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
     topicNames.push_back(topicName2);
     topicNames.push_back(topicName3);
 
-    // call admin api to make topics partitioned
-    std::string url1 =
-        adminUrl + "admin/v2/persistent/public/default/testMultiTopicsConsumerDifferentNamespace1/partitions";
-    std::string url2 =
-        adminUrl +
-        "admin/v2/persistent/public/default-2/testMultiTopicsConsumerDifferentNamespace2/partitions";
-    std::string url3 =
-        adminUrl +
-        "admin/v2/persistent/public/default-3/testMultiTopicsConsumerDifferentNamespace3/partitions";
+    // key: message value integer, value: a pair of (topic, message id)
+    using MessageInfo = std::pair<std::string, MessageId>;
+    std::map<int, MessageInfo> messageIndexToInfo;
+    int index = 0;
+    // Produce some messages for each topic
+    for (const auto &topic : topicNames) {
+        Producer producer;
+        ProducerConfiguration producerConfig;
+        ASSERT_EQ(ResultOk, client.createProducer(topic, producerConfig, producer));
 
-    int res = makePutRequest(url1, "2");
-    ASSERT_FALSE(res != 204 && res != 409);
-    res = makePutRequest(url2, "3");
-    ASSERT_FALSE(res != 204 && res != 409);
-    res = makePutRequest(url3, "4");
-    ASSERT_FALSE(res != 204 && res != 409);
+        const auto message = MessageBuilder().setContent(std::to_string(index)).build();
+        MessageId messageId;
+        ASSERT_EQ(ResultOk, producer.send(message, messageId));
+        messageIndexToInfo[index] = std::make_pair(topic, messageId);
+        LOG_INFO("Send " << index << " to " << topic << ", " << messageId);
 
-    // empty topics
+        ASSERT_EQ(ResultOk, producer.close());
+        index++;
+    }
+
     ConsumerConfiguration consConfig;
-    consConfig.setConsumerType(ConsumerShared);
+    consConfig.setSubscriptionInitialPosition(InitialPositionEarliest);
     Consumer consumer;
-    Promise<Result, Consumer> consumerPromise;
-    client.subscribeAsync(topicNames, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
-    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
-    Result result = consumerFuture.get(consumer);
-    ASSERT_EQ(ResultInvalidTopicName, result);
-    LOG_INFO("subscribe on topics with different names should fail");
+    ASSERT_EQ(ResultOk, client.subscribe(topicNames, subName, consConfig, consumer));
+
+    for (int i = 0; i < index; i++) {
+        Message message;
+        ASSERT_EQ(ResultOk, consumer.receive(message, 3000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(message));
+        const int index = std::stoi(message.getDataAsString());
+        LOG_INFO("Receive " << index << " from " << message.getTopicName() << "," << message.getMessageId());
+        ASSERT_EQ(messageIndexToInfo.count(index), 1);
+        ASSERT_EQ(messageIndexToInfo[index], std::make_pair(message.getTopicName(), message.getMessageId()));
+    }
+
     consumer.close();
 
     client.shutdown();
@@ -3825,7 +3836,7 @@ class UnAckedMessageTrackerEnabledMock : public UnAckedMessageTrackerEnabled {
     long size() { return UnAckedMessageTrackerEnabled::size(); }
 };  // class UnAckedMessageTrackerEnabledMock
 
-TEST(BasicEndToEndTest, testtUnAckedMessageTrackerDefaultBehavior) {
+TEST(BasicEndToEndTest, testUnAckedMessageTrackerDefaultBehavior) {
     ConsumerConfiguration configConsumer;
     ASSERT_EQ(configConsumer.getUnAckedMessagesTimeoutMs(), 0);
     ASSERT_EQ(configConsumer.getTickDurationInMs(), 1000);
@@ -4002,7 +4013,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTrackerEnabledCumulativeAck) {
     ASSERT_EQ(numMsg - (numMsg / 2 + 1), tracker->size());
     ASSERT_FALSE(tracker->isEmpty());
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(4));
     ASSERT_EQ(0, tracker->size());
     ASSERT_TRUE(tracker->isEmpty());
     consumer.close();
@@ -4012,6 +4023,7 @@ TEST(BasicEndToEndTest, testUnAckedMessageTrackerEnabledCumulativeAck) {
     for (auto count = numMsg / 2 + 1; count < numMsg; ++count) {
         Message msg;
         ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        ASSERT_EQ(ResultOk, consumer.acknowledge(msg.getMessageId()));
     }
     Message msg;
     auto ret = consumer.receive(msg, 1000);

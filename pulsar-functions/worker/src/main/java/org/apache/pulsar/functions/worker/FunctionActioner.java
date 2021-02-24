@@ -31,7 +31,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -47,7 +46,7 @@ import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import org.apache.pulsar.functions.utils.io.Connector;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -119,7 +118,7 @@ public class FunctionActioner {
                     URL url = new URL(pkgLocation);
                     File pkgFile = new File(url.toURI());
                     packageFile = pkgFile.getAbsolutePath();
-                } else if (WorkerUtils.isFunctionCodeBuiltin(functionDetails)) {
+                } else if (FunctionCommon.isFunctionCodeBuiltin(functionDetails)) {
                     File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
                     packageFile = pkgFile.getAbsolutePath();
                 } else {
@@ -185,9 +184,11 @@ public class FunctionActioner {
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(FunctionCommon.findAvailablePort());
+        instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
         instanceConfig.setMaxPendingAsyncRequests(workerConfig.getMaxPendingAsyncRequests());
+        instanceConfig.setExposePulsarAdminClientEnabled(workerConfig.isExposeAdminClientEnabled());
         return instanceConfig;
     }
 
@@ -477,13 +478,14 @@ public class FunctionActioner {
         if (functionDetails.hasSource()) {
             SourceSpec sourceSpec = functionDetails.getSource();
             if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
-                File archive = connectorsManager.getSourceArchive(sourceSpec.getBuiltin()).toFile();
-                String sourceClass = ConnectorUtils.getConnectorDefinition(archive.toString(), workerConfig.getNarExtractionDirectory()).getSourceClass();
+                Connector connector = connectorsManager.getConnector(sourceSpec.getBuiltin());
+                File archive = connector.getArchivePath().toFile();
+                String sourceClass = connector.getConnectorDefinition().getSourceClass();
                 SourceSpec.Builder builder = SourceSpec.newBuilder(functionDetails.getSource());
                 builder.setClassName(sourceClass);
                 functionDetails.setSource(builder);
 
-                fillSourceTypeClass(functionDetails, archive, sourceClass);
+                fillSourceTypeClass(functionDetails, connector.getClassLoader(), sourceClass);
                 return archive;
             }
         }
@@ -491,13 +493,15 @@ public class FunctionActioner {
         if (functionDetails.hasSink()) {
             SinkSpec sinkSpec = functionDetails.getSink();
             if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
-                File archive = connectorsManager.getSinkArchive(sinkSpec.getBuiltin()).toFile();
-                String sinkClass = ConnectorUtils.getConnectorDefinition(archive.toString(), workerConfig.getNarExtractionDirectory()).getSinkClass();
+                Connector connector = connectorsManager.getConnector(sinkSpec.getBuiltin());
+
+                File archive = connector.getArchivePath().toFile();
+                String sinkClass = connector.getConnectorDefinition().getSinkClass();
                 SinkSpec.Builder builder = SinkSpec.newBuilder(functionDetails.getSink());
                 builder.setClassName(sinkClass);
                 functionDetails.setSink(builder);
 
-                fillSinkTypeClass(functionDetails, archive, sinkClass);
+                fillSinkTypeClass(functionDetails, connector.getClassLoader(), sinkClass);
                 return archive;
             }
         }
@@ -509,39 +513,35 @@ public class FunctionActioner {
         throw new IOException("Could not find built in archive definition");
     }
 
-    private void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException, ClassNotFoundException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet(), workerConfig.getNarExtractionDirectory())) {
-            String typeArg = getSourceType(className, ncl).getName();
+    private void fillSourceTypeClass(FunctionDetails.Builder functionDetails,
+                                     ClassLoader narClassLoader, String className) throws ClassNotFoundException {
+        String typeArg = getSourceType(className, narClassLoader).getName();
 
-            SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(functionDetails.getSource());
-            sourceBuilder.setTypeClassName(typeArg);
-            functionDetails.setSource(sourceBuilder);
+        SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(functionDetails.getSource());
+        sourceBuilder.setTypeClassName(typeArg);
+        functionDetails.setSource(sourceBuilder);
 
-            SinkSpec sinkSpec = functionDetails.getSink();
-            if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
-                SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(sinkSpec);
-                sinkBuilder.setTypeClassName(typeArg);
-                functionDetails.setSink(sinkBuilder);
-            }
+        SinkSpec sinkSpec = functionDetails.getSink();
+        if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
+            SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(sinkSpec);
+            sinkBuilder.setTypeClassName(typeArg);
+            functionDetails.setSink(sinkBuilder);
         }
     }
 
-    private void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
-            throws IOException, ClassNotFoundException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet(), workerConfig.getNarExtractionDirectory())) {
-            String typeArg = getSinkType(className, ncl).getName();
+    private void fillSinkTypeClass(FunctionDetails.Builder functionDetails,
+                                   ClassLoader narClassLoader, String className) throws ClassNotFoundException {
+        String typeArg = getSinkType(className, narClassLoader).getName();
 
-            SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(functionDetails.getSink());
-            sinkBuilder.setTypeClassName(typeArg);
-            functionDetails.setSink(sinkBuilder);
+        SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(functionDetails.getSink());
+        sinkBuilder.setTypeClassName(typeArg);
+        functionDetails.setSink(sinkBuilder);
 
-            SourceSpec sourceSpec = functionDetails.getSource();
-            if (null == sourceSpec || StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
-                SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(sourceSpec);
-                sourceBuilder.setTypeClassName(typeArg);
-                functionDetails.setSource(sourceBuilder);
-            }
+        SourceSpec sourceSpec = functionDetails.getSource();
+        if (null == sourceSpec || StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
+            SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(sourceSpec);
+            sourceBuilder.setTypeClassName(typeArg);
+            functionDetails.setSource(sourceBuilder);
         }
     }
 

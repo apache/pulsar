@@ -19,9 +19,12 @@
 package org.apache.pulsar.functions.sink;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import java.nio.charset.StandardCharsets;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -126,7 +129,6 @@ public class PulsarSink<T> implements Sink<T> {
                     builder.maxPendingMessagesAcrossPartitions(producerConfig.getMaxPendingMessagesAcrossPartitions());
                 }
                 if (producerConfig.getCryptoConfig() != null) {
-                    CryptoConfig cryptoConfig = producerConfig.getCryptoConfig();
                     builder.cryptoKeyReader(crypto.keyReader);
                     builder.cryptoFailureAction(crypto.failureAction);
                     for (String encryptionKeyName : crypto.getEncryptionKeys()) {
@@ -366,7 +368,7 @@ public class PulsarSink<T> implements Sink<T> {
             // forward user properties to sink-topic
             msg.property("__pfn_input_topic__", pulsarRecord.getTopicName().get())
                .property("__pfn_input_msg_id__",
-                         new String(Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
+                         new String(Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray()), StandardCharsets.UTF_8));
         } else {
             // It is coming from some source
             Optional<Long> eventTime = sinkRecord.getSourceRecord().getEventTime();
@@ -424,9 +426,10 @@ public class PulsarSink<T> implements Sink<T> {
             Security.addProvider(new BouncyCastleProvider());
         }
 
+        final String[] encryptionKeys = cryptoConfig.getEncryptionKeys();
         Crypto.CryptoBuilder bldr = Crypto.builder()
                 .failureAction(cryptoConfig.getProducerCryptoFailureAction())
-                .encryptionKeys(cryptoConfig.getEncryptionKeys());
+                .encryptionKeys(encryptionKeys);
 
         bldr.keyReader(CryptoUtils.getCryptoKeyReaderInstance(
                 cryptoConfig.getCryptoKeyReaderClassName(), cryptoConfig.getCryptoKeyReaderConfig(), functionClassLoader));

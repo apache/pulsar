@@ -55,5 +55,29 @@
         </dependency>
 
     </dependencies>
+    
+    <build>
+        <plugins>
+  	        <plugin>
+  		        <groupId>com.github.splunk.lightproto</groupId>
+                <artifactId>lightproto-maven-plugin</artifactId>
+                <version>${lightproto-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <configuration>
+                    <excludeFilterFile>${basedir}/src/main/resources/findbugsExclude.xml</excludeFilterFile>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

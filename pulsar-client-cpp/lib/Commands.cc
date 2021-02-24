@@ -108,7 +108,8 @@ SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uin
     return buffer;
 }
 
-SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId) {
+SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId,
+                                 const std::string& listenerName) {
     static BaseCommand cmd;
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
@@ -117,6 +118,7 @@ SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritat
     lookup->set_topic(topic);
     lookup->set_authoritative(authoritative);
     lookup->set_request_id(requestId);
+    lookup->set_advertised_listener_name(listenerName);
     const SharedBuffer buffer = writeMessageWithSize(cmd);
     cmd.clear_lookuptopic();
     return buffer;
@@ -319,7 +321,7 @@ SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId
                                    const std::string& producerName, uint64_t requestId,
                                    const std::map<std::string, std::string>& metadata,
                                    const SchemaInfo& schemaInfo, uint64_t epoch,
-                                   bool userProvidedProducerName) {
+                                   bool userProvidedProducerName, bool encrypted) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
@@ -328,6 +330,7 @@ SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId
     producer->set_request_id(requestId);
     producer->set_epoch(epoch);
     producer->set_user_provided_producer_name(userProvidedProducerName);
+    producer->set_encrypted(encrypted);
 
     for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
          it++) {
@@ -652,6 +655,11 @@ void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::Messa
     }
     if (metadata.has_replicated_from()) {
         batchMetadata.set_replicated_from(metadata.replicated_from());
+    }
+    if (metadata.replicate_to_size() > 0) {
+        for (int i = 0; i < metadata.replicate_to_size(); i++) {
+            batchMetadata.add_replicate_to(metadata.replicate_to(i));
+        }
     }
     // TODO: set other optional fields
 }

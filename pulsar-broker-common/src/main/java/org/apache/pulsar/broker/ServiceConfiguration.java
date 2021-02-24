@@ -21,9 +21,7 @@ package org.apache.pulsar.broker;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import io.netty.util.internal.PlatformDependent;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,14 +33,15 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
-import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 /**
@@ -404,6 +403,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int subscriptionExpiryCheckIntervalInMinutes = 5;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Enable subscription types (default is all type enabled)"
+    )
+    private Set<String> subscriptionTypesEnabled =
+            Sets.newHashSet("Exclusive", "Shared", "Failover", "Key_Shared");
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
         doc = "Enable Key_Shared subscription (default is enabled)"
@@ -685,6 +692,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
          doc = "Precise dispatcher flow control according to history message number of each entry"
     )
     private boolean preciseDispatcherFlowControl = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed " +
+                "in subsequent release."
+    )
+    private boolean streamingDispatch = false;
 
     @FieldContext(
         dynamic = true,
@@ -1071,6 +1085,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " and resolving its metadata service location"
     )
     private String bookkeeperMetadataServiceUri;
+
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = "Authentication plugin to use when connecting to bookies"
@@ -1342,6 +1357,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int defaultNumPartitions = 1;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        doc = "The class of the managed ledger storage"
+    )
+    private String managedLedgerStorageClassName = "org.apache.pulsar.broker.ManagedLedgerClientFactory";
+    @FieldContext(
+        category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger tasks dispatching"
     )
     private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();
@@ -1459,17 +1479,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Of course, this may degrade consumption throughput. Default is 10ms.")
     private int managedLedgerNewEntriesCheckDelayInMillis = 10;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Read priority when ledgers exists in both bookkeeper and the second layer storage.")
+    private String managedLedgerDataReadPriority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST
+            .getValue();
+
     /*** --- Load balancer --- ****/
     @FieldContext(
-        category = CATEGORY_LOAD_BALANCER,
-        doc = "Enable load balancer"
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Enable load balancer"
     )
     private boolean loadBalancerEnabled = true;
     @Deprecated
     @FieldContext(
-        category = CATEGORY_LOAD_BALANCER,
-        deprecated = true,
-        doc = "load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)"
+            category = CATEGORY_LOAD_BALANCER,
+            deprecated = true,
+            doc = "load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)"
     )
     private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
 
@@ -1811,6 +1836,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeConsumerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "If true, export producer level metrics otherwise namespace level"
+    )
+    private boolean exposeProducerLevelMetricsInPrometheus = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 
@@ -1821,6 +1851,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             " this would be more efficient but may be inaccurate. Default is false."
     )
     private boolean exposePreciseBacklogInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable expose the backlog size for each subscription when generating stats.\n" +
+                    " Locking is used for fetching the status so default to false."
+    )
+    private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(
