@@ -67,7 +67,7 @@ RUN wget https://artifacts.crowdin.com/repo/deb/crowdin.deb -O crowdin.deb
 RUN dpkg -i crowdin.deb
 
 # Install PIP and PDoc
-RUN wget https://bootstrap.pypa.io/2.7/get-pip.py && python get-pip.py
+RUN wget https://bootstrap.pypa.io/2.7/get-pip.py && python get-pip.py && rm get-pip.py
 RUN pip3 install pdoc
 
 # Install Protobuf doc generator (requires Go)
