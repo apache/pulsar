@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ConnectorsManager {
 
+    @Getter
     private volatile TreeMap<String, Connector> connectors;
 
     public ConnectorsManager(WorkerConfig workerConfig) throws IOException {
@@ -47,7 +49,7 @@ public class ConnectorsManager {
         return connectors.get(connectorType).getConnectorDefinition();
     }
 
-    public List<ConnectorDefinition> getConnectors() {
+    public List<ConnectorDefinition> getConnectorDefinitions() {
         return connectors.values().stream().map(connector -> connector.getConnectorDefinition()).collect(Collectors.toList());
     }
 

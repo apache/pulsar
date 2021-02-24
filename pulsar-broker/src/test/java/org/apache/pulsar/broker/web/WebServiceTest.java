@@ -262,8 +262,7 @@ public class WebServiceTest {
         // Create local cluster
         String localCluster = "test";
         String clusterPath = PulsarWebResource.path("clusters", localCluster);
-        byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new ClusterData());
-        pulsar.getGlobalZkCache().getZooKeeper().create(clusterPath, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        pulsar.getPulsarResources().getClusterResources().create(clusterPath, new ClusterData());
         TenantInfo info2 = new TenantInfo();
         info2.setAdminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)));
         info2.setAllowedClusters(Sets.newHashSet(localCluster));

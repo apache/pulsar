@@ -66,7 +66,7 @@ public class ClientCnxRequestTimeoutQueueTest {
         requestMessage = mock(ByteBuf.class);
     }
 
-    @AfterTest
+    @AfterTest(alwaysRun = true)
     void cleanupClientCnx() {
         eventLoop.shutdownNow();
     }

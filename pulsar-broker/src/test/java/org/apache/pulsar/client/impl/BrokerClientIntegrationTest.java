@@ -65,9 +65,9 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.resources.BaseResources;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -97,7 +97,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -679,13 +678,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         ClientCnx cnx = producer.cnx();
         assertTrue(cnx.channel().isActive());
 
-        // Need broker to throw InternalServerError. so, make global-zk unavailable
-        Field globalZkCacheField = PulsarService.class.getDeclaredField("globalZkCache");
-        globalZkCacheField.setAccessible(true);
-        GlobalZooKeeperCache oldZkCache = (GlobalZooKeeperCache) globalZkCacheField.get(pulsar);
-        globalZkCacheField.set(pulsar, null);
-
-        oldZkCache.close();
+        Field cacheField = BaseResources.class.getDeclaredField("cache");
+        cacheField.setAccessible(true);
+        cacheField.set(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources(), null);
 
         try {
             pulsarClient.newProducer().topic(topicName).create();
@@ -935,5 +930,4 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     private static final class TestMessageObject{
         private String value;
     }
-
 }

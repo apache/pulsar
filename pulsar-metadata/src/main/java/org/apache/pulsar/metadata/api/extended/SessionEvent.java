@@ -16,16 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.metadata.api.extended;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.Map;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+/**
+ * An event regarding a session of MetadataStore
+ */
+public enum SessionEvent {
 
-public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {
+    /**
+     * The client is temporarily disconnected, although the session is still valid
+     */
+    ConnectionLost,
 
-    public DynamicConfigurationResources(MetadataStoreExtended store) {
-        super(store, new TypeReference<Map<String, String>>(){});
-    }
+    /**
+     * The client was able to successfully reconnect
+     */
+    Reconnected,
 
+    /**
+     * The session was lost, all the ephemeral keys created on the store within the current session might have been
+     * already expired.
+     */
+    SessionLost,
+
+    /**
+     * The session was established
+     */
+    SessionReestablished,
 }

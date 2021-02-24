@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
@@ -63,10 +64,10 @@ public class WorkerServiceWithClassLoader implements WorkerService {
     @Override
     public void initInBroker(ServiceConfiguration brokerConfig,
                              WorkerConfig workerConfig,
-                             ZooKeeperCache globalZkCache,
+                             PulsarResources pulsarResources,
                              ConfigurationCacheService configurationCacheService,
                              InternalConfigurationData internalConf) throws Exception {
-        service.initInBroker(brokerConfig, workerConfig, globalZkCache, configurationCacheService, internalConf);
+        service.initInBroker(brokerConfig, workerConfig, pulsarResources, configurationCacheService, internalConf);
     }
 
     @Override

@@ -19,6 +19,8 @@
 package org.apache.pulsar.websocket.proxy;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -55,6 +57,7 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
@@ -62,6 +65,7 @@ import org.apache.pulsar.websocket.service.WebSocketServiceStarter;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ConsumerStats;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ProducerStats;
+import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.UpgradeException;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
@@ -95,7 +99,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         config.setClusterName("test");
         config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         service = spy(new WebSocketService(config));
-        doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
@@ -105,8 +109,12 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.resetConfig();
         super.internalCleanup();
-        service.close();
-        proxyServer.stop();
+        if (service != null) {
+            service.close();
+        }
+        if (proxyServer != null) {
+            proxyServer.stop();
+        }
         log.info("Finished Cleaning Up Test setup");
     }
 
@@ -183,6 +191,74 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             assertEquals(produceSocket.getBuffer(), readSocket.getBuffer());
         } finally {
             stopWebSocketClient(consumeClient1, consumeClient2, readClient, produceClient);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void socketTestEndOfTopic() throws Exception {
+        final String topic = "my-property/my-ns/my-topic8";
+        final String subscription = "my-sub";
+        final String consumerUri = String.format(
+                "ws://localhost:%d/ws/v2/consumer/persistent/%s/%s?pullMode=true&subscriptionType=Shared",
+                proxyServer.getListenPortHTTP().get(), topic, subscription
+        );
+        final String producerUri = String.format("ws://localhost:%d/ws/v2/producer/persistent/%s", proxyServer.getListenPortHTTP().get(), topic);
+
+        URI consumeUri = URI.create(consumerUri);
+        URI produceUri = URI.create(producerUri);
+
+        WebSocketClient consumeClient = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        WebSocketClient produceClient = new WebSocketClient();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+
+        try {
+            consumeClient.start();
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            log.info("Connecting to : {}", consumeUri);
+
+            // let it connect
+            assertTrue(consumerFuture.get().isOpen());
+
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            produceClient.start();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            assertTrue(producerFuture.get().isOpen());
+            // Send 30 message in total.
+            produceSocket.sendMessage(20);
+            // Send 10 permits, should receive 10 message
+            consumeSocket.sendPermits(10);
+            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), 10));
+            consumeSocket.isEndOfTopic();
+            // Wait till get response
+            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+                    assertEquals(consumeSocket.getBuffer().size(), 11));
+            // Assert not reach end of topic yet
+            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
+
+            // Send 20 more permits, should receive all message
+            consumeSocket.sendPermits(20);
+            // 31 includes previous of end of topic request.
+            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), 31));
+            consumeSocket.isEndOfTopic();
+            // Wait till get response
+            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), 32));
+            // Assert not reached end of topic.
+            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
+
+            admin.topics().terminateTopicAsync(topic).get();
+            consumeSocket.isEndOfTopic();
+            // Wait till get response
+            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+                    assertEquals(consumeSocket.getReceivedMessagesCount(), 33));
+            // Assert reached end of topic.
+            assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":true}");
+        } finally {
+            stopWebSocketClient(consumeClient, produceClient);
         }
     }
 
