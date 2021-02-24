@@ -42,8 +42,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -58,7 +58,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     private final String myNamespace = testTenant + "/" + testNamespace;
     private final String testTopic = "persistent://" + myNamespace + "/max-unacked-";
 
-    @BeforeClass
+    @BeforeMethod
     @Override
     protected void setup() throws Exception {
         this.conf.setSystemTopicEnabled(true);
@@ -67,10 +67,11 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
     }
 
     @Test(timeOut = 10000)
