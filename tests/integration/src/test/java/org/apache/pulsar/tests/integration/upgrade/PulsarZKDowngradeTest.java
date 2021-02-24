@@ -74,7 +74,7 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
         log.info("Cluster {} is setup", spec.clusterName());
     }
 
-    @AfterSuite
+    @AfterSuite(alwaysRun = true)
     @Override
     public void tearDownCluster() {
         super.tearDownCluster();

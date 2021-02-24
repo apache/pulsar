@@ -45,7 +45,7 @@ public class RedisSinkTest {
         embeddedRedisUtils.setUp();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         embeddedRedisUtils.tearDown();
     }

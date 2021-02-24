@@ -22,6 +22,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.service.api.Functions;
@@ -29,7 +30,6 @@ import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
 import org.apache.pulsar.functions.worker.service.api.Sinks;
 import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.apache.pulsar.functions.worker.service.api.Workers;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
 
 /**
  * API service provides the ability to manage functions.
@@ -57,14 +57,14 @@ public interface WorkerService {
      *
      * @param brokerConfig broker config
      * @param workerConfig worker config
-     * @param globalZkCache global zookeeper cache
+     * @param MetadataStore configuration metadata-store
      * @param configurationCacheService configuration cache
      * @param internalConf pulsar internal configuration data
      * @throws Exception when failed to initialize the worker service in broker.
      */
     void initInBroker(ServiceConfiguration brokerConfig,
                       WorkerConfig workerConfig,
-                      ZooKeeperCache globalZkCache,
+                      PulsarResources pulsarResources,
                       ConfigurationCacheService configurationCacheService,
                       InternalConfigurationData internalConf) throws Exception;
 

@@ -33,6 +33,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
+import io.prometheus.client.Gauge;
 import java.net.SocketAddress;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -65,6 +66,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -1570,12 +1572,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
-            Position position = topic.getLastPosition();
+            Position lastPosition = topic.getLastPosition();
             int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+
+            Position markDeletePosition = null;
+            if (consumer.getSubscription() instanceof PersistentSubscription) {
+                markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor()
+                        .getMarkDeletedPosition();
+            }
 
             getLargestBatchIndexWhenPossible(
                     topic,
-                    (PositionImpl) position,
+                    (PositionImpl) lastPosition,
+                    (PositionImpl) markDeletePosition,
                     partitionIndex,
                     requestId,
                     consumer.getSubscription().getName());
@@ -1588,7 +1597,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private void getLargestBatchIndexWhenPossible(
             Topic topic,
-            PositionImpl position,
+            PositionImpl lastPosition,
+            PositionImpl markDeletePosition,
             int partitionIndex,
             long requestId,
             String subscriptionName) {
@@ -1597,15 +1607,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
 
         // If it's not pointing to a valid entry, respond messageId of the current position.
-        if (position.getEntryId() == -1) {
-            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, position.getLedgerId(),
-                    position.getEntryId(), partitionIndex, -1));
+        if (lastPosition.getEntryId() == -1) {
+            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                    lastPosition.getLedgerId(), lastPosition.getEntryId(), partitionIndex, -1,
+                    markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                    markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
             return;
         }
 
         // For a valid position, we read the entry out and parse the batch size from its metadata.
         CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
-        ml.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+        ml.asyncReadEntry(lastPosition, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 entryFuture.complete(entry);
@@ -1634,11 +1646,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
-                            topic.getName(), subscriptionName, position, partitionIndex);
+                            topic.getName(), subscriptionName, lastPosition, partitionIndex);
                 }
 
-                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, position.getLedgerId(),
-                        position.getEntryId(), partitionIndex, largestBatchIndex));
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, lastPosition.getLedgerId(),
+                        lastPosition.getEntryId(), partitionIndex, largestBatchIndex,
+                        markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                        markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
             }
         });
     }
@@ -2039,6 +2053,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return ctx.channel().isWritable();
     }
 
+    private static final Gauge throttledConnections = Gauge.build()
+            .name("pulsar_broker_throttled_connections")
+            .help("Counter of connections throttled because of per-connection limit")
+            .register();
+
+    private static final Gauge throttledConnectionsGlobal = Gauge.build()
+            .name("pulsar_broker_throttled_connections_global_limit")
+            .help("Counter of connections throttled because of per-connection limit")
+            .register();
 
     public void startSendOperation(Producer producer, int msgSize, int numMessages) {
         MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, msgSize);
@@ -2060,22 +2083,24 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
             autoReadDisabledRateLimiting = isPublishRateExceeded;
-
+            throttledConnections.inc();
         }
         if (getBrokerService().isReachMessagePublishBufferThreshold()) {
             ctx.channel().config().setAutoRead(false);
             autoReadDisabledPublishBufferLimiting = true;
+            throttledConnectionsGlobal.inc();
         }
     }
 
     @Override
     public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
         MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, -msgSize);
-        if (--pendingSendRequest == resumeReadsThreshold) {
+        if (--pendingSendRequest == resumeReadsThreshold && !ctx.channel().config().isAutoRead()) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
             // triggers channel read if autoRead couldn't trigger it
             ctx.read();
+            throttledConnections.dec();
         }
         if (isNonPersistentTopic) {
             nonPersistentPendingMessages--;
@@ -2114,6 +2139,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void cancelPublishBufferLimiting() {
         if (autoReadDisabledPublishBufferLimiting) {
             autoReadDisabledPublishBufferLimiting = false;
+            throttledConnectionsGlobal.dec();
         }
     }
 

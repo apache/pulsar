@@ -313,59 +313,6 @@ public class AbstractWebSocketHandlerTest {
         // the params are all different with the default value
         Map<String, String[]> queryParams = new HashMap<String, String>(){{
             put("ackTimeoutMillis", "1001");
-            put("subscriptionType", "Shared");
-            put("subscriptionMode", "NonDurable");
-            put("receiverQueueSize", "999");
-            put("consumerName", "my-consumer");
-            put("priorityLevel", "1");
-            put("maxRedeliverCount", "5");
-        }}.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> new String[]{ entry.getValue() }));
-
-        httpServletRequest = mock(HttpServletRequest.class);
-        when(httpServletRequest.getRequestURI()).thenReturn(consumerV2);
-        when(httpServletRequest.getParameterMap()).thenReturn(queryParams);
-
-        WebSocketService service = mock(WebSocketService.class);
-        when(service.isAuthenticationEnabled()).thenReturn(false);
-        when(service.isAuthorizationEnabled()).thenReturn(false);
-        when(service.getPulsarClient()).thenReturn(newPulsarClient());
-
-        MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
-
-        MockedConsumerHandler consumerHandler = new MockedConsumerHandler(service, httpServletRequest, response);
-        assertEquals(response.getStatusCode(), 500);
-        assertTrue(response.getMessage().contains("Connection refused"));
-        assertEquals(consumerHandler.getSubscriptionMode(), SubscriptionMode.NonDurable);
-        assertEquals(consumerHandler.getSubscriptionType(), SubscriptionType.Shared);
-
-        ConsumerConfigurationData<byte[]> conf = consumerHandler.getConf();
-        assertEquals(conf.getAckTimeoutMillis(), 1001);
-        assertEquals(conf.getSubscriptionType(), SubscriptionType.Shared);
-        assertEquals(conf.getSubscriptionMode(), SubscriptionMode.NonDurable);
-        assertEquals(conf.getReceiverQueueSize(), 999);
-        assertEquals(conf.getConsumerName(), "my-consumer");
-        assertEquals(conf.getPriorityLevel(), 1);
-        assertEquals(conf.getDeadLetterPolicy().getDeadLetterTopic(),
-                "persistent://my-property/my-ns/my-topic-my-subscription-DLQ");
-        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 5);
-
-        consumerHandler.clearQueryParams();
-        consumerHandler.putQueryParam("receiverQueueSize", "1001");
-        consumerHandler.putQueryParam("deadLetterTopic", "dead-letter-topic");
-
-        conf = consumerHandler.getConf();
-        // receive queue size is the minimum value of default value (1000) and user defined value(1001)
-        assertEquals(conf.getReceiverQueueSize(), 1000);
-        assertEquals(conf.getDeadLetterPolicy().getDeadLetterTopic(), "dead-letter-topic");
-        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 0);
-    }
-
-    @Test
-    public void consumerBuilderKeySharedTest() throws IOException {
-        String consumerV2 = "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription";
-        // the params are all different with the default value
-        Map<String, String[]> queryParams = new HashMap<String, String>(){{
-            put("ackTimeoutMillis", "1001");
             put("subscriptionType", "Key_Shared");
             put("subscriptionMode", "NonDurable");
             put("receiverQueueSize", "999");
@@ -385,20 +332,31 @@ public class AbstractWebSocketHandlerTest {
 
         MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
 
-        // Won't set DLQ by default
         MockedConsumerHandler consumerHandler = new MockedConsumerHandler(service, httpServletRequest, response);
         assertEquals(response.getStatusCode(), 500);
         assertTrue(response.getMessage().contains("Connection refused"));
         assertEquals(consumerHandler.getSubscriptionMode(), SubscriptionMode.NonDurable);
         assertEquals(consumerHandler.getSubscriptionType(), SubscriptionType.Key_Shared);
-        assertEquals(consumerHandler.getConf().getDeadLetterPolicy().getMaxRedeliverCount(), 5);
-        assertEquals(consumerHandler.getConf().getDeadLetterPolicy().getDeadLetterTopic(), null);
 
-        // Throw exception from consumer builder if client try to set DLQ for Key_Shared sub type.
-        queryParams.put("deadLetterTopic", new String[]{"dead-letter-topic"});
+        ConsumerConfigurationData<byte[]> conf = consumerHandler.getConf();
+        assertEquals(conf.getAckTimeoutMillis(), 1001);
+        assertEquals(conf.getSubscriptionType(), SubscriptionType.Key_Shared);
+        assertEquals(conf.getSubscriptionMode(), SubscriptionMode.NonDurable);
+        assertEquals(conf.getReceiverQueueSize(), 999);
+        assertEquals(conf.getConsumerName(), "my-consumer");
+        assertEquals(conf.getPriorityLevel(), 1);
+        assertEquals(conf.getDeadLetterPolicy().getDeadLetterTopic(),
+                "persistent://my-property/my-ns/my-topic-my-subscription-DLQ");
+        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 5);
 
-        new MockedConsumerHandler(service, httpServletRequest, response);
-        assertEquals(response.getStatusCode(), 500);
-        assertTrue(response.getMessage().contains("DeadLetterQueue is not supported for Key_Shared subscription type since DLQ can't guarantee message ordering."));
+        consumerHandler.clearQueryParams();
+        consumerHandler.putQueryParam("receiverQueueSize", "1001");
+        consumerHandler.putQueryParam("deadLetterTopic", "dead-letter-topic");
+
+        conf = consumerHandler.getConf();
+        // receive queue size is the minimum value of default value (1000) and user defined value(1001)
+        assertEquals(conf.getReceiverQueueSize(), 1000);
+        assertEquals(conf.getDeadLetterPolicy().getDeadLetterTopic(), "dead-letter-topic");
+        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 0);
     }
 }

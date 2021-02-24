@@ -279,8 +279,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         final String cluster = "test";
         final ClusterData clusterData = new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
-        // this will cause NPE and it should throw 500
-        doReturn(null).when(pulsar).getGlobalZkCache();
         try {
             admin.clusters().createCluster(cluster, clusterData);
         } catch (PulsarAdminException e) {

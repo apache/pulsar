@@ -30,6 +30,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -60,6 +61,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -302,7 +305,7 @@ public abstract class NamespacesBase extends AdminResource {
                 final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
                 try {
-                    namespaceResources().getLocalPolicies().delete(lcaolZkPolicyPath);
+                    getLocalPolicies().delete(lcaolZkPolicyPath);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
@@ -451,7 +454,7 @@ public abstract class NamespacesBase extends AdminResource {
                 namespaceResources().delete(globalZkPolicyPath);
 
                 try {
-                    namespaceResources().getLocalPolicies().delete(lcaolZkPolicyPath);
+                    getLocalPolicies().delete(lcaolZkPolicyPath);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
@@ -736,6 +739,12 @@ public abstract class NamespacesBase extends AdminResource {
             }
             validatePeerClusterConflict(clusterId, replicationClusterSet);
         }
+        for (String clusterId : replicationClusterSet) {
+            if (!clusters.contains(clusterId)) {
+                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
+            }
+            validatePeerClusterConflict(clusterId, replicationClusterSet);
+        }
 
         for (String clusterId : replicationClusterSet) {
             validateClusterForTenant(namespaceName.getTenant(), clusterId);
@@ -918,7 +927,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
         try {
-            namespaceResources().getLocalPolicies().setWithCreate(path, (oldPolicies) -> {
+            getLocalPolicies().setWithCreate(path, (oldPolicies) -> {
                 LocalPolicies localPolicies = oldPolicies.orElse(new LocalPolicies());
                 localPolicies.bookieAffinityGroup = bookieAffinityGroup;
                 log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
@@ -952,7 +961,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
         String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
         try {
-            final BookieAffinityGroupData bookkeeperAffinityGroup = namespaceResources().getLocalPolicies().get(path)
+            final BookieAffinityGroupData bookkeeperAffinityGroup = getLocalPolicies().get(path)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Namespace local-policies does not exist")).bookieAffinityGroup;
             if (bookkeeperAffinityGroup == null) {
@@ -1690,7 +1699,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
-            namespaceResources().getLocalPolicies().setWithCreate(path, (lp)->{
+            getLocalPolicies().setWithCreate(path, (lp)->{
                 LocalPolicies localPolicies = lp.orElse(new LocalPolicies());
                 localPolicies.namespaceAntiAffinityGroup = antiAffinityGroup;
                 return localPolicies;
@@ -1708,7 +1717,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
 
         try {
-            return namespaceResources().getLocalPolicies()
+            return getLocalPolicies()
                     .get(AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString()))
                     .orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
         } catch (Exception e) {
@@ -1725,7 +1734,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             final String path = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-            namespaceResources().getLocalPolicies().set(path, (policies)->{
+            getLocalPolicies().set(path, (policies)->{
                 policies.namespaceAntiAffinityGroup = null;
                 return policies;
             });
@@ -1756,7 +1765,7 @@ public abstract class NamespacesBase extends AdminResource {
             return namespaces.stream().filter(ns -> {
                 Optional<LocalPolicies> policies;
                 try {
-                    policies = namespaceResources().getLocalPolicies()
+                    policies = getLocalPolicies()
                             .get(AdminResource.joinPath(LOCAL_POLICIES_ROOT, ns));
                 } catch (Exception e) {
                     throw new RuntimeException(e);
@@ -2050,7 +2059,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected int internalGetMaxUnackedMessagesPerConsumer() {
+    protected Integer internalGetMaxUnackedMessagesPerConsumer() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_consumer;
     }
@@ -2307,6 +2316,28 @@ public abstract class NamespacesBase extends AdminResource {
                     return policies;
                 }, (policies) -> policies.is_allow_auto_update_schema,
                 "isAllowAutoUpdateSchema");
+    }
+
+    protected Set<SubscriptionType> internalGetSubscriptionTypesEnabled() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
+                PolicyOperation.READ);
+        Set<SubscriptionType> subscriptionTypes = new HashSet<>();
+        getNamespacePolicies(namespaceName).subscription_types_enabled.forEach(subType ->
+                subscriptionTypes.add(SubscriptionType.valueOf(subType.name())));
+        return subscriptionTypes;
+    }
+
+    protected void internalSetSubscriptionTypesEnabled(Set<SubscriptionType> subscriptionTypesEnabled) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
+                PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+        Set<SubType> subTypes = new HashSet<>();
+        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
+        mutatePolicy((policies) -> {
+                    policies.subscription_types_enabled = subTypes;
+                    return policies;
+                }, (policies) -> policies.subscription_types_enabled,
+                "subscriptionTypesEnabled");
     }
 
 
