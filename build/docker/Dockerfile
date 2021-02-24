@@ -37,7 +37,7 @@ RUN apt-get update && \
 RUN apt-get install -y curl
 RUN cd /usr/src && curl -O -L https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.tar.gz && \
     tar zxf boost_1_75_0.tar.gz && cd boost_1_75_0 && \
-    ./bootstrap.sh --with-python=/usr/bin/python3 --with-libraries=program_options,filesystem,regex,thread,system,python && \
+    ./bootstrap.sh --with-python=/usr/bin/python3 --with-libraries=program_options,python && \
     ./b2 address-model=64 cxxflags=-fPIC link=static threading=multi variant=release install && \
     cd .. && rm -rf boost_1_75_0 boost_1_75_0.tar.gz
 
