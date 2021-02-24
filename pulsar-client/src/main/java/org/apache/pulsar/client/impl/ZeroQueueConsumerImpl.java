@@ -52,7 +52,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
              ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
              CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId, Schema<T> schema,
              ConsumerInterceptors<T> interceptors,
-             boolean createTopicIfDoesNotExist) throws PulsarClientException.InvalidConfigurationException {
+             boolean createTopicIfDoesNotExist) {
         super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, subscribeFuture,
                 startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
                 createTopicIfDoesNotExist);
