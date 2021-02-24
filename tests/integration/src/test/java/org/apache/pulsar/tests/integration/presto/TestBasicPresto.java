@@ -167,7 +167,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 .create();
 
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
-            producer.send(new Stock(i,"STOCK_" + i , 100.0 + i * 10).toString());
+            producer.send("string" + i);
         }
         producer.flush();
     }
@@ -229,7 +229,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
 
     private void validateContentForStringSchema(int messageNum, String[] contentArr) {
         for (int i = 0; i < messageNum; i++) {
-            assertThat(contentArr).contains(new Stock(i,"STOCK_" + i , 100.0 + i * 10).toString());
+            assertThat(contentArr).contains("string" + i);
         }
     }
 
