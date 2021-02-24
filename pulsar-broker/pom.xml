@@ -442,6 +442,8 @@
                       tofile="${basedir}/src/test/resources/pulsar-functions-api-examples.jar"/>
                 <copy file="${basedir}/../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar"
                       tofile="${basedir}/src/test/resources/pulsar-io-data-generator.nar"/>
+                <copy file="${basedir}/../pulsar-io/batch-data-generator/target/pulsar-io-batch-data-generator-${project.version}.nar"
+                      tofile="${basedir}/src/test/resources/pulsar-io-batch-data-generator.nar"/>
               </target>
             </configuration>
           </execution>
