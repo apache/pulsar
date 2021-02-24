@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -87,9 +88,11 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     @Test(dataProvider = "schemaProvider")
     public void testForSchema(Schema schema) throws Exception {
         String schemaFlag;
-        if (schema.getSchemaInfo().getType().isStruct()
-                || schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
+        if (schema.getSchemaInfo().getType().isStruct()) {
             schemaFlag = schema.getSchemaInfo().getType().name();
+        } else if(schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
+            schemaFlag = schema.getSchemaInfo().getType().name() + "_"
+                    + ((KeyValueSchema) schema).getKeyValueEncodingType();
         } else {
             // Because some schema types are same(such as BYTES and BYTEBUFFER), so use the schema name as flag.
             schemaFlag = schema.getSchemaInfo().getName();
@@ -112,11 +115,13 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             prepareDataForBytesSchema(pulsarClient, topicName, isBatch);
         } else if (schema.getSchemaInfo().getName().equals(Schema.BYTEBUFFER.getSchemaInfo().getName())) {
             prepareDataForByteBufferSchema(pulsarClient, topicName, isBatch);
+        } else if (schema.getSchemaInfo().getType().equals(SchemaType.STRING)) {
+            prepareDataForStringSchema(pulsarClient, topicName, isBatch);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.JSON)
                 || schema.getSchemaInfo().getType().equals(SchemaType.AVRO)) {
             prepareDataForStructSchema(pulsarClient, topicName, isBatch, schema);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
-            prepareDataForKeyValueSchema(pulsarClient, topicName, isBatch, schema);
+            prepareDataForKeyValueSchema(pulsarClient, topicName, schema);
         }
 
         return NUM_OF_STOCKS;
@@ -152,6 +157,21 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         producer.flush();
     }
 
+    private void prepareDataForStringSchema(PulsarClient pulsarClient,
+                                            TopicName topicName,
+                                            boolean isBatch) throws PulsarClientException {
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName.toString())
+                .enableBatching(isBatch)
+                .create();
+
+        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+            producer.send(new Stock(i,"STOCK_" + i , 100.0 + i * 10).toString());
+        }
+        producer.flush();
+    }
+
     private void prepareDataForStructSchema(PulsarClient pulsarClient,
                                             TopicName topicName,
                                             boolean isBatch,
@@ -171,12 +191,10 @@ public class TestBasicPresto extends TestPulsarSQLBase {
 
     private void prepareDataForKeyValueSchema(PulsarClient pulsarClient,
                                               TopicName topicName,
-                                              boolean isBatch,
                                               Schema<KeyValue<Stock, Stock>> schema) throws Exception {
         @Cleanup
         Producer<KeyValue<Stock,Stock>> producer = pulsarClient.newProducer(schema)
                 .topic(topicName.toString())
-                .enableBatching(isBatch)
                 .create();
 
         for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
@@ -193,6 +211,10 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             case BYTES:
                 log.info("Skip validate content for BYTES schema type.");
                 break;
+            case STRING:
+                validateContentForStringSchema(messageNum, contentArr);
+                log.info("finish validate content for STRING schema type.");
+                break;
             case JSON:
             case AVRO:
                 validateContentForStructSchema(messageNum, contentArr);
@@ -200,7 +222,14 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 break;
             case KEY_VALUE:
                 validateContentForKeyValueSchema(messageNum, contentArr);
-                log.info("finish validate content for KEY_VALUE schema type.");
+                log.info("finish validate content for KEY_VALUE {} schema type.",
+                        ((KeyValueSchema) schema).getKeyValueEncodingType());
+        }
+    }
+
+    private void validateContentForStringSchema(int messageNum, String[] contentArr) {
+        for (int i = 0; i < messageNum; i++) {
+            assertThat(contentArr).contains(new Stock(i,"STOCK_" + i , 100.0 + i * 10).toString());
         }
     }
 
