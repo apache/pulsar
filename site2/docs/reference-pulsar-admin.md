@@ -2260,7 +2260,7 @@ Options
 |`-e`, `--entryId`|The entry id |0|
 
 ### `last-message-id`
-Get the last commit message id of topic.
+Get the last commit message ID of the topic.
 
 Usage
 ```bash
@@ -2506,7 +2506,7 @@ Get the maximum number of Producers for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics get-maxProducers tenant/namespace/topic
+$ pulsar-admin topics get-max-producers tenant/namespace/topic
 ```
 
 ### `set-max-producers`
@@ -2514,7 +2514,7 @@ Set the maximum number of Producers for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-maxProducers tenant/namespace/topic options
+$ pulsar-admin topics set-max-producers tenant/namespace/topic options
 ```
 
 ### `remove-max-producers`
@@ -2522,7 +2522,7 @@ Remove the maximum number of Producers for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics remove-maxProducers tenant/namespace/topic
+$ pulsar-admin topics remove-max-producers tenant/namespace/topic
 ```
 
 ### `get-max-consumers`
