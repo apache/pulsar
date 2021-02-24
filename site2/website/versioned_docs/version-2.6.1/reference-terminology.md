@@ -81,8 +81,8 @@ if no acknowledgement, then the message will be retained until it's processed.
 
 When an application fails to process a particular message, it can sends a "negative ack" to Pulsar
 to signal that the message should be replayed at a later timer. (By default, failed messages are
-replayed after a 1 minute delay). Be aware that doing negative ack on ordered subscription type like
-Exclusive, Failover and Key_Share can cause failed messages arrive consumer out of original order.
+replayed after a 1 minute delay). Be aware that negative acknowledgment on ordered subscription types,
+such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
 
 #### Unacknowledged
 
