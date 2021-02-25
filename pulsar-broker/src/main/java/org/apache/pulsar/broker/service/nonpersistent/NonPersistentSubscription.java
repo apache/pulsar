@@ -491,7 +491,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
+    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         completableFuture.completeExceptionally(
                 new Exception("Unsupported operation end txn for NonPersistentSubscription"));

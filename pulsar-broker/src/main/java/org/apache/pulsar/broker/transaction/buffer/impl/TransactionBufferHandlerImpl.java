@@ -105,14 +105,14 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
 
     @Override
     public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
-                                                         long txnIdLeastBits, TxnAction action) {
+                                                         long txnIdLeastBits, TxnAction action, long lowWaterMark) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
         }
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
-                topic, subscription, action);
+                topic, subscription, action, lowWaterMark);
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
