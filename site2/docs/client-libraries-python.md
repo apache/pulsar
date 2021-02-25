@@ -22,12 +22,27 @@ To install the `pulsar-client` library as a pre-built package using the [pip](ht
 $ pip install pulsar-client=={{pulsar:version_number}}
 ```
 
+### Optional dependencies
+
+To support aspects like pulsar functions or Avro serialization, additional optional components can be installed alongside the  `pulsar-client` library
+
+```shell
+# avro serialization
+$ pip install pulsar-client=='{{pulsar:version_number}}[avro]'
+
+# functions runtime
+$ pip install pulsar-client=='{{pulsar:version_number}}[functions]'
+
+# all optional components
+$ pip install pulsar-client=='{{pulsar:version_number}}[all]'
+```
+
 Installation via PyPi is available for the following Python versions:
 
 Platform | Supported Python versions
 :--------|:-------------------------
 MacOS <br />  10.13 (High Sierra), 10.14 (Mojave) <br /> | 2.7, 3.7
-Linux | 2.7, 3.4, 3.5, 3.6, 3.7
+Linux | 2.7, 3.4, 3.5, 3.6, 3.7, 3.8
 
 ### Install from source
 

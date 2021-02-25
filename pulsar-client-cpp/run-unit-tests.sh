@@ -24,6 +24,7 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
 ./pulsar-test-service-start.sh
+
 pushd tests
 
 if [ -f /gtest-parallel/gtest-parallel ]; then
@@ -47,8 +48,12 @@ if [ $RES -eq 0 ]; then
     echo "---- Build Python Wheel file"
     python setup.py bdist_wheel
 
-    echo "---- Installing  Python Wheel file"
-    pip install dist/pulsar_client-*-linux_x86_64.whl
+    echo "---- Installing Python Wheel file"
+    ls -lha dist
+    WHEEL_FILE=$(ls dist/ | grep whl)
+    echo "${WHEEL_FILE}"
+    echo "dist/${WHEEL_FILE}[all]"
+    pip install dist/${WHEEL_FILE}[all]
 
     echo "---- Running Python unit tests"
 
