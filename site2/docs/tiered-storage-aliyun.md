@@ -171,7 +171,7 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 ### Configure Aliyun OSS offloader to run manually
 
-For individual topics, you can trigger Aliyun OSS offloader manually using one of the following methods:
+For individual topics, you can trigger the Aliyun OSS offloader manually using one of the following methods:
 
 - Use REST endpoint.
 
