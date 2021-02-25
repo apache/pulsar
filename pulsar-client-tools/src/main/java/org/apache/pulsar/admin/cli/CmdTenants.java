@@ -120,7 +120,7 @@ public class CmdTenants extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-f",
-                "--force" }, description = "Delete tenant by force deleting all namespaces under it")
+                "--force" }, description = "Delete a tenant forcefully by deleting all namespaces under it.")
         private boolean force = false;
 
         @Override
