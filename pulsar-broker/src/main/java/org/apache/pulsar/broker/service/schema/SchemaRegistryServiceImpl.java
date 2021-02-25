@@ -138,15 +138,18 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
+        log.debug("call put schema if absent {} {} {}", schema, schema, strategy);
+
         return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
                 getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
-            if (schemaVersion != null) {
-                return CompletableFuture.completedFuture(schemaVersion);
-            }
-            CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
-            if (schemaAndMetadataList.size() != 0) {
-                if (isTransitiveStrategy(strategy)) {
-                    checkCompatibilityFuture = checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList);
+                    if (schemaVersion != null) {
+                        return CompletableFuture.completedFuture(schemaVersion);
+                    }
+                    CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
+                    if (schemaAndMetadataList.size() != 0) {
+                        if (isTransitiveStrategy(strategy)) {
+                            checkCompatibilityFuture = checkCompatibilityWithAll(schema, strategy,
+                                    schemaAndMetadataList);
                 } else {
                     checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy);
                 }
