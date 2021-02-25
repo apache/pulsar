@@ -49,7 +49,7 @@ The devel package contains C++ and C API headers and `libpulsar.a`
 static library.
 
 %prep
-%setup -q -n apache-pulsar-%{pom_version}
+%setup -q -n apache-pulsar-%{pom_version}-src
 
 %build
 cd pulsar-client-cpp
