@@ -42,7 +42,6 @@ import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -97,7 +96,7 @@ public class PerformanceProducer {
         @Parameter(names = { "--conf-file" }, description = "Configuration file")
         public String confFile;
 
-        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
+        @Parameter(description = "A list of topics to produce messages to (e.g. persistent://prop/ns/topic1 persistent://prop/ns/topic2)", required = true)
         public List<String> topics;
 
         @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads")
@@ -109,7 +108,7 @@ public class PerformanceProducer {
         @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics")
+        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
         public int numTopics = 1;
 
         @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)")
@@ -238,8 +237,8 @@ public class PerformanceProducer {
             System.exit(-1);
         }
 
-        if (arguments.topics.size() != 1) {
-            System.out.println("Only one topic name is allowed");
+        if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
+            System.out.println("The size of topics list should be equal to --num-topics");
             jc.usage();
             System.exit(-1);
         }
@@ -400,7 +399,6 @@ public class PerformanceProducer {
         PulsarClient client = null;
         try {
             // Now processing command line arguments
-            String prefixTopicName = arguments.topics.get(0);
             List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
 
             ClientBuilder clientBuilder = PulsarClient.builder() //
@@ -454,7 +452,7 @@ public class PerformanceProducer {
             }
 
             for (int i = 0; i < arguments.numTopics; i++) {
-                String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
+                String topic = arguments.topics.get(i);
                 log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
                 for (int j = 0; j < arguments.numProducers; j++) {
