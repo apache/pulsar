@@ -151,7 +151,7 @@ Threshold value|Action
 = 0|It causes a broker to offload data as soon as possible.
 < 0 |It disables automatic offloading operation.
 
-Automatic offloading runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offloader does not work until the current segment is full.
+Automatic offloading runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, the offloader does not work until the current segment is full.
 
 You can configure the threshold size using CLI tools, such as pulsar-admin.
 
