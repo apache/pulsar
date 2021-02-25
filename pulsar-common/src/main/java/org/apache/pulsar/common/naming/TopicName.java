@@ -324,7 +324,7 @@ public class TopicName implements ServiceUnitId {
         if (name == null) {
             return null;
         }
-        final String[] arr = name.split("//");
+        final String[] arr = name.split("/");
 
         if (arr.length == 4) {
             String tenant = arr[0];
