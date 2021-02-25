@@ -2502,7 +2502,7 @@ $ pulsar-admin topics remove-delayed-delivery tenant/namespace/topic
 ```
 
 ### `get-max-producers`
-Get the maximum number of Producers for a topic.
+Get the maximum number of producers for a topic.
 
 Usage
 ```bash
@@ -2510,7 +2510,7 @@ $ pulsar-admin topics get-max-producers tenant/namespace/topic
 ```
 
 ### `set-max-producers`
-Set the maximum number of Producers for a topic.
+Set the maximum number of producers for a topic.
 
 Usage
 ```bash
@@ -2518,7 +2518,7 @@ $ pulsar-admin topics set-max-producers tenant/namespace/topic options
 ```
 
 ### `remove-max-producers`
-Remove the maximum number of Producers for a topic.
+Remove the maximum number of producers for a topic.
 
 Usage
 ```bash
@@ -2526,7 +2526,7 @@ $ pulsar-admin topics remove-max-producers tenant/namespace/topic
 ```
 
 ### `get-max-consumers`
-Get the maximum number of Consumers for a topic.
+Get the maximum number of consumers for a topic.
 
 Usage
 ```bash
@@ -2534,7 +2534,7 @@ $ pulsar-admin topics get-max-consumers tenant/namespace/topic
 ```
 
 ### `set-max-consumers`
-Set the maximum number of Consumers for a topic.
+Set the maximum number of consumers for a topic.
 
 Usage
 ```bash
@@ -2542,7 +2542,7 @@ $ pulsar-admin topics set-max-consumers tenant/namespace/topic options
 ```
 
 ### `remove-max-consumers`
-Remove the maximum number of Consumers for a topic.
+Remove the maximum number of consumers for a topic.
 
 Usage
 ```bash
