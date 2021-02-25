@@ -488,13 +488,13 @@ public class KubernetesRuntimeTest {
         int configArg;
         int metricsPortArg;
         if (null == extraDepsDir) {
-            totalArgs = 39;
+            totalArgs = 37;
             portArg = 30;
             configArg = 10;
             pythonPath = "";
             metricsPortArg = 32;
         } else {
-            totalArgs = 42;
+            totalArgs = 40;
             portArg = 31;
             configArg = 11;
             metricsPortArg = 33;
@@ -520,7 +520,6 @@ public class KubernetesRuntimeTest {
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
-                + " --pending_async_requests 200"
                 + " --state_storage_serviceurl bk://localhost:4181"
                 + " --expected_healthcheck_interval -1";
         if (secretsAttached) {

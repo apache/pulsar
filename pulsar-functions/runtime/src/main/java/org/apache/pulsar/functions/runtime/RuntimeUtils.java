@@ -400,8 +400,11 @@ public class RuntimeUtils {
         args.add("--metrics_port");
         args.add(String.valueOf(metricsPort));
 
-        args.add("--pending_async_requests");
-        args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
+        // only the Java instance supports --pending_async_requests right now.
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            args.add("--pending_async_requests");
+            args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
+        }
         
         // state storage configs
         if (null != stateStorageServiceUrl) {

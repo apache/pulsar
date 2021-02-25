@@ -369,7 +369,7 @@ public class ProcessRuntimeTest {
         ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
         List<String> args = container.getProcessArgs();
 
-        int totalArgs = 38;
+        int totalArgs = 36;
         int portArg = 23;
         int metricsPortArg = 25;
         String pythonPath = "";
@@ -386,7 +386,6 @@ public class ProcessRuntimeTest {
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg)
                 + " --metrics_port " + args.get(metricsPortArg)
-                + " --pending_async_requests 200"
                 + " --state_storage_serviceurl bk://localhost:4181"
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
