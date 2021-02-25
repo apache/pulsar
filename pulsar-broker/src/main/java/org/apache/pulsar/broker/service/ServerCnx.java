@@ -949,6 +949,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     }
 
                                     if (schema != null) {
+                                        log.info("subscribe with schema {}", schema);
                                         return topic.addSchemaIfIdleOrCheckCompatible(schema)
                                                 .thenCompose(v -> topic.subscribe(
                                                         ServerCnx.this, subscriptionName, consumerId,
@@ -957,6 +958,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                         readCompacted, initialPosition, startMessageRollbackDurationSec,
                                                         isReplicated, keySharedMeta));
                                     } else {
+                                        log.info("subscribe with out schema");
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
                                             startMessageId, metadata, readCompacted, initialPosition,

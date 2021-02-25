@@ -78,7 +78,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String domain, String tenant, String cluster, String namespace,
-            String topic) {
+                                String topic) {
         String name = domain + "://" + tenant + '/' + cluster + '/' + namespace + '/' + topic;
         return TopicName.get(name);
     }
@@ -113,11 +113,11 @@ public class TopicName implements ServiceUnitId {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else if (parts.length == 1) {
                     completeTopicName = TopicDomain.persistent.name() + "://"
-                        + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
+                            + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
                 } else {
                     throw new IllegalArgumentException(
-                        "Invalid short topic name '" + completeTopicName + "', it should be in the format of "
-                        + "<tenant>/<namespace>/<topic> or <topic>");
+                            "Invalid short topic name '" + completeTopicName + "', it should be in the format of "
+                                    + "<tenant>/<namespace>/<topic> or <topic>");
                 }
             }
 
@@ -169,11 +169,11 @@ public class TopicName implements ServiceUnitId {
         }
         if (isV2()) {
             this.completeTopicName = String.format("%s://%s/%s/%s",
-                                                   domain, tenant, namespacePortion, localName);
+                    domain, tenant, namespacePortion, localName);
         } else {
             this.completeTopicName = String.format("%s://%s/%s/%s/%s",
-                                                   domain, tenant, cluster,
-                                                   namespacePortion, localName);
+                    domain, tenant, cluster,
+                    namespacePortion, localName);
         }
     }
 
@@ -320,6 +320,32 @@ public class TopicName implements ServiceUnitId {
         }
     }
 
+    public static TopicName fromPersistenceNamingEncoding(String name) throws Exception {
+        if (name == null) {
+            return null;
+        }
+        final String[] arr = name.split("//");
+
+        if (arr.length == 4) {
+            String tenant = arr[0];
+            String namespacePortion = arr[1];
+            String domain = arr[2];
+            String encodedLocalName = arr[3];
+            final String decodedName = Codec.decode(encodedLocalName);
+            TopicName.get(domain, tenant, namespacePortion, decodedName);
+        } else if (arr.length == 5) {
+            String tenant = arr[0];
+            String cluster = arr[1];
+            String namespacePortion = arr[2];
+            String domain = arr[3];
+            String encodedLocalName = arr[4];
+            final String decodedName = Codec.decode(encodedLocalName);
+            TopicName.get(domain, tenant, cluster, namespacePortion, decodedName);
+        }
+
+        throw new Exception("not valid name: " + name);
+    }
+
     /**
      * Get a string suitable for completeTopicName lookup.
      *
@@ -344,8 +370,8 @@ public class TopicName implements ServiceUnitId {
 
     public String getSchemaName() {
         return getTenant()
-            + "/" + getNamespacePortion()
-            + "/" + TopicName.get(getPartitionedTopicName()).getEncodedLocalName();
+                + "/" + getNamespacePortion()
+                + "/" + TopicName.get(getPartitionedTopicName()).getEncodedLocalName();
     }
 
     @Override
