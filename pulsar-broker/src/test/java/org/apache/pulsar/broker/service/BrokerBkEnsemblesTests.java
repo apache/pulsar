@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.util.StringUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -309,10 +310,10 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
     @Test
     public void testDeleteTopicWithMissingData() throws Exception {
-        String namespace = "prop/usc-" + System.nanoTime();
+        String namespace = BrokerTestUtil.newUniqueName("prop/usc");
         admin.namespaces().createNamespace(namespace);
 
-        String topic = namespace + "/my-topic-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName(namespace + "/my-topic");
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()

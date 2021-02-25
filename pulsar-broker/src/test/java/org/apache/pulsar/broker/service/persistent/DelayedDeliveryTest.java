@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -71,7 +72,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Test
     public void testDelayedDelivery()
             throws Exception {
-        String topic = "testNegativeAcks-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("testNegativeAcks");
 
         @Cleanup
         Consumer<String> failoverConsumer = pulsarClient.newConsumer(Schema.STRING)
@@ -126,7 +127,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Test
     public void testInterleavedMessages()
             throws Exception {
-        String topic = "testInterleavedMessages-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("testInterleavedMessages");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -178,7 +179,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Test
     public void testEverythingFilteredInMultipleReads()
             throws Exception {
-        String topic = "testEverythingFilteredInMultipleReads-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("testEverythingFilteredInMultipleReads");
 
         @Cleanup
         Consumer<String> sharedConsumer = pulsarClient.newConsumer(Schema.STRING)
@@ -227,7 +228,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Test
     public void testDelayedDeliveryWithMultipleConcurrentReadEntries()
             throws Exception {
-        String topic = "persistent://public/default/testDelayedDelivery-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelayedDelivery");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -289,7 +290,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Test
     public void testOrderingDispatch() throws PulsarClientException {
-        String topic = "persistent://public/default/testOrderingDispatch-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testOrderingDispatch");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
