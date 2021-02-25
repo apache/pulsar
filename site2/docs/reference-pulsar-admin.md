@@ -2451,6 +2451,11 @@ Usage
 $ pulsar-admin tenants delete tenant-name
 ```
 
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-f`, `--force`|Delete tenant forcefully by force deleting all namespaces under it|false|
+
 
 ## `resource-quotas`
 Operations for managing resource quotas
