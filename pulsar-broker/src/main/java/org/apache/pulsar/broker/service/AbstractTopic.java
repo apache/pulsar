@@ -96,7 +96,7 @@ public abstract class AbstractTopic implements Topic {
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
-    protected volatile int maxUnackedMessagesOnConsumer = -1;
+    protected volatile int maxUnackedMessagesOnConsumerAppilied = 0;
 
     protected volatile Integer maxSubscriptionsPerTopic = null;
 

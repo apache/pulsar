@@ -283,7 +283,7 @@ public class PersistentTopic extends AbstractTopic
                 inactiveTopicPolicies = policies.inactive_topic_policies;
             }
 
-            maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(policies);
+            updateUnackedMessagesExceededOnConsumer(policies);
             maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(policies);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
@@ -764,12 +764,26 @@ public class PersistentTopic extends AbstractTopic
         return maxUnackedMessages;
     }
 
-    private int unackedMessagesExceededOnConsumer(Policies data) {
-        final int maxUnackedMessages = data.max_unacked_messages_per_consumer > -1
-                ? data.max_unacked_messages_per_consumer
-                : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+    private void updateUnackedMessagesExceededOnConsumer(Policies data) {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
+            maxUnackedMessagesOnConsumerAppilied = topicPolicies.getMaxUnackedMessagesOnConsumer();
+        } else {
+            maxUnackedMessagesOnConsumerAppilied =
+                    data != null && data.max_unacked_messages_per_consumer != null
+                            ? data.max_unacked_messages_per_consumer
+                            : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+        }
+        getSubscriptions().forEach((name, sub) -> {
+            if (sub != null) {
+                sub.getConsumers().forEach(consumer -> {
+                    if (consumer.getMaxUnackedMessages() != maxUnackedMessagesOnConsumerAppilied) {
+                        consumer.setMaxUnackedMessages(maxUnackedMessagesOnConsumerAppilied);
+                    }
+                });
+            }
+        });
 
-        return maxUnackedMessages;
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -2117,7 +2131,7 @@ public class PersistentTopic extends AbstractTopic
 
         schemaValidationEnforced = data.schema_validation_enforced;
 
-        maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(data);
+        updateUnackedMessagesExceededOnConsumer(data);
         maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
         maxSubscriptionsPerTopic = data.max_subscriptions_per_topic;
 
@@ -2669,11 +2683,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public int getMaxUnackedMessagesOnConsumer() {
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
-            return topicPolicies.getMaxUnackedMessagesOnConsumer();
-        }
-        return maxUnackedMessagesOnConsumer;
+        return maxUnackedMessagesOnConsumerAppilied;
     }
 
     public boolean isDelayedDeliveryEnabled() {
@@ -2745,6 +2755,7 @@ public class PersistentTopic extends AbstractTopic
         }
         replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                 .ifPresent(DispatchRateLimiter::updateDispatchRate));
+        updateUnackedMessagesExceededOnConsumer(null);
     }
 
     private Optional<Policies> getNamespacePolicies() {
