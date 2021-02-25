@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -40,11 +41,19 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     private final TransactionCoordinatorID tcID;
     private final AtomicLong localID;
     private final ConcurrentMap<TxnID, TxnMetaImpl> transactions;
+    private final TransactionMetadataStoreStats transactionMetadataStoreStats;
+    private final Rate createTransactionRate;
+    private final Rate commitTransactionRate;
+    private final Rate abortTransactionRate;
 
     InMemTransactionMetadataStore(TransactionCoordinatorID tcID) {
         this.tcID = tcID;
         this.localID = new AtomicLong(0L);
         this.transactions = new ConcurrentHashMap<>();
+        this.transactionMetadataStoreStats = new TransactionMetadataStoreStats();
+        this.createTransactionRate = new Rate();
+        this.commitTransactionRate = new Rate();
+        this.abortTransactionRate = new Rate();
     }
 
     @Override
@@ -121,5 +130,23 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     public CompletableFuture<Void> closeAsync() {
         transactions.clear();
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public TransactionMetadataStoreStats getStats() {
+        transactionMetadataStoreStats.setTransactionSequenceId(localID.get());
+        transactionMetadataStoreStats.setOngoingTransactionCount(transactions.size());
+        transactionMetadataStoreStats.setTransactionCoordinatorId(tcID.getId());
+        return transactionMetadataStoreStats;
+    }
+
+    @Override
+    public void updateRates() {
+        this.commitTransactionRate.calculateRate();
+        this.abortTransactionRate.calculateRate();
+        this.createTransactionRate.calculateRate();
+        this.transactionMetadataStoreStats.setCommitTransactionRate(this.commitTransactionRate.getRate());
+        this.transactionMetadataStoreStats.setCommitTransactionRate(this.abortTransactionRate.getRate());
+        this.transactionMetadataStoreStats.setCommitTransactionRate(this.createTransactionRate.getRate());
     }
 }

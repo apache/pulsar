@@ -22,6 +22,7 @@ import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreStats;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
 /**
@@ -114,5 +115,17 @@ public interface TransactionMetadataStore {
      * @return a future represents the result of this operation
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * Get the transaction metadata store stats.
+     *
+     * @return transactionMetadataStoreStats {@link TransactionMetadataStoreStats}
+     */
+    TransactionMetadataStoreStats getStats();
+
+    /**
+     * Update the transaction metadata store op rates.
+     */
+    void updateRates();
 
 }

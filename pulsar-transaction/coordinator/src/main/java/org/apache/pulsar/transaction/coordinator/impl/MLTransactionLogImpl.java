@@ -34,6 +34,8 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLog;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
@@ -49,7 +51,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final ManagedLedger managedLedger;
 
-    public final static String TRANSACTION_LOG_PREFIX = NamespaceName.SYSTEM_NAMESPACE + "/transaction-log-";
+    public final static String TRANSACTION_LOG_PREFIX = "transaction_log_";
 
     private final ManagedCursor cursor;
 
@@ -64,14 +66,15 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final long tcId;
 
-    private final String topicName;
+    private final TopicName topicName;
 
     public MLTransactionLogImpl(TransactionCoordinatorID tcID,
                                 ManagedLedgerFactory managedLedgerFactory,
                                 ManagedLedgerConfig managedLedgerConfig) throws Exception {
-        this.topicName = TRANSACTION_LOG_PREFIX + tcID;
+        this.topicName = TopicName.get(TopicDomain.persistent.value(),
+                NamespaceName.SYSTEM_NAMESPACE, "transaction_log_" + tcID.getId());
         this.tcId = tcID.getId();
-        this.managedLedger = managedLedgerFactory.open(topicName, managedLedgerConfig);
+        this.managedLedger = managedLedgerFactory.open(topicName.getPersistenceNamingEncoding(), managedLedgerConfig);
         this.cursor =  managedLedger.openCursor(TRANSACTION_SUBSCRIPTION_NAME,
                 CommandSubscribe.InitialPosition.Earliest);
         this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();

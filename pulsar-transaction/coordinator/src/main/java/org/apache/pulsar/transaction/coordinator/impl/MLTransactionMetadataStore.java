@@ -32,6 +32,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.Subscription;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
@@ -65,6 +66,10 @@ public class MLTransactionMetadataStore
     private final ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentHashMap<>();
     private final ConcurrentSkipListSet<Long> txnIdSortedSet = new ConcurrentSkipListSet<>();
     private final TransactionTimeoutTracker timeoutTracker;
+    private final TransactionMetadataStoreStats transactionMetadataStoreStats;
+    private final Rate createTransactionRate;
+    private final Rate commitTransactionRate;
+    private final Rate abortTransactionRate;
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
@@ -73,6 +78,11 @@ public class MLTransactionMetadataStore
         this.tcID = tcID;
         this.transactionLog = mlTransactionLog;
         this.timeoutTracker = timeoutTracker;
+        this.transactionMetadataStoreStats = new TransactionMetadataStoreStats();
+
+        this.createTransactionRate = new Rate();
+        this.commitTransactionRate = new Rate();
+        this.abortTransactionRate = new Rate();
 
         if (!changeToInitializingState()) {
             log.error("Managed ledger transaction metadata store change state error when init it");
@@ -207,6 +217,7 @@ public class MLTransactionMetadataStore
                     txnMetaMap.put(txnID, pair);
                     this.timeoutTracker.addTransaction(leastSigBits, timeOut);
                     this.txnIdSortedSet.add(leastSigBits);
+                    createTransactionRate.recordEvent();
                     return CompletableFuture.completedFuture(txnID);
                 });
     }
@@ -302,6 +313,11 @@ public class MLTransactionMetadataStore
                             txnMetaMap.remove(txnID);
                             txnIdSortedSet.remove(txnID.getLeastSigBits());
                             ((TxnMetaImpl) txnMetaListPair.getLeft()).recycle();
+                            if (newStatus == TxnStatus.COMMITTED) {
+                                commitTransactionRate.recordEvent();
+                            } else {
+                                abortTransactionRate.recordEvent();
+                            }
                             return CompletableFuture.completedFuture(null);
                         });
                     }
@@ -352,6 +368,25 @@ public class MLTransactionMetadataStore
             }
             return CompletableFuture.completedFuture(null);
         });
+    }
+
+    @Override
+    public TransactionMetadataStoreStats getStats() {
+        transactionMetadataStoreStats.setLowWaterMark(getLowWaterMark());
+        transactionMetadataStoreStats.setOngoingTransactionCount(txnIdSortedSet.size());
+        transactionMetadataStoreStats.setTransactionSequenceId(sequenceId.get());
+        transactionMetadataStoreStats.setTransactionCoordinatorId(tcID.getId());
+        return transactionMetadataStoreStats;
+    }
+
+    @Override
+    public void updateRates() {
+        this.commitTransactionRate.calculateRate();
+        this.abortTransactionRate.calculateRate();
+        this.createTransactionRate.calculateRate();
+        this.transactionMetadataStoreStats.setCreateTransactionRate(this.createTransactionRate.getRate());
+        this.transactionMetadataStoreStats.setCommitTransactionRate(this.commitTransactionRate.getRate());
+        this.transactionMetadataStoreStats.setAbortTransactionRate(this.abortTransactionRate.getRate());
     }
 
     public static List<Subscription> txnSubscriptionToSubscription(List<TransactionSubscription> tnxSubscriptions) {

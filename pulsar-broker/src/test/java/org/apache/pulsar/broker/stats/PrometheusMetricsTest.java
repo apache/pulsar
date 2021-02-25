@@ -32,6 +32,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.Date;
 import java.text.NumberFormat;
 import java.util.Arrays;
@@ -62,6 +63,9 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -73,7 +77,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.baseSetup();
+        ServiceConfiguration configuration = getDefaultConf();
+        configuration.setTransactionCoordinatorEnabled(true);
+        super.baseSetup(configuration);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -985,6 +991,96 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testTransactionCoordinatorMetrics() throws Exception{
+        long timeout = 10000;
+        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(1);
+        TransactionCoordinatorID transactionCoordinatorIDTwo = TransactionCoordinatorID.get(2);
+        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDOne);
+        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDTwo);
+
+        Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
+                pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
+        pulsar.getTransactionMetadataStoreService().getStores()
+                .get(transactionCoordinatorIDOne).newTransaction(timeout).get();
+        pulsar.getTransactionMetadataStoreService().getStores()
+                .get(transactionCoordinatorIDTwo).newTransaction(timeout).get();
+        pulsar.getTransactionMetadataStoreService().getStores()
+                .get(transactionCoordinatorIDTwo).newTransaction(timeout).get();
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
+        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_transaction_ongoing_count");
+        assertEquals(metric.size(), 2);
+        metric.forEach(item -> {
+            if ("1".equals(item.tags.get("transaction_coordinator_id"))) {
+                assertEquals(item.value, 1);
+            } else {
+                assertEquals(item.value, 2);
+            }
+        });
+
+        metric = metrics.get("pulsar_transaction_sequence_id");
+        assertEquals(metric.size(), 2);
+        metric.forEach(item -> {
+            if ("1".equals(item.tags.get("transaction_coordinator_id"))) {
+                assertEquals(item.value, 0);
+            } else {
+                assertEquals(item.value, 1);
+            }
+        });
+
+        metric = metrics.get("pulsar_transaction_low_water_mark");
+        assertEquals(metric.size(), 2);
+        metric.forEach(item -> assertEquals(item.value, -1));
+    }
+
+    @Test
+    public void testTransactionCoordinatorRateMetrics() throws Exception{
+        long timeout = 10000;
+        int txnCount = 120;
+        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(1);
+        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDOne);
+
+        Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
+                pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
+
+        List<TxnID> list = new ArrayList<>();
+        for (int i = 0; i < txnCount; i++) {
+            list.add(pulsar.getTransactionMetadataStoreService().getStores()
+                    .get(transactionCoordinatorIDOne).newTransaction(timeout).get());
+        }
+
+        for (int i = 0; i < txnCount; i++) {
+            if (i % 2 == 0) {
+                pulsar.getTransactionMetadataStoreService().endTransaction(list.get(i), TxnAction.COMMIT_VALUE).get();
+            } else {
+                pulsar.getTransactionMetadataStoreService().endTransaction(list.get(i), TxnAction.ABORT_VALUE).get();
+            }
+        }
+
+        pulsar.getBrokerService().updateRates();
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_transaction_create_rate");
+        assertEquals(metric.size(), 1);
+        metric.forEach(item -> assertTrue(item.value > 0));
+
+        metric = metrics.get("pulsar_transaction_commit_rate");
+        assertEquals(metric.size(), 1);
+        metric.forEach(item -> assertTrue(item.value > 0));
+
+        metric = metrics.get("pulsar_transaction_abort_rate");
+        assertEquals(metric.size(), 1);
+        metric.forEach(item -> assertTrue(item.value > 0));
+
     }
 
     /**

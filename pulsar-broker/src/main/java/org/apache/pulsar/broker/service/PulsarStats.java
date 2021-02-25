@@ -56,10 +56,12 @@ public class PulsarStats implements Closeable {
     private List<NonPersistentTopic> tempNonPersistentTopics;
     private final BrokerOperabilityMetrics brokerOperabilityMetrics;
     private final boolean exposePublisherStats;
+    private final PulsarService pulsarService;
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
     public PulsarStats(PulsarService pulsar) {
+        this.pulsarService = pulsar;
         this.topicStatsBuf = Unpooled.buffer(16 * 1024);
         this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
@@ -201,6 +203,15 @@ public class PulsarStats implements Closeable {
             tempTopicStatsBuf.clear();
         } finally {
             bufferLock.writeLock().unlock();
+        }
+
+        if (pulsarService.getConfiguration().isTransactionCoordinatorEnabled()) {
+            if (pulsarService.getTransactionMetadataStoreService() != null) {
+                pulsarService.getTransactionMetadataStoreService().getStores()
+                        .forEach((transactionCoordinatorID, transactionMetadataStore) -> {
+                            transactionMetadataStore.updateRates();
+                        });
+            }
         }
     }
 
