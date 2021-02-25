@@ -4,7 +4,7 @@ title: Use Aliyun OSS offloader with Pulsar
 sidebar_label: Aliyun OSS offloader
 ---
 
-This chapter guides you through every step of installing and configuring the Aliyun Object Storage Service offloader and using it with Pulsar.
+This chapter guides you through every step of installing and configuring the Aliyun Object Storage Service (OSS) offloader and using it with Pulsar.
 
 ## Installation
 
@@ -240,4 +240,3 @@ For individual topics, you can trigger Aliyun OSS offloader manually using one o
     > #### Tip
     >
     > For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
-
