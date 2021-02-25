@@ -229,7 +229,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
 
     private void validateContentForStringSchema(int messageNum, String[] contentArr) {
         for (int i = 0; i < messageNum; i++) {
-            assertThat(contentArr).contains("string" + i);
+            assertThat(contentArr).contains("\"string" + i + "\"");
         }
     }
 
