@@ -125,6 +125,7 @@ flexible messaging model and an intuitive client API.</description>
     <protobuf3.version>3.11.4</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.33.0</grpc.version>
+    <perfmark.version>0.19.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     <gson.version>2.8.6</gson.version>
     <sketches.version>0.8.3</sketches.version>
@@ -836,6 +837,19 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-core</artifactId>
         <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.perfmark</groupId>
+        <artifactId>perfmark-api</artifactId>
+        <version>${perfmark.version}</version>
+        <scope>runtime</scope>
+        <exclusions>
+          <exclusion>
+            <artifactId>error_prone_annotations</artifactId>
+            <groupId>com.google.errorprone</groupId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
