@@ -35,9 +35,9 @@ public class AuthPolicies {
     public final Map<String, Set<String>> subscription_auth_roles;
 
     public AuthPolicies() {
-        namespace_auth = Maps.newTreeMap();
-        destination_auth = Maps.newTreeMap();
-        subscription_auth_roles = Maps.newTreeMap();
+        namespace_auth = Maps.newHashMap();
+        destination_auth = Maps.newHashMap();
+        subscription_auth_roles = Maps.newHashMap();
     }
 
     @Override
