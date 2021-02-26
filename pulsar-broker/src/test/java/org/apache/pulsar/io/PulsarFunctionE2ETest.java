@@ -210,40 +210,7 @@ public class PulsarFunctionE2ETest {
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
-        workerConfig = new WorkerConfig();
-        workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
-        workerConfig.setSchedulerClassName(
-                org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
-        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));        // worker talks to local broker
-        workerConfig.setFailureCheckFreqMs(100);
-        workerConfig.setNumFunctionPackageReplicas(1);
-        workerConfig.setClusterCoordinationTopicName("coordinate");
-        workerConfig.setFunctionAssignmentTopicName("assignment");
-        workerConfig.setFunctionMetadataTopicName("metadata");
-        workerConfig.setInstanceLivenessCheckFreqMs(100);
-        workerConfig.setWorkerPort(0);
-        workerConfig.setPulsarFunctionsCluster(config.getClusterName());
-        String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
-        this.workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
-        workerConfig.setWorkerHostname(hostname);
-        workerConfig.setWorkerId(workerId);
-
-        workerConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        workerConfig.setBrokerClientAuthenticationParameters(
-                String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH));
-        workerConfig.setUseTls(true);
-        workerConfig.setTlsAllowInsecureConnection(true);
-        workerConfig.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-
-        workerConfig.setAuthenticationEnabled(true);
-        workerConfig.setAuthorizationEnabled(true);
-
-        workerConfig.setConnectorsDirectory(Files.createTempDirectory("tempconnectorsdir").toFile().getAbsolutePath());
-
-        functionsWorkerService = new PulsarWorkerService();
-        functionsWorkerService.init(workerConfig, null, false);
+        functionsWorkerService = createPulsarFunctionWorker(config);
          
         // populate builtin connectors folder
         if (Arrays.asList(method.getAnnotation(Test.class).groups()).contains("builtin")) {
@@ -410,6 +377,48 @@ public class PulsarFunctionE2ETest {
         if (connectorsDir.exists()) {
             FileUtils.deleteDirectory(connectorsDir);
         }
+    }
+    
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) throws IOException {
+
+        System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
+                FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+
+        workerConfig = new WorkerConfig();
+        workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
+        workerConfig.setSchedulerClassName(
+                org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));        // worker talks to local broker
+        workerConfig.setFailureCheckFreqMs(100);
+        workerConfig.setNumFunctionPackageReplicas(1);
+        workerConfig.setClusterCoordinationTopicName("coordinate");
+        workerConfig.setFunctionAssignmentTopicName("assignment");
+        workerConfig.setFunctionMetadataTopicName("metadata");
+        workerConfig.setInstanceLivenessCheckFreqMs(100);
+        workerConfig.setWorkerPort(0);
+        workerConfig.setPulsarFunctionsCluster(config.getClusterName());
+        String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+        this.workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
+        workerConfig.setWorkerHostname(hostname);
+        workerConfig.setWorkerId(workerId);
+
+        workerConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        workerConfig.setBrokerClientAuthenticationParameters(
+                String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH));
+        workerConfig.setUseTls(true);
+        workerConfig.setTlsAllowInsecureConnection(true);
+        workerConfig.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
+
+        workerConfig.setAuthenticationEnabled(true);
+        workerConfig.setAuthorizationEnabled(true);
+
+        workerConfig.setConnectorsDirectory(Files.createTempDirectory("tempconnectorsdir").toFile().getAbsolutePath());
+
+        PulsarWorkerService workerService = new PulsarWorkerService();
+        workerService.init(workerConfig, null, false);
+        return workerService;
     }
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
@@ -985,7 +994,7 @@ public class PulsarFunctionE2ETest {
 
 
         // delete functions
-        admin.sink().deleteSink(tenant, namespacePortion, sinkName);
+        admin.sinks().deleteSink(tenant, namespacePortion, sinkName);
 
         retryStrategically((test) -> {
             try {
@@ -1158,6 +1167,7 @@ public class PulsarFunctionE2ETest {
         File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        admin.sources().deleteSource(tenant, namespacePortion, sourceName);
     }
 
     @Test(timeOut = 20000, groups = "builtin")
@@ -1201,7 +1211,13 @@ public class PulsarFunctionE2ETest {
 
         final String sinkTopic2 = "persistent://" + replNamespace + "/output-" + sourceName;
         sourceConfig.setTopicName(sinkTopic2);
-        admin.source().createSourceWithUrl(sourceConfig, jarFilePathUrl);
+        
+        if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
+          sourceConfig.setArchive(jarFilePathUrl);
+          admin.sources().createSource(sourceConfig, jarFilePathUrl);
+        } else {
+          admin.sources().createSourceWithUrl(sourceConfig, jarFilePathUrl);	
+        }
 
         retryStrategically((test) -> {
             try {
@@ -1303,6 +1319,13 @@ public class PulsarFunctionE2ETest {
         File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
 
         Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        admin.sources().deleteSource(tenant, namespacePortion, sourceName);
+    }
+
+    @Test(timeOut = 20000, groups = "builtin")
+    public void testPulsarBatchSourceStatsBuiltin() throws Exception {
+        String jarFilePathUrl = String.format("%s://batch-data-generator", Utils.BUILTIN);
+        testPulsarBatchSourceStats(jarFilePathUrl);
     }
     
     @Test(timeOut = 20000)
