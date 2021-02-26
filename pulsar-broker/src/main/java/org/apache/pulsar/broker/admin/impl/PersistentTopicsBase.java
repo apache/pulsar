@@ -31,6 +31,7 @@ import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -198,7 +199,7 @@ public class PersistentTopicsBase extends AdminResource {
             Policies policies = namespaceResources().get(path(POLICIES, namespaceName.toString()))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
 
-            Map<String, Set<AuthAction>> permissions = Maps.newTreeMap();
+            Map<String, Set<AuthAction>> permissions = Maps.newHashMap();
             AuthPolicies auth = policies.auth_policies;
 
             // First add namespace level permissions
@@ -323,7 +324,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             namespaceResources().set(path(POLICIES, namespaceName.toString()), (policies) -> {
                 if (!policies.auth_policies.destination_auth.containsKey(topicUri)) {
-                    policies.auth_policies.destination_auth.put(topicUri, new TreeMap<String, Set<AuthAction>>());
+                    policies.auth_policies.destination_auth.put(topicUri, new HashMap<>());
                 }
 
                 policies.auth_policies.destination_auth.get(topicUri).put(role, actions);
