@@ -88,6 +88,7 @@
                   <include>org.glassfish.hk2*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.grpc:*</include>
+                  <include>io.perfmark:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>com.squareup.*:*</include>
                   <include>com.google.*:*</include>
