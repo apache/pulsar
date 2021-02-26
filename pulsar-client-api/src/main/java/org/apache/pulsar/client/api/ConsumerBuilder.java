@@ -358,7 +358,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * will be more efficient at the expense of a slight increase in message re-deliveries after a failure.
      *
      * @param delay
-     *            the max amount of time an acknowledgemnt can be delayed
+     *            the max amount of time an acknowledgement can be delayed
      * @param unit
      *            the time unit for the delay
      * @return the consumer builder instance
@@ -372,7 +372,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> replicateSubscriptionState(boolean replicateSubscriptionState);
 
     /**
-     * Set the max total receiver queue size across partitons.
+     * Set the max total receiver queue size across partitions.
      *
      * <p>This setting will be used to reduce the receiver queue size for individual partitions
      * {@link #receiverQueueSize(int)} if the total exceeds this value (default: 50000).
@@ -389,7 +389,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Set the consumer name.
      *
-     * <p>Consumer name is informative and it can be used to indentify a particular consumer
+     * <p>Consumer name is informative and it can be used to identify a particular consumer
      * instance from the topic stats.
      *
      * @param consumerName
@@ -648,7 +648,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If enabled, the consumer will auto retry message.
-     * default unabled.
+     * default disabled.
      *
      * @param retryEnable
      *            whether to auto retry message
