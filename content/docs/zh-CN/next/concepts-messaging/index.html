@@ -169,6 +169,7 @@
 <p>消息取消确认也有单条取消模式和累积取消模式 ，这依赖于消费者使用的订阅模式。</p>
 <p>在独占消费模式和灾备订阅模式中，消费者仅仅只能对收到的最后一条消息进行取消确认。</p>
 <p>In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.</p>
+<p>Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.</p>
 <blockquote>
 <p><strong>Note</strong> If batching is enabled, other messages and the negatively acknowledged messages in the same batch are redelivered to the consumer.</p>
 </blockquote>
@@ -214,7 +215,7 @@ Currently, dead letter topic is enabled only in the shared subscription mode.</p
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="retry-letter-topic"></a><a href="#retry-letter-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retry letter topic</h3>
 <p>很多在线的业务系统，由于业务逻辑处理出现异常，消息一般需要被重新消费。 若需要允许延时重新消费失败的消息，你可以配置生产者同时发送消息到业务主题和重试主题，并允许消费者自动重试消费。 配置了允许消费者自动重试。如果消息没有被消费成功，它将被保存到重试主题当中。并在指定延时时间后，自动重新消费重试主题里面的消费失败消息。</p>
-<p>默认情况下，自动重试是被禁止的，你能够设置<code>enableRetry</code>为<code>true</code>去启用消费者自动重试。</p>
+<p>By default, automatic retry is disabled. You can set <code>enableRetry</code> to <code>true</code> to enable automatic retry on the consumer.</p>
 <p>如下例子所示，消费者会从重试主题消费消息。</p>
 <pre><code class="hljs css language-java">Consumer&lt;<span class="hljs-keyword">byte</span>[]&gt; consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -230,7 +231,7 @@ Currently, dead letter topic is enabled only in the shared subscription mode.</p
                 .subscribe();
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="topic"></a><a href="#topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Topic</h2>
-<p>像其他的发布-订阅系统一样，主题是 Pulsar 在生产者和消费者当中传输消息的命名通道。主题名字是URL的形式，结构如下所示：</p>
+<p>As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from producers to consumers. Topic names are URLs that have a well-defined structure:</p>
 <pre><code class="hljs css language-http">{persistent|non-persistent}://tenant/namespace/topic
 </code></pre>
 <table>

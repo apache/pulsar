@@ -173,6 +173,7 @@
 <p>消息取消确认也有单条取消模式和累积取消模式  ，这依赖于消费者使用的订阅模式。</p>
 <p>在独占消费模式和灾备订阅模式中，消费者仅仅只能对收到的最后一条消息进行取消确认。</p>
 <p>In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.</p>
+<p>Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.</p>
 <blockquote>
 <p><strong>Note</strong> If batching is enabled, other messages and the negatively acknowledged messages in the same batch are redelivered to the consumer.</p>
 </blockquote>

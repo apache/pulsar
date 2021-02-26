@@ -153,6 +153,7 @@
 <p>Messages can be negatively acknowledged one by one or cumulatively, which depends on the consumption subscription mode.</p>
 <p>In the exclusive and failover subscription modes, consumers only negatively acknowledge the last message they have received.</p>
 <p>In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.</p>
+<p>Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.</p>
 <blockquote>
 <p>배치 작업이 활성화되면, 같은 배치 내의 다른 메시지들이  소비자에게 다시 재전달 될 수 있으며, 부정적인 알림 메시지도 전달될 수 있다.</p>
 </blockquote>
