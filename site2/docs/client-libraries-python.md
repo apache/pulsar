@@ -295,7 +295,7 @@ class Example(Record):
 
 ### Configuration
 
-If you want to use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
+To use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
 
 ```
 publicKeyPath: "./public.pem"
