@@ -1348,7 +1348,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             stats.updateNumMsgsReceived(msg);
 
             trackMessage(msg);
-            decreaseIncomingMessageSize(msg);
         }
         decreaseIncomingMessageSize(msg);
     }
