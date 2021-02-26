@@ -36,9 +36,9 @@ import java.util.stream.Collectors;
 
 public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> {
 
-    private Descriptors.Descriptor descriptor;
-    private byte[] schemaVersion;
-    private List<Field> fields;
+    private final Descriptors.Descriptor descriptor;
+    private final byte[] schemaVersion;
+    private final List<Field> fields;
 
     public GenericProtobufNativeReader(Descriptors.Descriptor descriptor) {
         this(descriptor, null);

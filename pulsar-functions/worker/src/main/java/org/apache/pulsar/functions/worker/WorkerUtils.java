@@ -22,7 +22,6 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -33,14 +32,16 @@ import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -59,6 +60,8 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -67,8 +70,9 @@ public final class WorkerUtils {
     private WorkerUtils(){}
 
     public static void uploadFileToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace) throws IOException {
-        FileInputStream uploadedInputStream = new FileInputStream(sourceFile);
-        uploadToBookeeper(dlogNamespace, uploadedInputStream, packagePath);
+        try (FileInputStream uploadedInputStream = new FileInputStream(sourceFile)) {
+            uploadToBookeeper(dlogNamespace, uploadedInputStream, packagePath);
+        }
     }
 
     public static void uploadToBookeeper(Namespace dlogNamespace,
@@ -325,5 +329,41 @@ public final class WorkerUtils {
                 .readCompacted(true)
                 .startMessageId(startMessageId)
                 .create();
+    }
+
+    public static Producer<byte[]> createExclusiveProducerWithRetry(PulsarClient client,
+                                                                    String topic,
+                                                                    String producerName,
+                                                                    Supplier<Boolean> isLeader,
+                                                                    int sleepInBetweenMs) throws NotLeaderAnymore {
+        try {
+            int tries = 0;
+            do {
+                try {
+                    return client.newProducer().topic(topic)
+                            .accessMode(ProducerAccessMode.Exclusive)
+                            .enableBatching(false)
+                            .blockIfQueueFull(true)
+                            .compressionType(CompressionType.LZ4)
+                            .producerName(producerName)
+                            .createAsync().get(10, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    log.info("Encountered exception while at creating exclusive producer to topic {}", topic, e);
+                }
+                tries++;
+                if (tries % 6 == 0) {
+                    log.warn("Failed to acquire exclusive producer to topic {} after {} attempts.  Will retry if we are still the leader.", topic, tries);
+                }
+                Thread.sleep(sleepInBetweenMs);
+            } while (isLeader.get());
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Failed to create exclusive producer on topic " + topic, e);
+        }
+
+        throw new NotLeaderAnymore();
+    }
+
+    public static class NotLeaderAnymore extends Exception {
+
     }
 }

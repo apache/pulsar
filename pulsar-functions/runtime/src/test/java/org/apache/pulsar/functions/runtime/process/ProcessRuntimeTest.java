@@ -138,7 +138,7 @@ public class ProcessRuntimeTest {
         System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (null != this.factory) {
             this.factory.close();

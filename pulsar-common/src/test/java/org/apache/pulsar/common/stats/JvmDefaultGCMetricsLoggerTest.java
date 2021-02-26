@@ -16,13 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.common.stats;
 
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import lombok.extern.slf4j.Slf4j;
 
-public class TenantResources extends BaseResources<TenantInfo> {
-    public TenantResources(MetadataStoreExtended store) {
-        super(store, TenantInfo.class);
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertNotEquals;
+
+
+@Slf4j
+public class JvmDefaultGCMetricsLoggerTest {
+
+    @Test
+    public void testInvokeJVMInternals() {
+      long safePointCount = JvmDefaultGCMetricsLogger.getSafepointCount();
+      long totalSafePointTime = JvmDefaultGCMetricsLogger.getTotalSafepointTime();
+      log.info("safePointCount {} totalSafePointTime {}", safePointCount, totalSafePointTime);
+      assertNotEquals(safePointCount, -1);
+      assertNotEquals(totalSafePointTime, -1);
     }
 }

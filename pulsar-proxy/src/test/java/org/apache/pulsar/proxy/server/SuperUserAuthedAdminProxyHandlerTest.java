@@ -29,12 +29,14 @@ import java.util.Optional;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -47,6 +49,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private WebServer webServer;
     private BrokerDiscoveryProvider discoveryProvider;
+    private PulsarResources resource;
 
     static String getTlsFile(String name) {
         return String.format("./src/test/resources/authentication/tls-admin-proxy/%s.pem", name);
@@ -93,9 +96,11 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         proxyConfig.setBrokerClientTrustCertsFilePath(getTlsFile("ca.cert"));
         proxyConfig.setAuthenticationProviders(ImmutableSet.of(AuthenticationProviderTls.class.getName()));
 
+        resource = new PulsarResources(new ZKMetadataStore(mockZooKeeper),
+                new ZKMetadataStore(mockZooKeeperGlobal));
         webServer = new WebServer(proxyConfig, new AuthenticationService(
                                           PulsarConfigurationLoader.convertFrom(proxyConfig)));
-        discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
+        discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory, resource));
         LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
         doReturn(report).when(discoveryProvider).nextBroker();
 
@@ -108,7 +113,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         webServer.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         webServer.stop();

@@ -193,6 +193,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         } catch (PulsarClientException e) {
             log.warn("Failed to close pulsar client when closing function container factory", e);
         }
+
         pulsarAdmin.close();
 
         // Shutdown instance cache

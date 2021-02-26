@@ -57,8 +57,6 @@ import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
@@ -219,32 +217,6 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
         public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
-    }
-
-    static class EncKeyReader implements CryptoKeyReader {
-
-        private static final long serialVersionUID = 7235317430835444498L;
-
-        final String encKeyName;
-        final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-
-        EncKeyReader(String encKeyName, byte[] value) {
-            this.encKeyName = encKeyName;
-            keyInfo.setKey(value);
-        }
-
-        @Override
-        public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-            if (keyName.equals(encKeyName)) {
-                return keyInfo;
-            }
-            return null;
-        }
-
-        @Override
-        public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-            return null;
-        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -476,11 +448,9 @@ public class PerformanceProducer {
             // Block if queue is full else we will start seeing errors in sendAsync
             producerBuilder.blockIfQueueFull(true);
 
-            if (arguments.encKeyName != null) {
+            if (isNotBlank(arguments.encKeyName) && isNotBlank(arguments.encKeyFile)) {
                 producerBuilder.addEncryptionKey(arguments.encKeyName);
-                byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
-                EncKeyReader keyReader = new EncKeyReader(arguments.encKeyName, pKey);
-                producerBuilder.cryptoKeyReader(keyReader);
+                producerBuilder.defaultCryptoKeyReader(arguments.encKeyFile);
             }
 
             for (int i = 0; i < arguments.numTopics; i++) {

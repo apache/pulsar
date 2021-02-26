@@ -265,8 +265,8 @@ superUserRoles:
   - superuser
   - proxy
 properties:
-  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token
-  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens
+  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token, key file must be DER-encoded
+  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens, key file must be DER-encoded
 ```
 
 > **Note**   
@@ -284,8 +284,9 @@ Pulsar includes a built-in implementation. To use the basic implementation, set 
 
 Below is an example of `customRuntimeOptions`.
 
-```Json
+```json
 {
+  "jobName": "jobname", // the k8s pod name to run this function instance
   "jobNamespace": "namespace", // the k8s namespace to run this function in
   "extractLabels": {           // extra labels to attach to the statefulSet, service, and pods
     "extraLabel": "value"

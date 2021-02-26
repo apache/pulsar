@@ -1151,7 +1151,8 @@ public class NamespaceService {
             LOG.debug("Getting children from partitioned-topics now: {}", path);
         }
 
-        return pulsar.getGlobalZkCache().getChildrenAsync(path, null).thenCompose(topics -> {
+        return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources().getChildrenAsync(path)
+                .thenCompose(topics -> {
             CompletableFuture<List<String>> result = new CompletableFuture<>();
             List<String> resultPartitions = Collections.synchronizedList(Lists.newArrayList());
             if (CollectionUtils.isNotEmpty(topics)) {

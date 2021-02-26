@@ -599,7 +599,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(invocationCount = 1)
+    @Test
     public void namespaces() throws PulsarAdminException, PulsarServerException, Exception {
         admin.clusters().createCluster("usw", new ClusterData());
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
@@ -650,7 +650,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
 
         policies.max_unacked_messages_per_subscription = 200000;
-        policies.max_unacked_messages_per_consumer = 50000;
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/use/ns1"), policies.auth_policies.namespace_auth);
@@ -1757,7 +1756,12 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.subscriptions.get("my-sub2").msgBacklog, 10);
         assertEquals(topicStats.subscriptions.get("my-sub3").msgBacklog, 10);
 
-        admin.topics().expireMessagesForAllSubscriptions("persistent://prop-xyz/use/ns1/ds2", 1);
+        try {
+            admin.topics().expireMessagesForAllSubscriptions("persistent://prop-xyz/use/ns1/ds2", 1);
+        } catch (Exception e) {
+            // my-sub1 has no msg backlog, so expire message won't be issued on that subscription
+            assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
+        }
         Thread.sleep(1000); // wait for 1 seconds to execute expire message as it is async
 
         topicStats = admin.topics().getStats("persistent://prop-xyz/use/ns1/ds2");

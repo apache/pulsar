@@ -37,7 +37,7 @@ public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
     public GenericAvroWriter(Schema schema) {
         this.writer = new GenericDatumWriter<>(schema);
         this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, encoder);
+        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, null);
     }
 
     @Override

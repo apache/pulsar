@@ -174,7 +174,7 @@ public class KubernetesRuntimeTest {
         System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
     }
     
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (null != this.factory) {
             this.factory.close();
@@ -554,6 +554,30 @@ public class KubernetesRuntimeTest {
         verifyCreateJobNameWithNameOverMaxCharLimit();
     }
 
+    @Test
+    public void testCreateFunctionLabels() throws Exception {
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
+        functionDetailsBuilder.setTenant("tenant");
+        // use long namespace to make sure label is truncated to 63 max characters for k8s requirements
+        functionDetailsBuilder.setNamespace(String.format("%-100s", "namespace:$second.part:third@test_0").replace(" ", "0"));
+        functionDetailsBuilder.setName("$function_name!");
+        JsonObject configObj = new JsonObject();
+        configObj.addProperty("jobNamespace", "custom-ns");
+        configObj.addProperty("jobName", "custom-name");
+        functionDetailsBuilder.setCustomRuntimeOptions(configObj.toString());
+        final FunctionDetails functionDetails = functionDetailsBuilder.build();
+
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(functionDetails);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+
+        assertEquals(spec.getMetadata().getLabels().get("tenant"), "tenant");
+        assertEquals(spec.getMetadata().getLabels().get("namespace"), String.format("%-63s", "namespace--second.part-third-test_0").replace(" ", "0"));
+        assertEquals(spec.getMetadata().getLabels().get("name"), "0function_name0");
+    }
+
     FunctionDetails createFunctionDetails(final String functionName) {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
@@ -797,6 +821,7 @@ public class KubernetesRuntimeTest {
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
         config.setClusterName("standalone");
+        config.setMetricsPort(4331);
 
         return config;
     }
