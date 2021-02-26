@@ -2946,15 +2946,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                                                        * identify offloader
                                                                                        */
             Map<String, String> offloadDriverMetadata, String cleanupReason) {
+        offloadDriverMetadata.put("ManagedLedgerName", name);
         Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
                 Retries.NonFatalPredicate,
                 () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, offloadDriverMetadata),
                 scheduledExecutor, name).whenComplete((ignored, exception) -> {
-                    if (exception != null) {
-                        log.warn("Error cleaning up offload for {}, (cleanup reason: {})", ledgerId, cleanupReason,
-                                exception);
-                    }
-                });
+            if (exception != null) {
+                log.warn("Error cleaning up offload for {}, (cleanup reason: {})", ledgerId, cleanupReason,
+                        exception);
+            }
+        });
     }
 
     /**
