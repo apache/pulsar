@@ -97,9 +97,7 @@ abstract class AbstractMetrics {
 
             for (int i = 0; i < boundaries.length + 1; i++) {
                 double value = (bucketValues == null) ? 0.0D : ((double) bucketValues[i] / (period > 0 ? period : 1));
-                String bucketKey = bucketKeys[i];
-                Double val = map.getOrDefault(bucketKey, 0.0);
-                map.put(bucketKey, val + value);
+                map.compute(bucketKeys[i], (key, currentValue) -> (currentValue == null ? 0.0d : currentValue) + value);
             }
         }
     }
