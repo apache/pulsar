@@ -306,11 +306,11 @@ privateKeyPath: "./private.pem"
 
 This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Python client.
 
-#### Prerequisite
+**Prerequisite**
 
 - Pulsar Python client 2.7.1 or later 
 
-#### Step
+**Step**
 
 1. Create both public and private key pairs.
 
