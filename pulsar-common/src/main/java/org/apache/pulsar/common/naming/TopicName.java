@@ -27,6 +27,8 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
@@ -317,6 +319,33 @@ public class TopicName implements ServiceUnitId {
             return String.format("%s/%s/%s/%s", tenant, namespacePortion, domain, getEncodedLocalName());
         } else {
             return String.format("%s/%s/%s/%s/%s", tenant, cluster, namespacePortion, domain, getEncodedLocalName());
+        }
+    }
+
+    public static TopicName fromPersistenceNamingEncoding(String name) throws Exception {
+        if (name == null) {
+            return null;
+        }
+        final String[] arr = name.split("/");
+
+        if (arr.length == 4) {
+            String tenant = arr[0];
+            String namespacePortion = arr[1];
+            String domain = arr[2];
+            String encodedLocalName = arr[3];
+            final String decodedName = Codec.decode(encodedLocalName);
+            return TopicName.get(domain, tenant, namespacePortion, decodedName);
+        } else if (arr.length == 5) {
+            String tenant = arr[0];
+            String cluster = arr[1];
+            String namespacePortion = arr[2];
+            String domain = arr[3];
+            String encodedLocalName = arr[4];
+            final String decodedName = Codec.decode(encodedLocalName);
+            return TopicName.get(domain, tenant, cluster, namespacePortion, decodedName);
+        } else {
+            log.error("arr.length = {}, arr = {}", arr.length, Stream.of(arr).collect(Collectors.toList()));
+            throw new Exception("not valid name: " + name);
         }
     }
 

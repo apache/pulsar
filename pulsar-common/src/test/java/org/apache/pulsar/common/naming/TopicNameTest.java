@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
-
 import org.apache.pulsar.common.util.Codec;
 import org.testng.annotations.Test;
 
@@ -30,7 +29,7 @@ public class TopicNameTest {
 
     @SuppressWarnings("deprecation")
     @Test
-    public void topic() {
+    public void topic() throws Exception {
         try {
             TopicName.get("://tenant.namespace:topic").getNamespace();
             fail("Should have thrown exception");
@@ -161,6 +160,9 @@ public class TopicNameTest {
 
         assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic")
                 .getPersistenceNamingEncoding(), "tenant/cluster/namespace/persistent/topic");
+
+        assertEquals(TopicName.fromPersistenceNamingEncoding("tenant/cluster/namespace/persistent/topic"),
+                TopicName.get("persistent://tenant/cluster/namespace/topic"));
 
         try {
             TopicName.get("://tenant.namespace");
