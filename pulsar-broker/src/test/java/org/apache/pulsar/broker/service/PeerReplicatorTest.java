@@ -28,6 +28,7 @@ import static org.testng.Assert.fail;
 import java.util.LinkedHashSet;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
@@ -196,7 +197,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.clusters().updatePeerClusterNames("r3", null);
 
         final String serviceUrl = pulsar3.getBrokerServiceUrl();
-        final String namespace1 = "pulsar/global/peer-change-repl-ns-" + System.nanoTime();
+        final String namespace1 = BrokerTestUtil.newUniqueName("pulsar/global/peer-change-repl-ns");
         admin1.namespaces().createNamespace(namespace1);
         // add replication cluster
         admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));

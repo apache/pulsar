@@ -33,6 +33,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
+import io.prometheus.client.Gauge;
 import java.net.SocketAddress;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -2052,6 +2053,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return ctx.channel().isWritable();
     }
 
+    private static final Gauge throttledConnections = Gauge.build()
+            .name("pulsar_broker_throttled_connections")
+            .help("Counter of connections throttled because of per-connection limit")
+            .register();
+
+    private static final Gauge throttledConnectionsGlobal = Gauge.build()
+            .name("pulsar_broker_throttled_connections_global_limit")
+            .help("Counter of connections throttled because of per-connection limit")
+            .register();
 
     public void startSendOperation(Producer producer, int msgSize, int numMessages) {
         MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, msgSize);
@@ -2073,22 +2083,24 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
             autoReadDisabledRateLimiting = isPublishRateExceeded;
-
+            throttledConnections.inc();
         }
         if (getBrokerService().isReachMessagePublishBufferThreshold()) {
             ctx.channel().config().setAutoRead(false);
             autoReadDisabledPublishBufferLimiting = true;
+            throttledConnectionsGlobal.inc();
         }
     }
 
     @Override
     public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
         MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, -msgSize);
-        if (--pendingSendRequest == resumeReadsThreshold) {
+        if (--pendingSendRequest == resumeReadsThreshold && !ctx.channel().config().isAutoRead()) {
             // Resume reading from socket
             ctx.channel().config().setAutoRead(true);
             // triggers channel read if autoRead couldn't trigger it
             ctx.read();
+            throttledConnections.dec();
         }
         if (isNonPersistentTopic) {
             nonPersistentPendingMessages--;
@@ -2127,6 +2139,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void cancelPublishBufferLimiting() {
         if (autoReadDisabledPublishBufferLimiting) {
             autoReadDisabledPublishBufferLimiting = false;
+            throttledConnectionsGlobal.dec();
         }
     }
 

@@ -39,8 +39,7 @@ public class ReaderImpl<T> implements Reader<T> {
     private final ConsumerImpl<T> consumer;
 
     public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
-                      ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema)
-            throws PulsarClientException.InvalidConfigurationException {
+                      ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
