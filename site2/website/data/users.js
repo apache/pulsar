@@ -325,7 +325,7 @@ module.exports = [
     },
     {
         name: 'Macrometa',
-        url: 'https://macrometa.com.com',
+        url: 'https://macrometa.com',
         logo: 'https://uploads-ssl.webflow.com/5fa9e94bc848ae335afdd627/602ae50ae801b44f15185683_logo-moc-blue.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);
