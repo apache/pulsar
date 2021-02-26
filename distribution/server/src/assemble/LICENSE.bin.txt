@@ -585,7 +585,6 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
 Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
  * Jakarta Activation 
    - jakarta.activation-jakarta.activation-api-1.2.1.jar
-   - com.sun.activation-jakarta.activation-1.2.1.jar
  * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.2.jar
 
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
