@@ -59,6 +59,50 @@ abstract class AbstractMetrics {
         }
     }
 
+    // simple abstract for the buckets, their boundaries and pre-calculated keys
+    // pre-calculating the keys avoids a lot of object allocations during metric collection
+    static class Buckets {
+        private final double[] boundaries;
+        private final String[] bucketKeys;
+
+        Buckets(String metricKey, double[] boundaries) {
+            this.boundaries = boundaries;
+            this.bucketKeys = generateBucketKeys(metricKey, boundaries);
+        }
+
+        private static String[] generateBucketKeys(String mkey, double[] boundaries) {
+            String[] keys = new String[boundaries.length + 1];
+            for (int i = 0; i < boundaries.length + 1; i++) {
+                String bucketKey;
+                double value;
+
+                // example of key : "<metric_key>_0.0_0.5"
+                if (i == 0 && boundaries.length > 0) {
+                    bucketKey = String.format("%s_0.0_%1.1f", mkey, boundaries[i]);
+                } else if (i < boundaries.length) {
+                    bucketKey = String.format("%s_%1.1f_%1.1f", mkey, boundaries[i - 1], boundaries[i]);
+                } else {
+                    bucketKey = String.format("%s_OVERFLOW", mkey);
+                }
+                keys[i] = bucketKey;
+            }
+            return keys;
+        }
+
+        public void populateBucketEntries(Map<String, Double> map, long[] bucketValues, int period) {
+            // bucket values should be one more that the boundaries to have the last element as OVERFLOW
+            if (bucketValues != null && bucketValues.length != boundaries.length + 1) {
+                throw new RuntimeException("Bucket boundary and value array length mismatch");
+            }
+
+            for (int i = 0; i < boundaries.length + 1; i++) {
+                double value = (bucketValues == null) ? 0.0D : ((double) bucketValues[i] / (period > 0 ? period : 1));
+                map.compute(bucketKeys[i], (key, currentValue) -> (currentValue == null ? 0.0d : currentValue) + value);
+            }
+        }
+    }
+
+
     protected final PulsarService pulsar;
 
     abstract List<Metrics> generate();
@@ -167,34 +211,6 @@ abstract class AbstractMetrics {
         dimensionMap.put("to_cluster", toClusterName);
 
         return createMetrics(dimensionMap);
-    }
-
-    protected void populateBucketEntries(Map<String, Double> map, String mkey, double[] boundaries,
-            long[] bucketValues, int period) {
-
-        // bucket values should be one more that the boundaries to have the last element as OVERFLOW
-        if (bucketValues != null && bucketValues.length != boundaries.length + 1) {
-            throw new RuntimeException("Bucket boundary and value array length mismatch");
-        }
-
-        for (int i = 0; i < boundaries.length + 1; i++) {
-            String bucketKey;
-            double value;
-
-            // example of key : "<metric_key>_0.0_0.5"
-            if (i == 0 && boundaries.length > 0) {
-                bucketKey = String.format("%s_0.0_%1.1f", mkey, boundaries[i]);
-            } else if (i < boundaries.length) {
-                bucketKey = String.format("%s_%1.1f_%1.1f", mkey, boundaries[i - 1], boundaries[i]);
-            } else {
-                bucketKey = String.format("%s_OVERFLOW", mkey);
-            }
-
-            value = (bucketValues == null) ? 0.0D : ((double) bucketValues[i] / (period > 0 ? period : 1));
-
-            Double val = map.getOrDefault(bucketKey, 0.0);
-            map.put(bucketKey, val + value);
-        }
     }
 
     protected void populateAggregationMap(Map<String, List<Double>> map, String mkey, double value) {
