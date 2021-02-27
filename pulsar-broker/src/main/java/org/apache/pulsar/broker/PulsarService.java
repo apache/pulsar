@@ -958,8 +958,8 @@ public class PulsarService implements AutoCloseable {
     }
 
     public WorkerService getWorkerService() throws UnsupportedOperationException {
-        return functionWorkerService.orElseThrow(() -> new UnsupportedOperationException("Pulsar Functions worker " +
-                "service is disabled in the broker, When functionsWorkerEnabled is set to false"));
+        return functionWorkerService.orElseThrow(() -> new UnsupportedOperationException("Pulsar Function Worker is not " +
+                "enabled, probably functionsWorkerEnabled is set to false"));
     }
 
     /**

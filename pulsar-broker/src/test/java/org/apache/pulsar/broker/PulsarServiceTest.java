@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.AssertJUnit.assertSame;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -35,17 +38,19 @@ public class PulsarServiceTest {
         configuration.setZookeeperServers("localhost");
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(true);
-        PulsarService pulsarService = new PulsarService(configuration, new WorkerConfig(),
-                Optional.of(mock(WorkerService.class)), (exitCode) -> {});
+        WorkerService expectedWorkerService = mock(WorkerService.class);
+        PulsarService pulsarService = spy(new PulsarService(configuration, new WorkerConfig(),
+                Optional.of(expectedWorkerService), (exitCode) -> {}));
 
-        pulsarService.getWorkerService();
+        WorkerService actualWorkerService = pulsarService.getWorkerService();
+        assertSame(expectedWorkerService, actualWorkerService);
     }
 
     /**
      * Verifies that the getWorkerService throws {@link UnsupportedOperationException}
      * when functionsWorkerEnabled is set to false .
      */
-    @Test(expectedExceptions = UnsupportedOperationException.class)
+    @Test
     public void testGetWorkerServiceException() throws Exception {
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setZookeeperServers("localhost");
@@ -54,6 +59,11 @@ public class PulsarServiceTest {
         PulsarService pulsarService = new PulsarService(configuration, new WorkerConfig(),
                 Optional.empty(), (exitCode) -> {});
 
-        pulsarService.getWorkerService();
+        String errorMessage = "Pulsar Function Worker is not enabled, probably functionsWorkerEnabled is set to false";
+        try {
+            pulsarService.getWorkerService();
+        } catch (UnsupportedOperationException e) {
+            assertEquals(e.getMessage(), errorMessage);
+        }
     }
 }
