@@ -1683,7 +1683,7 @@ Options
 |`-b`, `--byte-publish-rate`|Threshold for number of bytes per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
 
 ### `set-offload-policies`
-Set the offload policy for a namespace
+Set the offload policy for a namespace.
 
 Usage
 ```bash
@@ -1705,7 +1705,7 @@ Options
 |`-oae`, `--offloadAfterElapsed`|Offload after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||
 
 ### `get-offload-policies`
-Get the offload policy for a namespace
+Get the offload policy for a namespace.
 
 Usage
 ```bash
