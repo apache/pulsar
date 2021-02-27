@@ -56,6 +56,10 @@ ENDIF ()
 
 MESSAGE(STATUS "CMAKE_BUILD_TYPE:  " ${CMAKE_BUILD_TYPE})
 
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+MESSAGE(STATUS "Threads library: " ${CMAKE_THREAD_LIBS_INIT})
+
 set(Boost_NO_BOOST_CMAKE ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 11)
@@ -282,6 +286,7 @@ include_directories(
 
 set(COMMON_LIBS
   ${COMMON_LIBS}
+  Threads::Threads
   ${Boost_REGEX_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
   ${CURL_LIBRARIES}
@@ -289,6 +294,7 @@ set(COMMON_LIBS
   ${ZLIB_LIBRARIES}
   ${Protobuf_LITE_LIBRARIES}
   ${ADDITIONAL_LIBRARIES}
+  ${CMAKE_DL_LIBS}
 )
 
 if (MSVC)
@@ -299,11 +305,7 @@ if (MSVC)
 endif()
 
 if (NOT MSVC)
-    set(COMMON_LIBS
-    ${COMMON_LIBS} -lpthread -lm
-    dl
-    pthread
-    )
+    set(COMMON_LIBS ${COMMON_LIBS} m)
 else()
     set(COMMON_LIBS
     ${COMMON_LIBS}
