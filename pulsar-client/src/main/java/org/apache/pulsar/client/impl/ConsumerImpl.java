@@ -1510,13 +1510,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (msgCnx != currentCnx) {
             // The processed message did belong to the old queue that was cleared after reconnection.
-            return;
+        } else {
+            increaseAvailablePermits(currentCnx);
+            stats.updateNumMsgsReceived(msg);
+
+            trackMessage(msg);
         }
-
-        increaseAvailablePermits(currentCnx);
-        stats.updateNumMsgsReceived(msg);
-
-        trackMessage(msg);
         decreaseIncomingMessageSize(msg);
     }
 
