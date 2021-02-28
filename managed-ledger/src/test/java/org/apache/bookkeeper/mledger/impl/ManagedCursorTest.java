@@ -3390,7 +3390,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         Awaitility.await()
                 // Give chance to the flush to be automatically triggered.
-                .pollDelay(Duration.ofMillis(500))
+                // NOTE: this can't be set too low, or it causes issues with ZK thread pool rejecting
+                .pollDelay(Duration.ofMillis(2000))
                 .untilAsserted(() -> {
                     // Abruptly re-open the managed ledger without graceful close
                     ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
@@ -3451,7 +3452,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         Awaitility.await()
                 // Give chance to the flush to be automatically triggered.
-                .pollDelay(Duration.ofMillis(500))
+                // NOTE: this can't be set too low, or it causes issues with ZK thread pool rejecting
+                .pollDelay(Duration.ofMillis(2000))
                 .untilAsserted(() -> {
                     // Abruptly re-open the managed ledger without graceful close
                     ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
