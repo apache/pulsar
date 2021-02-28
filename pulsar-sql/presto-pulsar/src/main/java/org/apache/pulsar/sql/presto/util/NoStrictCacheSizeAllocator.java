@@ -16,26 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.sql.presto;
+package org.apache.pulsar.sql.presto.util;
 
-import java.util.concurrent.atomic.AtomicLong;
-import org.eclipse.jetty.util.AtomicBiInteger;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Cache size allocator.
  */
-public class CacheSizeAllocator {
+public class NoStrictCacheSizeAllocator implements CacheSizeAllocator {
 
     private final long maxCacheSize;
-    private final AtomicLong availableCacheSize;
+    private final LongAdder availableCacheSize;
+    private final ReentrantReadWriteLock lock;
 
-    public CacheSizeAllocator(long maxCacheSize) {
+    public NoStrictCacheSizeAllocator(long maxCacheSize) {
         this.maxCacheSize = maxCacheSize;
-        this.availableCacheSize = new AtomicBiInteger(maxCacheSize);
+        this.availableCacheSize = new LongAdder();
+        this.availableCacheSize.add(maxCacheSize);
+        this.lock = new ReentrantReadWriteLock();
     }
 
     public long getAvailableCacheSize() {
-        return availableCacheSize.get();
+        try {
+            lock.readLock().lock();
+            if (availableCacheSize.longValue() < 0) {
+                return 0;
+            }
+            return availableCacheSize.longValue();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     /**
@@ -47,7 +58,12 @@ public class CacheSizeAllocator {
      * @param size allocate size
      */
     public void allocate(long size) {
-        availableCacheSize.addAndGet(-size);
+        try {
+            lock.writeLock().lock();
+            availableCacheSize.add(-size);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     /**
@@ -57,8 +73,15 @@ public class CacheSizeAllocator {
      * @param size release size
      */
     public void release(long size) {
-        if (availableCacheSize.addAndGet(size) > maxCacheSize) {
-            availableCacheSize.set(maxCacheSize);
+        try {
+            lock.writeLock().lock();
+            availableCacheSize.add(size);
+            if (availableCacheSize.longValue() > maxCacheSize) {
+                availableCacheSize.reset();
+                availableCacheSize.add(maxCacheSize);
+            }
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 

@@ -65,6 +65,9 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.sql.presto.util.CacheSizeAllocator;
+import org.apache.pulsar.sql.presto.util.NoStrictCacheSizeAllocator;
+import org.apache.pulsar.sql.presto.util.NullCacheSizeAllocator;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -138,10 +141,7 @@ public class PulsarRecordCursor implements RecordCursor {
                         pulsarConnectorConfig),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
         this.decoderFactory = decoderFactory;
-        if (pulsarConnectorConfig.getMaxSplitEntryQueueSizeBytes() >= 0) {
-            this.entryCacheSizeAllocator = new CacheSizeAllocator(
-                    pulsarConnectorConfig.getMaxSplitEntryQueueSizeBytes());
-        }
+        initEntryCacheSizeAllocator(pulsarConnectorConfig);
     }
 
     // Exposed for testing purposes
@@ -172,10 +172,7 @@ public class PulsarRecordCursor implements RecordCursor {
         this.metricsTracker = pulsarConnectorMetricsTracker;
         this.readOffloaded = pulsarConnectorConfig.getManagedLedgerOffloadDriver() != null;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
-        if (pulsarConnectorConfig.getMaxSplitEntryQueueSizeBytes() >= 0) {
-            this.entryCacheSizeAllocator = new CacheSizeAllocator(
-                    pulsarConnectorConfig.getMaxSplitEntryQueueSizeBytes());
-        }
+        initEntryCacheSizeAllocator(pulsarConnectorConfig);
 
         try {
             this.schemaInfoProvider = new PulsarSqlSchemaInfoProvider(this.topicName,
@@ -258,9 +255,7 @@ public class PulsarRecordCursor implements RecordCursor {
                     public void accept(Entry entry) {
 
                         try {
-                            if (entryCacheSizeAllocator != null) {
-                                entryCacheSizeAllocator.release(entry.getLength());
-                            }
+                            entryCacheSizeAllocator.release(entry.getLength());
 
                             long bytes = entry.getDataBuffer().readableBytes();
                             completedBytes += bytes;
@@ -362,12 +357,8 @@ public class PulsarRecordCursor implements RecordCursor {
                         } else {
                             outstandingReadsRequests.decrementAndGet();
 
-                            long maxSizeBytes = -1;
-                            if (entryCacheSizeAllocator != null) {
-                                long availableSizeBytes = entryCacheSizeAllocator.getAvailableCacheSize();
-                                // if the available size is invalid, use 0 as max size bytes, read only one entry
-                                maxSizeBytes = availableSizeBytes < 0 ? 0 : availableSizeBytes;
-                            }
+                            // if the available size is invalid, use 0 as max size bytes, read only one entry
+                            long maxSizeBytes = entryCacheSizeAllocator.getAvailableCacheSize();
                             cursor.asyncReadEntries(batchSize, maxSizeBytes,
                                     this, System.nanoTime(), PositionImpl.latest);
                         }
@@ -391,9 +382,7 @@ public class PulsarRecordCursor implements RecordCursor {
                 public Entry get() {
                     Entry entry = entries.get(i);
                     i++;
-                    if (entryCacheSizeAllocator != null) {
-                        entryCacheSizeAllocator.allocate(entry.getLength());
-                    }
+                    entryCacheSizeAllocator.allocate(entry.getLength());
                     return entry;
                 }
             }, entries.size());
@@ -676,6 +665,17 @@ public class PulsarRecordCursor implements RecordCursor {
     private void checkFieldType(int field, Class<?> expected) {
         Class<?> actual = getType(field).getJavaType();
         checkArgument(actual == expected, "Expected field %s to be type %s but is %s", field, expected, actual);
+    }
+
+    private void initEntryCacheSizeAllocator(PulsarConnectorConfig connectorConfig) {
+        log.info("Init entry cache size allocator with max split entry queue size bytes {}.",
+                connectorConfig.getMaxSplitEntryQueueSizeBytes());
+        if (connectorConfig.getMaxSplitEntryQueueSizeBytes() >= 0) {
+            this.entryCacheSizeAllocator = new NoStrictCacheSizeAllocator(
+                    connectorConfig.getMaxSplitEntryQueueSizeBytes());
+        } else {
+            this.entryCacheSizeAllocator = new NullCacheSizeAllocator();
+        }
     }
 
 }

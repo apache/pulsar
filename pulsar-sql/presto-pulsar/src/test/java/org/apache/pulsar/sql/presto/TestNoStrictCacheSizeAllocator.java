@@ -18,30 +18,31 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import org.apache.pulsar.sql.presto.util.NoStrictCacheSizeAllocator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
  * Cache size allocator test.
  */
-public class TestCacheSizeAllocator {
+public class TestNoStrictCacheSizeAllocator {
 
     @Test
     public void allocatorTest() {
-        CacheSizeAllocator cacheSizeAllocator = new CacheSizeAllocator(1000);
-        Assert.assertEquals(cacheSizeAllocator.getAvailableCacheSize(), 1000);
+        NoStrictCacheSizeAllocator noStrictCacheSizeAllocator = new NoStrictCacheSizeAllocator(1000);
+        Assert.assertEquals(noStrictCacheSizeAllocator.getAvailableCacheSize(), 1000);
 
-        cacheSizeAllocator.allocate(500);
-        Assert.assertEquals(cacheSizeAllocator.getAvailableCacheSize(), 1000 - 500);
+        noStrictCacheSizeAllocator.allocate(500);
+        Assert.assertEquals(noStrictCacheSizeAllocator.getAvailableCacheSize(), 1000 - 500);
 
-        cacheSizeAllocator.allocate(600);
-        Assert.assertEquals(cacheSizeAllocator.getAvailableCacheSize(), 1000 - 500 - 600);
+        noStrictCacheSizeAllocator.allocate(600);
+        Assert.assertEquals(noStrictCacheSizeAllocator.getAvailableCacheSize(), 0);
 
-        cacheSizeAllocator.release(500 + 600);
-        Assert.assertEquals(cacheSizeAllocator.getAvailableCacheSize(), 1000);
+        noStrictCacheSizeAllocator.release(500 + 600);
+        Assert.assertEquals(noStrictCacheSizeAllocator.getAvailableCacheSize(), 1000);
 
-        cacheSizeAllocator.release(100);
-        Assert.assertEquals(cacheSizeAllocator.getAvailableCacheSize(), 1000);
+        noStrictCacheSizeAllocator.release(100);
+        Assert.assertEquals(noStrictCacheSizeAllocator.getAvailableCacheSize(), 1000);
     }
 
 }
