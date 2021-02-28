@@ -379,12 +379,16 @@ public class PersistentSubscription implements Subscription {
             managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
                 @Override
                 public void readEntryComplete(Entry entry, Object ctx) {
-                    MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                    isDeleteTransactionMarkerInProcess = false;
-                    if (Markers.isTxnCommitMarker(messageMetadata) || Markers.isTxnAbortMarker(messageMetadata)) {
-                        lastMarkDeleteForTransactionMarker = position;
-                        messageMetadata.recycle();
-                        acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
+                    try {
+                        MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                        isDeleteTransactionMarkerInProcess = false;
+                        if (Markers.isTxnCommitMarker(messageMetadata) || Markers.isTxnAbortMarker(messageMetadata)) {
+                            lastMarkDeleteForTransactionMarker = position;
+                            messageMetadata.recycle();
+                            acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
+                        }
+                    } finally {
+                        entry.release();
                     }
                 }
 
