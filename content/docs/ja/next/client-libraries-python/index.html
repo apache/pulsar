@@ -83,6 +83,17 @@
 <p>To install the <code>pulsar-client</code> library as a pre-built package using the <a href="https://pip.pypa.io/en/stable/">pip</a> package manager:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pip install pulsar-client==2.7.0</span>
 </code></pre>
+<h3><a class="anchor" aria-hidden="true" id="optional-dependencies"></a><a href="#optional-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Optional dependencies</h3>
+<p>To support aspects like pulsar functions or Avro serialization, additional optional components can be installed alongside the <code>pulsar-client</code> library</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"> avro serialization</span>
+<span class="hljs-meta">$</span><span class="bash"> pip install pulsar-client==<span class="hljs-string">'2.7.0[avro]'</span></span>
+<span class="hljs-meta">
+#</span><span class="bash"> <span class="hljs-built_in">functions</span> runtime</span>
+<span class="hljs-meta">$</span><span class="bash"> pip install pulsar-client==<span class="hljs-string">'2.7.0[functions]'</span></span>
+<span class="hljs-meta">
+#</span><span class="bash"> all optional components</span>
+<span class="hljs-meta">$</span><span class="bash"> pip install pulsar-client==<span class="hljs-string">'2.7.0[all]'</span></span>
+</code></pre>
 <p>Installation via PyPi is available for the following Python versions:</p>
 <table>
 <thead>
@@ -91,7 +102,7 @@
 <tbody>
 <tr><td style="text-align:left">MacOS</td></tr>
 <tr><td style="text-align:left">10.13 (High Sierra), 10.14 (Mojave)</td><td style="text-align:left">2.7, 3.7</td></tr>
-<tr><td style="text-align:left">Linux</td><td style="text-align:left">2.7, 3.4, 3.5, 3.6, 3.7</td></tr>
+<tr><td style="text-align:left">Linux</td><td style="text-align:left">2.7, 3.4, 3.5, 3.6, 3.7, 3.8</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="install-from-source"></a><a href="#install-from-source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install from source</h3>
@@ -297,7 +308,71 @@ producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class=
     a = String()
     sub = MySubRecord()
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/next/client-libraries-go"><span class="arrow-prev">← </span><span>Go</span></a><a class="docs-next button" href="/docs/ja/next/client-libraries-cpp"><span>C++</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#インストール">インストール</a><ul class="toc-headings"><li><a href="#install-using-pip">Install using pip</a></li><li><a href="#install-from-source">Install from source</a></li></ul></li><li><a href="#api-リファレンス">API リファレンス</a></li><li><a href="#例">例</a><ul class="toc-headings"><li><a href="#producer-example">Producer example</a></li><li><a href="#consumer-example">Consumer example</a></li><li><a href="#reader-interface-example">Reader interface example</a></li><li><a href="#multi-topic-subscriptions">Multi-topic subscriptions</a></li></ul></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#declare-and-validate-schema">Declare and validate schema</a></li><li><a href="#supported-schema-types">Supported schema types</a></li><li><a href="#schema-definition-reference">Schema definition reference</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<h2><a class="anchor" aria-hidden="true" id="end-to-end-encryption"></a><a href="#end-to-end-encryption" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>End-to-end encryption</h2>
+<p><a href="https://pulsar.apache.org/docs/en/next/cookbooks-encryption/#docsNav">End-to-end encryption</a> allows applications to encrypt messages at producers and decrypt messages at consumers.</p>
+<h3><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
+<p>To use the end-to-end encryption feature in the Python client, you need to configure <code>publicKeyPath</code> and <code>privateKeyPath</code> for both producer and consumer.</p>
+<pre><code class="hljs">publicKeyPath: &quot;./public.pem&quot;
+privateKeyPath: &quot;./private.pem&quot;
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="tutorial"></a><a href="#tutorial" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tutorial</h3>
+<p>This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Python client.</p>
+<p><strong>Prerequisite</strong></p>
+<ul>
+<li>Pulsar Python client 2.7.1 or later</li>
+</ul>
+<p><strong>Step</strong></p>
+<ol>
+<li><p>Create both public and private key pairs.</p>
+<p><strong>Input</strong></p>
+<pre><code class="hljs css language-shell">openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -pubout -out public.pem
+</code></pre></li>
+<li><p>Create a producer to send encrypted messages.</p>
+<p><strong>Input</strong></p>
+<pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> pulsar
+
+publicKeyPath = <span class="hljs-string">"./public.pem"</span>
+privateKeyPath = <span class="hljs-string">"./private.pem"</span>
+crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
+client = pulsar.Client(<span class="hljs-string">'pulsar://localhost:6650'</span>)
+producer = client.create_producer(topic=<span class="hljs-string">'encryption'</span>, encryption_key=<span class="hljs-string">'encryption'</span>, crypto_key_reader=crypto_key_reader)
+producer.send(<span class="hljs-string">'encryption message'</span>.encode(<span class="hljs-string">'utf8'</span>))
+print(<span class="hljs-string">'sent message'</span>)
+producer.close()
+client.close()
+</code></pre></li>
+<li><p>Create a consumer to receive encrypted messages.</p>
+<p><strong>Input</strong></p>
+<pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> pulsar
+
+publicKeyPath = <span class="hljs-string">"./public.pem"</span>
+privateKeyPath = <span class="hljs-string">"./private.pem"</span>
+crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
+client = pulsar.Client(<span class="hljs-string">'pulsar://localhost:6650'</span>)
+consumer = client.subscribe(topic=<span class="hljs-string">'encryption'</span>, subscription_name=<span class="hljs-string">'encryption-sub'</span>, crypto_key_reader=crypto_key_reader)
+msg = consumer.receive()
+print(<span class="hljs-string">"Received msg '{}' id = '{}'"</span>.format(msg.data(), msg.message_id()))
+consumer.close()
+client.close()
+</code></pre></li>
+<li><p>Run the consumer to receive encrypted messages.</p>
+<p><strong>Input</strong></p>
+<pre><code class="hljs css language-shell">python consumer.py
+</code></pre></li>
+<li><p>In a new terminal tab, run the producer to produce encrypted messages.</p>
+<p><strong>Input</strong></p>
+<pre><code class="hljs css language-shell">python producer.py
+</code></pre>
+<p>Now you can see the producer sends messages and the consumer receives messages successfully.</p>
+<p><strong>Output</strong></p>
+<p>This is from the producer side.</p>
+<pre><code class="hljs"> sent message
+</code></pre>
+<p>This is from the consumer side.</p>
+<pre><code class="hljs"> Received msg 'b'encryption message'' id = '(0,0,-1,-1)'</code></pre></li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/next/client-libraries-go"><span class="arrow-prev">← </span><span>Go</span></a><a class="docs-next button" href="/docs/ja/next/client-libraries-cpp"><span>C++</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#インストール">インストール</a><ul class="toc-headings"><li><a href="#install-using-pip">Install using pip</a></li><li><a href="#optional-dependencies">Optional dependencies</a></li><li><a href="#install-from-source">Install from source</a></li></ul></li><li><a href="#api-リファレンス">API リファレンス</a></li><li><a href="#例">例</a><ul class="toc-headings"><li><a href="#producer-example">Producer example</a></li><li><a href="#consumer-example">Consumer example</a></li><li><a href="#reader-interface-example">Reader interface example</a></li><li><a href="#multi-topic-subscriptions">Multi-topic subscriptions</a></li></ul></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#declare-and-validate-schema">Declare and validate schema</a></li><li><a href="#supported-schema-types">Supported schema types</a></li><li><a href="#schema-definition-reference">Schema definition reference</a></li></ul></li><li><a href="#end-to-end-encryption">End-to-end encryption</a><ul class="toc-headings"><li><a href="#configuration">Configuration</a></li><li><a href="#tutorial">Tutorial</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
