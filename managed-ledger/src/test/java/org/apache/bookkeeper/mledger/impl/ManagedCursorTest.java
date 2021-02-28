@@ -36,6 +36,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -3387,18 +3388,24 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(c1.getMarkDeletedPosition(), positions.get(positions.size() - 1));
 
-        // Give chance to the flush to be automatically triggered.
-        Thread.sleep(3000);
+        Awaitility.await()
+                // Give chance to the flush to be automatically triggered.
+                .pollDelay(Duration.ofMillis(500))
+                .untilAsserted(() -> {
+                    // Abruptly re-open the managed ledger without graceful close
+                    ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+                    try {
+                        ManagedLedger ledger2 = factory2.open("testFlushCursorAfterInactivity", config);
+                        ManagedCursor c2 = ledger2.openCursor("c");
 
-        // Abruptly re-open the managed ledger without graceful close
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ManagedLedger ledger2 = factory2.open("testFlushCursorAfterInactivity", config);
-        ManagedCursor c2 = ledger2.openCursor("c");
+                        assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
 
-        assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
+                    } finally {
+                        factory2.shutdown();
+                    }
+                });
 
         factory1.shutdown();
-        factory2.shutdown();
     }
 
     @Test
@@ -3409,7 +3416,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
         factoryConfig.setCursorPositionFlushSeconds(1);
         ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle(), factoryConfig);
-        ManagedLedger ledger1 = factory1.open("testFlushCursorAfterInactivity", config);
+        ManagedLedger ledger1 = factory1.open("testFlushCursorAfterIndDelInactivity", config);
         ManagedCursor c1 = ledger1.openCursor("c");
         List<Position> positions = new ArrayList<Position>();
 
@@ -3437,24 +3444,30 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // reopen the cursor and we should see entries not be flushed
         ManagedLedgerFactory dirtyFactory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ManagedLedger ledgerDirty = dirtyFactory.open("testFlushCursorAfterInactivity", config);
+        ManagedLedger ledgerDirty = dirtyFactory.open("testFlushCursorAfterIndDelInactivity", config);
         ManagedCursor dirtyCursor = ledgerDirty.openCursor("c");
 
         assertNotEquals(dirtyCursor.getMarkDeletedPosition(), positions.get(positions.size() - 1));
 
-        // Give chance to the flush to be automatically triggered.
-        Thread.sleep(3000);
+        Awaitility.await()
+                // Give chance to the flush to be automatically triggered.
+                .pollDelay(Duration.ofMillis(500))
+                .untilAsserted(() -> {
+                    // Abruptly re-open the managed ledger without graceful close
+                    ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+                    try {
+                        ManagedLedger ledger2 = factory2.open("testFlushCursorAfterIndDelInactivity", config);
+                        ManagedCursor c2 = ledger2.openCursor("c");
 
-        // Abruptly re-open the managed ledger without graceful close
-        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
-        ManagedLedger ledger2 = factory2.open("testFlushCursorAfterInactivity", config);
-        ManagedCursor c2 = ledger2.openCursor("c");
+                        assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
 
-        assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
+                    } finally {
+                        factory2.shutdown();
+                    }
+                });
 
         factory1.shutdown();
         dirtyFactory.shutdown();
-        factory2.shutdown();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

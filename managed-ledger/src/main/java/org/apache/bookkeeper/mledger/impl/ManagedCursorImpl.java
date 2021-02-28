@@ -2932,6 +2932,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         asyncMarkDelete(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Flushed dirty mark-delete position", ledger.getName(), name);
+                }
             }
 
             @Override
