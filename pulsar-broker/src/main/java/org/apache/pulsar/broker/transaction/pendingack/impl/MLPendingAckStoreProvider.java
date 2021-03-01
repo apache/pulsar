@@ -54,6 +54,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
 
         originPersistentTopic.getBrokerService().getManagedLedgerFactory()
                 .asyncOpen(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding(),
+                        originPersistentTopic.getManagedLedger().getConfig(),
                         new AsyncCallbacks.OpenLedgerCallback() {
                             @Override
                             public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
@@ -89,7 +90,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                 log.error("Open MLPendingAckStore managedLedger failed.", exception);
                                 pendingAckStoreFuture.completeExceptionally(exception);
                             }
-                        }, null);
+                        }, () -> true, null);
         return pendingAckStoreFuture;
     }
 }

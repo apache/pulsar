@@ -157,7 +157,7 @@ const char* strResult(Result result) {
         case ResultProducerFenced:
             return "ResultProducerFenced";
 
-	    case ResultPendingAckNotRecover:
+        case ResultPendingAckNotRecover:
             return "ResultPendingAckNotRecover";
     };
     // NOTE : Do not add default case in the switch above. In future if we get new cases for

@@ -426,7 +426,6 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-
     @Override
     protected void handleMessage(CommandMessage cmdMessage, ByteBuf headersAndPayload) {
         checkArgument(state == State.Ready);
