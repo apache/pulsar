@@ -1843,8 +1843,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
                         log.error("Handle endTxnOnPartition {} failed.", topic, throwable);
-                        ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
-                                BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
+                        ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                                requestId, BrokerServiceException.getClientErrorCode(throwable),
+                                throwable.getMessage()));
                         return;
                     }
                     ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,

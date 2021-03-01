@@ -667,6 +667,8 @@ public class ClientCnx extends PulsarHandler {
         case NotAllowedError:
             producers.get(producerId).recoverNotAllowedError(sequenceId);
             break;
+        case TransactionBufferNotRecover:
+            break;
 
         default:
             // By default, for transient error, let the reconnection logic
@@ -1081,7 +1083,7 @@ public class ClientCnx extends PulsarHandler {
         this.remoteHostName = remoteHostName;
     }
 
-    private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
+    public static PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:
             return new PulsarClientException.AuthenticationException(errorMsg);

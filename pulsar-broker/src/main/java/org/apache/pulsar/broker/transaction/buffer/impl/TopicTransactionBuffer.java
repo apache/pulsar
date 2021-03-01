@@ -36,6 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TransactionBufferNotRecoverException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
@@ -65,8 +66,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private volatile PositionImpl maxReadPosition = PositionImpl.latest;
 
+    /**
+     * Ongoing transaction, map for remove txn stable position, linked for find max read position.
+     */
     private final LinkedMap<TxnID, PositionImpl> ongoingTxns = new LinkedMap<>();
 
+    /**
+     * Aborts, map for jude message is aborted, linked for remove abort txn in memory when this
+     * position have been deleted.
+     */
     private final LinkedMap<TxnID, PositionImpl> aborts = new LinkedMap<>();
 
     private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> takeSnapshotWriter;
@@ -211,7 +219,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Failed to commit for txn {}", txnID, exception);
-                completableFuture.completeExceptionally(exception);
+                completableFuture.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
         return completableFuture;
@@ -250,7 +258,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("Failed to abort for txn {}", txnID, exception);
-                completableFuture.completeExceptionally(exception);
+                completableFuture.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
         return completableFuture;

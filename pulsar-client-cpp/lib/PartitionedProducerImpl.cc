@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <cstdlib>
 #include "PartitionedProducerImpl.h"
 #include "LogUtils.h"
 #include <lib/TopicName.h>
@@ -24,7 +23,6 @@
 #include "RoundRobinMessageRouter.h"
 #include "SinglePartitionMessageRouter.h"
 #include "TopicMetadataImpl.h"
-#include "MessageImpl.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -71,8 +69,7 @@ MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
             return conf_.getMessageRouterPtr();
         case ProducerConfiguration::UseSinglePartition:
         default:
-            unsigned int random = rand();
-            return std::make_shared<SinglePartitionMessageRouter>(random % getNumPartitions(),
+            return std::make_shared<SinglePartitionMessageRouter>(getNumPartitions(),
                                                                   conf_.getHashingScheme());
     }
 }

@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -65,7 +66,7 @@ public class ConsumerDedupPermitsUpdate extends ProducerConsumerBase {
 
     @Test(timeOut = 30000, dataProvider = "combinations")
     public void testConsumerDedup(boolean batchingEnabled, int receiverQueueSize) throws Exception {
-        String topic = "persistent://my-property/my-ns/my-topic-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)

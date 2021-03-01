@@ -1316,8 +1316,11 @@ public class PersistentTopic extends AbstractTopic
                 if (compactionSub != null) {
                     backlogEstimate = compactionSub.estimateBacklogSize();
                 } else {
-                    // compaction has never run, so take full backlog size
-                    backlogEstimate = ledger.getEstimatedBacklogSize();
+                    // compaction has never run, so take full backlog size,
+                    // or total size if we have no durable subs yet.
+                    backlogEstimate = subscriptions.isEmpty()
+                            ? ledger.getTotalSize()
+                            : ledger.getEstimatedBacklogSize();
                 }
 
                 if (backlogEstimate > compactionThreshold) {
@@ -2756,6 +2759,8 @@ public class PersistentTopic extends AbstractTopic
         replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                 .ifPresent(DispatchRateLimiter::updateDispatchRate));
         updateUnackedMessagesExceededOnConsumer(null);
+
+        checkDeduplicationStatus();
     }
 
     private Optional<Policies> getNamespacePolicies() {

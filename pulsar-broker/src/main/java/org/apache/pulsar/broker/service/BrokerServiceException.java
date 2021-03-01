@@ -241,7 +241,7 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionConflict;
         } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
             return ServerError.TransactionNotFound;
-        } else if (t instanceof PulsarClientException.TransactionBufferNotRecoverException) {
+        } else if (t instanceof TransactionBufferNotRecoverException) {
             return ServerError.TransactionBufferNotRecover;
         } else {
             if (checkCauseIfUnknown) {

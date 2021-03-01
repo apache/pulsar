@@ -284,7 +284,9 @@ public class MLTransactionMetadataStore
                             State.Ready, getState(), "update transaction status"));
         }
         return getTxnPositionPair(txnID).thenCompose(txnMetaListPair -> {
-
+            if (txnMetaListPair.getLeft().status() == newStatus) {
+                return CompletableFuture.completedFuture(null);
+            }
             TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
                     .setTxnidMostBits(txnID.getMostSigBits())
                     .setTxnidLeastBits(txnID.getLeastSigBits())
