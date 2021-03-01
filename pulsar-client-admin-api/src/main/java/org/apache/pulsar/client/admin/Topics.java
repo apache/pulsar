@@ -2118,6 +2118,7 @@ public interface Topics {
      * @return
      * @throws PulsarAdminException
      */
+    @Deprecated
     Boolean getDeduplicationEnabled(String topic) throws PulsarAdminException;
 
     /**
@@ -2125,7 +2126,37 @@ public interface Topics {
      * @param topic
      * @return
      */
+    @Deprecated
     CompletableFuture<Boolean> getDeduplicationEnabledAsync(String topic);
+
+    /**
+     * get deduplication enabled of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationStatus(String topic) throws PulsarAdminException;
+
+    /**
+     * get deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationStatusAsync(String topic);
+    /**
+     * get applied deduplication enabled of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationStatus(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * get applied deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationStatusAsync(String topic, boolean applied);
 
     /**
      * set deduplication enabled of a topic.
@@ -2133,6 +2164,7 @@ public interface Topics {
      * @param enabled
      * @throws PulsarAdminException
      */
+    @Deprecated
     void enableDeduplication(String topic, boolean enabled) throws PulsarAdminException;
 
     /**
@@ -2141,13 +2173,31 @@ public interface Topics {
      * @param enabled
      * @return
      */
+    @Deprecated
     CompletableFuture<Void> enableDeduplicationAsync(String topic, boolean enabled);
+
+    /**
+     * set deduplication enabled of a topic.
+     * @param topic
+     * @param enabled
+     * @throws PulsarAdminException
+     */
+    void setDeduplicationStatus(String topic, boolean enabled) throws PulsarAdminException;
+
+    /**
+     * set deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @param enabled
+     * @return
+     */
+    CompletableFuture<Void> setDeduplicationStatusAsync(String topic, boolean enabled);
 
     /**
      * remove deduplication enabled of a topic.
      * @param topic
      * @throws PulsarAdminException
      */
+    @Deprecated
     void disableDeduplication(String topic) throws PulsarAdminException;
 
     /**
@@ -2155,7 +2205,22 @@ public interface Topics {
      * @param topic
      * @return
      */
+    @Deprecated
     CompletableFuture<Void> disableDeduplicationAsync(String topic);
+
+    /**
+     * remove deduplication enabled of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationStatus(String topic) throws PulsarAdminException;
+
+    /**
+     * remove deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationStatusAsync(String topic);
 
     /**
      * Set message-dispatch-rate (topic can dispatch this many messages per second).

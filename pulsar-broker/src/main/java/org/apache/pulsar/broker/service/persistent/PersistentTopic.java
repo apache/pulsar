@@ -2741,6 +2741,8 @@ public class PersistentTopic extends AbstractTopic
         replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                 .ifPresent(DispatchRateLimiter::updateDispatchRate));
         updateUnackedMessagesExceededOnConsumer(null);
+
+        checkDeduplicationStatus();
     }
 
     private Optional<Policies> getNamespacePolicies() {
