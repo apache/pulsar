@@ -258,6 +258,10 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected TopicName topicName;
 
+    protected void validateTopicOperation() {
+        checkTopicLevelPolicyEnable();
+    }
+
     protected void validateTopicName(String property, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
