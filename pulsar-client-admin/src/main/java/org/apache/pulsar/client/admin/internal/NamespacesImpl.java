@@ -2437,7 +2437,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public int getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException {
+    public Integer getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException {
         try {
             return getMaxUnackedMessagesPerConsumerAsync(namespace).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

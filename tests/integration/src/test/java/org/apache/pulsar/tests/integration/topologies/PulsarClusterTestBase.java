@@ -29,7 +29,7 @@ import static java.util.stream.Collectors.joining;
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     @DataProvider(name = "ServiceUrlAndTopics")
-    public static Object[][] serviceUrlAndTopics() {
+    public Object[][] serviceUrlAndTopics() {
         return new Object[][] {
                 // plain text, persistent topic
                 {
@@ -45,7 +45,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
     }
 
     @DataProvider(name = "ServiceUrls")
-    public static Object[][] serviceUrls() {
+    public Object[][] serviceUrls() {
         return new Object[][] {
                 // plain text
                 {
@@ -55,7 +55,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
     }
 
     @DataProvider(name = "ServiceAndAdminUrls")
-    public static Object[][] serviceAndAdminUrls() {
+    public Object[][] serviceAndAdminUrls() {
         return new Object[][] {
                 // plain text
                 {
@@ -65,7 +65,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         };
     }
 
-    protected static PulsarCluster pulsarCluster;
+    protected PulsarCluster pulsarCluster;
 
     public void setupCluster() throws Exception {
         this.setupCluster("");
