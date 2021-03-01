@@ -72,7 +72,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     private final PersistentTopic topic;
     private final String replicatorName;
     private final ManagedLedger ledger;
-    protected ManagedCursor cursor;
+    protected volatile ManagedCursor cursor;
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
@@ -186,12 +186,14 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     @Override
     protected void disableReplicatorRead() {
-        // deactivate cursor after successfully close the producer
-        this.cursor.setInactive();
+        if (this.cursor != null) {
+            // deactivate cursor after successfully close the producer
+            this.cursor.setInactive();
+        }
     }
 
     @Override
-    protected synchronized CompletableFuture<Void> openCursorAsync() {
+    protected CompletableFuture<Void> openCursorAsync() {
         log.info("[{}][{} -> {}] Starting open cursor for replicator", topicName, localCluster, remoteCluster);
         if (cursor != null) {
             log.info("[{}][{} -> {}] Using the exists cursor for replicator", topicName, localCluster, remoteCluster);
@@ -430,10 +432,12 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     public void updateCursorState() {
-        if (producer != null && producer.isConnected()) {
-            this.cursor.setActive();
-        } else {
-            this.cursor.setInactive();
+        if (this.cursor != null) {
+            if (producer != null && producer.isConnected()) {
+                this.cursor.setActive();
+            } else {
+                this.cursor.setInactive();
+            }
         }
     }
 
@@ -673,7 +677,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     public ReplicatorStats getStats() {
-        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
+        stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 
