@@ -187,6 +187,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class PendingAckNotRecoverException extends BrokerServiceException {
+        public PendingAckNotRecoverException(String msg) {
+            super(msg);
+        }
+    }
+
     public static org.apache.pulsar.common.api.proto.ServerError getClientErrorCode(Throwable t) {
         return getClientErrorCode(t, true);
     }
@@ -234,6 +240,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionConflict;
         } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
             return ServerError.TransactionNotFound;
+        } else if (t instanceof PendingAckNotRecoverException) {
+            return ServerError.PendingAckNotRecover;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

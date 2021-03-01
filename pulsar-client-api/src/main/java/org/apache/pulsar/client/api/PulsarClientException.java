@@ -864,6 +864,22 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * PendingAck not recover exception thrown by Pulsar client.
+     */
+    public static class PendingAckNotRecoverException extends PulsarClientException {
+        /**
+         * Constructs a {@code PendingAckNotRecoverException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public PendingAckNotRecoverException(String msg) {
+            super(msg);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();

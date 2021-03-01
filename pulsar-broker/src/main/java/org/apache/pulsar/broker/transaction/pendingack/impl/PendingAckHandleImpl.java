@@ -119,12 +119,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
 
         this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
-            if (pendingAckStore instanceof MLPendingAckStore) {
-                changeToInitializingState();
-                pendingAckStore.replayAsync(this,
-                        ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService()
-                                .getPulsar().getTransactionReplayExecutor());
-            }
+            changeToInitializingState();
+            pendingAckStore.replayAsync(this,
+                    ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService()
+                            .getPulsar().getTransactionReplayExecutor());
         }).exceptionally(e -> {
             log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
             return null;

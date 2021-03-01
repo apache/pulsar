@@ -174,7 +174,7 @@ public class PersistentSubscription implements Subscription {
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (!pendingAckHandle.checkIfReady()) {
-            throw new BrokerServiceException.NotAllowedException("Pending ack handle not init "
+            throw new BrokerServiceException.PendingAckNotRecoverException("Pending ack handle not init "
                     + "complete! topicName : " + topicName + " subName : " + subName);
         }
         cursor.updateLastActive();

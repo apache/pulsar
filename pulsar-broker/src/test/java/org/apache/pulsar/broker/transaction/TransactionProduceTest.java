@@ -59,6 +59,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -275,6 +276,8 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
+        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();
             log.info("receive messageId: {}", message.getMessageId());
@@ -338,6 +341,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
+        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
 
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();

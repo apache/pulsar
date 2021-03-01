@@ -224,6 +224,7 @@ enum ServerError {
                          // use this error to indicate that this producer is now permanently
                          // fenced. Applications are now supposed to close it and create a
                          // new producer
+    PendingAckNotRecover = 26; // When pending ack not recover completely
 }
 
 enum AuthMethod {
