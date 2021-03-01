@@ -187,9 +187,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-max-producers", new SetMaxProducers());
         jcommander.addCommand("remove-max-producers", new RemoveMaxProducers());
 
-        jcommander.addCommand("get-max-subscriptions-per-topic", new GetMaxSubscriptionsPerTopic());
-        jcommander.addCommand("set-max-subscriptions-per-topic", new SetMaxSubscriptionsPerTopic());
-        jcommander.addCommand("remove-max-subscriptions-per-topic", new RemoveMaxSubscriptionsPerTopic());
+        jcommander.addCommand("get-max-subscriptions", new GetMaxSubscriptionsPerTopic());
+        jcommander.addCommand("set-max-subscriptions", new SetMaxSubscriptionsPerTopic());
+        jcommander.addCommand("remove-max-subscriptions", new RemoveMaxSubscriptionsPerTopic());
 
         jcommander.addCommand("get-max-message-size", new GetMaxMessageSize());
         jcommander.addCommand("set-max-message-size", new SetMaxMessageSize());

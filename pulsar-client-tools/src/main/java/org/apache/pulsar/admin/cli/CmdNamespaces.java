@@ -348,7 +348,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--maxSubscriptionsPerTopic", "-m" }, description = "Max subscriptions per topic",
+        @Parameter(names = { "--max-subscriptions-per-topic", "-m" }, description = "Max subscriptions per topic",
                 required = true)
         private int maxSubscriptionsPerTopic;
 
