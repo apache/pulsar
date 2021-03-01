@@ -344,6 +344,7 @@ public class LoadSimulationClient {
             jc.usage();
             System.exit(-1);
         }
+        PerfClientUtils.printJVMInformation(log);
         (new LoadSimulationClient(mainArguments)).run();
     }
 

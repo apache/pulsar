@@ -122,7 +122,6 @@ public class ManagedLedgerWriter {
     }
 
     public static void main(String[] args) throws Exception {
-
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
         jc.setProgramName("pulsar-perf managed-ledger");
@@ -143,6 +142,7 @@ public class ManagedLedgerWriter {
         arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
 
         // Dump config variables
+        PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar managed-ledger perf writer with config: {}", w.writeValueAsString(arguments));
