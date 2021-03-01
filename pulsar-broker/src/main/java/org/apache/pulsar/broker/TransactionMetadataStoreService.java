@@ -286,10 +286,12 @@ public class TransactionMetadataStoreService {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
                 if (TxnAction.COMMIT_VALUE == txnAction) {
                     actionFuture = tbClient.commitTxnOnSubscription(
-                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(), txnID.getLeastSigBits());
+                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(),
+                            txnID.getLeastSigBits(), lowWaterMark);
                 } else if (TxnAction.ABORT_VALUE == txnAction) {
                     actionFuture = tbClient.abortTxnOnSubscription(
-                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(), txnID.getLeastSigBits());
+                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(),
+                            txnID.getLeastSigBits(), lowWaterMark);
                 } else {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }
