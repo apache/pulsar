@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util.collections;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -157,6 +158,31 @@ public class ConcurrentOpenHashMap<K, V> {
     public void forEach(BiConsumer<? super K, ? super V> processor) {
         for (Section<K, V> s : sections) {
             s.forEach(processor);
+        }
+    }
+
+    private static class Entry<K, V> {
+        final K key;
+        final V value;
+
+        Entry(K key, V value) {
+            this.key = key;
+            this.value = value;
+        }
+    }
+
+    /**
+     * Makes a copy of all entries in a section and then processes
+     * each entry in the snapshot. The benefit of this over the forEach method is that
+     * locks won't be held during the processing of entries.
+     *
+     * @param processor for processing each entry
+     */
+    public void forEachInSnapshot(BiConsumer<? super K, ? super V> processor) {
+        for (Section<K, V> s : sections) {
+            List<Entry<K, V>> entries = new ArrayList<>(s.size);
+            s.forEach((k, v) -> entries.add(new Entry<>(k, v)));
+            entries.forEach(entry -> processor.accept(entry.key, entry.value));
         }
     }
 

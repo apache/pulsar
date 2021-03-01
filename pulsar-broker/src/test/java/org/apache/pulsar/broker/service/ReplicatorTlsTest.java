@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +50,7 @@ public class ReplicatorTlsTest extends ReplicatorTestBase {
     public void testReplicationClient() throws Exception {
         log.info("--- Starting ReplicatorTlsTest::testReplicationClient ---");
         for (BrokerService ns : Lists.newArrayList(ns1, ns2, ns3)) {
-            ns.getReplicationClients().forEach((cluster, client) -> {
+            ns.getReplicationClients().forEachInSnapshot((cluster, client) -> {
                 assertTrue(((PulsarClientImpl) client).getConfiguration().isUseTls());
                 assertEquals(((PulsarClientImpl) client).getConfiguration().getTlsTrustCertsFilePath(),
                         TLS_SERVER_CERT_FILE_PATH);

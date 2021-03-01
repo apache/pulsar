@@ -652,7 +652,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         unloadNamespaceBundlesGracefully();
 
         // close replication clients
-        replicationClients.forEach((cluster, client) -> {
+        replicationClients.forEachInSnapshot((cluster, client) -> {
             try {
                 client.shutdown();
             } catch (PulsarClientException e) {
@@ -661,7 +661,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
 
         // close replication admins
-        clusterAdmins.forEach((cluster, admin) -> {
+        clusterAdmins.forEachInSnapshot((cluster, admin) -> {
             try {
                 admin.close();
             } catch (Exception e) {
@@ -1485,7 +1485,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * Iterates over all loaded topics in the broker.
      */
     public void forEachTopic(Consumer<Topic> consumer) {
-        topics.forEach((n, t) -> {
+        topics.forEachInSnapshot((n, t) -> {
             Optional<Topic> topic = extractTopic(t);
             topic.ifPresent(consumer::accept);
         });
@@ -1577,7 +1577,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
                                                          boolean closeWithoutWaitingClientDisconnect) {
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
-        topics.forEach((name, topicFuture) -> {
+        topics.forEachInSnapshot((name, topicFuture) -> {
             TopicName topicName = TopicName.get(name);
             if (serviceUnit.includes(topicName)) {
                 // Topic needs to be unloaded
@@ -1629,7 +1629,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         multiLayerTopicsMap.remove(namespaceName);
                         final ClusterReplicationMetrics clusterReplicationMetrics = pulsarStats
                                 .getClusterReplicationMetrics();
-                        replicationClients.forEach((cluster, client) -> {
+                        replicationClients.forEachInSnapshot((cluster, client) -> {
                             clusterReplicationMetrics.remove(clusterReplicationMetrics.getKeyName(namespaceName,
                                     cluster));
                         });
@@ -1646,7 +1646,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public int getNumberOfNamespaceBundles() {
         this.numberOfNamespaceBundles = 0;
-        this.multiLayerTopicsMap.forEach((namespaceName, bundles) -> {
+        this.multiLayerTopicsMap.forEachInSnapshot((namespaceName, bundles) -> {
             this.numberOfNamespaceBundles += bundles.size();
         });
         return this.numberOfNamespaceBundles;
@@ -1662,7 +1662,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         log.info("{} updating with {}", path, data);
 
-        topics.forEach((name, topicFuture) -> {
+        topics.forEachInSnapshot((name, topicFuture) -> {
             if (namespace.includes(TopicName.get(name))) {
                 // If the topic is already created, immediately apply the updated policies, otherwise once the topic is
                 // created it'll apply the policies update
@@ -1914,7 +1914,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.pulsar().getExecutor().submit(() -> {
             // update message-rate for each topic subscription
             forEachTopic(topic -> {
-                topic.getSubscriptions().forEach((subName, persistentSubscription) -> {
+                topic.getSubscriptions().forEachInSnapshot((subName, persistentSubscription) -> {
                     Dispatcher dispatcher = persistentSubscription.getDispatcher();
                     if (dispatcher != null) {
                         dispatcher.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate);
@@ -1928,7 +1928,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.pulsar().getExecutor().submit(() -> {
             // update message-rate for each topic Replicator in Geo-replication
             forEachTopic(topic ->
-                topic.getReplicators().forEach((name, persistentReplicator) -> {
+                topic.getReplicators().forEachInSnapshot((name, persistentReplicator) -> {
                     if (persistentReplicator.getRateLimiter().isPresent()) {
                         persistentReplicator.getRateLimiter().get().updateDispatchRate();
                     }
@@ -2077,7 +2077,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, String> getRuntimeConfiguration() {
         Map<String, String> configMap = Maps.newHashMap();
         ConcurrentOpenHashMap<String, Object> runtimeConfigurationMap = getRuntimeConfigurationMap();
-        runtimeConfigurationMap.forEach((key, value) -> {
+        runtimeConfigurationMap.forEachInSnapshot((key, value) -> {
             configMap.put(key, String.valueOf(value));
         });
         return configMap;
@@ -2308,7 +2308,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         lock.readLock().lock();
         try {
             forEachTopic(topic -> {
-                topic.getSubscriptions().forEach((subName, persistentSubscription) -> {
+                topic.getSubscriptions().forEachInSnapshot((subName, persistentSubscription) -> {
                     if (persistentSubscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
                         PersistentDispatcherMultipleConsumers dispatcher =
                                 (PersistentDispatcherMultipleConsumers) persistentSubscription
@@ -2402,7 +2402,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private void foreachCnx(Consumer<TransportCnx> consumer) {
         Set<TransportCnx> cnxSet = new HashSet<>();
-        topics.forEach((n, t) -> {
+        topics.forEachInSnapshot((n, t) -> {
             Optional<Topic> topic = extractTopic(t);
             topic.ifPresent(value -> value.getProducers().values().forEach(producer -> cnxSet.add(producer.getCnx())));
         });

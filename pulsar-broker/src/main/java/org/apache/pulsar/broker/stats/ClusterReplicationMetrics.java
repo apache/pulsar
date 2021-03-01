@@ -69,7 +69,7 @@ public class ClusterReplicationMetrics {
     }
 
     private void generate() {
-        metricsMap.forEach((key, replicationMetrics) -> {
+        metricsMap.forEachInSnapshot((key, replicationMetrics) -> {
             int splitPoint = key.lastIndexOf(SEPARATOR);
             add(key.substring(0, splitPoint), key.substring(splitPoint + 1), replicationMetrics);
             replicationMetrics.reset();

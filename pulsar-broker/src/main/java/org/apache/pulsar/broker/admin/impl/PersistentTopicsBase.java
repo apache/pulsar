@@ -1090,7 +1090,7 @@ public class PersistentTopicsBase extends AdminResource {
             validateReadOperationOnTopic(authoritative);
             Topic topic = getTopicReference(topicName);
             final List<String> subscriptions = Lists.newArrayList();
-            topic.getSubscriptions().forEach((subName, sub) -> subscriptions.add(subName));
+            topic.getSubscriptions().forEachInSnapshot((subName, sub) -> subscriptions.add(subName));
             asyncResponse.resume(subscriptions);
         } catch (WebApplicationException wae) {
             if (log.isDebugEnabled()) {
@@ -1793,7 +1793,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         final AtomicReference<Throwable> exception = new AtomicReference<>();
 
-        topic.getReplicators().forEach((subName, replicator) -> {
+        topic.getReplicators().forEachInSnapshot((subName, replicator) -> {
             try {
                 internalExpireMessagesByTimestampForSinglePartition(subName, expireTimeInSeconds, authoritative);
             } catch (Throwable t) {
@@ -1801,7 +1801,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
         });
 
-        topic.getSubscriptions().forEach((subName, subscriber) -> {
+        topic.getSubscriptions().forEachInSnapshot((subName, subscriber) -> {
             try {
                 internalExpireMessagesByTimestampForSinglePartition(subName, expireTimeInSeconds, authoritative);
             } catch (Throwable t) {

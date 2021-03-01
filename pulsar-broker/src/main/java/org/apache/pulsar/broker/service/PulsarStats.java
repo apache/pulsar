@@ -105,7 +105,7 @@ public class PulsarStats implements Closeable {
             // Json begin
             topicStatsStream.startObject();
 
-            topicsMap.forEach((namespaceName, bundles) -> {
+            topicsMap.forEachInSnapshot((namespaceName, bundles) -> {
                 if (bundles.isEmpty()) {
                     return;
                 }
@@ -115,7 +115,7 @@ public class PulsarStats implements Closeable {
 
                     nsStats.reset();
 
-                    bundles.forEach((bundle, topics) -> {
+                    bundles.forEachInSnapshot((bundle, topics) -> {
                         NamespaceBundleStats currentBundleStats = bundleStats.computeIfAbsent(bundle,
                                 k -> new NamespaceBundleStats());
                         currentBundleStats.reset();
@@ -126,7 +126,7 @@ public class PulsarStats implements Closeable {
                         tempNonPersistentTopics.clear();
                         // start persistent topic
                         topicStatsStream.startObject("persistent");
-                        topics.forEach((name, topic) -> {
+                        topics.forEachInSnapshot((name, topic) -> {
                             if (topic instanceof PersistentTopic) {
                                 try {
                                     topic.updateRates(nsStats, currentBundleStats, topicStatsStream,

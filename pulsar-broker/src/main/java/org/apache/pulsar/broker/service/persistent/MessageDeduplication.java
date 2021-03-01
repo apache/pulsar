@@ -403,7 +403,7 @@ public class MessageDeduplication {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
         Map<String, Long> snapshot = new TreeMap<>();
-        highestSequencedPersisted.forEach((producerName, sequenceId) -> {
+        highestSequencedPersisted.forEachInSnapshot((producerName, sequenceId) -> {
             if (snapshot.size() < maxNumberOfProducers) {
                 snapshot.put(producerName, sequenceId);
             }

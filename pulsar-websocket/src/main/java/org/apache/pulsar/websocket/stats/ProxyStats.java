@@ -68,7 +68,7 @@ public class ProxyStats {
 
         topicStats.clear();
 
-        service.getProducers().forEach((topic, handlers) -> {
+        service.getProducers().forEachInSnapshot((topic, handlers) -> {
             if (log.isDebugEnabled()) {
                 log.debug("Collect stats from {} producer handlers for topic {}", handlers.size(), topic);
             }
@@ -83,7 +83,7 @@ public class ProxyStats {
                 nsStat.publishMsgLatency.addAll(handler.getPublishLatencyStatsUSec());
             });
         });
-        service.getConsumers().forEach((topic, handlers) -> {
+        service.getConsumers().forEachInSnapshot((topic, handlers) -> {
             if (log.isDebugEnabled()) {
                 log.debug("Collect stats from {} consumer handlers for topic {}", handlers.size(), topic);
             }
@@ -98,7 +98,7 @@ public class ProxyStats {
         });
 
         tempMetricsCollection.clear();
-        topicStats.forEach((namespace, stats) -> {
+        topicStats.forEachInSnapshot((namespace, stats) -> {
             if (log.isDebugEnabled()) {
                 log.debug("Add ns-stats of namespace {} to metrics", namespace);
             }

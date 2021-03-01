@@ -56,12 +56,12 @@ public class NamespaceStatsAggregator {
         printDefaultBrokerStats(stream, cluster);
 
         LongAdder topicsCount = new LongAdder();
-        pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
+        pulsar.getBrokerService().getMultiLayerTopicMap().forEachInSnapshot((namespace, bundlesMap) -> {
             namespaceStats.reset();
             topicsCount.reset();
 
-            bundlesMap.forEach((bundle, topicsMap) -> {
-                topicsMap.forEach((name, topic) -> {
+            bundlesMap.forEachInSnapshot((bundle, topicsMap) -> {
+                topicsMap.forEachInSnapshot((name, topic) -> {
                     getTopicStats(topic, topicStats, includeConsumerMetrics, includeProducerMetrics,
                             pulsar.getConfiguration().isExposePreciseBacklogInPrometheus(),
                             pulsar.getConfiguration().isExposeSubscriptionBacklogSizeInPrometheus());
@@ -177,7 +177,7 @@ public class NamespaceStatsAggregator {
 
         // Consumer stats can be a lot if a subscription has many consumers
         if (includeConsumerMetrics) {
-            topic.getSubscriptions().forEach((name, subscription) -> {
+            topic.getSubscriptions().forEachInSnapshot((name, subscription) -> {
                 AggregatedSubscriptionStats subsStats = stats.subscriptionStats
                         .computeIfAbsent(name, k -> new AggregatedSubscriptionStats());
                 subscription.getConsumers().forEach(consumer -> {
@@ -198,7 +198,7 @@ public class NamespaceStatsAggregator {
             });
         }
 
-        topic.getReplicators().forEach((cluster, replicator) -> {
+        topic.getReplicators().forEachInSnapshot((cluster, replicator) -> {
             AggregatedReplicationStats aggReplStats = stats.replicationStats.computeIfAbsent(cluster,
                     k -> new AggregatedReplicationStats());
 

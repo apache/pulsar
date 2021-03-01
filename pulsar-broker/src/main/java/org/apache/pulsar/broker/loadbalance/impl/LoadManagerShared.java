@@ -431,8 +431,8 @@ public class LoadManagerShared {
             final String antiAffinityGroup = policies.get().namespaceAntiAffinityGroup;
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
             final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-            brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
-                nsToBundleRange.forEach((ns, bundleRange) -> {
+            brokerToNamespaceToBundleRange.forEachInSnapshot((broker, nsToBundleRange) -> {
+                nsToBundleRange.forEachInSnapshot((ns, bundleRange) -> {
                     if (bundleRange.isEmpty()) {
                         return;
                     }

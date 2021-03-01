@@ -370,6 +370,47 @@ public class ConcurrentOpenHashMapTest {
         assertNull(map.get(t1_b));
     }
 
+    @Test(timeOut = 20000L)
+    public void testDeadlockPreventionWithForEachInSnapshot() throws InterruptedException {
+        // Given
+
+        // 2 maps
+        ConcurrentOpenHashMap<Integer, Integer> mapA = new ConcurrentOpenHashMap<>(10000, 1);
+        ConcurrentOpenHashMap<Integer, Integer> mapB = new ConcurrentOpenHashMap<>(10000, 1);
+
+        // and some values in both maps
+        for (int i = 0; i < 10000; i++) {
+            mapA.put(i, i);
+            mapB.put(i, i);
+        }
+
+        // WHEN
+
+        // start a background thread
+        Thread thread = new Thread(() -> {
+            // add iterations to increase chances of concurrent access on fast machines
+            for (int i=0; i < 10; i++) {
+                // iterate entries of mapA and modify mapB
+                mapA.forEachInSnapshot((k, v) -> {
+                    mapB.put(k, v);
+                });
+            }
+        });
+        thread.start();
+
+        // add iterations to increase chances of concurrent access on fast machines
+        for (int i=0; i < 10; i++) {
+            // iterate entries of mapB and modify mapA
+            mapB.forEachInSnapshot((k, v) -> {
+                mapA.put(k, v);
+            });
+        }
+
+        // THEN
+        // background thread should complete without a deadlock
+        thread.join();
+    }
+
     final static int Iterations = 1;
     final static int ReadIterations = 1000;
     final static int N = 1_000_000;

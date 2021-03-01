@@ -188,7 +188,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         cleanupTimedOutSnapshots();
 
         AtomicBoolean anyReplicatorDisconnected = new AtomicBoolean();
-        topic.getReplicators().forEach((cluster, replicator) -> {
+        topic.getReplicators().forEachInSnapshot((cluster, replicator) -> {
             if (!replicator.isConnected()) {
                 anyReplicatorDisconnected.set(true);
             }

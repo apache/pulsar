@@ -397,7 +397,7 @@ public class ManagedLedgerOfflineBacklog {
 
         // go through ledgers where LAC was -1
         if (accurate && ledgerRetryMap.size() > 0) {
-            ledgerRetryMap.forEach((cursorName, ledgerId) -> {
+            ledgerRetryMap.forEachInSnapshot((cursorName, ledgerId) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("Cursor {} Ledger {} Trying to obtain MD from BkAdmin", cursorName, ledgerId);
                 }

@@ -338,7 +338,7 @@ public class PersistentTopic extends AbstractTopic
             }
 
             // dispatch rate limiter for each subscription
-            subscriptions.forEach((name, subscription) -> {
+            subscriptions.forEachInSnapshot((name, subscription) -> {
                 Dispatcher dispatcher = subscription.getDispatcher();
                 if (dispatcher != null) {
                     dispatcher.initializeDispatchRateLimiterIfNeeded(policies);
@@ -346,7 +346,7 @@ public class PersistentTopic extends AbstractTopic
             });
 
             // dispatch rate limiter for each replicator
-            replicators.forEach((name, replicator) ->
+            replicators.forEachInSnapshot((name, replicator) ->
                 replicator.initializeDispatchRateLimiterIfNeeded(policies));
         }
     }
@@ -565,7 +565,7 @@ public class PersistentTopic extends AbstractTopic
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             if (policies.replication_clusters != null) {
                 Set<String> configuredClusters = Sets.newTreeSet(policies.replication_clusters);
-                replicators.forEach((region, replicator) -> {
+                replicators.forEachInSnapshot((region, replicator) -> {
                     if (configuredClusters.contains(region)) {
                         replicator.startProducer();
                     }
@@ -575,19 +575,19 @@ public class PersistentTopic extends AbstractTopic
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies while starting repl-producers {}", topic, e.getMessage());
             }
-            replicators.forEach((region, replicator) -> replicator.startProducer());
+            replicators.forEachInSnapshot((region, replicator) -> replicator.startProducer());
         }
     }
 
     public CompletableFuture<Void> stopReplProducers() {
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
-        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect()));
+        replicators.forEachInSnapshot((region, replicator) -> closeFutures.add(replicator.disconnect()));
         return FutureUtil.waitForAll(closeFutures);
     }
 
     private synchronized CompletableFuture<Void> closeReplProducersIfNoBacklog() {
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
-        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect(true)));
+        replicators.forEachInSnapshot((region, replicator) -> closeFutures.add(replicator.disconnect(true)));
         return FutureUtil.waitForAll(closeFutures);
     }
 
@@ -771,7 +771,7 @@ public class PersistentTopic extends AbstractTopic
                             ? data.max_unacked_messages_per_consumer
                             : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
         }
-        getSubscriptions().forEach((name, sub) -> {
+        getSubscriptions().forEachInSnapshot((name, sub) -> {
             if (sub != null) {
                 sub.getConsumers().forEach(consumer -> {
                     if (consumer.getMaxUnackedMessages() != maxUnackedMessagesOnConsumerAppilied) {
@@ -999,9 +999,9 @@ public class PersistentTopic extends AbstractTopic
             CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
-                replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+                replicators.forEachInSnapshot((cluster, replicator) -> futures.add(replicator.disconnect()));
                 producers.values().forEach(producer -> futures.add(producer.disconnect()));
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                subscriptions.forEachInSnapshot((s, sub) -> futures.add(sub.disconnect()));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
                 }).exceptionally(ex -> {
@@ -1107,9 +1107,9 @@ public class PersistentTopic extends AbstractTopic
 
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-        replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+        replicators.forEachInSnapshot((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+        subscriptions.forEachInSnapshot((s, sub) -> futures.add(sub.disconnect()));
 
         CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
                 ? CompletableFuture.completedFuture(null)
@@ -1250,7 +1250,7 @@ public class PersistentTopic extends AbstractTopic
         }
 
         // Check for replicators to be stopped
-        replicators.forEach((cluster, replicator) -> {
+        replicators.forEachInSnapshot((cluster, replicator) -> {
             // Update message TTL
             ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
 
@@ -1448,7 +1448,7 @@ public class PersistentTopic extends AbstractTopic
         TopicStatsHelper topicStatsHelper = threadLocalTopicStats.get();
         topicStatsHelper.reset();
 
-        replicators.forEach((region, replicator) -> replicator.updateRates());
+        replicators.forEachInSnapshot((region, replicator) -> replicator.updateRates());
 
         nsStats.producerCount += producers.size();
         bundleStats.producerCount += producers.size();
@@ -1484,7 +1484,7 @@ public class PersistentTopic extends AbstractTopic
         // Start replicator stats
         topicStatsStream.startObject("replication");
         nsStats.replicatorCount += topicStatsHelper.remotePublishersStats.size();
-        replicators.forEach((cluster, replicator) -> {
+        replicators.forEachInSnapshot((cluster, replicator) -> {
             // Update replicator cursor state
             try {
                 ((PersistentReplicator) replicator).updateCursorState();
@@ -1553,7 +1553,7 @@ public class PersistentTopic extends AbstractTopic
         topicStatsStream.startObject("subscriptions");
         nsStats.subsCount += subscriptions.size();
 
-        subscriptions.forEach((subscriptionName, subscription) -> {
+        subscriptions.forEachInSnapshot((subscriptionName, subscription) -> {
             double subMsgRateOut = 0;
             double subMsgThroughputOut = 0;
             double subMsgRateRedeliver = 0;
@@ -1688,7 +1688,7 @@ public class PersistentTopic extends AbstractTopic
         stats.msgChunkPublished = this.msgChunkPublished;
         stats.waitingPublishers = getWaitingProducersCount();
 
-        subscriptions.forEach((name, subscription) -> {
+        subscriptions.forEachInSnapshot((name, subscription) -> {
             SubscriptionStats subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);
 
             stats.msgRateOut += subStats.msgRateOut;
@@ -1701,7 +1701,7 @@ public class PersistentTopic extends AbstractTopic
                     subStats.nonContiguousDeletedMessagesRangesSerializedSize;
         });
 
-        replicators.forEach((cluster, replicator) -> {
+        replicators.forEachInSnapshot((cluster, replicator) -> {
             ReplicatorStats replicatorStats = replicator.getStats();
 
             // Add incoming msg rates
@@ -2044,7 +2044,7 @@ public class PersistentTopic extends AbstractTopic
                             ? defaultExpirationTime
                             : policies.subscription_expiration_time_minutes);
             if (expirationTimeMillis > 0) {
-                subscriptions.forEach((subName, sub) -> {
+                subscriptions.forEachInSnapshot((subName, sub) -> {
                     if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected() || sub.isReplicated()) {
                         return;
                     }
@@ -2064,7 +2064,7 @@ public class PersistentTopic extends AbstractTopic
     @Override
     public void checkBackloggedCursors() {
         // activate caught up cursors which include consumers
-        subscriptions.forEach((subName, subscription) -> {
+        subscriptions.forEachInSnapshot((subName, subscription) -> {
             if (!subscription.getConsumers().isEmpty()
                 && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
                 subscription.getCursor().setActive();
@@ -2158,7 +2158,7 @@ public class PersistentTopic extends AbstractTopic
             producer.checkPermissions();
             producer.checkEncryption();
         });
-        subscriptions.forEach((subName, sub) -> {
+        subscriptions.forEachInSnapshot((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
             Dispatcher dispatcher = sub.getDispatcher();
             // If the topic-level policy already exists, the namespace-level policy cannot override
@@ -2167,7 +2167,7 @@ public class PersistentTopic extends AbstractTopic
                 dispatcher.getRateLimiter().ifPresent(rateLimiter -> rateLimiter.onPoliciesUpdate(data));
             }
         });
-        replicators.forEach((name, replicator) ->
+        replicators.forEachInSnapshot((name, replicator) ->
                 replicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate)
         );
         checkMessageExpiry();
@@ -2252,7 +2252,7 @@ public class PersistentTopic extends AbstractTopic
             @Override
             public void terminateComplete(Position lastCommittedPosition, Object ctx) {
                 producers.values().forEach(Producer::disconnect);
-                subscriptions.forEach((name, sub) -> sub.topicTerminated());
+                subscriptions.forEachInSnapshot((name, sub) -> sub.topicTerminated());
 
                 PositionImpl lastPosition = (PositionImpl) lastCommittedPosition;
                 MessageId messageId = new MessageIdImpl(lastPosition.getLedgerId(), lastPosition.getEntryId(), -1);
@@ -2505,7 +2505,7 @@ public class PersistentTopic extends AbstractTopic
 
     private synchronized void checkReplicatedSubscriptionControllerState() {
         AtomicBoolean shouldBeEnabled = new AtomicBoolean(false);
-        subscriptions.forEach((name, subscription) -> {
+        subscriptions.forEachInSnapshot((name, subscription) -> {
             if (subscription.isReplicated()) {
                 shouldBeEnabled.set(true);
             }
@@ -2708,7 +2708,7 @@ public class PersistentTopic extends AbstractTopic
             }
         });
 
-        subscriptions.forEach((subName, sub) -> {
+        subscriptions.forEachInSnapshot((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
             Dispatcher dispatcher = sub.getDispatcher();
             dispatcher.updateRateLimiter(policies.getSubscriptionDispatchRate());
@@ -2738,7 +2738,7 @@ public class PersistentTopic extends AbstractTopic
             subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
                 subscribeRateLimiter.onSubscribeRateUpdate(policies.getSubscribeRate()));
         }
-        replicators.forEach((name, replicator) -> replicator.getRateLimiter()
+        replicators.forEachInSnapshot((name, replicator) -> replicator.getRateLimiter()
                 .ifPresent(DispatchRateLimiter::updateDispatchRate));
         updateUnackedMessagesExceededOnConsumer(null);
 

@@ -1224,7 +1224,7 @@ public class NamespaceService {
                                     .containsKey(namespaceName.toString())) {
                                 pulsar.getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString()).values()
                                         .forEach(bundle -> {
-                                            bundle.forEach((topicName, topic) -> {
+                                            bundle.forEachInSnapshot((topicName, topic) -> {
                                                 if (topic instanceof NonPersistentTopic
                                                         && ((NonPersistentTopic) topic).isActive()) {
                                                     topics.add(topicName);

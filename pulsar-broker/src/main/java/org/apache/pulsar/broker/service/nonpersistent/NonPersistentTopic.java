@@ -162,7 +162,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         callback.completed(null, 0L, 0L);
         ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
 
-        subscriptions.forEach((name, subscription) -> {
+        subscriptions.forEachInSnapshot((name, subscription) -> {
             ByteBuf duplicateBuffer = data.retainedDuplicate();
             Entry entry = create(0L, 0L, duplicateBuffer);
             // entry internally retains data so, duplicateBuffer should be release here
@@ -177,7 +177,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         });
 
         if (!replicators.isEmpty()) {
-            replicators.forEach((name, replicator) -> {
+            replicators.forEachInSnapshot((name, replicator) -> {
                 ByteBuf duplicateBuffer = data.retainedDuplicate();
                 Entry entry = create(0L, 0L, duplicateBuffer);
                 // entry internally retains data so, duplicateBuffer should be release here
@@ -333,9 +333,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
-                replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+                replicators.forEachInSnapshot((cluster, replicator) -> futures.add(replicator.disconnect()));
                 producers.values().forEach(producer -> futures.add(producer.disconnect()));
-                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                subscriptions.forEachInSnapshot((s, sub) -> futures.add(sub.disconnect()));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
                 }).exceptionally(ex -> {
@@ -362,7 +362,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                             return;
                         }
                     } else {
-                        subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
+                        subscriptions.forEachInSnapshot((s, sub) -> futures.add(sub.delete()));
                     }
                     if (deleteSchema) {
                         futures.add(deleteSchema().thenApply(schemaVersion -> null));
@@ -423,9 +423,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-        replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+        replicators.forEachInSnapshot((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+        subscriptions.forEachInSnapshot((s, sub) -> futures.add(sub.disconnect()));
 
         CompletableFuture<Void> clientCloseFuture =
                 closeWithoutWaitingClientDisconnect ? CompletableFuture.completedFuture(null)
@@ -451,7 +451,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     public CompletableFuture<Void> stopReplProducers() {
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
-        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect()));
+        replicators.forEachInSnapshot((region, replicator) -> closeFutures.add(replicator.disconnect()));
         return FutureUtil.waitForAll(closeFutures);
     }
 
@@ -505,7 +505,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         }
 
         // Check for replicators to be stopped
-        replicators.forEach((cluster, replicator) -> {
+        replicators.forEachInSnapshot((cluster, replicator) -> {
             if (!cluster.equals(localCluster)) {
                 if (!configuredClusters.contains(cluster)) {
                     futures.add(removeReplicator(cluster));
@@ -615,7 +615,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         TopicStats topicStats = threadLocalTopicStats.get();
         topicStats.reset();
 
-        replicators.forEach((region, replicator) -> replicator.updateRates());
+        replicators.forEachInSnapshot((region, replicator) -> replicator.updateRates());
 
         nsStats.producerCount += producers.size();
         bundleStats.producerCount += producers.size();
@@ -650,7 +650,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.startObject("subscriptions");
         nsStats.subsCount += subscriptions.size();
 
-        subscriptions.forEach((subscriptionName, subscription) -> {
+        subscriptions.forEachInSnapshot((subscriptionName, subscription) -> {
             double subMsgRateOut = 0;
             double subMsgThroughputOut = 0;
             double subMsgRateRedeliver = 0;
@@ -761,7 +761,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         stats.bytesInCounter = getBytesInCounter();
         stats.waitingPublishers = getWaitingProducersCount();
 
-        subscriptions.forEach((name, subscription) -> {
+        subscriptions.forEachInSnapshot((name, subscription) -> {
             NonPersistentSubscriptionStats subStats = subscription.getStats();
 
             stats.msgRateOut += subStats.msgRateOut;
@@ -771,7 +771,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             stats.getSubscriptions().put(name, subStats);
         });
 
-        replicators.forEach((cluster, replicator) -> {
+        replicators.forEachInSnapshot((cluster, replicator) -> {
             NonPersistentReplicatorStats replicatorStats = replicator.getStats();
 
             // Add incoming msg rates
@@ -800,8 +800,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         stats.entriesAddedCounter = ENTRIES_ADDED_COUNTER_UPDATER.get(this);
 
         stats.cursors = Maps.newTreeMap();
-        subscriptions.forEach((name, subs) -> stats.cursors.put(name, new CursorStats()));
-        replicators.forEach((name, subs) -> stats.cursors.put(name, new CursorStats()));
+        subscriptions.forEachInSnapshot((name, subs) -> stats.cursors.put(name, new CursorStats()));
+        replicators.forEachInSnapshot((name, subs) -> stats.cursors.put(name, new CursorStats()));
 
         return CompletableFuture.completedFuture(stats);
     }
@@ -844,7 +844,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                                         log.debug("[{}] Did not delete busy topic: {}", topic,
                                                 e.getCause().getMessage());
                                     }
-                                    replicators.forEach((region, replicator) -> replicator.startProducer());
+                                    replicators.forEachInSnapshot((region, replicator) -> replicator.startProducer());
                                 } else {
                                     log.warn("[{}] Inactive topic deletion failed", topic, e);
                                 }
@@ -870,7 +870,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                             ? defaultExpirationTime
                             : policies.subscription_expiration_time_minutes);
             if (expirationTimeMillis > 0) {
-                subscriptions.forEach((subName, sub) -> {
+                subscriptions.forEachInSnapshot((subName, sub) -> {
                     if (sub.getDispatcher() != null
                             && sub.getDispatcher().isConsumerConnected() || sub.isReplicated()) {
                         return;
@@ -913,7 +913,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             producer.checkPermissions();
             producer.checkEncryption();
         });
-        subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
+        subscriptions.forEachInSnapshot((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
 
         if (data.inactive_topic_policies != null) {
             this.inactiveTopicPolicies = data.inactive_topic_policies;

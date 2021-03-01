@@ -96,17 +96,17 @@ public class WebSocketProxyStatsBase extends WebSocketWebResource {
 
         Map<String, ProxyTopicStat> statMap = Maps.newHashMap();
 
-        service().getProducers().forEach((topicName, handlers) -> {
+        service().getProducers().forEachInSnapshot((topicName, handlers) -> {
             ProxyTopicStat topicStat = statMap.computeIfAbsent(topicName, t -> new ProxyTopicStat());
             handlers.forEach(handler -> topicStat.producerStats.add(new ProducerStats(handler)));
             statMap.put(topicName, topicStat);
         });
-        service().getConsumers().forEach((topicName, handlers) -> {
+        service().getConsumers().forEachInSnapshot((topicName, handlers) -> {
             ProxyTopicStat topicStat = statMap.computeIfAbsent(topicName, t -> new ProxyTopicStat());
             handlers.forEach(handler -> topicStat.consumerStats.add(new ConsumerStats(handler)));
             statMap.put(topicName, topicStat);
         });
-        service().getReaders().forEach((topicName, handlers) -> {
+        service().getReaders().forEachInSnapshot((topicName, handlers) -> {
             ProxyTopicStat topicStat = statMap.computeIfAbsent(topicName, t -> new ProxyTopicStat());
             handlers.forEach(handler -> topicStat.consumerStats.add(new ConsumerStats(handler)));
             statMap.put(topicName, topicStat);
