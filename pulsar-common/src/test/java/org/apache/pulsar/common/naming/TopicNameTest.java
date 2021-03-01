@@ -52,7 +52,7 @@ public class TopicNameTest {
                 "persistent://tenant/cluster/namespace/topic");
 
         assertNotEquals(TopicName.get("persistent://tenant/cluster/namespace/topic"),
-            "persistent://tenant/cluster/namespace/topic");
+                "persistent://tenant/cluster/namespace/topic");
 
         assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getDomain(),
                 TopicDomain.persistent);
@@ -162,6 +162,10 @@ public class TopicNameTest {
                 .getPersistenceNamingEncoding(), "tenant/cluster/namespace/persistent/topic");
 
         assertEquals(TopicName.fromPersistenceNamingEncoding("tenant/cluster/namespace/persistent/topic"),
+                TopicName.get("persistent://tenant/cluster/namespace/topic"));
+
+        assertEquals(TopicName.fromPersistenceNamingEncoding(
+                TopicName.get("persistent://tenant/cluster/namespace/topic").getPersistenceNamingEncoding()),
                 TopicName.get("persistent://tenant/cluster/namespace/topic"));
 
         try {
