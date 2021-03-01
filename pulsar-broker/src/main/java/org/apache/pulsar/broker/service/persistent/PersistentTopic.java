@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -721,8 +722,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
-
-        if (checkMaxSubscriptionsPerTopicExceed()) {
+        if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
@@ -766,7 +766,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
-        if (checkMaxSubscriptionsPerTopicExceed()) {
+        if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
@@ -2731,7 +2731,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return messageDeduplication;
     }
 
-    private boolean checkMaxSubscriptionsPerTopicExceed() {
+    private boolean checkMaxSubscriptionsPerTopicExceed(String subscriptionName) {
+        //Existing subscriptions are not affected
+        if (StringUtils.isNotEmpty(subscriptionName) && getSubscription(subscriptionName) != null) {
+            return false;
+        }
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         Integer maxSubsPerTopic = null;
         if (topicPolicies != null && topicPolicies.isMaxSubscriptionsPerTopicSet()) {
