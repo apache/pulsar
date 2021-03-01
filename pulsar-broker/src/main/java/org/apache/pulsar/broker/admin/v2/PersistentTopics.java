@@ -2255,6 +2255,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Offload a prefix of a topic to long term storage")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 400, message = "Message ID is null"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -2274,6 +2275,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                MessageIdImpl messageId) {
+        if (messageId == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "messageId is null");
+        }
         validateTopicName(tenant, namespace, encodedTopic);
         internalTriggerOffload(authoritative, messageId);
     }
