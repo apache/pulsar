@@ -215,14 +215,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-core</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>io.perfmark</groupId>
       <artifactId>perfmark-api</artifactId>
-      <scope>runtime</scope>
+      <scope>compile</scope>
     </dependency>
 
     <!-- bookkeeper http server -->
