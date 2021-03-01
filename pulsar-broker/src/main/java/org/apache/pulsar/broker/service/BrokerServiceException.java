@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
