@@ -131,10 +131,11 @@ public class CmdTopics extends CmdBase {
         //deprecated commands
         jcommander.addCommand("enable-deduplication", new EnableDeduplication());
         jcommander.addCommand("disable-deduplication", new DisableDeduplication());
-        jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationEnabled());
+        jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationStatus());
 
-        jcommander.addCommand("set-deduplication", new SetDeduplication());
-        jcommander.addCommand("get-deduplication", new GetDeduplicationEnabled());
+        jcommander.addCommand("set-deduplication", new SetDeduplicationStatus());
+        jcommander.addCommand("get-deduplication", new GetDeduplicationStatus());
+        jcommander.addCommand("remove-deduplication", new RemoveDeduplicationStatus());
 
         jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
         jcommander.addCommand("set-deduplication-snapshot-interval", new SetDeduplicationSnapshotInterval());
@@ -1346,7 +1347,7 @@ public class CmdTopics extends CmdBase {
     }
 
     @Parameters(commandDescription = "Enable or disable deduplication for a topic")
-    private class SetDeduplication extends CliCommand {
+    private class SetDeduplicationStatus extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
@@ -1363,19 +1364,31 @@ public class CmdTopics extends CmdBase {
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
-            getAdmin().topics().enableDeduplication(persistentTopic, enable);
+            getAdmin().topics().setDeduplicationStatus(persistentTopic, enable);
         }
     }
 
     @Parameters(commandDescription = "Get the deduplication policy for a topic")
-    private class GetDeduplicationEnabled extends CliCommand {
+    private class GetDeduplicationStatus extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getDeduplicationEnabled(persistentTopic));
+            print(getAdmin().topics().getDeduplicationStatus(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the deduplication policy for a topic")
+    private class RemoveDeduplicationStatus extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getAdmin().topics().removeDeduplicationStatus(persistentTopic);
         }
     }
 

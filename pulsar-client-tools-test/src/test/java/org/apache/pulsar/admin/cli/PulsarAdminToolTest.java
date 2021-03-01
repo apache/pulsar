@@ -365,8 +365,12 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-subscription-expiration-time myprop/clust/ns1 -t 60"));
         verify(mockNamespaces).setSubscriptionExpirationTime("myprop/clust/ns1", 60);
 
+        namespaces.run(split("get-deduplication myprop/clust/ns1"));
+        verify(mockNamespaces).getDeduplicationStatus("myprop/clust/ns1");
         namespaces.run(split("set-deduplication myprop/clust/ns1 --enable"));
         verify(mockNamespaces).setDeduplicationStatus("myprop/clust/ns1", true);
+        namespaces.run(split("remove-deduplication myprop/clust/ns1"));
+        verify(mockNamespaces).removeDeduplicationStatus("myprop/clust/ns1");
 
         namespaces.run(split("set-auto-topic-creation myprop/clust/ns1 -e -t non-partitioned"));
         verify(mockNamespaces).setAutoTopicCreation("myprop/clust/ns1",
@@ -773,7 +777,10 @@ public class PulsarAdminToolTest {
         verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("set-deduplication persistent://myprop/clust/ns1/ds1 --disable"));
-        verify(mockTopics, times(2)).enableDeduplication("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockTopics).setDeduplicationStatus("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("remove-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1");
@@ -793,9 +800,9 @@ public class PulsarAdminToolTest {
         verify(mockTopics).removeReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-deduplication-enabled persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("get-deduplication persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics, times(2)).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics, times(2)).getDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1", false);
