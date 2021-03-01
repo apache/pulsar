@@ -88,11 +88,7 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
 
-      - name: run pulsar cli integration tests
+      - name: run integration tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-cli.xml -DintegrationTests -DredirectTestOutputToFile=false
-
-      - name: run pulsar auth integration tests
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-auth.xml -DintegrationTests -DredirectTestOutputToFile=false
+        run: ./build/run_integration_group.sh CLI
 
