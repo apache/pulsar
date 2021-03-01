@@ -113,7 +113,7 @@ def main():
       zpfile = zipfile.ZipFile(str(args.py), 'r')
       zpfile.extractall(os.path.dirname(str(args.py)))
     sys.path.insert(0, os.path.dirname(str(args.py)))
-  elif os.path.splitext(str(args.py))[1] == '.zip':
+  elif zipfile.is_zipfile(str(args.py)):
     # Assumig zip file with format func.zip
     # extract to folder function
     # internal dir format
