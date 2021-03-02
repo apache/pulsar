@@ -20,6 +20,7 @@ package org.apache.pulsar.io.kafka;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
+import io.confluent.kafka.serializers.subject.TopicNameStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
@@ -35,56 +36,44 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 @Slf4j
-class AvroSchemaCache<T> {
+class AvroSchemaCache {
     // we are using the Object identity as key of the cache
     // we do not want to perform costly operations in order to lookup into the cache
-    private ConcurrentHashMap<Integer, Schema<T>> cache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer, Schema<byte[]>> cache = new ConcurrentHashMap<>();
     private final SchemaRegistryClient schemaRegistryClient;
 
     public AvroSchemaCache(SchemaRegistryClient schemaRegistryClient) {
         this.schemaRegistryClient = schemaRegistryClient;
     }
 
-    public Schema<T> get(int schemaId) {
+    public Schema<byte[]> get(int schemaId) {
         if (cache.size() > 100) {
             // very simple auto cleanup
-            // schema do not change very often, we just want this map to grow
+            // schema do not change very often, we just do not want this map to grow
             // without limits
             cache.clear();
         }
         return cache.computeIfAbsent(schemaId, id -> {
             try {
-                org.apache.avro.Schema schema = schemaRegistryClient.getById(id);
+                org.apache.avro.Schema schema = schemaRegistryClient.getById(schemaId);
                 String definition = schema.toString(false);
+                log.info("Schema {} definition {}", schemaId, definition);
 
-                Schema<T> pulsarSchema = (Schema<T>) GenericAvroSchema.of(SchemaInfo.builder()
+                return  Schema.AUTO_PRODUCE_BYTES(GenericAvroSchema.of(SchemaInfo.builder()
                         .type(SchemaType.AVRO)
                         .name(schema.getName())
                         .properties(Collections.emptyMap())
                         .schema(definition.getBytes(StandardCharsets.UTF_8)
-                        ).build());
-                Schema<T> wrapper = new Schema<T>() {
-                    @Override
-                    public byte[] encode(T message) {
-                        return (byte[]) message;
-                    }
-
-                    @Override
-                    public SchemaInfo getSchemaInfo() {
-                        return pulsarSchema.getSchemaInfo();
-                    }
-
-                    @Override
-                    public Schema<T> clone() {
-                        // this structure is immutable and is cached
-                        // so no need to clone ?
-                        return this;
-                    }
-                };
-                return wrapper;
+                        ).build()));
             } catch (IOException | RestClientException e) {
                 throw new RuntimeException(e);
             }
         });
     }
+
+
+    public static String subjectName(String topic, boolean isKey) {
+        return isKey ? topic + "-key" : topic + "-value";
+    }
+
 }

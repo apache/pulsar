@@ -51,7 +51,7 @@ import org.apache.pulsar.io.core.annotations.IOType;
 @Slf4j
 public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
 
-    private AvroSchemaCache<GenericRecord> schemaCache;
+    private AvroSchemaCache schemaCache;
 
     private static final Collection<String> SUPPORTED_KEY_DESERIALIZERS =
             Collections.unmodifiableCollection(Arrays.asList(StringDeserializer.class.getName()));
@@ -82,7 +82,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
             List<String> urls = config.getSchemaRegistryUrls();
             int maxSchemaObject = config.getMaxSchemasPerSubject();
             SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(urls, maxSchemaObject);
-            schemaCache = new AvroSchemaCache<GenericRecord>(schemaRegistryClient);
+            schemaCache = new AvroSchemaCache(schemaRegistryClient);
         }
         return props;
     }
@@ -97,7 +97,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
     }
 
     @Override
-    public org.apache.pulsar.client.api.Schema<?> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
+    public org.apache.pulsar.client.api.Schema<byte[]> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
         if (value instanceof BytesWithSchema) {
             return schemaCache.get(((BytesWithSchema) value).getSchemaId());

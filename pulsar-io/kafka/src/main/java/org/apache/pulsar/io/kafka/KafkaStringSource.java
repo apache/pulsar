@@ -35,7 +35,7 @@ public class KafkaStringSource extends KafkaAbstractSource<String> {
     }
 
     @Override
-    public Schema<?> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
+    public Schema<String> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
         return Schema.STRING;
     }
 }

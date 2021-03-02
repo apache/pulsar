@@ -56,7 +56,7 @@ public class KafkaAbstractSourceTest {
         }
 
         @Override
-        public Schema<?> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
+        public Schema<String> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
             return Schema.STRING;
         }
     }

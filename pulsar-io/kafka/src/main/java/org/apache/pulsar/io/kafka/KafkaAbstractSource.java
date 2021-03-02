@@ -162,7 +162,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         return Optional.ofNullable((String) consumerRecord.key());
     }
 
-    public abstract Schema<?> extractSchema(ConsumerRecord<Object, Object> consumerRecord);
+    public abstract Schema<V> extractSchema(ConsumerRecord<Object, Object> consumerRecord);
 
     @Slf4j
     static private class KafkaRecord<V> implements Record<V> {
