@@ -413,6 +413,7 @@
 <tr><td>maxMessageSize</td><td>Set the maximum size of a message.</td><td>5242880</td></tr>
 <tr><td>preciseTopicPublishRateLimiterEnable</td><td>Enable precise topic publish rate limiting.</td><td>false</td></tr>
 <tr><td>lazyCursorRecovery</td><td>Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.</td><td>false</td></tr>
+<tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
@@ -735,6 +736,7 @@
 <tr><td>defaultRetentionTimeInMinutes</td><td></td><td>0</td></tr>
 <tr><td>defaultRetentionSizeInMB</td><td></td><td>0</td></tr>
 <tr><td>keepAliveIntervalSeconds</td><td></td><td>30</td></tr>
+<tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>WebSocket</h2>
@@ -829,6 +831,7 @@
 <tr><td>tokenAudienceClaim</td><td>The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;. It is used to get the audience from token. If it is not set, the audience is not verified.</td><td></td></tr>
 <tr><td>tokenAudience</td><td>The token audience stands for this broker. The field <code>tokenAudienceClaim</code> of a valid token need contains this parameter.</td><td></td></tr>
 <tr><td>proxyLogLevel</td><td>Set the Pulsar Proxy log level. <li> If the value is set to 0, no TCP channel information is logged. <li> If the value is set to 1, only the TCP channel information and command information (without message body) are parsed and logged. <li> If the value is set to 2, all TCP channel information, command information, and message body are parsed and logged.</td><td>0</td></tr>
+<tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
