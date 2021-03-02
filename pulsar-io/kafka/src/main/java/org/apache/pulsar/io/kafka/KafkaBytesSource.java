@@ -20,18 +20,19 @@
 package org.apache.pulsar.io.kafka;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Properties;
+import java.util.*;
 
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -49,6 +50,8 @@ import org.apache.pulsar.io.core.annotations.IOType;
 )
 @Slf4j
 public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
+
+    private AvroSchemaCache<GenericRecord> schemaCache;
 
     private static final Collection<String> SUPPORTED_KEY_DESERIALIZERS =
             Collections.unmodifiableCollection(Arrays.asList(StringDeserializer.class.getName()));
@@ -74,7 +77,12 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
 
         // replace KafkaAvroDeserializer with our custom implementation
         if (currentValueDeserializer != null && currentValueDeserializer.equals(KafkaAvroDeserializer.class.getName())) {
-            props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, NoCopyKafkaAvroDeserializer.class.getName());
+            props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SchemaExtractorDeserializer.class.getName());
+            KafkaAvroDeserializerConfig config = new KafkaAvroDeserializerConfig(props);
+            List<String> urls = config.getSchemaRegistryUrls();
+            int maxSchemaObject = config.getMaxSchemasPerSubject();
+            SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(urls, maxSchemaObject);
+            schemaCache = new AvroSchemaCache<GenericRecord>(schemaRegistryClient);
         }
         return props;
     }
@@ -82,8 +90,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
     @Override
     public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
-        if (value instanceof BytesWithAvroPulsarSchema) {
-            return ((BytesWithAvroPulsarSchema) value).getValue();
+        if (value instanceof BytesWithSchema) {
+            return ((BytesWithSchema) value).getValue();
         }
         return value;
     }
@@ -91,34 +99,29 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
     @Override
     public org.apache.pulsar.client.api.Schema<?> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
-        if (value instanceof BytesWithAvroPulsarSchema) {
-            return ((BytesWithAvroPulsarSchema) value).getPulsarSchema();
+        if (value instanceof BytesWithSchema) {
+            return schemaCache.get(((BytesWithSchema) value).getSchemaId());
         } else {
             return org.apache.pulsar.client.api.Schema.BYTES;
         }
     }
 
-    public static class NoCopyKafkaAvroDeserializer extends KafkaAvroDeserializer {
-
-        private final AvroSchemaCache<GenericRecord> schemaCache = new AvroSchemaCache<>();
+    public static class SchemaExtractorDeserializer implements Deserializer<BytesWithSchema> {
 
         @Override
-        protected Object deserialize(boolean includeSchemaAndVersion, String topic, Boolean isKey, byte[] payload, Schema readerSchema) throws SerializationException {
+        public BytesWithSchema deserialize(String topic, byte[] payload) {
             if (payload == null) {
                 return null;
             } else {
-                int id = -1;
                 try {
                     ByteBuffer buffer = ByteBuffer.wrap(payload);
                     buffer.get(); // magic number
-                    id = buffer.getInt();
-                    String subject = getSubjectName(topic, isKey != null ? isKey : false);
-                    Schema schema = this.schemaRegistry.getBySubjectAndId(subject, id);
+                    int id = buffer.getInt();
                     byte[] avroEncodedData = new byte[buffer.remaining()];
                     buffer.get(avroEncodedData);
-                    return new BytesWithAvroPulsarSchema(schema, avroEncodedData, schemaCache);
+                    return new BytesWithSchema(avroEncodedData, id);
                 } catch (Exception err) {
-                    throw new SerializationException("Error deserializing Avro message for id " + id, err);
+                    throw new SerializationException("Error deserializing Avro message", err);
                 }
             }
         }

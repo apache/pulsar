@@ -18,31 +18,20 @@
  */
 package org.apache.pulsar.io.kafka;
 
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 
 import org.apache.pulsar.client.api.schema.*;
 
+import java.nio.ByteBuffer;
+
 
 /**
  * This is a wrapper around a Byte array (the Avro encoded record) and a Pulsar Schema.
  */
-@Slf4j
-public class BytesWithAvroPulsarSchema {
+@Data
+public class BytesWithSchema {
     private final byte[] value;
-    private final Schema<GenericRecord> schema;
-
-    public BytesWithAvroPulsarSchema(org.apache.avro.Schema schema, byte[] value, AvroSchemaCache<GenericRecord> schemaCache) {
-        this.schema = schemaCache.get(schema);
-        this.value = value;
-    }
-
-    public Schema<GenericRecord> getPulsarSchema() {
-        return schema;
-    }
-
-    public byte[] getValue() {
-        return value;
-    }
-
+    private final int schemaId;
 }
