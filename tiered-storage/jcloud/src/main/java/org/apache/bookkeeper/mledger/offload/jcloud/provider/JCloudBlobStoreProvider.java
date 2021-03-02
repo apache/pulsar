@@ -291,7 +291,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         if (config.getProviderCredentials() != null) {
                 return contextBuilder
-                        .credentialsSupplier(config.getCredentials())
+                        .credentialsSupplier(config.getCredentials()::get)
                         .buildView(BlobStoreContext.class)
                         .getBlobStore();
         } else {
@@ -358,7 +358,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
         if (config.getProviderCredentials() != null) {
             return contextBuilder
-                    .credentialsSupplier(config.getCredentials())
+                    .credentialsSupplier(config.getCredentials()::get)
                     .buildView(BlobStoreContext.class)
                     .getBlobStore();
         } else {

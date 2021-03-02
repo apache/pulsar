@@ -855,7 +855,7 @@ public class ClientCnx extends PulsarHandler {
             ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {
                     CompletableFuture<?> newFuture = pendingRequests.remove(requestId);
-                    if (!newFuture.isDone()) {
+                    if (newFuture != null && !newFuture.isDone()) {
                         log.warn("{} Failed to send {} to broker: {}", ctx.channel(),
                                 requestType.getDescription(), writeFuture.cause().getMessage());
                         future.completeExceptionally(writeFuture.cause());
@@ -1081,7 +1081,7 @@ public class ClientCnx extends PulsarHandler {
         this.remoteHostName = remoteHostName;
     }
 
-    private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
+    public static PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:
             return new PulsarClientException.AuthenticationException(errorMsg);

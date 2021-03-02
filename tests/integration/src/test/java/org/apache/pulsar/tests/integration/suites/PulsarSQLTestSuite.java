@@ -25,7 +25,6 @@ import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 
-
 @Slf4j
 public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
 
@@ -33,11 +32,6 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
     public final static String OFFLOAD_DRIVER = "aws-s3";
     public final static String BUCKET = "pulsar-integtest";
     public final static String ENDPOINT = "http://" + S3Container.NAME + ":9090";
-
-    @Override
-    public String getTestName() {
-        return "pulsar-sql-test-suite";
-    }
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(String clusterName, PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
