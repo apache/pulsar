@@ -37,8 +37,6 @@ import java.util.function.Function;
 
 @Slf4j
 class AvroSchemaCache {
-    // we are using the Object identity as key of the cache
-    // we do not want to perform costly operations in order to lookup into the cache
     private ConcurrentHashMap<Integer, Schema<byte[]>> cache = new ConcurrentHashMap<>();
     private final SchemaRegistryClient schemaRegistryClient;
 
@@ -58,8 +56,7 @@ class AvroSchemaCache {
                 org.apache.avro.Schema schema = schemaRegistryClient.getById(schemaId);
                 String definition = schema.toString(false);
                 log.info("Schema {} definition {}", schemaId, definition);
-
-                return  Schema.AUTO_PRODUCE_BYTES(GenericAvroSchema.of(SchemaInfo.builder()
+                return Schema.AUTO_PRODUCE_BYTES(GenericAvroSchema.of(SchemaInfo.builder()
                         .type(SchemaType.AVRO)
                         .name(schema.getName())
                         .properties(Collections.emptyMap())
@@ -69,11 +66,6 @@ class AvroSchemaCache {
                 throw new RuntimeException(e);
             }
         });
-    }
-
-
-    public static String subjectName(String topic, boolean isKey) {
-        return isKey ? topic + "-key" : topic + "-value";
     }
 
 }
