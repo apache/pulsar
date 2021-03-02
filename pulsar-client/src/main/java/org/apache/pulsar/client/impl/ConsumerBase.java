@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
@@ -56,7 +57,6 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -476,9 +476,14 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture;
         if (txn != null) {
-            ackFuture = txn.registerAckedTopic(getTopic(), subscription)
-                    .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
-            txn.registerAckOp(ackFuture);
+            if (txn.checkIfOpen()) {
+                ackFuture = txn.registerAckedTopic(getTopic(), subscription)
+                        .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
+                txn.registerAckOp(ackFuture);
+            } else {
+                ackFuture = FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txn.getTxnIdMostBits() + ":"
+                        + txn.getTxnIdLeastBits() + "] Transaction has been committed or aborted!"));
+            }
         } else {
             ackFuture = doAcknowledge(messageIdList, ackType, properties, null);
         }
@@ -490,18 +495,22 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture;
         if (txn != null && (this instanceof ConsumerImpl)) {
-            // it is okay that we register acked topic after sending the acknowledgements. because
-            // the transactional ack will not be visiable for consumers until the transaction is
-            // committed
-            if (ackType == AckType.Cumulative) {
-                txn.registerCumulativeAckConsumer((ConsumerImpl<?>) this);
-            }
+            if (txn.checkIfOpen()) {
+                // it is okay that we register acked topic after sending the acknowledgements. because
+                // the transactional ack will not be visiable for consumers until the transaction is
+                // committed
+                if (ackType == AckType.Cumulative) {
+                    txn.registerCumulativeAckConsumer((ConsumerImpl<?>) this);
+                }
 
-            ackFuture = txn.registerAckedTopic(getTopic(), subscription)
-                    .thenCompose(ignored -> doAcknowledge(messageId, ackType, properties, txn));
-            // register the ackFuture as part of the transaction
-            txn.registerAckOp(ackFuture);
-            return ackFuture;
+                ackFuture = txn.registerAckedTopic(getTopic(), subscription)
+                        .thenCompose(ignored -> doAcknowledge(messageId, ackType, properties, txn));
+                // register the ackFuture as part of the transaction
+                txn.registerAckOp(ackFuture);
+            } else {
+                ackFuture = FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txn.getTxnIdMostBits() + ":"
+                        + txn.getTxnIdLeastBits() + "] Transaction has been committed or aborted!"));
+            }
         } else {
             ackFuture = doAcknowledge(messageId, ackType, properties, txn);
         }

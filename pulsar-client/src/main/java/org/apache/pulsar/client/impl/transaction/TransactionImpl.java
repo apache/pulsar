@@ -20,20 +20,17 @@ package org.apache.pulsar.client.impl.transaction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.google.common.collect.Lists;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -63,11 +60,18 @@ public class TransactionImpl implements Transaction {
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
+    private volatile State state;
+
+    public enum State {
+        OPEN,
+        CLOSE
+    }
 
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
                     long txnIdLeastBits,
                     long txnIdMostBits) {
+        this.state = State.OPEN;
         this.client = client;
         this.transactionTimeoutMs = transactionTimeoutMs;
         this.txnIdLeastBits = txnIdLeastBits;
@@ -134,8 +138,13 @@ public class TransactionImpl implements Transaction {
                 tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                         .whenComplete((vx, ex) -> {
                     if (ex != null) {
+                        if (ex instanceof TransactionNotFoundException
+                                || ex instanceof InvalidTxnStatusException) {
+                            this.state = State.CLOSE;
+                        }
                         commitFuture.completeExceptionally(ex);
                     } else {
+                        this.state = State.CLOSE;
                         commitFuture.complete(vx);
                     }
                 });
@@ -163,8 +172,13 @@ public class TransactionImpl implements Transaction {
                 }
 
                 if (ex != null) {
+                    if (ex instanceof TransactionNotFoundException
+                            || ex instanceof InvalidTxnStatusException) {
+                        this.state = State.CLOSE;
+                    }
                     abortFuture.completeExceptionally(ex);
                 } else {
+                    this.state = State.CLOSE;
                     abortFuture.complete(null);
                 }
 
@@ -172,6 +186,11 @@ public class TransactionImpl implements Transaction {
         });
 
         return abortFuture;
+    }
+
+    @Override
+    public boolean checkIfOpen() {
+        return state == State.OPEN;
     }
 
     private CompletableFuture<Void> allOpComplete() {

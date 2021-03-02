@@ -35,11 +35,13 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
@@ -97,8 +99,15 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         Message<T> message = getMessage();
         CompletableFuture<MessageId> sendFuture;
         if (txn != null) {
-            sendFuture = producer.internalSendWithTxnAsync(message, txn);
-            txn.registerSendOp(sendFuture);
+            if (txn.checkIfOpen()) {
+                sendFuture = producer.internalSendWithTxnAsync(message, txn);
+                txn.registerSendOp(sendFuture);
+            } else {
+                sendFuture = FutureUtil.failedFuture(new InvalidTxnStatusException("["
+                        + txn.getTxnIdMostBits() + ":"
+                        + txn.getTxnIdLeastBits()
+                        + "] Transaction has been committed or aborted!"));
+            }
         } else {
             sendFuture = producer.internalSendAsync(message);
         }
