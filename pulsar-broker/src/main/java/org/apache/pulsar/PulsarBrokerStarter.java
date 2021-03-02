@@ -29,6 +29,7 @@ import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.text.DateFormat;
@@ -61,10 +62,12 @@ public class PulsarBrokerStarter {
     private static ServiceConfiguration loadConfig(String configFile) throws Exception {
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
-        ServiceConfiguration config = create((new FileInputStream(configFile)), ServiceConfiguration.class);
-        // it validates provided configuration is completed
-        isComplete(config);
-        return config;
+        try (InputStream inputStream = new FileInputStream(configFile)) {
+            ServiceConfiguration config = create(inputStream, ServiceConfiguration.class);
+            // it validates provided configuration is completed
+            isComplete(config);
+            return config;
+        }
     }
 
     @VisibleForTesting

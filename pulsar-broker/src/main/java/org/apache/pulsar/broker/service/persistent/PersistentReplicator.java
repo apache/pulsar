@@ -71,7 +71,7 @@ public class PersistentReplicator extends AbstractReplicator
     private final PersistentTopic topic;
     private final String replicatorName;
     private final ManagedLedger ledger;
-    protected ManagedCursor cursor;
+    protected volatile ManagedCursor cursor;
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
@@ -190,12 +190,14 @@ public class PersistentReplicator extends AbstractReplicator
 
     @Override
     protected void disableReplicatorRead() {
-        // deactivate cursor after successfully close the producer
-        this.cursor.setInactive();
+        if (this.cursor != null) {
+            // deactivate cursor after successfully close the producer
+            this.cursor.setInactive();
+        }
     }
 
     @Override
-    protected synchronized CompletableFuture<Void> openCursorAsync() {
+    protected CompletableFuture<Void> openCursorAsync() {
         log.info("[{}][{} -> {}] Starting open cursor for replicator", topicName, localCluster, remoteCluster);
         if (cursor != null) {
             log.info("[{}][{} -> {}] Using the exists cursor for replicator", topicName, localCluster, remoteCluster);
@@ -441,10 +443,12 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     public void updateCursorState() {
-        if (producer != null && producer.isConnected()) {
-            this.cursor.setActive();
-        } else {
-            this.cursor.setInactive();
+        if (this.cursor != null) {
+            if (producer != null && producer.isConnected()) {
+                this.cursor.setActive();
+            } else {
+                this.cursor.setInactive();
+            }
         }
     }
 
@@ -688,7 +692,7 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     public ReplicatorStats getStats() {
-        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
+        stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 
@@ -715,16 +719,24 @@ public class PersistentReplicator extends AbstractReplicator
         return 0L;
     }
 
-    public void expireMessages(int messageTTLInSeconds) {
+    public boolean expireMessages(int messageTTLInSeconds) {
         if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
                 || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
-            return;
+            return false;
         }
         if (expiryMonitor != null) {
-            expiryMonitor.expireMessages(messageTTLInSeconds);
+            return expiryMonitor.expireMessages(messageTTLInSeconds);
         }
+        return false;
+    }
+
+    public boolean expireMessages(Position position) {
+        if (expiryMonitor != null) {
+            return expiryMonitor.expireMessages(position);
+        }
+        return false;
     }
 
     @Override

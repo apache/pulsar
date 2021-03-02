@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -54,7 +55,9 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -1466,6 +1469,49 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
+    public void testMaxSubscriptionsPerTopicWithExistingSubs() throws Exception {
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        // init cache
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        // Set topic-level max subscriptions
+        final int topicLevelMaxSubNum = 2;
+        admin.topics().setMaxSubscriptionsPerTopic(topic, topicLevelMaxSubNum);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(()
+                -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
+        List<Consumer<String>> consumerList = new ArrayList<>();
+        String subName = "my-sub-";
+        for (int i = 0; i < topicLevelMaxSubNum; i++) {
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName(subName + i)
+                    .topic(topic).subscribe();
+            consumerList.add(consumer);
+        }
+        // should fail
+        try (PulsarClient client = PulsarClient.builder().operationTimeout(2, TimeUnit.SECONDS)
+                .serviceUrl(brokerUrl.toString()).build()) {
+            consumerList.add(client.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe());
+            fail("should fail");
+        } catch (PulsarClientException ignore) {
+            assertEquals(consumerList.size(), topicLevelMaxSubNum);
+        }
+        //create a consumer with the same subscription name, it should succeed
+        pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName + "0")
+                .topic(topic).subscribe().close();
+
+        //Clean up
+        for (Consumer<String> c : consumerList) {
+            c.close();
+        }
+    }
+
+    @Test(timeOut = 20000)
     public void testMaxSubscriptionsPerTopic() throws Exception {
         int brokerLevelMaxSub = 4;
         conf.setMaxSubscriptionsPerTopic(4);
@@ -1581,6 +1627,58 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         //should not fail
         assertNull(admin.topics().getMessageTTL(topic));
+    }
+
+    @Test(timeOut = 30000)
+    public void testSubscriptionTypesEnabled() throws Exception {
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        // use broker.conf
+        pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe().close();
+        assertNull(admin.topics().getSubscriptionTypesEnabled(topic));
+        // set enable failover sub type
+        Set<SubscriptionType> subscriptionTypeSet = new HashSet<>();
+        subscriptionTypeSet.add(SubscriptionType.Failover);
+        admin.topics().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(()
+                -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
+        subscriptionTypeSet = admin.topics().getSubscriptionTypesEnabled(topic);
+        assertTrue(subscriptionTypeSet.contains(SubscriptionType.Failover));
+        assertFalse(subscriptionTypeSet.contains(SubscriptionType.Shared));
+        assertEquals(subscriptionTypeSet.size(), 1);
+        try {
+            pulsarClient.newConsumer().topic(topic)
+                    .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
+
+        // add shared type
+        subscriptionTypeSet.add(SubscriptionType.Shared);
+        admin.topics().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
+        pulsarClient.newConsumer().topic(topic)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe().close();
+
+        // test namespace and topic policy
+        subscriptionTypeSet.add(SubscriptionType.Shared);
+        admin.namespaces().setSubscriptionTypesEnabled(myNamespace, subscriptionTypeSet);
+
+        subscriptionTypeSet.clear();
+        subscriptionTypeSet.add(SubscriptionType.Failover);
+        admin.topics().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
+
+        try {
+            pulsarClient.newConsumer().topic(topic)
+                    .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe();
+            fail();
+        } catch (PulsarClientException pulsarClientException) {
+            assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
+        }
     }
 
 }

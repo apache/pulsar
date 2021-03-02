@@ -19,11 +19,10 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
-
-import java.io.IOException;
 
 public class GenericJsonWriter implements SchemaWriter<GenericRecord> {
 
@@ -36,7 +35,7 @@ public class GenericJsonWriter implements SchemaWriter<GenericRecord> {
     @Override
     public byte[] write(GenericRecord message) {
         try {
-            return objectMapper.writeValueAsBytes(((GenericJsonRecord)message).getJsonNode().toString());
+            return objectMapper.writeValueAsBytes(((GenericJsonRecord)message).getJsonNode());
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
         }

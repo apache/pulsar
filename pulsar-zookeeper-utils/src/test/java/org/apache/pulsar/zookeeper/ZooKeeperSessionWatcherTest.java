@@ -70,7 +70,7 @@ public class ZooKeeperSessionWatcherTest {
         });
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         sessionWatcher.close();
         zkClient.shutdown();

@@ -37,7 +37,7 @@ public class RabbitMQSourceTest {
         rabbitMQBrokerManager.startBroker();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         rabbitMQBrokerManager.stopBroker();
     }

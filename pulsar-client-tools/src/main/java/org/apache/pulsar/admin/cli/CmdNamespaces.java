@@ -27,9 +27,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -37,6 +39,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -305,6 +308,36 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set subscription types enabled for a namespace")
+    private class SetSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--types",
+                "-t" }, description = "Subscription types enabled list (comma separated values)", required = true)
+        private String subTypes;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            Set<SubscriptionType> types = new HashSet<>();
+            Lists.newArrayList(subTypes.split(",")).forEach(s -> types.add(SubscriptionType.valueOf(s)));
+            getAdmin().namespaces().setSubscriptionTypesEnabled(namespace, types);
+        }
+    }
+
+    @Parameters(commandDescription = "Get subscription types enabled for a namespace")
+    private class GetSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getSubscriptionTypesEnabled(namespace));
+        }
+    }
+
     @Parameters(commandDescription = "Set Message TTL for a namespace")
     private class SetMessageTTL extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -349,7 +382,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--maxSubscriptionsPerTopic", "-m" }, description = "Max subscriptions per topic",
+        @Parameter(names = { "--max-subscriptions-per-topic", "-m" }, description = "Max subscriptions per topic",
                 required = true)
         private int maxSubscriptionsPerTopic;
 
@@ -445,6 +478,29 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get Deduplication for a namespace")
+    private class GetDeduplication extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getDeduplicationStatus(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove Deduplication for a namespace")
+    private class RemoveDeduplication extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeDeduplicationStatus(namespace);
+        }
+    }
 
     @Parameters(commandDescription = "Enable or disable deduplication for a namespace")
     private class SetDeduplication extends CliCommand {
@@ -1954,6 +2010,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-clusters", new SetReplicationClusters());
         jcommander.addCommand("get-clusters", new GetReplicationClusters());
 
+        jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
+        jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
+
         jcommander.addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
         jcommander.addCommand("set-backlog-quota", new SetBacklogQuota());
         jcommander.addCommand("remove-backlog-quota", new RemoveBacklogQuota());
@@ -1978,6 +2037,8 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("delete-anti-affinity-group", new DeleteAntiAffinityGroup());
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
+        jcommander.addCommand("get-deduplication", new GetDeduplication());
+        jcommander.addCommand("remove-deduplication", new RemoveDeduplication());
 
         jcommander.addCommand("set-auto-topic-creation", new SetAutoTopicCreation());
         jcommander.addCommand("remove-auto-topic-creation", new RemoveAutoTopicCreation());

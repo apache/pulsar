@@ -27,11 +27,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Semaphore;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -63,7 +65,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
      *     If the position is batch position and it exits the map, will do operation `and` for this
      *     two positions bit set.
      */
-    private Map<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction;
+    private LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction;
 
     /**
      * The map is for individual ack of positions for transaction.
@@ -279,7 +281,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties) {
+    public synchronized CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties,
+                                                          long lowWaterMark) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
         }
@@ -327,6 +330,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                 individualAckCommitCommon(txnID, pendingAckMessageForCurrentTxn, properties);
                                 semaphore.release();
                                 commitFuture.complete(null);
+                                handleLowWaterMark(txnID, lowWaterMark);
                             }
                         })
                 ).exceptionally(e -> {
@@ -339,11 +343,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 commitFuture.complete(null);
             }
         }
+        commitFuture.complete(null);
         return commitFuture;
     }
 
     @Override
-    public CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer) {
+    public synchronized CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
         }
@@ -384,6 +389,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                         new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
                                 semaphore.release();
                                 abortFuture.complete(null);
+                                handleLowWaterMark(txnId, lowWaterMark);
                             }
                         })
                 ).exceptionally(e -> {
@@ -399,7 +405,28 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             semaphore.release();
             abortFuture.complete(null);
         }
+        abortFuture.complete(null);
         return abortFuture;
+    }
+
+    private void handleLowWaterMark(TxnID txnID, long lowWaterMark) {
+        if (individualAckOfTransaction != null && !individualAckOfTransaction.isEmpty()) {
+            TxnID firstTxn = individualAckOfTransaction.firstKey();
+
+            if (firstTxn.getMostSigBits() == txnID.getMostSigBits()
+                    && firstTxn.getLeastSigBits() <= lowWaterMark) {
+                this.pendingAckStoreFuture.whenComplete((pendingAckStore, throwable) -> {
+                    if (throwable == null) {
+                        pendingAckStore.appendAbortMark(txnID, AckType.Individual).whenComplete((v, e) -> {
+                           if (e == null) {
+                               individualAckOfTransaction.remove(firstTxn);
+                               handleLowWaterMark(txnID, lowWaterMark);
+                           }
+                        });
+                    }
+                });
+            }
+        }
     }
 
     @Override
@@ -407,7 +434,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         this.semaphore.acquireUninterruptibly();
         try {
             if (individualAckPositions == null) {
-                individualAckPositions = new HashMap<>();
+                individualAckPositions = new ConcurrentSkipListMap<>();
             }
             // sync don't carry the batch size
             // when one position is ack by transaction the batch size is for `and` operation.
@@ -515,11 +542,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         subName, txnID.toString(), positions);
             }
             if (individualAckOfTransaction == null) {
-                individualAckOfTransaction = new HashMap<>();
+                individualAckOfTransaction = new LinkedMap<>();
             }
 
             if (individualAckPositions == null) {
-                individualAckPositions = new HashMap<>();
+                individualAckPositions = new ConcurrentSkipListMap<>();
             }
 
             PositionImpl position = positions.get(i).left;
@@ -578,6 +605,15 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
         if (position instanceof PositionImpl) {
             individualAckPositions.remove(position);
+            for (PositionImpl individualAckPosition : individualAckPositions.keySet()) {
+                // individualAckPositions is currentSkipListMap, delete the position form individualAckPositions which
+                // is smaller than can delete position
+                if (individualAckPosition.compareTo((PositionImpl) position) <= 0) {
+                    individualAckPositions.remove(individualAckPosition);
+                } else {
+                    return;
+                }
+            }
         }
     }
 

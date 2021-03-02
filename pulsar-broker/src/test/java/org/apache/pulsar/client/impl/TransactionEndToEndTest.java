@@ -572,7 +572,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     private Transaction getTxn() throws Exception {
         return pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
                 .build()
                 .get();
     }

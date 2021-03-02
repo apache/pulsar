@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
@@ -204,7 +205,7 @@ public class LocalBookkeeperEnsemble {
             serverFactory.configure(new InetSocketAddress(zkPort), maxCC);
             serverFactory.startup(zks);
 
-            zkDataCleanupManager = new DatadirCleanupManager(zkDataDir, zkDataDir, 0, 1 /* hour */);
+            zkDataCleanupManager = new DatadirCleanupManager(zkDataDir, zkDataDir, 3, 1 /* hour */);
             zkDataCleanupManager.start();
         } catch (Exception e) {
             LOG.error("Exception while instantiating ZooKeeper", e);
@@ -227,8 +228,10 @@ public class LocalBookkeeperEnsemble {
     public void disconnectZookeeper(ZooKeeper zooKeeper) {
         ServerCnxn serverCnxn = getZookeeperServerConnection(zooKeeper);
         try {
-            Method method = serverCnxn.getClass().getMethod("close");
-            method.invoke(serverCnxn);
+            LOG.info("disconnect ZK server side connection {}", serverCnxn);
+            Class disconnectReasonClass = Class.forName("org.apache.zookeeper.server.ServerCnxn$DisconnectReason");
+            Method method = serverCnxn.getClass().getMethod("close", disconnectReasonClass);
+            method.invoke(serverCnxn, Stream.of(disconnectReasonClass.getEnumConstants()).filter(s->s.toString().equals("CONNECTION_CLOSE_FORCED")).findFirst().get());
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -491,7 +494,11 @@ public class LocalBookkeeperEnsemble {
 
         LOG.debug("Local ZK/BK stopping ...");
         for (BookieServer bookie : bs) {
-            bookie.shutdown();
+            try {
+                bookie.shutdown();
+            } catch (Exception e) {
+                LOG.warn("failed to shutdown bookie", e);
+            }
         }
 
         zkc.close();

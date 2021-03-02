@@ -18,36 +18,28 @@
  */
 package org.apache.pulsar.tests.integration.suites;
 
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
-import org.testng.ITest;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
-
 import java.util.function.Predicate;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 
-public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
+public class PulsarTestSuite extends PulsarClusterTestBase {
 
-    @BeforeSuite
+    @BeforeClass
     @Override
     public void setupCluster() throws Exception {
         super.setupCluster();
     }
 
-    @AfterSuite
+    @AfterClass(alwaysRun = true)
     @Override
     public void tearDownCluster() {
         super.tearDownCluster();
     }
 
-    @Override
-    public String getTestName() {
-        return "pulsar-test-suite";
-    }
-
     public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis) throws Exception {
         retryStrategically(predicate, retryCount, intSleepTimeInMillis, false);
     }
-
 
     public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis, boolean throwException)
             throws Exception {

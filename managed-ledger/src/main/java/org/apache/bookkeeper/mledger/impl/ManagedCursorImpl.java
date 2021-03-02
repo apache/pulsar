@@ -86,6 +86,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
+import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
@@ -232,6 +233,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
     protected volatile State state = null;
 
+    protected final ManagedCursorMXBean mbean;
+
     @SuppressWarnings("checkstyle:javadoctype")
     public interface VoidCallback {
         void operationComplete();
@@ -268,6 +271,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             // Disable mark-delete rate limiter
             markDeleteLimiter = null;
         }
+        this.mbean = new ManagedCursorMXBeanImpl(this);
     }
 
     @Override
@@ -561,6 +565,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncReadEntries(final int numberOfEntriesToRead, final ReadEntriesCallback callback,
             final Object ctx, PositionImpl maxPosition) {
+        asyncReadEntries(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx, maxPosition);
+    }
+
+    @Override
+    public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                 Object ctx, PositionImpl maxPosition) {
         checkArgument(numberOfEntriesToRead > 0);
         if (isClosed()) {
             callback.readEntriesFailed(new ManagedLedgerException
@@ -568,9 +578,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
 
+        int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
+
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
-        OpReadEntry op = OpReadEntry.create(this, readPosition,
-                numberOfEntriesToRead, callback, ctx, maxPosition);
+        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition);
         ledger.asyncReadEntries(op);
     }
 
@@ -1891,7 +1902,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         PositionImpl previousPosition = ledger.getPreviousPosition(position);
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(), previousPosition.getEntryId(),
                             position.getLedgerId(), position.getEntryId());
-                        ++messagesConsumedCounter;
+                        MSG_CONSUMED_COUNTER_UPDATER.incrementAndGet(this);
                         BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
                         if (bitSetRecyclable != null) {
                             bitSetRecyclable.recycle();
@@ -1938,6 +1949,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // Apply rate limiting to mark-delete operations
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
+            isDirty = true;
             PositionImpl finalNewMarkDeletePosition = newMarkDeletePosition;
             LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this,
                     last -> new MarkDeleteEntry(finalNewMarkDeletePosition, last.properties, null, null));
@@ -2515,6 +2527,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     startCreatingNewMetadataLedger();
                 }
 
+                mbean.persistToLedger(true);
                 callback.operationComplete();
             } else {
                 log.warn("[{}] Error updating cursor {} position {} in meta-ledger {}: {}", ledger.getName(), name,
@@ -2523,6 +2536,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // in the meantime the mark-delete will be queued.
                 STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
 
+                mbean.persistToLedger(false);
                 // Before giving up, try to persist the position in the metadata store
                 persistPositionMetaStore(-1, position, mdEntry.properties, new MetaStoreCallback<Void>() {
                     @Override
@@ -2532,6 +2546,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                     "[{}][{}] Updated cursor in meta store after previous failure in ledger at position {}",
                                     ledger.getName(), name, position);
                         }
+                        mbean.persistToZookeeper(true);
                         callback.operationComplete();
                     }
 
@@ -2539,6 +2554,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     public void operationFailed(MetaStoreException e) {
                         log.warn("[{}][{}] Failed to update cursor in meta store after previous failure in ledger: {}",
                                 ledger.getName(), name, e.getMessage());
+                        mbean.persistToZookeeper(false);
                         callback.operationFailed(createManagedLedgerException(rc));
                     }
                 }, true);
@@ -2902,6 +2918,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    @Override
+    public ManagedCursorMXBean getStats() {
+        return this.mbean;
+    }
+
     void updateReadStats(int readEntriesCount, long readEntriesSize) {
         this.entriesReadCount += readEntriesCount;
         this.entriesReadSize += readEntriesSize;
@@ -2916,6 +2937,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         asyncMarkDelete(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties, new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Flushed dirty mark-delete position", ledger.getName(), name);
+                }
             }
 
             @Override

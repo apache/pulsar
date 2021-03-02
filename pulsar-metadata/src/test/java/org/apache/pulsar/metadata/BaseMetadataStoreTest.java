@@ -34,7 +34,7 @@ public abstract class BaseMetadataStoreTest {
         zks = new TestZKServer();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     void teardown() throws Exception {
         zks.close();
     }

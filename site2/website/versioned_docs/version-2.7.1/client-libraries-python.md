@@ -289,3 +289,103 @@ class Example(Record):
     a = String()
     sub = MySubRecord()
 ```
+
+## End-to-end encryption
+
+[End-to-end encryption](https://pulsar.apache.org/docs/en/next/cookbooks-encryption/#docsNav) allows applications to encrypt messages at producers and decrypt at consumers.
+
+### Configuration
+
+If you want to use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
+
+```
+publicKeyPath: "./public.pem"
+privateKeyPath: "./private.pem"
+```
+
+### Tutorial
+
+This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Python client.
+
+#### Prerequisite
+
+- Pulsar Python client 2.7.1 or later 
+
+#### Step
+
+1. Create both public and private key pairs.
+
+    **Input**
+
+    ```shell
+    openssl genrsa -out private.pem 2048
+    openssl rsa -in private.pem -pubout -out public.pem
+    ```
+
+2. Create a producer to send encrypted messages.
+
+    **Input**
+
+    ```python
+    import pulsar
+
+    publicKeyPath = "./public.pem"
+    privateKeyPath = "./private.pem"
+    crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
+    client = pulsar.Client('pulsar://localhost:6650')
+    producer = client.create_producer(topic='encryption', encryption_key='encryption', crypto_key_reader=crypto_key_reader)
+    producer.send('encryption message'.encode('utf8'))
+    print('sent message')
+    producer.close()
+    client.close()
+    ```
+
+3. Create a consumer to receive encrypted messages.
+
+    **Input**
+
+    ```python
+    import pulsar
+
+    publicKeyPath = "./public.pem"
+    privateKeyPath = "./private.pem"
+    crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
+    client = pulsar.Client('pulsar://localhost:6650')
+    consumer = client.subscribe(topic='encryption', subscription_name='encryption-sub', crypto_key_reader=crypto_key_reader)
+    msg = consumer.receive()
+    print("Received msg '{}' id = '{}'".format(msg.data(), msg.message_id()))
+    consumer.close()
+    client.close()
+    ```
+
+4. Run the consumer to receive encrypted messages.
+
+    **Input**
+
+    ```shell
+    python consumer.py
+    ```
+
+5. In a new terminal tab, run the producer to produce encrypted messages.
+
+    **Input**
+
+    ```shell
+    python producer.py
+    ```
+
+    Now you can see the producer sends messages and the consumer receives messages successfully.
+
+    **Output**
+
+    This is from the producer side.
+
+    ```
+    sent message
+    ```
+
+    This is from the consumer side.
+
+    ```
+    Received msg 'b'encryption message'' id = '(0,0,-1,-1)'
+    ```

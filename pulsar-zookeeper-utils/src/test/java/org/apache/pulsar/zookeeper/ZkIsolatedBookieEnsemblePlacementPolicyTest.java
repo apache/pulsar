@@ -87,7 +87,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         isolationGroups.add("group1");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         writableBookies.clear();
         isolationGroups.clear();

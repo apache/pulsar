@@ -265,8 +265,8 @@ superUserRoles:
   - superuser
   - proxy
 properties:
-  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token
-  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens
+  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token, key file must be DER-encoded
+  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens, key file must be DER-encoded
 ```
 
 > **Note**   
@@ -278,10 +278,15 @@ The Kubernetes integration enables you to implement a class and customize how to
 
 The functions (and sinks/sources) API provides a flag, `customRuntimeOptions`, which is passed to this interface.
 
-Pulsar includes a built-in implementation. To use the basic implementation, set `runtimeCustomizerClassName` to `org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer`. The built-in implementation enables you to pass a JSON document with certain properties to augment how the manifests are generated. The following is an example.
+To initialize the `KubernetesManifestCustomizer`, you can provide `runtimeCustomizerConfig` in the `functions-worker.yml` file. `runtimeCustomizerConfig` is passed to the `public void initialize(Map<String, Object> config)` function of the interface. `runtimeCustomizerConfig`is different from the `customRuntimeOptions` as `runtimeCustomizerConfig` is the same across all functions. If you provide both `runtimeCustomizerConfig`  and `customRuntimeOptions`, you need to decide how to manage these two configurations in your implementation of `KubernetesManifestCustomizer`. 
 
-```Json
+Pulsar includes a built-in implementation. To use the basic implementation, set `runtimeCustomizerClassName` to `org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer`. The built-in implementation initialized with `runtimeCustomizerConfig` enables you to pass a JSON document as `customRuntimeOptions` with certain properties to augment, which decides how the manifests are generated. If both `runtimeCustomizerConfig` and `customRuntimeOptions` are provided, `BasicKubernetesManifestCustomizer` uses `customRuntimeOptions` to override the configuration if there are conflicts in these two configurations. 
+
+Below is an example of `customRuntimeOptions`.
+
+```json
 {
+  "jobName": "jobname", // the k8s pod name to run this function instance
   "jobNamespace": "namespace", // the k8s namespace to run this function in
   "extractLabels": {           // extra labels to attach to the statefulSet, service, and pods
     "extraLabel": "value"

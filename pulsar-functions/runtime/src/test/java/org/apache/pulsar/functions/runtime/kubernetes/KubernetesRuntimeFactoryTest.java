@@ -39,6 +39,7 @@ import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
@@ -130,19 +131,21 @@ public class KubernetesRuntimeFactoryTest {
         this.logDirectory = "logs/functions";
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (null != this.factory) {
             this.factory.close();
         }
     }
 
-    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, Resources minResources) throws Exception {
-        return createKubernetesRuntimeFactory(extraDepsDir, minResources, Optional.empty(), Optional.empty());
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, Resources minResources,
+                                                            Resources maxResources) throws Exception {
+        return createKubernetesRuntimeFactory(extraDepsDir, minResources, maxResources, Optional.empty(), Optional.empty());
     }
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir,
                                                             Resources minResources,
+                                                            Resources maxResources,
                                                             Optional<FunctionAuthProvider> functionAuthProvider,
                                                             Optional<RuntimeCustomizer> manifestCustomizer) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
@@ -178,10 +181,11 @@ public class KubernetesRuntimeFactoryTest {
                 ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
 
         workerConfig.setFunctionInstanceMinResources(minResources);
+        workerConfig.setFunctionInstanceMaxResources(maxResources);
         workerConfig.setStateStorageServiceUrl(null);
         workerConfig.setAuthenticationEnabled(false);
 
-        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), functionAuthProvider, manifestCustomizer);
+        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(), Mockito.mock(ConnectorsManager.class), functionAuthProvider, manifestCustomizer);
         return factory;
     }
 
@@ -197,14 +201,14 @@ public class KubernetesRuntimeFactoryTest {
 
     @Test
     public void testAdmissionChecks() throws Exception {
-        factory = createKubernetesRuntimeFactory(null, null);
+        factory = createKubernetesRuntimeFactory(null, null, null);
         FunctionDetails functionDetails = createFunctionDetails();
         factory.doAdmissionChecks(functionDetails);
     }
 
     @Test
     public void testValidateMinResourcesRequired() throws Exception {
-        factory = createKubernetesRuntimeFactory(null, null);
+        factory = createKubernetesRuntimeFactory(null, null, null);
 
         FunctionDetails functionDetailsBase = createFunctionDetails();
 
@@ -227,8 +231,48 @@ public class KubernetesRuntimeFactoryTest {
         testMinResource(null, 512L, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
     }
 
+    @Test
+    public void testValidateMaxResourcesRequired() throws Exception {
+        factory = createKubernetesRuntimeFactory(null, null, null);
+
+        FunctionDetails functionDetailsBase = createFunctionDetails();
+
+        // max resources are not set
+        try {
+            factory.validateMaxResourcesRequired(functionDetailsBase);
+        } catch (Exception e) {
+            fail();
+        }
+
+        testMaxResource(0.2, 2048L, false, null);
+        testMaxResource(1.00, 2048L, false, null);
+        testMaxResource(1.01, 512L, true, "Per instance CPU requested, 1.01, for function is greater than the maximum required, 1.0");
+        testMaxResource(1.00, 2049L, true, "Per instance RAM requested, 2049, for function is greater than the maximum required, 2048");
+
+        testMaxResource(null, null, false, null);
+        testMaxResource(0.2, null, false, null);
+        testMaxResource(null, 2048L, false, null);
+        testMaxResource(1.05, null, true, "Per instance CPU requested, 1.05, for function is greater than the maximum required, 1.0");
+        testMaxResource(null, 3072L, true, "Per instance RAM requested, 3072, for function is greater than the maximum required, 2048");
+    }
+
+    @Test
+    public void testValidateMinMaxResourcesRequired() throws Exception {
+        testMinMaxResource(0.1, 1024L, false, null);
+        testMinMaxResource(0.2, 1536L, false, null);
+        testMinMaxResource(1.00, 2048L, false, null);
+
+        testMinMaxResource(1.01, 1024L, true, "Per instance CPU requested, 1.01, for function is greater than the maximum required, 1.0");
+        testMinMaxResource(1.00, 2049L, true, "Per instance RAM requested, 2049, for function is greater than the maximum required, 2048");
+        testMinMaxResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinMaxResource(0.2, 512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
+
+        testMinMaxResource(null, null, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+        testMinMaxResource(0.2, null, true, "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
+    }
+
     public void testAuthProvider(Optional<FunctionAuthProvider> authProvider) throws Exception {
-        factory = createKubernetesRuntimeFactory(null, null, authProvider, Optional.empty());
+        factory = createKubernetesRuntimeFactory(null, null, null, authProvider, Optional.empty());
     }
 
 
@@ -310,8 +354,22 @@ public class KubernetesRuntimeFactoryTest {
     }
 
     private void testMinResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
+        testResourceRestrictions(cpu, ram, Resources.builder().cpu(0.1).ram(1024L).build(), null, fail, failError);
+    }
 
-        factory = createKubernetesRuntimeFactory(null, Resources.builder().cpu(0.1).ram(1024L).build());
+    private void testMaxResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
+        testResourceRestrictions(cpu, ram, null, Resources.builder().cpu(1.0).ram(2048L).build(), fail, failError);
+    }
+
+    private void testMinMaxResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
+        testResourceRestrictions(cpu, ram, Resources.builder().cpu(0.1).ram(1024L).build(),
+                Resources.builder().cpu(1.0).ram(2048L).build(), fail, failError);
+    }
+
+    private void testResourceRestrictions(Double cpu, Long ram, Resources minResources, Resources maxResources,
+                                          boolean fail, String failError) throws Exception {
+
+        factory = createKubernetesRuntimeFactory(null, minResources, maxResources);
         FunctionDetails functionDetailsBase = createFunctionDetails();
 
         Function.Resources.Builder resources = Function.Resources.newBuilder();
@@ -329,7 +387,7 @@ public class KubernetesRuntimeFactoryTest {
         }
 
         try {
-            factory.validateMinResourcesRequired(functionDetails);
+            factory.doAdmissionChecks(functionDetails);
             if (fail) fail();
         } catch (IllegalArgumentException e) {
             if (!fail) fail();
@@ -383,7 +441,7 @@ public class KubernetesRuntimeFactoryTest {
         workerConfig.setFunctionRuntimeFactoryConfigs(
                 ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
-        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Optional.empty(), Optional.empty());
+        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class), Optional.empty(), Optional.empty());
         return kubernetesRuntimeFactory;
     }
 }
