@@ -228,7 +228,7 @@ public class PulsarRecordCursor implements RecordCursor {
     @VisibleForTesting
     class DeserializeEntries implements Runnable {
 
-    protected boolean isRunning = false;
+        protected boolean isRunning = false;
 
         private final Thread thread;
 
@@ -343,7 +343,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
                         ReadOnlyCursorImpl readOnlyCursorImpl = ((ReadOnlyCursorImpl) cursor);
                         // check if ledger is offloaded
-                        if (!readOffloaded  && readOnlyCursorImpl.getCurrentLedgerInfo().hasOffloadContext()) {
+                        if (!readOffloaded && readOnlyCursorImpl.getCurrentLedgerInfo().hasOffloadContext()) {
                             log.warn(
                                 "Ledger %s is offloaded for topic %s. Ignoring it because offloader is not configured",
                                 readOnlyCursorImpl.getCurrentLedgerInfo().getLedgerId(), pulsarSplit.getTableName());
@@ -355,12 +355,16 @@ public class PulsarRecordCursor implements RecordCursor {
 
                             entriesProcessed += entriesToSkip;
                         } else {
-                            outstandingReadsRequests.decrementAndGet();
-
-                            // if the available size is invalid, use 0 as max size bytes, read only one entry
                             long maxSizeBytes = entryCacheSizeAllocator.getAvailableCacheSize();
-                            cursor.asyncReadEntries(batchSize, maxSizeBytes,
-                                    this, System.nanoTime(), PositionImpl.latest);
+                            // if the available size is invalid and the entry queue size is 0, read one entry
+                            if (maxSizeBytes > 0 || entryQueue.size() == 0) {
+                                outstandingReadsRequests.decrementAndGet();
+                                cursor.asyncReadEntries(batchSize, maxSizeBytes,
+                                        this, System.nanoTime(), PositionImpl.latest);
+                            } else {
+                                metricsTracker.incr_READ_ATTEMPTS_FAIL();
+                                return;
+                            }
                         }
 
                         // stats for successful read request
