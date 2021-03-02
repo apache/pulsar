@@ -2769,16 +2769,12 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
-    protected void validateOwnership() {
+    protected void preValidation() {
+        checkTopicLevelPolicyEnable();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         validateTopicOwnership(topicName, false);
-    }
-
-    protected void preValidation() {
-        validateOwnership();
-        checkTopicLevelPolicyEnable();
     }
 
     protected CompletableFuture<Void> internalRemoveMaxProducers() {
