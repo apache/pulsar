@@ -474,7 +474,7 @@ Options
 |`-p`, `--max-outstanding-across-partitions`|Max number of outstanding messages across partitions|50000|
 |`-m`, `--num-messages`|Number of messages to publish in total. If set to 0, it will keep publishing.|0|
 |`-n`, `--num-producers`|The number of producers (per topic)|1|
-|`-t`, `--num-topics`|The number of topics|1|
+|`-t`, `--num-topic`|The number of topics|1|
 |`-f`, `--payload-file`|Use payload from an UTF-8 encoded text file and a payload will be randomly selected when publishing messages||
 |`-e`, `--payload-delimiter`|The delimiter used to split lines when using payload from a file|\n|
 |`-r`, `--rate`|Publish rate msg/s across topics|100|

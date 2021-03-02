@@ -71,8 +71,8 @@ public class PerformanceConsumer {
         @Parameter(names = { "--conf-file" }, description = "Configuration file")
         public String confFile;
 
-        @Parameter(description = "A list of topics to consume from (e.g. persistent://prop/ns/topic1 persistent://prop/ns/topic2)", required = true)
-        public List<String> topics;
+        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
+        public List<String> topic;
 
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
         public int numTopics = 1;
@@ -188,7 +188,7 @@ public class PerformanceConsumer {
             System.exit(-1);
         }
 
-        if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
+        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
             System.out.println("The size of topics list should be equal to --num-topics");
             jc.usage();
             System.exit(-1);
@@ -322,7 +322,7 @@ public class PerformanceConsumer {
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = TopicName.get(arguments.topics.get(i));
+            final TopicName topicName = TopicName.get(arguments.topic.get(i));
 
             log.info("Adding {} consumers per subscription on topic {}", arguments.numConsumers, topicName);
 
