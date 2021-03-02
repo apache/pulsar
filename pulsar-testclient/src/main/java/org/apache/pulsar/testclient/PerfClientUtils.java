@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.testclient;
 
-import com.google.common.collect.ImmutableSet;
 import io.netty.util.internal.PlatformDependent;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import java.lang.management.ManagementFactory;
-import java.lang.management.RuntimeMXBean;
-import java.util.Collection;
 
 /**
  * Utility for test clients
@@ -32,27 +30,14 @@ import java.util.Collection;
 @UtilityClass
 public class PerfClientUtils {
 
-    private static final Collection<String> USELESS_PROPERTIES = ImmutableSet
-            .<String>builder()
-            .add("java.class.path")
-            .build();
     /**
      * Print useful JVM information, you need this information in order to be able
      * to compare the results of executions in different environments.
      * @param log
      */
     public static void printJVMInformation(Logger log) {
-        RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
-        log.info("Java Runtime Info");
-        System.getProperties().forEach( (k,v)-> {
-            String key = k.toString();
-            if (!USELESS_PROPERTIES.contains(key)
-                && (key.startsWith("java.") || key.startsWith("os."))) {
-                log.info("{} = {}", key, v);
-            }
-        });
-        log.info("JVM args {}", runtimeMXBean.getInputArguments());
-        log.info("Netty max memory (PlatformDependent.maxDirectMemory()) {}", PlatformDependent.maxDirectMemory());
-        log.info("JVM max heap memory (Runtime.getRuntime().maxMemory()) {}", Runtime.getRuntime().maxMemory());
+        log.info("JVM args {}", ManagementFactory.getRuntimeMXBean().getInputArguments());
+        log.info("Netty max memory (PlatformDependent.maxDirectMemory()) {}", FileUtils.byteCountToDisplaySize(PlatformDependent.maxDirectMemory()));
+        log.info("JVM max heap memory (Runtime.getRuntime().maxMemory()) {}", FileUtils.byteCountToDisplaySize(Runtime.getRuntime().maxMemory()));
     }
 }

@@ -122,6 +122,7 @@ public class ManagedLedgerWriter {
     }
 
     public static void main(String[] args) throws Exception {
+
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
         jc.setProgramName("pulsar-perf managed-ledger");
