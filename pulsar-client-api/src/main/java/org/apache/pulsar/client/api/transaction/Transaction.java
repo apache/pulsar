@@ -43,11 +43,4 @@ public interface Transaction {
      */
     CompletableFuture<Void> abort();
 
-    /**
-     * Check whether the transaction is open.
-     *
-     * @return the transaction is open.
-     */
-    boolean checkIfOpen();
-
 }

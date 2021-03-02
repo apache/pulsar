@@ -678,8 +678,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
-    public void produceAndConsumeByCloseTxnTest() throws Exception {
-        String topic = NAMESPACE1 + "/txn-produce-order";
+    public void produceAndConsumeCloseStateTxnTest() throws Exception {
+        String topic = NAMESPACE1 + "/txn-close-state";
 
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -691,7 +691,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
-                .producerName("txn-publish-order")
+                .producerName("txn-close-state")
                 .create();
 
         Transaction produceTxn = pulsarClient
@@ -704,7 +704,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .withTransactionTimeout(2, TimeUnit.SECONDS)
                 .build().get();
 
-        producer.newMessage(produceTxn).value(("Hello Pulsar!").getBytes()).sendAsync();
+        producer.newMessage(produceTxn).value(("Hello Pulsar!").getBytes()).sendAsync().get();
         produceTxn.commit().get();
         try {
             producer.newMessage(produceTxn).value(("Hello Pulsar!").getBytes()).sendAsync().get();
@@ -712,13 +712,27 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
         }
-        producer.newMessage(produceTxn).value(("Hello Pulsar!").getBytes()).sendAsync();
+
+        try {
+            produceTxn.commit().get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+        }
+
 
         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-        consumer.acknowledgeAsync(message.getMessageId(), consumeTxn);
+        consumer.acknowledgeAsync(message.getMessageId(), consumeTxn).get();
         consumeTxn.commit().get();
         try {
             consumer.acknowledgeAsync(message.getMessageId(), consumeTxn).get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+        }
+
+        try {
+            consumeTxn.commit().get();
             fail();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
