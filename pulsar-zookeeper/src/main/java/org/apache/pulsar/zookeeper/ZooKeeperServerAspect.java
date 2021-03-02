@@ -72,12 +72,16 @@ public class ZooKeeperServerAspect {
                 .setChild(new Gauge.Child() {
                     @Override
                     public double get() {
+                        int connections = -1;
                         ServerCnxnFactory cnxFactory = zkServer.getServerCnxnFactory();
                         if (cnxFactory != null) {
-                            return cnxFactory.getNumAliveConnections();
-                        } else {
-                            return -1;
+                            connections += cnxFactory.getNumAliveConnections();
                         }
+                        ServerCnxnFactory secCnxFactory = zkServer.getSecureServerCnxnFactory();
+                        if (secCnxFactory != null) {
+                            connections += secCnxFactory.getNumAliveConnections();
+                        }
+                        return connections;
                     }
                 }).register();
 
