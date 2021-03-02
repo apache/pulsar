@@ -330,8 +330,7 @@ public class TransactionMetadataStoreService {
         if (e instanceof TransactionMetadataStoreStateException
                 || e instanceof RequestTimeoutException
                 || e instanceof ManagedLedgerException
-                || e instanceof PulsarClientException.BrokerPersistenceException
-                || e instanceof PulsarClientException.TransactionBufferNotRecoverException) {
+                || e instanceof PulsarClientException.BrokerPersistenceException) {
             return true;
         } else {
             return false;

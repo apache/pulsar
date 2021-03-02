@@ -51,15 +51,6 @@ public interface TransactionBufferProvider {
     }
 
     /**
-     * Open the transaction buffer.
-     *
-     * @return a future represents the result of the operation.
-     *         an instance of {@link TransactionBuffer} is returned
-     *         if the operation succeeds.
-     */
-    TransactionBuffer newTransactionBuffer();
-
-    /**
      * Open the persistent transaction buffer.
      *
      * @param originTopic

@@ -433,22 +433,6 @@ public class PulsarClientException extends IOException {
     }
 
     /**
-     * Transaction buffer not recover exception thrown by Pulsar client.
-     */
-    public static class TransactionBufferNotRecoverException extends PulsarClientException {
-        /**
-         * Constructs a {@code TransactionBufferNotRecoverException} with the specified detail message.
-         *
-         * @param msg
-         *        The detail message (which is saved for later retrieval
-         *        by the {@link #getMessage()} method)
-         */
-        public TransactionBufferNotRecoverException(String msg) {
-            super(msg);
-        }
-    }
-
-    /**
      * Authentication exception thrown by Pulsar client.
      */
     public static class AuthenticationException extends PulsarClientException {

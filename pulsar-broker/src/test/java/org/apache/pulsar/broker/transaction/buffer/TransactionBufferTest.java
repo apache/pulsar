@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -30,6 +31,7 @@ import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
@@ -67,7 +69,8 @@ public class TransactionBufferTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        this.buffer = this.provider.newTransactionBuffer();
+        PersistentTopic persistentTopic = mock(PersistentTopic.class);
+        this.buffer = this.provider.newTransactionBuffer(persistentTopic);
     }
 
     @AfterMethod(alwaysRun = true)

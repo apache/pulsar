@@ -99,7 +99,6 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -201,6 +200,7 @@ public class PersistentTopic extends AbstractTopic
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
 
+    protected final CompletableFuture<Void> transactionCompletableFuture;
     protected final TransactionBuffer transactionBuffer;
 
     private static class TopicStatsHelper {
@@ -238,6 +238,7 @@ public class PersistentTopic extends AbstractTopic
                 brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
+        this.transactionCompletableFuture = new CompletableFuture<>();
 
         initializeDispatchRateLimiterIfNeeded(Optional.empty());
         registerTopicPolicyListener();
@@ -303,6 +304,7 @@ public class PersistentTopic extends AbstractTopic
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
+            this.transactionCompletableFuture.complete(null);
             this.transactionBuffer = new TransactionBufferDisable();
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
@@ -320,10 +322,12 @@ public class PersistentTopic extends AbstractTopic
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
+        this.transactionCompletableFuture = new CompletableFuture<>();
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
+            this.transactionCompletableFuture.complete(null);
             this.transactionBuffer = new TransactionBufferDisable();
         }
     }
@@ -366,35 +370,37 @@ public class PersistentTopic extends AbstractTopic
 
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
-        pendingWriteOps.incrementAndGet();
-        if (isFenced) {
-            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
-            decrementPendingWriteOpsAndCheck();
-            return;
-        }
-        if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
-            publishContext.completed(new NotAllowedException("Exceed maximum message size")
-                    , -1, -1);
-            decrementPendingWriteOpsAndCheck();
-            return;
-        }
-
-        MessageDeduplication.MessageDupStatus status =
-                messageDeduplication.isDuplicate(publishContext, headersAndPayload);
-        switch (status) {
-            case NotDup:
-                asyncAddEntry(headersAndPayload, publishContext);
-                break;
-            case Dup:
-                // Immediately acknowledge duplicated message
-                publishContext.completed(null, -1, -1);
+        this.transactionCompletableFuture.thenAccept(future -> {
+            pendingWriteOps.incrementAndGet();
+            if (isFenced) {
+                publishContext.completed(new TopicFencedException("fenced"), -1, -1);
                 decrementPendingWriteOpsAndCheck();
-                break;
-            default:
-                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                return;
+            }
+            if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
+                publishContext.completed(new NotAllowedException("Exceed maximum message size")
+                        , -1, -1);
                 decrementPendingWriteOpsAndCheck();
+                return;
+            }
 
-        }
+            MessageDeduplication.MessageDupStatus status =
+                    messageDeduplication.isDuplicate(publishContext, headersAndPayload);
+            switch (status) {
+                case NotDup:
+                    asyncAddEntry(headersAndPayload, publishContext);
+                    break;
+                case Dup:
+                    // Immediately acknowledge duplicated message
+                    publishContext.completed(null, -1, -1);
+                    decrementPendingWriteOpsAndCheck();
+                    break;
+                default:
+                    publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                    decrementPendingWriteOpsAndCheck();
+
+            }
+        });
     }
 
     private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
@@ -2622,19 +2628,6 @@ public class PersistentTopic extends AbstractTopic
             return;
         }
 
-        // need to check transaction buffer ready before before check the message deduplication
-        if (transactionBuffer instanceof TopicTransactionBuffer) {
-            if (!((TopicTransactionBuffer) transactionBuffer).checkIfReady()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}]Transaction buffer not recover complete!", topic);
-                }
-                publishContext.completed(new BrokerServiceException
-                        .TransactionBufferNotRecoverException("[{" + topic + "}]Transaction buffer not "
-                        + "recover completely!"), -1, -1);
-                return;
-            }
-        }
-
         MessageDeduplication.MessageDupStatus status =
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
@@ -2667,13 +2660,15 @@ public class PersistentTopic extends AbstractTopic
 
     @Override
     public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark) {
-        if (TxnAction.COMMIT_VALUE == txnAction) {
-            return transactionBuffer.commitTxn(txnID, lowWaterMark);
-        } else if (TxnAction.ABORT_VALUE == txnAction) {
-            return transactionBuffer.abortTxn(txnID, lowWaterMark);
-        } else {
-            return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
-        }
+        return this.transactionCompletableFuture.thenCompose(future -> {
+            if (TxnAction.COMMIT_VALUE == txnAction) {
+                return transactionBuffer.commitTxn(txnID, lowWaterMark);
+            } else if (TxnAction.ABORT_VALUE == txnAction) {
+                return transactionBuffer.abortTxn(txnID, lowWaterMark);
+            } else {
+                return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
+            }
+        });
     }
 
     public long getDelayedDeliveryTickTimeMillis() {
@@ -2860,6 +2855,14 @@ public class PersistentTopic extends AbstractTopic
             return getBrokerService().getPulsar().getConfiguration()
                     .getSubscriptionTypesEnabled().contains(subType.name());
         }
+    }
+
+    public void completeTransactionBufferFuture() {
+        this.transactionCompletableFuture.complete(null);
+    }
+
+    public void completeExceptionallyTransactionBufferFuture(Throwable t) {
+        this.transactionCompletableFuture.completeExceptionally(t);
     }
 
     public PositionImpl getMaxReadPosition() {

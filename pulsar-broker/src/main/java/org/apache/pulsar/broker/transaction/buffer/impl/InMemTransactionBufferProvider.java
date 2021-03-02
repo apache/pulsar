@@ -26,13 +26,9 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
  * A provider that provides in-memory implementations of {@link TransactionBuffer}.
  */
 public class InMemTransactionBufferProvider implements TransactionBufferProvider {
-    @Override
-    public TransactionBuffer newTransactionBuffer() {
-        return new InMemTransactionBuffer();
-    }
 
     @Override
     public TransactionBuffer newTransactionBuffer(Topic originTopic) {
-        return new InMemTransactionBuffer();
+        return new InMemTransactionBuffer(originTopic);
     }
 }

@@ -181,12 +181,6 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class TransactionBufferNotRecoverException extends BrokerServiceException {
-        public TransactionBufferNotRecoverException(String msg) {
-            super(msg);
-        }
-    }
-
     public static class TopicPoliciesCacheNotInitException extends BrokerServiceException {
         public TopicPoliciesCacheNotInitException() {
             super("Topic policies cache have not init.");
@@ -240,8 +234,6 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionConflict;
         } else if (t instanceof CoordinatorException.TransactionNotFoundException) {
             return ServerError.TransactionNotFound;
-        } else if (t instanceof TransactionBufferNotRecoverException) {
-            return ServerError.TransactionBufferNotRecover;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

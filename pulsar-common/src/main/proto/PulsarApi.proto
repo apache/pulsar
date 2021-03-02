@@ -224,7 +224,6 @@ enum ServerError {
                          // use this error to indicate that this producer is now permanently
                          // fenced. Applications are now supposed to close it and create a
                          // new producer
-    TransactionBufferNotRecover = 26; // When transaction buffer not recover completely
 }
 
 enum AuthMethod {
