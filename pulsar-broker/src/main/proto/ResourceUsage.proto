@@ -16,45 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto3";
+syntax = "proto2";
 
 package pulsar.resource.usage;
 option java_package = "org.apache.pulsar.broker.service.resource.usage";
 option optimize_for = SPEED;
 
-// Type of usage
-enum UsageType {
-    UsageType_UKNOWN = 0;
-    UsageType_PUBLISH = 1;
-    UsageType_CONSUME = 2;
-    UsageType_STORAGE = 3;
-}
-
 message NetworkUsage {
-  uint64 bytes = 1;
-  uint64 messages = 2;
+  required uint64 bytesPerPeriod = 1;
+  required uint64 messagesPerPeriod = 2;
 }
 
 message StorageUsage {
-  uint64 bytes = 1;
+  required uint64 totalBytes = 1;
 }
 
 message ResourceUsage {
-  oneof usage {
-    NetworkUsage network = 2;
-    StorageUsage storage = 3;
-  }
+  // owner is the key and it is in the "tenant/namespace/topic" format
+  // if usage is reported at namespace level, topic will be empty
+  // if usage is reported at tenant level, namespace and topic will be empty
+  required string owner = 1;
+  optional NetworkUsage publish = 2;
+  optional NetworkUsage consume = 3;
+  optional StorageUsage storage = 4;
 }
 
-message ResourceUsageMap {
+message ResourceUsageInfo {
   // Name of the broker
-  string broker = 1;
+  required string broker = 1;
 
-  // Type of usage in the usage map
-  UsageType type = 2;
-
-  // Resource usage map. The key is in the "tenant/namespace/topic" format
-  // if usage is reported at namespacelevel, topic will be empty
-  // if usage is reported at tenant level, namespace and topic will be empty
-  map<string, ResourceUsage> usageMap = 3;
+  repeated ResourceUsage usageMap = 2;
 }
