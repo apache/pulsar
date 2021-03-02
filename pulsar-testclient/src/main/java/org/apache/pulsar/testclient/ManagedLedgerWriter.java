@@ -143,6 +143,7 @@ public class ManagedLedgerWriter {
         arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
 
         // Dump config variables
+        PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar managed-ledger perf writer with config: {}", w.writeValueAsString(arguments));

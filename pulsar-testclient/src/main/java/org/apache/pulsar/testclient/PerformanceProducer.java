@@ -277,6 +277,7 @@ public class PerformanceProducer {
         }
 
         // Dump config variables
+        PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar perf producer with config: {}", w.writeValueAsString(arguments));
