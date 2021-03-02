@@ -2776,15 +2776,9 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnership(topicName, false);
     }
 
-    protected void preValidateRead() {
+    protected void preValidation() {
         validateOwnership();
         checkTopicLevelPolicyEnable();
-    }
-
-    protected void preValidateWrite() {
-        validatePoliciesReadOnlyAccess();
-        checkTopicLevelPolicyEnable();
-        validateOwnership();
     }
 
     protected CompletableFuture<Void> internalRemoveMaxProducers() {
