@@ -1086,6 +1086,33 @@ public interface Namespaces {
     CompletableFuture<Void> deleteNamespaceAntiAffinityGroupAsync(String namespace);
 
     /**
+     * Remove the deduplication status for all topics within a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationStatus(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the deduplication status for all topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationStatusAsync(String namespace);
+    /**
+     * Get the deduplication status for all topics within a namespace .
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationStatus(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the deduplication status for all topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationStatusAsync(String namespace);
+    /**
      * Set the deduplication status for all topics within a namespace.
      * <p/>
      * When deduplication is enabled, the broker will prevent to store the same message multiple times.
@@ -2879,7 +2906,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
+    Integer getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxUnackedMessagesPerConsumer for a namespace asynchronously.

@@ -29,6 +29,7 @@ import org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -76,7 +77,8 @@ public class ProtobufNativeSchemaUtils {
         if (unResolvedFileDescriptNames.length == 0) {
             fileDescriptorCache.put(fileDescriptor.getFullName(), fileDescriptor.toProto());
         } else {
-            throw new SchemaSerializationException(fileDescriptor.getFullName() + " can't resolve dependency '" + unResolvedFileDescriptNames + "'.");
+            throw new SchemaSerializationException(fileDescriptor.getFullName() + " can't resolve dependency '" +
+                    Arrays.toString(unResolvedFileDescriptNames) + "'.");
         }
     }
 
@@ -96,7 +98,7 @@ public class ProtobufNativeSchemaUtils {
             //extract root fileDescriptor
             Descriptors.FileDescriptor fileDescriptor = fileDescriptorCache.get(schemaData.getRootFileDescriptorName());
             //trim package
-            String[] paths = StringUtils.removeFirst(schemaData.getRootMessageTypeName(), fileDescriptor.getPackage()).replaceFirst(".", "").split("\\.");
+            String[] paths = StringUtils.removeFirst(schemaData.getRootMessageTypeName(), fileDescriptor.getPackage()).replaceFirst("\\.", "").split("\\.");
             //extract root message
             descriptor = fileDescriptor.findMessageTypeByName(paths[0]);
             //extract nested message

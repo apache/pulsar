@@ -30,7 +30,9 @@ namespace pulsar {
 
 class PULSAR_PUBLIC SinglePartitionMessageRouter : public MessageRouterBase {
    public:
-    SinglePartitionMessageRouter(const int partitionIndex,
+    SinglePartitionMessageRouter(const int partitionIndex, const int numberOfPartitions,
+                                 ProducerConfiguration::HashingScheme hashingScheme);
+    SinglePartitionMessageRouter(const int numberOfPartitions,
                                  ProducerConfiguration::HashingScheme hashingScheme);
     virtual ~SinglePartitionMessageRouter();
     virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);

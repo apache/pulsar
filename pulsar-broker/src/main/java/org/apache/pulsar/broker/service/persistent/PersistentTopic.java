@@ -64,6 +64,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -281,7 +282,7 @@ public class PersistentTopic extends AbstractTopic
                 inactiveTopicPolicies = policies.inactive_topic_policies;
             }
 
-            maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(policies);
+            updateUnackedMessagesExceededOnConsumer(policies);
             maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(policies);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
@@ -760,19 +761,32 @@ public class PersistentTopic extends AbstractTopic
         return maxUnackedMessages;
     }
 
-    private int unackedMessagesExceededOnConsumer(Policies data) {
-        final int maxUnackedMessages = data.max_unacked_messages_per_consumer > -1
-                ? data.max_unacked_messages_per_consumer
-                : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+    private void updateUnackedMessagesExceededOnConsumer(Policies data) {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
+            maxUnackedMessagesOnConsumerAppilied = topicPolicies.getMaxUnackedMessagesOnConsumer();
+        } else {
+            maxUnackedMessagesOnConsumerAppilied =
+                    data != null && data.max_unacked_messages_per_consumer != null
+                            ? data.max_unacked_messages_per_consumer
+                            : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+        }
+        getSubscriptions().forEach((name, sub) -> {
+            if (sub != null) {
+                sub.getConsumers().forEach(consumer -> {
+                    if (consumer.getMaxUnackedMessages() != maxUnackedMessagesOnConsumerAppilied) {
+                        consumer.setMaxUnackedMessages(maxUnackedMessagesOnConsumerAppilied);
+                    }
+                });
+            }
+        });
 
-        return maxUnackedMessages;
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
-
-        if (checkMaxSubscriptionsPerTopicExceed()) {
+        if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
@@ -817,7 +831,7 @@ public class PersistentTopic extends AbstractTopic
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
-        if (checkMaxSubscriptionsPerTopicExceed()) {
+        if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
@@ -1297,8 +1311,11 @@ public class PersistentTopic extends AbstractTopic
                 if (compactionSub != null) {
                     backlogEstimate = compactionSub.estimateBacklogSize();
                 } else {
-                    // compaction has never run, so take full backlog size
-                    backlogEstimate = ledger.getEstimatedBacklogSize();
+                    // compaction has never run, so take full backlog size,
+                    // or total size if we have no durable subs yet.
+                    backlogEstimate = subscriptions.isEmpty()
+                            ? ledger.getTotalSize()
+                            : ledger.getEstimatedBacklogSize();
                 }
 
                 if (backlogEstimate > compactionThreshold) {
@@ -2112,7 +2129,7 @@ public class PersistentTopic extends AbstractTopic
 
         schemaValidationEnforced = data.schema_validation_enforced;
 
-        maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(data);
+        updateUnackedMessagesExceededOnConsumer(data);
         maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
         maxSubscriptionsPerTopic = data.max_subscriptions_per_topic;
 
@@ -2651,11 +2668,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public int getMaxUnackedMessagesOnConsumer() {
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
-            return topicPolicies.getMaxUnackedMessagesOnConsumer();
-        }
-        return maxUnackedMessagesOnConsumer;
+        return maxUnackedMessagesOnConsumerAppilied;
     }
 
     public boolean isDelayedDeliveryEnabled() {
@@ -2727,6 +2740,9 @@ public class PersistentTopic extends AbstractTopic
         }
         replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                 .ifPresent(DispatchRateLimiter::updateDispatchRate));
+        updateUnackedMessagesExceededOnConsumer(null);
+
+        checkDeduplicationStatus();
     }
 
     private Optional<Policies> getNamespacePolicies() {
@@ -2772,7 +2788,11 @@ public class PersistentTopic extends AbstractTopic
         return messageDeduplication;
     }
 
-    private boolean checkMaxSubscriptionsPerTopicExceed() {
+    private boolean checkMaxSubscriptionsPerTopicExceed(String subscriptionName) {
+        //Existing subscriptions are not affected
+        if (StringUtils.isNotEmpty(subscriptionName) && getSubscription(subscriptionName) != null) {
+            return false;
+        }
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         Integer maxSubsPerTopic = null;
         if (topicPolicies != null && topicPolicies.isMaxSubscriptionsPerTopicSet()) {

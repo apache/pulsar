@@ -153,7 +153,7 @@ tokenSecretKey=file:///path/to/secret.key
 
 # For the proxy to connect to brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
-brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
+brokerClientAuthenticationParameters=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw
 # Or, alternatively, read token from file
-# brokerClientAuthenticationParameters={"file":"///path/to/proxy-token.txt"}
+# brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
 ```

@@ -60,6 +60,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -712,7 +713,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.subscriptionDispatchRate.put("test", ConfigHelper.subscriptionDispatchRate(conf));
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
         policies.max_unacked_messages_per_subscription = 200000;
-        policies.max_unacked_messages_per_consumer = 50000;
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/ns1"), policies.auth_policies.namespace_auth);
@@ -2622,7 +2622,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 Sets.newHashSet("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
-        String ns = "prop-xyz/ns-" + System.nanoTime();
+        String ns = BrokerTestUtil.newUniqueName("prop-xyz/ns");
 
         admin.namespaces().createNamespace(ns, 24);
         admin.namespaces().deleteNamespace(ns);

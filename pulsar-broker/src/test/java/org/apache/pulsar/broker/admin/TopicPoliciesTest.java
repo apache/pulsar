@@ -1469,6 +1469,49 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
+    public void testMaxSubscriptionsPerTopicWithExistingSubs() throws Exception {
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        // init cache
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        // Set topic-level max subscriptions
+        final int topicLevelMaxSubNum = 2;
+        admin.topics().setMaxSubscriptionsPerTopic(topic, topicLevelMaxSubNum);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(()
+                -> pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)) != null);
+        List<Consumer<String>> consumerList = new ArrayList<>();
+        String subName = "my-sub-";
+        for (int i = 0; i < topicLevelMaxSubNum; i++) {
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName(subName + i)
+                    .topic(topic).subscribe();
+            consumerList.add(consumer);
+        }
+        // should fail
+        try (PulsarClient client = PulsarClient.builder().operationTimeout(2, TimeUnit.SECONDS)
+                .serviceUrl(brokerUrl.toString()).build()) {
+            consumerList.add(client.newConsumer(Schema.STRING)
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe());
+            fail("should fail");
+        } catch (PulsarClientException ignore) {
+            assertEquals(consumerList.size(), topicLevelMaxSubNum);
+        }
+        //create a consumer with the same subscription name, it should succeed
+        pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName + "0")
+                .topic(topic).subscribe().close();
+
+        //Clean up
+        for (Consumer<String> c : consumerList) {
+            c.close();
+        }
+    }
+
+    @Test(timeOut = 20000)
     public void testMaxSubscriptionsPerTopic() throws Exception {
         int brokerLevelMaxSub = 4;
         conf.setMaxSubscriptionsPerTopic(4);

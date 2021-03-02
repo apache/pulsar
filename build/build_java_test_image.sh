@@ -18,7 +18,13 @@
 # under the License.
 #
 
-set -x
-
-WHEEL_FILE=$(ls /pulsar/pulsar-client | grep cp27)
-pip2 install /pulsar/pulsar-client/${WHEEL_FILE}
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "$SCRIPT_DIR/.."
+SQUASH_PARAM=""
+# check if docker experimental mode is enabled which is required for
+# using "docker build --squash" for squashing all intermediate layers of the build to a single layer
+if [[ "$(docker version -f '{{.Server.Experimental}}' 2>/dev/null)" == "true" ]]; then
+  SQUASH_PARAM="-Ddockerfile.build.squash=true"
+fi
+mvn -am -pl tests/docker-images/java-test-image install -Pcore-modules,integrationTests,docker \
+  -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true $SQUASH_PARAM "$@"

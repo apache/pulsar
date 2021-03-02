@@ -1849,6 +1849,51 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public Boolean getDeduplicationStatus(String topic) throws PulsarAdminException {
+        return getDeduplicationStatus(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getDeduplicationStatusAsync(String topic) {
+        return getDeduplicationStatusAsync(topic, false);
+    }
+
+    @Override
+    public Boolean getDeduplicationStatus(String topic, boolean applied) throws PulsarAdminException {
+        try {
+            return getDeduplicationStatusAsync(topic, applied).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getDeduplicationStatusAsync(String topic, boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "deduplicationEnabled");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<Boolean>() {
+            @Override
+            public void completed(Boolean enabled) {
+                future.complete(enabled);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
     public void enableDeduplication(String topic, boolean enabled) throws PulsarAdminException {
         try {
             enableDeduplicationAsync(topic, enabled).
@@ -1865,6 +1910,28 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> enableDeduplicationAsync(String topic, boolean enabled) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "deduplicationEnabled");
+        return asyncPostRequest(path, Entity.entity(enabled, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setDeduplicationStatus(String topic, boolean enabled) throws PulsarAdminException {
+        try {
+            enableDeduplicationAsync(topic, enabled).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setDeduplicationStatusAsync(String topic, boolean enabled) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "deduplicationEnabled");
         return asyncPostRequest(path, Entity.entity(enabled, MediaType.APPLICATION_JSON));
@@ -1889,6 +1956,27 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> disableDeduplicationAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "deduplicationEnabled");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void removeDeduplicationStatus(String topic) throws PulsarAdminException {
+        try {
+            removeDeduplicationStatusAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDeduplicationStatusAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "deduplicationEnabled");
         return asyncDeleteRequest(path);
     }
 
