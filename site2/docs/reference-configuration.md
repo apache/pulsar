@@ -13,16 +13,18 @@ sidebar_label: Pulsar configuration
 
 Pulsar configuration can be managed via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
 
-- [BookKeeper](#bookkeeper)
-- [Broker](#broker)
-- [Client](#client)
-- [Service discovery](#service-discovery)
-- [Log4j](#log4j)
-- [Log4j shell](#log4j-shell)
-- [Standalone](#standalone)
-- [WebSocket](#websocket)
-- [Pulsar proxy](#pulsar-proxy)
-- [ZooKeeper](#zookeeper)
+- [bookieId is a non empty string that can contain ASCII digits and letters ([a-zA-Z9-0]),](#bookieid-is-a-non-empty-string-that-can-contain-ascii-digits-and-letters-a-za-z9-0)
+- [colons, dashes, and dots.](#colons-dashes-and-dots)
+- [# For more information, see http://bookkeeper.apache.org/bps/BP-41-bookieid/.](#-for-more-information-see-httpbookkeeperapacheorgbpsbp-41-bookieid)
+  - [Broker](#broker)
+  - [Client](#client)
+  - [Service discovery](#service-discovery)
+  - [Log4j](#log4j)
+  - [Log4j shell](#log4j-shell)
+  - [Standalone](#standalone)
+  - [WebSocket](#websocket)
+  - [Pulsar proxy](#pulsar-proxy)
+  - [ZooKeeper](#zookeeper)
 
 ## BookKeeper
 
@@ -129,7 +131,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |dbStorage_rocksDB_numLevels||-1|
 |dbStorage_rocksDB_numFilesInLevel0||4|
 |dbStorage_rocksDB_maxSizeInLevel1MB||256|
-
+bookieId | If you want to custom bookie ID or use a dynamic network address for the bookie, you can set this option. <br><br>Bookie advertises itself using `bookieId` rather than `BookieSocketAddress` (hostname:port or IP:port).<br><br> `bookieId` is a non empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 
 ## Broker
 
@@ -657,6 +659,7 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
 haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+bookieId | If you want to custom bookie ID or use a dynamic network address for the bookie, you can set this option. <br><br>Bookie advertises itself using `bookieId` rather than `BookieSocketAddress` (hostname:port or IP:port).<br><br> `bookieId` is a non empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 
 ## WebSocket
 
