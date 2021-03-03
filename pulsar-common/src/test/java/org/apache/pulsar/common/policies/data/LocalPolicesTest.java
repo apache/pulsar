@@ -118,4 +118,36 @@ public class LocalPolicesTest {
         Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies2);
 
     }
+
+    @Test
+    public void testMakeLocalPoliciesImmutableStringSerializationCompatibility() throws IOException {
+
+        // no fields
+        MutableLocalPolicies mutableLocalPolicies = new MutableLocalPolicies();
+        LocalPolicies immutableLocalPolicies = new LocalPolicies();
+
+        // serialize and deserialize
+        String data = ObjectMapperFactory.getThreadLocal().writeValueAsString(mutableLocalPolicies);
+        LocalPolicies mutableDeserializedPolicies = ObjectMapperFactory.getThreadLocal().readValue(data, LocalPolicies.class);
+
+        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies);
+
+
+
+
+        // check with set other fields
+        BookieAffinityGroupData bookieAffinityGroupData = new BookieAffinityGroupData("aaa","bbb");
+        String namespaceAntiAffinityGroup = "namespace1,namespace2";
+
+        mutableLocalPolicies.bookieAffinityGroup = bookieAffinityGroupData;
+        mutableLocalPolicies.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
+        LocalPolicies immutableLocalPolicies2 = new LocalPolicies(defaultBundle(),bookieAffinityGroupData,namespaceAntiAffinityGroup);
+
+        // serialize and deserialize
+        data = ObjectMapperFactory.getThreadLocal().writeValueAsString(mutableLocalPolicies);
+        mutableDeserializedPolicies = ObjectMapperFactory.getThreadLocal().readValue(data, LocalPolicies.class);
+
+        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies2);
+
+    }
 }
