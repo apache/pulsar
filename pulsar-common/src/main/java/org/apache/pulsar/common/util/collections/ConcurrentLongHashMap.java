@@ -153,14 +153,14 @@ public class ConcurrentLongHashMap<V> {
     }
 
     public void clear() {
-        for (Section<V> s : sections) {
-            s.clear();
+        for (int i = 0; i < sections.length; i++) {
+            sections[i].clear();
         }
     }
 
     public void forEach(EntryProcessor<V> processor) {
-        for (Section<V> s : sections) {
-            s.forEach(processor);
+        for (int i = 0; i < sections.length; i++) {
+            sections[i].forEach(processor);
         }
     }
 
@@ -393,46 +393,44 @@ public class ConcurrentLongHashMap<V> {
         public void forEach(EntryProcessor<V> processor) {
             long stamp = tryOptimisticRead();
 
+            // We need to make sure that we read these 3 variables in a consistent way
             int capacity = this.capacity;
             long[] keys = this.keys;
             V[] values = this.values;
 
-            boolean acquiredReadLock = false;
+            // Validate no rehashing
+            if (!validate(stamp)) {
+                // Fallback to read lock
+                stamp = readLock();
 
-            try {
+                capacity = this.capacity;
+                keys = this.keys;
+                values = this.values;
+                unlockRead(stamp);
+            }
 
-                // Validate no rehashing
+            // Go through all the buckets for this section. We try to renew the stamp only after a validation
+            // error, otherwise we keep going with the same.
+            for (int bucket = 0; bucket < capacity; bucket++) {
+                if (stamp == 0) {
+                    stamp = tryOptimisticRead();
+                }
+
+                long storedKey = keys[bucket];
+                V storedValue = values[bucket];
+
                 if (!validate(stamp)) {
-                    // Fallback to read lock
+                    // Fallback to acquiring read lock
                     stamp = readLock();
-                    acquiredReadLock = true;
 
-                    capacity = this.capacity;
-                    keys = this.keys;
-                    values = this.values;
-                }
-
-                // Go through all the buckets for this section
-                for (int bucket = 0; bucket < capacity; bucket++) {
-                    long storedKey = keys[bucket];
-                    V storedValue = values[bucket];
-
-                    if (!acquiredReadLock && !validate(stamp)) {
-                        // Fallback to acquiring read lock
-                        stamp = readLock();
-                        acquiredReadLock = true;
-
-                        storedKey = keys[bucket];
-                        storedValue = values[bucket];
-                    }
-
-                    if (storedValue != DeletedValue && storedValue != EmptyValue) {
-                        processor.accept(storedKey, storedValue);
-                    }
-                }
-            } finally {
-                if (acquiredReadLock) {
+                    storedKey = keys[bucket];
+                    storedValue = values[bucket];
                     unlockRead(stamp);
+                    stamp = 0;
+                }
+
+                if (storedValue != DeletedValue && storedValue != EmptyValue) {
+                    processor.accept(storedKey, storedValue);
                 }
             }
         }
