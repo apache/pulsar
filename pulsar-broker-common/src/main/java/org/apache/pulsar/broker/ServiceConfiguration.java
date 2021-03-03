@@ -538,6 +538,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
+            doc = "Broker periodically checks if subscription is stuck and unblock if flag is enabled. "
+                    + "(Default is disabled)"
+        )
+    private boolean unblockStuckSubscriptionEnabled = false;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Tick time to schedule task that checks topic publish rate limiting across all topics  "
                     + "Reducing to lower value can give more accuracy while throttling publish but "
                     + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
