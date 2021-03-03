@@ -346,6 +346,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNull(message);
 
+            Field field = TransactionImpl.class.getDeclaredField("state");
+            field.setAccessible(true);
+            field.set(commitTxn, TransactionImpl.State.OPEN);
             try {
                 commitTxn.commit().get();
                 fail("recommit one transaction should be failed.");
@@ -550,6 +553,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
 
             commitTxn.commit().get();
+            Field field = TransactionImpl.class.getDeclaredField("state");
+            field.setAccessible(true);
+            field.set(commitTxn, TransactionImpl.State.OPEN);
             try {
                 commitTxn.commit().get();
                 fail("recommit one transaction should be failed.");
