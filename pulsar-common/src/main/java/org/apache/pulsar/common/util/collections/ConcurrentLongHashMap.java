@@ -423,9 +423,13 @@ public class ConcurrentLongHashMap<V> {
                     // Fallback to acquiring read lock
                     stamp = readLock();
 
-                    storedKey = keys[bucket];
-                    storedValue = values[bucket];
-                    unlockRead(stamp);
+                    try {
+                        storedKey = keys[bucket];
+                        storedValue = values[bucket];
+                    } finally {
+                        unlockRead(stamp);
+                    }
+
                     stamp = 0;
                 }
 

@@ -415,9 +415,13 @@ public class ConcurrentLongPairSet implements LongPairSet {
                     // Fallback to acquiring read lock
                     stamp = readLock();
 
-                    storedItem1 = table[bucket];
-                    storedItem2 = table[bucket + 1];
-                    unlockRead(stamp);
+                    try {
+                        storedItem1 = table[bucket];
+                        storedItem2 = table[bucket + 1];
+                    } finally {
+                        unlockRead(stamp);
+                    }
+
                     stamp = 0;
                 }
 

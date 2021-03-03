@@ -373,9 +373,13 @@ public class ConcurrentOpenHashMap<K, V> {
                     // Fallback to acquiring read lock
                     stamp = readLock();
 
-                    storedKey = (K) table[bucket];
-                    storedValue = (V) table[bucket + 1];
-                    unlockRead(stamp);
+                    try {
+                        storedKey = (K) table[bucket];
+                        storedValue = (V) table[bucket + 1];
+                    } finally {
+                        unlockRead(stamp);
+                    }
+
                     stamp = 0;
                 }
 

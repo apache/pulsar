@@ -386,8 +386,13 @@ public class ConcurrentOpenHashSet<V> {
                 if (!validate(stamp)) {
                     // Fallback to acquiring read lock
                     stamp = readLock();
-                    storedValue = values[bucket];
-                    unlockRead(stamp);
+
+                    try {
+                        storedValue = values[bucket];
+                    } finally {
+                        unlockRead(stamp);
+                    }
+
                     stamp = 0;
                 }
 
