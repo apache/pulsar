@@ -102,7 +102,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         if (obj instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl other = (BatchMessageIdImpl) obj;
             return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
-                    && batchIndex == other.batchIndex;
+                    && batchIndex == other.batchIndex && batchSize == other.batchSize;
         } else if (obj instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) obj;
             return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
@@ -127,7 +127,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     // Serialization
     @Override
     public byte[] toByteArray() {
-        return toByteArray(batchIndex);
+        return toByteArray(batchIndex, batchSize);
     }
 
     public boolean ackIndividual() {
