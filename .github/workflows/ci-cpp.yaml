@@ -86,4 +86,4 @@ jobs:
 
       - name: run c++ tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh pulsar-client-cpp/docker-tests.sh
+        run: pulsar-client-cpp/docker-tests.sh

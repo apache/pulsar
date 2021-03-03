@@ -90,4 +90,4 @@ jobs:
 
       - name: run shade tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/pom.xml test -DShadeTests -DredirectTestOutputToFile=false
+        run: ./build/run_integration_group.sh SHADE

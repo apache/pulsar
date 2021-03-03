@@ -89,12 +89,4 @@ jobs:
 
       - name: run integration function
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=function
-
-      - name: run integration source
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=source
-
-      - name: run integraion sink
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=sink
+        run: ./build/run_integration_group.sh PULSAR_CONNECTORS_THREAD

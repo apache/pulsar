@@ -111,6 +111,13 @@
       <artifactId>pulsar-transaction-common</artifactId>
       <version>${project.version}</version>
     </dependency>
+    
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-batch-discovery-triggerers</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -313,6 +320,13 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-batch-data-generator</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-data-generator</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -428,6 +442,8 @@
                       tofile="${basedir}/src/test/resources/pulsar-functions-api-examples.jar"/>
                 <copy file="${basedir}/../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar"
                       tofile="${basedir}/src/test/resources/pulsar-io-data-generator.nar"/>
+                <copy file="${basedir}/../pulsar-io/batch-data-generator/target/pulsar-io-batch-data-generator-${project.version}.nar"
+                      tofile="${basedir}/src/test/resources/pulsar-io-batch-data-generator.nar"/>
               </target>
             </configuration>
           </execution>
