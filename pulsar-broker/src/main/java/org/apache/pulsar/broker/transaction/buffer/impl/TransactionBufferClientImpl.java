@@ -60,16 +60,16 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
 
     @Override
     public CompletableFuture<TxnID> commitTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
-                                                            long txnIdLeastBits) {
+                                                            long txnIdLeastBits, long lowWaterMark) {
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
-                TxnAction.COMMIT);
+                TxnAction.COMMIT, lowWaterMark);
     }
 
     @Override
     public CompletableFuture<TxnID> abortTxnOnSubscription(String topic, String subscription,
-                                                           long txnIdMostBits, long txnIdLeastBits) {
+                                                           long txnIdMostBits, long txnIdLeastBits, long lowWaterMark) {
         return tbHandler.endTxnOnSubscription(topic, subscription, txnIdMostBits, txnIdLeastBits,
-                TxnAction.ABORT);
+                TxnAction.ABORT, lowWaterMark);
     }
 
     @Override

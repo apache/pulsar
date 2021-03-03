@@ -344,7 +344,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 | maxMessageSize | Set the maximum size of a message. | 5242880 |
 | preciseTopicPublishRateLimiterEnable | Enable precise topic publish rate limiting. | false |
 | lazyCursorRecovery | Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.| false |  
-
+haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 
 
 ## Client
@@ -656,10 +656,7 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
-
-
-
-
+haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 
 ## WebSocket
 
@@ -687,7 +684,6 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 |tlsCertificateFilePath|||
 |tlsKeyFilePath |||
 |tlsTrustCertsFilePath|||
-
 
 ## Pulsar proxy
 
@@ -751,6 +747,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 | proxyLogLevel | Set the Pulsar Proxy log level. <li> If the value is set to 0, no TCP channel information is logged. <li> If the value is set to 1, only the TCP channel information and command information (without message body) are parsed and logged. <li> If the value is set to 2, all TCP channel information, command information, and message body are parsed and logged. | 0 |
+haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 
 ## ZooKeeper
 

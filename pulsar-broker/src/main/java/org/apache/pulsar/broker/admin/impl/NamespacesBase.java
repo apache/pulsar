@@ -856,7 +856,7 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetAutoSubscriptionCreation(asyncResponse, null);
     }
 
-    protected void internalModifyDeduplication(boolean enableDeduplication) {
+    protected void internalModifyDeduplication(Boolean enableDeduplication) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{
@@ -1997,6 +1997,11 @@ public abstract class NamespacesBase extends AdminResource {
                     clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected Boolean internalGetDeduplication() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.READ);
+        return getNamespacePolicies(namespaceName).deduplicationEnabled;
     }
 
     protected Integer internalGetMaxConsumersPerTopic() {

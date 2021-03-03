@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.testng.annotations.BeforeMethod;
@@ -35,7 +34,7 @@ public class ReaderImplTest {
     ReaderImpl<byte[]> reader;
 
     @BeforeMethod
-    void setupReader() throws PulsarClientException.InvalidConfigurationException {
+    void setupReader() {
         PulsarClientImpl mockedClient = ClientTestFixtures.createPulsarClientMockWithMockedClientCnx();
         ReaderConfigurationData<byte[]> readerConfiguration = new ReaderConfigurationData<>();
         readerConfiguration.setTopicName("topicName");

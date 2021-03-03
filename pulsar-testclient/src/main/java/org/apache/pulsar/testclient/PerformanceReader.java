@@ -138,8 +138,8 @@ public class PerformanceReader {
             System.exit(-1);
         }
 
-        if (arguments.topic.size() != 1) {
-            System.out.println("Only one topic name is allowed");
+        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
+            System.out.println("The size of topics list should be equal to --num-topics");
             jc.usage();
             System.exit(-1);
         }
@@ -184,11 +184,10 @@ public class PerformanceReader {
         }
 
         // Dump config variables
+        PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(arguments));
-
-        final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
@@ -248,8 +247,7 @@ public class PerformanceReader {
                 .startMessageId(startMessageId);
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
-                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+            final TopicName topicName = TopicName.get(arguments.topic.get(i));
 
             futures.add(readerBuilder.clone().topic(topicName.toString()).createAsync());
         }
