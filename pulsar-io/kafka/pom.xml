@@ -54,6 +54,19 @@
       <version>${kafka-client.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>connect-api</artifactId>
+      <version>${kafka-client.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>connect-file</artifactId>
+      <version>${kafka-client.version}</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>

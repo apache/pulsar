@@ -84,6 +84,17 @@ public class KafkaSinkConfig implements Serializable {
           + "in the connector config file take precedence over this config.")
     private Map<String, Object> producerConfigProperties;
 
+    @FieldDoc(
+            defaultValue = "",
+            help = "A kafka-connector sink to use in place of the kafka-producer.")
+    private String kafkaConnectorSinkClass;
+
+    @FieldDoc(
+            defaultValue = "konnector.",
+            help = "A prefix for the values to pass to the kafka connector. "
+                 + "Prefix will be trimmed. Example: 'konnector.file=/a/b/c.txt'")
+    private String kafkaConnectorConfigPrefix;
+
     public static KafkaSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), KafkaSinkConfig.class);
