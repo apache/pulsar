@@ -286,7 +286,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                     @ApiParam(value = "Offload policies for the specified topic")
                                                             OffloadPolicies offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(tenant);
+        preValidation();
         internalSetOffloadPolicies(offloadPolicies).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed set offloadPolicies", ex);
