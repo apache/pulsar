@@ -13,9 +13,7 @@ sidebar_label: Pulsar configuration
 
 Pulsar configuration can be managed via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
 
-- [bookieId is a non empty string that can contain ASCII digits and letters ([a-zA-Z9-0]),](#bookieid-is-a-non-empty-string-that-can-contain-ascii-digits-and-letters-a-za-z9-0)
-- [colons, dashes, and dots.](#colons-dashes-and-dots)
-- [# For more information, see http://bookkeeper.apache.org/bps/BP-41-bookieid/.](#-for-more-information-see-httpbookkeeperapacheorgbpsbp-41-bookieid)
+  - [BookKeeper](#bookkeeper)
   - [Broker](#broker)
   - [Client](#client)
   - [Service discovery](#service-discovery)
