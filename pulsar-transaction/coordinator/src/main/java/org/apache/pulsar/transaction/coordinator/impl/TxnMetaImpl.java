@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -38,38 +36,13 @@ import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
  */
 class TxnMetaImpl implements TxnMeta {
 
-    private TxnID txnID;
+    private final TxnID txnID;
     private final Set<String> producedPartitions = new HashSet<>();
     private final Set<TransactionSubscription> ackedPartitions = new HashSet<>();
     private volatile TxnStatus txnStatus = TxnStatus.OPEN;
-    private final Handle<TxnMetaImpl> recycleHandle;
 
-    private static final Recycler<TxnMetaImpl> RECYCLER = new Recycler<TxnMetaImpl>() {
-        protected TxnMetaImpl newObject(Recycler.Handle<TxnMetaImpl> handle) {
-            return new TxnMetaImpl(handle);
-        }
-    };
-
-    TxnMetaImpl(Handle<TxnMetaImpl> handle) {
-        this.recycleHandle = handle;
-    }
-
-    // Constructor for transaction metadata
-    static TxnMetaImpl create(TxnID txnID) {
-        @SuppressWarnings("unchecked")
-        TxnMetaImpl txnMeta = RECYCLER.get();
-        txnMeta.txnID = txnID;
-        return txnMeta;
-    }
-
-    public void recycle() {
-        this.producedPartitions.clear();
-        this.ackedPartitions.clear();
-        this.txnStatus = TxnStatus.OPEN;
-
-        if (recycleHandle != null) {
-            recycleHandle.recycle(this);
-        }
+    TxnMetaImpl(TxnID txnID) {
+        this.txnID = txnID;
     }
 
     @Override

@@ -90,4 +90,4 @@ jobs:
 
       - name: run integration tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-function-state.xml -DintegrationTests -DredirectTestOutputToFile=false
+        run: ./build/run_integration_group.sh FUNCTION_STATE
