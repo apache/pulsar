@@ -42,7 +42,6 @@ import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -234,8 +233,8 @@ public class PerformanceProducer {
             System.exit(-1);
         }
 
-        if (arguments.topics.size() != 1) {
-            System.out.println("Only one topic name is allowed");
+        if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
+            System.out.println("The size of topics list should be equal to --num-topic");
             jc.usage();
             System.exit(-1);
         }
@@ -396,7 +395,6 @@ public class PerformanceProducer {
         PulsarClient client = null;
         try {
             // Now processing command line arguments
-            String prefixTopicName = arguments.topics.get(0);
             List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
 
             ClientBuilder clientBuilder = PulsarClient.builder() //
@@ -449,7 +447,7 @@ public class PerformanceProducer {
             }
 
             for (int i = 0; i < arguments.numTopics; i++) {
-                String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
+                String topic = arguments.topics.get(i);
                 log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
                 for (int j = 0; j < arguments.numProducers; j++) {
