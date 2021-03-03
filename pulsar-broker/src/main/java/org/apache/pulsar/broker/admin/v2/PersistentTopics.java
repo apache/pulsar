@@ -282,6 +282,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                     @PathParam("topic") @Encoded String encodedTopic,
                                                     @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalGetOffloadPolicies(applied).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed get offloadPolicies", ex);
@@ -308,11 +309,6 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                             OffloadPolicies offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminAccessForTenant(tenant);
-        validatePoliciesReadOnlyAccess();
-        checkTopicLevelPolicyEnable();
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
         internalSetOffloadPolicies(offloadPolicies).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed set offloadPolicies", ex);
@@ -336,6 +332,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                       @PathParam("namespace") String namespace,
                                       @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         setOffloadPolicies(asyncResponse, tenant, namespace, encodedTopic, null);
     }
 
@@ -350,6 +347,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                     @PathParam("namespace") String namespace,
                                                     @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
         if (topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
             asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnConsumer());
@@ -371,12 +369,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Max unacked messages on consumer policies for the specified topic")
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(tenant);
-        validatePoliciesReadOnlyAccess();
-        checkTopicLevelPolicyEnable();
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
+        preValidation();
         internalSetMaxUnackedMessagesOnConsumer(maxUnackedNum).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed set MaxUnackedMessagesOnConsumer", ex);
@@ -401,6 +394,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                     @PathParam("namespace") String namespace,
                                                     @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
         if (topicPolicies.isDeduplicationSnapshotIntervalSecondsSet()) {
             asyncResponse.resume(topicPolicies.getDeduplicationSnapshotIntervalSeconds());
@@ -422,9 +416,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Interval to take deduplication snapshot for the specified topic")
                     Integer interval) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(tenant);
-        validatePoliciesReadOnlyAccess();
-        checkTopicLevelPolicyEnable();
+        preValidation();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
@@ -451,12 +443,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                    @PathParam("namespace") String namespace,
                                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(tenant);
-        validatePoliciesReadOnlyAccess();
-        checkTopicLevelPolicyEnable();
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
+        preValidation();
         internalSetDeduplicationSnapshotInterval(null).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed delete deduplicationSnapshotInterval", ex);
@@ -495,6 +482,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                          @PathParam("topic") @Encoded String encodedTopic,
                                          @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalGetInactiveTopicPolicies(applied).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed get InactiveTopicPolicies", ex);
@@ -520,12 +508,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                 @ApiParam(value = "inactive topic policies for the specified topic")
                                                         InactiveTopicPolicies inactiveTopicPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(tenant);
-        validatePoliciesReadOnlyAccess();
-        checkTopicLevelPolicyEnable();
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
+        preValidation();
         internalSetInactiveTopicPolicies(inactiveTopicPolicies).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed set InactiveTopicPolicies", ex);
@@ -563,6 +546,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                     @PathParam("namespace") String namespace,
                                                     @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
         if (topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
             asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnSubscription());
@@ -584,12 +568,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Max unacked messages on subscription policies for the specified topic")
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(tenant);
-        validatePoliciesReadOnlyAccess();
-        checkTopicLevelPolicyEnable();
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
+        preValidation();
         internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed set MaxUnackedMessagesOnSubscription", ex);
@@ -630,6 +609,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                            @PathParam("topic") @Encoded String encodedTopic,
                                            @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalGetDelayedDeliveryPolicies(applied).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed get DelayedDeliveryPolicies", ex);
@@ -656,12 +636,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Delayed delivery policies for the specified topic")
                     DelayedDeliveryPolicies deliveryPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(tenant);
-        validatePoliciesReadOnlyAccess();
-        checkTopicLevelPolicyEnable();
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
+        preValidation();
         internalSetDelayedDeliveryPolicies(asyncResponse, deliveryPolicies);
     }
 
@@ -1541,6 +1516,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                                   @PathParam("namespace") String namespace,
                                                                   @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         return getTopicPolicies(topicName)
                 .map(TopicPolicies::getBackLogQuotaMap)
                 .map(map -> {
@@ -1569,6 +1545,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetBacklogQuota(asyncResponse, backlogQuotaType, backlogQuota);
     }
 
@@ -1585,6 +1562,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("topic") @Encoded String encodedTopic,
                                    @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemoveBacklogQuota(asyncResponse, backlogQuotaType);
     }
 
@@ -1600,6 +1578,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                              @PathParam("topic") @Encoded String encodedTopic,
                              @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         return getTopicPolicies(topicName)
                 .map(TopicPolicies::getMessageTTLInSeconds)
                 .orElseGet(() -> {
@@ -1628,6 +1607,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                               @ApiParam(value = "TTL in seconds for the specified namespace", required = true)
                               @QueryParam("messageTTL") int messageTTL) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetMessageTTL(asyncResponse, messageTTL);
     }
 
@@ -1646,6 +1626,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                               @PathParam("namespace") String namespace,
                               @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetMessageTTL(asyncResponse, null);
     }
 
@@ -1663,6 +1644,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                              @PathParam("topic") @Encoded String encodedTopic,
                              @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalGetDeduplication(applied).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed get Deduplication", ex);
@@ -1691,6 +1673,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "DeduplicationEnabled policies for the specified topic")
                     Boolean enabled) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetDeduplication(enabled).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed updated deduplication", ex);
@@ -1734,6 +1717,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             internalGetRetention(asyncResponse, applied);
         } catch (RestException e) {
@@ -1758,6 +1742,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetRetention(retention).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed updated retention", ex);
@@ -1793,6 +1778,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                              @PathParam("namespace") String namespace,
                              @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemoveRetention().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed updated retention", ex);
@@ -1820,6 +1806,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                @PathParam("namespace") String namespace,
                                @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<PersistencePolicies> persistencePolicies = internalGetPersistence();
             if (!persistencePolicies.isPresent()) {
@@ -1850,6 +1837,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                @ApiParam(value = "Bookkeeper persistence policies for specified topic")
                                        PersistencePolicies persistencePolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetPersistence(persistencePolicies).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed updated persistence policies", ex);
@@ -1885,6 +1873,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                   @PathParam("namespace") String namespace,
                                   @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemovePersistence().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed updated retention", ex);
@@ -1912,6 +1901,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("namespace") String namespace,
                                 @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<Integer> maxSubscriptionsPerTopic = internalGetMaxSubscriptionsPerTopic();
             if (!maxSubscriptionsPerTopic.isPresent()) {
@@ -1941,6 +1931,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic,
                                 @ApiParam(value = "The max subscriptions of the topic") int maxSubscriptionsPerTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Updating maxSubscriptionsPerTopic failed", ex);
@@ -1970,6 +1961,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetMaxSubscriptionsPerTopic(null).whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove maxSubscriptionsPerTopic", ex);
@@ -1997,6 +1989,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                           @PathParam("namespace") String namespace,
                                           @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<DispatchRate> dispatchRate = internalGetReplicatorDispatchRate();
             if (dispatchRate.isPresent()) {
@@ -2027,6 +2020,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                           @ApiParam(value = "Replicator dispatch rate of the topic")
                                                       DispatchRate dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetReplicatorDispatchRate(dispatchRate).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Updating replicatorDispatchRate failed", ex);
@@ -2056,6 +2050,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                @PathParam("namespace") String namespace,
                                                @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetReplicatorDispatchRate(null).whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove replicatorDispatchRate", ex);
@@ -2082,6 +2077,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic,
                                 @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalGetMaxProducers(applied).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed get maxProducers", ex);
@@ -2110,6 +2106,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic,
                                 @ApiParam(value = "The max producers of the topic") int maxProducers) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetMaxProducers(maxProducers).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed updated persistence policies", ex);
@@ -2141,6 +2138,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemoveMaxProducers().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove maxProducers", ex);
@@ -2169,6 +2167,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic,
                                 @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalGetMaxConsumers(applied).whenComplete((res, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed get maxConsumers", ex);
@@ -2197,6 +2196,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic,
                                 @ApiParam(value = "The max consumers of the topic") int maxConsumers) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetMaxConsumers(maxConsumers).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed updated persistence policies", ex);
@@ -2228,6 +2228,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemoveMaxConsumers().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove maxConsumers", ex);
@@ -2255,6 +2256,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                   @PathParam("namespace") String namespace,
                                   @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<Integer> policies = internalGetMaxMessageSize();
             if (policies.isPresent()) {
@@ -2284,6 +2286,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                   @PathParam("topic") @Encoded String encodedTopic,
                                   @ApiParam(value = "The max message size of the topic") int maxMessageSize) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetMaxMessageSize(maxMessageSize).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed updated persistence policies", ex);
@@ -2315,6 +2318,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetMaxMessageSize(null).whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove maxMessageSize", ex);
@@ -2545,6 +2549,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<DispatchRate> dispatchRate = internalGetDispatchRate();
             if (!dispatchRate.isPresent()) {
@@ -2573,6 +2578,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic,
                                 @ApiParam(value = "Dispatch rate for the specified topic") DispatchRate dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetDispatchRate(dispatchRate).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed to set topic dispatch rate", ex);
@@ -2608,6 +2614,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemoveDispatchRate().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove topic dispatch rate", ex);
@@ -2636,6 +2643,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<DispatchRate> dispatchRate = internalGetSubscriptionDispatchRate();
             if (!dispatchRate.isPresent()) {
@@ -2666,6 +2674,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Subscription message dispatch rate for the specified topic")
                     DispatchRate dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetSubscriptionDispatchRate(dispatchRate).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed to set topic: {} subscription dispatch rate", topicName.getLocalName(), ex);
@@ -2701,6 +2710,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemoveSubscriptionDispatchRate().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove topic: {} subscription dispatch rate", topicName.getLocalName(), ex);
@@ -2729,6 +2739,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                        @PathParam("namespace") String namespace,
                                        @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<Long> compactionThreshold = internalGetCompactionThreshold();
             if (!compactionThreshold.isPresent()) {
@@ -2757,6 +2768,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic,
                                 @ApiParam(value = "Dispatch rate for the specified topic") long compactionThreshold) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetCompactionThreshold(compactionThreshold).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed to set topic dispatch rate", ex);
@@ -2792,6 +2804,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemoveCompactionThreshold().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove topic dispatch rate", ex);
@@ -2820,6 +2833,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                        @PathParam("namespace") String namespace,
                                        @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<Integer> maxConsumersPerSubscription = internalGetMaxConsumersPerSubscription();
             if (!maxConsumersPerSubscription.isPresent()) {
@@ -2849,6 +2863,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Dispatch rate for the specified topic") int maxConsumersPerSubscription) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed to set topic {} max consumers per subscription ", topicName.getLocalName(), ex);
@@ -2884,6 +2899,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                           @PathParam("namespace") String namespace,
                                           @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemoveMaxConsumersPerSubscription().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove topic {} max consuners per subscription", topicName.getLocalName(), ex);
@@ -2913,6 +2929,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<PublishRate> publishRate = internalGetPublishRate();
             if (!publishRate.isPresent()) {
@@ -2941,6 +2958,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic,
                                 @ApiParam(value = "Dispatch rate for the specified topic") PublishRate publishRate) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetPublishRate(publishRate).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed to set topic dispatch rate", ex);
@@ -2976,6 +2994,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                             @PathParam("namespace") String namespace,
                                             @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<List<SubType>> subscriptionTypesEnabled = internalGetSubscriptionTypesEnabled();
             if (!subscriptionTypesEnabled.isPresent()) {
@@ -3008,6 +3027,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                             @ApiParam(value = "Enable sub types for the specified topic")
                                                         Set<SubscriptionType> subscriptionTypesEnabled) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetSubscriptionTypesEnabled(subscriptionTypesEnabled).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed to set topic is enable sub types", ex);
@@ -3043,6 +3063,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemovePublishRate().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove topic publish rate", ex);
@@ -3071,6 +3092,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("namespace") String namespace,
                                 @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         try {
             Optional<SubscribeRate> subscribeRate = internalGetSubscribeRate();
             if (!subscribeRate.isPresent()) {
@@ -3100,6 +3122,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Subscribe rate for the specified topic") SubscribeRate subscribeRate) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalSetSubscribeRate(subscribeRate).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed to set topic {} subscribe rate", topicName.getLocalName(), ex);
@@ -3135,6 +3158,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
         internalRemoveSubscribeRate().whenComplete((r, ex) -> {
             if (ex != null) {
                 log.error("Failed to remove topic {} subscribe rate ", topicName.getLocalName(), ex);
