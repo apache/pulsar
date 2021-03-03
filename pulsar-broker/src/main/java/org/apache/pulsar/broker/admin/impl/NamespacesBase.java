@@ -377,9 +377,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         List<String> topics;
         try {
-            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
-            topics.addAll(getPartitionedTopicList(TopicDomain.persistent));
-            topics.addAll(getPartitionedTopicList(TopicDomain.non_persistent));
+            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName).join();
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;

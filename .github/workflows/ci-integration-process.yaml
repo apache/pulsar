@@ -87,14 +87,6 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
 
-      - name: run integration function
+      - name: run integration tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=function
-
-      - name: run integration source
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=source
-
-      - name: run integraion sink
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=sink
+        run: ./build/run_integration_group.sh PULSAR_CONNECTORS_PROCESS
