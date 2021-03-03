@@ -117,6 +117,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         LOG.info("Kafka source stopped.");
     }
 
+    @SuppressWarnings("unchecked")
     public void start() {
         runnerThread = new Thread(() -> {
             LOG.info("Starting kafka source on {}", kafkaSourceConfig.getTopic());
