@@ -1852,9 +1852,9 @@ Subcommands
 * `get-inactive-topic-policies`
 * `set-inactive-topic-policies`
 * `remove-inactive-topic-policies`
-* `set-max-subscriptions`
-* `get-max-subscriptions`
-* `remove-max-subscriptions`
+* `set-max-subscriptions-per-topic`
+* `get-max-subscriptions-per-topic`
+* `remove-max-subscriptions-per-topic`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -2386,28 +2386,28 @@ Usage
 $ pulsar-admin topics remove-deduplication tenant/namespace/topic
 ```
 
-### `set-max-subscriptions`
+### `set-max-subscriptions-per-topic`
 Set the maximum number of subscriptions for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics set-max-subscriptions tenant/namespace/topic options
+$ pulsar-admin topics set-max-subscriptions-per-topic {persistent|non-persistent}://tenant/namespace/topic options
 ```
 
-### `get-max-subscriptions`
+### `get-max-subscriptions-per-topic`
 Get the maximum number of subscriptions for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics get-max-subscriptions tenant/namespace/topic
+$ pulsar-admin topics get-max-subscriptions-per-topic {persistent|non-persistent}://tenant/namespace/topic
 ```
 
-### `remove-max-subscriptions`
+### `remove-max-subscriptions-per-topic`
 Remove the maximum number of subscriptions for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics remove-max-subscriptions tenant/namespace/topic
+$ pulsar-admin topics remove-max-subscriptions-per-topic {persistent|non-persistent}://tenant/namespace/topic
 ```
 
 ## `tenants`
