@@ -126,8 +126,6 @@ public interface Dispatcher {
 
     /**
      * Checks if dispatcher is stuck and unblocks the dispatch if needed.
-     * 
-     * @return
      */
     default boolean checkAndUnblockIfStuck() {
         return false;
