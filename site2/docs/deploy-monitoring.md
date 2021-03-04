@@ -57,7 +57,7 @@ http://$BOOKIE_ADDRESS:8000/metrics
 
 The default port for bookie is `8000`. You can change the port by configuring `prometheusStatsHttpPort` in the `conf/bookkeeper.conf` file.
 
-### Managed Cursor Acknowledgment state
+### Managed cursor acknowledgment state
 The acknowledgment state is persistent to the ledger first. When the acknowledgment state fails to be persistent to the ledger, they are persistent to ZooKeeper. To track the stats of acknowledgement, you can configure the metrics for the managed cursor. 
 
 ```
