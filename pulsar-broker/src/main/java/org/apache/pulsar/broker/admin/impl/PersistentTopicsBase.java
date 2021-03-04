@@ -36,11 +36,11 @@ import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -202,7 +202,7 @@ public class PersistentTopicsBase extends AdminResource {
             Policies policies = policiesCache().get(path(POLICIES, namespaceName.toString()))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
 
-            Map<String, Set<AuthAction>> permissions = Maps.newTreeMap();
+            Map<String, Set<AuthAction>> permissions = Maps.newHashMap();
             AuthPolicies auth = policies.auth_policies;
 
             // First add namespace level permissions
@@ -330,7 +330,7 @@ public class PersistentTopicsBase extends AdminResource {
             Policies policies = jsonMapper().readValue(content, Policies.class);
 
             if (!policies.auth_policies.destination_auth.containsKey(topicUri)) {
-                policies.auth_policies.destination_auth.put(topicUri, new TreeMap<String, Set<AuthAction>>());
+                policies.auth_policies.destination_auth.put(topicUri, new HashMap<>());
             }
 
             policies.auth_policies.destination_auth.get(topicUri).put(role, actions);
