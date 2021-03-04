@@ -1367,12 +1367,16 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newGetLastMessageIdResponse(long requestId, MessageIdData messageIdData) {
+    public static ByteBuf newGetLastMessageIdResponse(long requestId, MessageIdData messageIdData,
+                                                      MessageIdData consumerMarkDeletePosition) {
         PulsarApi.CommandGetLastMessageIdResponse.Builder response =
             PulsarApi.CommandGetLastMessageIdResponse.newBuilder()
             .setLastMessageId(messageIdData)
             .setRequestId(requestId);
 
+        if (consumerMarkDeletePosition != null) {
+            response.setConsumerMarkDeletePosition(consumerMarkDeletePosition);
+        }
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
             .setType(Type.GET_LAST_MESSAGE_ID_RESPONSE)
             .setGetLastMessageIdResponse(response.build()));

@@ -72,6 +72,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -1511,10 +1512,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             Topic topic = consumer.getSubscription().getTopic();
             Position position = topic.getLastPosition();
             int partitionIndex = TopicName.getPartitionIndex(topic.getName());
+            Position markDeletePosition = null;
+            if (consumer.getSubscription() instanceof PersistentSubscription) {
+                markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor().getMarkDeletedPosition();
+            }
 
             getLargestBatchIndexWhenPossible(
                     topic,
                     (PositionImpl) position,
+                    (PositionImpl) markDeletePosition,
                     partitionIndex,
                     requestId,
                     consumer.getSubscription().getName());
@@ -1527,6 +1533,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void getLargestBatchIndexWhenPossible(
             Topic topic,
             PositionImpl position,
+            PositionImpl markDeletePosition,
             int partitionIndex,
             long requestId,
             String subscriptionName) {
@@ -1541,7 +1548,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .setEntryId(position.getEntryId())
                     .setPartition(partitionIndex).build();
 
-            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
+            MessageIdData markDeleteMessageId = null;
+            if (null != markDeletePosition) {
+                markDeleteMessageId = MessageIdData.newBuilder()
+                    .setLedgerId(markDeletePosition.getLedgerId())
+                    .setEntryId(markDeletePosition.getEntryId()).build();
+            }
+            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId, markDeleteMessageId));
             return;
         }
 
@@ -1583,8 +1596,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .setEntryId(position.getEntryId())
                         .setPartition(partitionIndex)
                         .setBatchIndex(largestBatchIndex).build();
-
-                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
+                MessageIdData markDeleteMessageId = null;
+                if (null != markDeletePosition) {
+                    markDeleteMessageId = MessageIdData.newBuilder()
+                        .setLedgerId(markDeletePosition.getLedgerId())
+                        .setEntryId(markDeletePosition.getEntryId()).build();
+                }
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId, markDeleteMessageId));
             }
         });
     }
