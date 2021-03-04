@@ -44,13 +44,4 @@ public class Field {
      */
     private final int index;
 
-    /**
-     * This method can be used to access the underlying implementation schema information
-     * @param api
-     * @return the internal type
-     */
-    public <T> T unwrap(Class<T> api) {
-        return null;
-    }
-
 }

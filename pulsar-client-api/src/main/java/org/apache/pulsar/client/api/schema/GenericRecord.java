@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api.schema;
 import java.util.List;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * An interface represents a message with schema.
@@ -28,13 +29,6 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public interface GenericRecord {
-
-    /**
-     * Return schema version.
-     *
-     * @return schema version.
-     */
-    byte[] getSchemaVersion();
 
     /**
      * Returns the list of fields associated with the record.
@@ -60,5 +54,35 @@ public interface GenericRecord {
      * @return the value object
      */
     Object getField(String fieldName);
+
+    /**
+     * Return the schema tyoe.
+     *
+     * @return the schema type, or null if the information is not avilable
+     */
+    default SchemaType getSchemaType() {
+        return null;
+    }
+
+    /**
+     * Return schema version.
+     *
+     * @return schema version, or null if the information is not available.
+     */
+    default byte[] getSchemaVersion() {
+        return null;
+    }
+
+    /**
+     * Return the internal native representation of the Record,
+     * like a AVRO GenericRecord.
+     * You have to pass the type you would like to obtain.
+     * This method will return null if such type is not supported.
+     *
+     * @return the internal representation of the record, or null if the requested information is not available.
+     */
+    default <T> T getNativeRecord(Class<T> clazz) {
+        return null;
+    }
 
 }
