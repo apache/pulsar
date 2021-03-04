@@ -102,13 +102,13 @@ COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
 COPY --from=pulsar-all --chown=pulsar:0 /pulsar/offloaders /pulsar/offloaders
 
 # Include only the connectors needed by integration tests
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-cassandra-*.nar /pulsar/connectors
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-debezium-*.nar /pulsar/connectors
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-elastic-*.nar /pulsar/connectors
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-hdfs*.nar /pulsar/connectors
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/connectors
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors
-COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-cassandra-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-debezium-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-elastic-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-hdfs*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
 
 # change ownership of files
 RUN chown -R pulsar:0 /pulsar && chmod -R g=u /pulsar
