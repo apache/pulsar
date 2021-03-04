@@ -236,7 +236,7 @@ public class PulsarAdminToolTest {
         verify(mockTenants).getTenantInfo("my-tenant");
 
         tenants.run(split("delete my-tenant"));
-        verify(mockTenants).deleteTenant("my-tenant");
+        verify(mockTenants).deleteTenant("my-tenant", false);
     }
 
     @Test
