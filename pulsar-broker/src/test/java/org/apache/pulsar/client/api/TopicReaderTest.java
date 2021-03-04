@@ -36,8 +36,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import lombok.Cleanup;
-
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -1082,14 +1080,14 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .topic(topicName).create();
 
         //For batch-messages with single message, the type of client messageId should be the same as that of broker
-        MessageIdImpl messageId = (MessageIdImpl) producer.send("msg".getBytes());
+        MessageId messageId = producer.send("msg".getBytes());
         assertTrue(messageId instanceof MessageIdImpl);
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>)pulsarClient.newReader().topic(topicName)
                 .startMessageId(messageId).startMessageIdInclusive().create();
-        MessageIdImpl lastMsgId = (MessageIdImpl) reader.getConsumer().getLastMessageId();
+        MessageId lastMsgId = reader.getConsumer().getLastMessageId();
+        assertTrue(lastMsgId instanceof BatchMessageIdImpl);
         assertTrue(messageId instanceof BatchMessageIdImpl);
-        assertEquals(lastMsgId.getLedgerId(), messageId.getLedgerId());
-        assertEquals(lastMsgId.getEntryId(), messageId.getEntryId());
+        assertEquals(lastMsgId, messageId);
         reader.close();
 
         CountDownLatch latch = new CountDownLatch(numOfMessage);
@@ -1127,7 +1125,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         //For non-batch message, the type of client messageId should be the same as that of broker
         producer = pulsarClient.newProducer()
                 .enableBatching(false).topic(topicName).create();
-        messageId = (MessageIdImpl) producer.send("non-batch".getBytes());
+        messageId = producer.send("non-batch".getBytes());
         assertFalse(messageId instanceof BatchMessageIdImpl);
         assertTrue(messageId instanceof MessageIdImpl);
         reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
@@ -1556,60 +1554,5 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         producer.close();
-    }
-
-    @Test
-    public void testHasMessageAvailableOnEmptyTopic() throws Exception {
-        String topic = newTopicName();
-
-        @Cleanup
-        Reader<String> r1 = pulsarClient.newReader(Schema.STRING)
-                .topic(topic)
-                .startMessageId(MessageId.earliest)
-                .create();
-
-        @Cleanup
-        Reader<String> r2 = pulsarClient.newReader(Schema.STRING)
-                .topic(topic)
-                .startMessageId(MessageId.latest)
-                .create();
-
-        @Cleanup
-        Reader<String> r2Inclusive = pulsarClient.newReader(Schema.STRING)
-                .topic(topic)
-                .startMessageId(MessageId.latest)
-                .startMessageIdInclusive()
-                .create();
-
-        // no data write, should return false
-        assertFalse(r1.hasMessageAvailable());
-        assertFalse(r2.hasMessageAvailable());
-        assertFalse(r2Inclusive.hasMessageAvailable());
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-
-        producer.send("hello-1");
-        assertTrue(r1.hasMessageAvailable());
-        assertTrue(r2.hasMessageAvailable());
-        assertTrue(r2Inclusive.hasMessageAvailable());
-
-        @Cleanup
-        Reader<String> r3 = pulsarClient.newReader(Schema.STRING)
-                .topic(topic)
-                .startMessageId(MessageId.latest)
-                .create();
-
-
-        assertFalse(r3.hasMessageAvailable());
-
-        producer.send("hello-2");
-
-        assertTrue(r1.hasMessageAvailable());
-        assertTrue(r2.hasMessageAvailable());
-        assertTrue(r2Inclusive.hasMessageAvailable());
-        assertTrue(r3.hasMessageAvailable());
     }
 }

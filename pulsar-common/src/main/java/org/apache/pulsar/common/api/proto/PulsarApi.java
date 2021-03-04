@@ -28223,10 +28223,6 @@ public final class PulsarApi {
     // required uint64 request_id = 2;
     boolean hasRequestId();
     long getRequestId();
-    
-    // optional .pulsar.proto.MessageIdData consumer_mark_delete_position = 3;
-    boolean hasConsumerMarkDeletePosition();
-    org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getConsumerMarkDeletePosition();
   }
   public static final class CommandGetLastMessageIdResponse extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -28283,20 +28279,9 @@ public final class PulsarApi {
       return requestId_;
     }
     
-    // optional .pulsar.proto.MessageIdData consumer_mark_delete_position = 3;
-    public static final int CONSUMER_MARK_DELETE_POSITION_FIELD_NUMBER = 3;
-    private org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData consumerMarkDeletePosition_;
-    public boolean hasConsumerMarkDeletePosition() {
-      return ((bitField0_ & 0x00000004) == 0x00000004);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getConsumerMarkDeletePosition() {
-      return consumerMarkDeletePosition_;
-    }
-    
     private void initFields() {
       lastMessageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
       requestId_ = 0L;
-      consumerMarkDeletePosition_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -28314,12 +28299,6 @@ public final class PulsarApi {
       if (!getLastMessageId().isInitialized()) {
         memoizedIsInitialized = 0;
         return false;
-      }
-      if (hasConsumerMarkDeletePosition()) {
-        if (!getConsumerMarkDeletePosition().isInitialized()) {
-          memoizedIsInitialized = 0;
-          return false;
-        }
       }
       memoizedIsInitialized = 1;
       return true;
@@ -28339,9 +28318,6 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeUInt64(2, requestId_);
       }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeMessage(3, consumerMarkDeletePosition_);
-      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -28357,10 +28333,6 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
-      }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeMessageSize(3, consumerMarkDeletePosition_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -28479,8 +28451,6 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         requestId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000002);
-        consumerMarkDeletePosition_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
-        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -28522,10 +28492,6 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.requestId_ = requestId_;
-        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
-          to_bitField0_ |= 0x00000004;
-        }
-        result.consumerMarkDeletePosition_ = consumerMarkDeletePosition_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -28537,9 +28503,6 @@ public final class PulsarApi {
         }
         if (other.hasRequestId()) {
           setRequestId(other.getRequestId());
-        }
-        if (other.hasConsumerMarkDeletePosition()) {
-          mergeConsumerMarkDeletePosition(other.getConsumerMarkDeletePosition());
         }
         return this;
       }
@@ -28556,12 +28519,6 @@ public final class PulsarApi {
         if (!getLastMessageId().isInitialized()) {
           
           return false;
-        }
-        if (hasConsumerMarkDeletePosition()) {
-          if (!getConsumerMarkDeletePosition().isInitialized()) {
-            
-            return false;
-          }
         }
         return true;
       }
@@ -28601,16 +28558,6 @@ public final class PulsarApi {
             case 16: {
               bitField0_ |= 0x00000002;
               requestId_ = input.readUInt64();
-              break;
-            }
-            case 26: {
-              org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder();
-              if (hasConsumerMarkDeletePosition()) {
-                subBuilder.mergeFrom(getConsumerMarkDeletePosition());
-              }
-              input.readMessage(subBuilder, extensionRegistry);
-              setConsumerMarkDeletePosition(subBuilder.buildPartial());
-              subBuilder.recycle();
               break;
             }
           }
@@ -28680,49 +28627,6 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000002);
         requestId_ = 0L;
         
-        return this;
-      }
-      
-      // optional .pulsar.proto.MessageIdData consumer_mark_delete_position = 3;
-      private org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData consumerMarkDeletePosition_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
-      public boolean hasConsumerMarkDeletePosition() {
-        return ((bitField0_ & 0x00000004) == 0x00000004);
-      }
-      public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getConsumerMarkDeletePosition() {
-        return consumerMarkDeletePosition_;
-      }
-      public Builder setConsumerMarkDeletePosition(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        consumerMarkDeletePosition_ = value;
-        
-        bitField0_ |= 0x00000004;
-        return this;
-      }
-      public Builder setConsumerMarkDeletePosition(
-          org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
-        consumerMarkDeletePosition_ = builderForValue.build();
-        
-        bitField0_ |= 0x00000004;
-        return this;
-      }
-      public Builder mergeConsumerMarkDeletePosition(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
-        if (((bitField0_ & 0x00000004) == 0x00000004) &&
-            consumerMarkDeletePosition_ != org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance()) {
-          consumerMarkDeletePosition_ =
-            org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder(consumerMarkDeletePosition_).mergeFrom(value).buildPartial();
-        } else {
-          consumerMarkDeletePosition_ = value;
-        }
-        
-        bitField0_ |= 0x00000004;
-        return this;
-      }
-      public Builder clearConsumerMarkDeletePosition() {
-        consumerMarkDeletePosition_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
-        
-        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
