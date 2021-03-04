@@ -56,7 +56,11 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
     @Override
     public void write(Record<byte[]> sourceRecord) {
         KeyValue<K, V> keyValue = extractKeyValue(sourceRecord);
-        ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), keyValue.getKey(), keyValue.getValue());
+        KeyValue<Schema, Schema> keyValueSchemas = extractKeyValueSchemas(sourceRecord);
+
+        ProducerRecord<K, V> record = new ProducerRecordWithSchema<K, V>(kafkaSinkConfig.getTopic(),
+                keyValue.getKey(), keyValue.getValue(),
+                keyValueSchemas.getKey(), keyValueSchemas.getValue());
         if (log.isDebugEnabled()) {
             log.debug("Record sending to kafka, record={}.", record);
         }
@@ -158,4 +162,6 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
     }
 
     public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> message);
+
+    public abstract KeyValue<Schema, Schema> extractKeyValueSchemas(Record<byte[]> message);
 }

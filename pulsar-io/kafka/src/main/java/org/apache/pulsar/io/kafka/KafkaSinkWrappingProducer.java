@@ -56,20 +56,20 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     private final SinkConnector connector;
     private final SinkTask task;
-    private final Schema keySchema;
-    private final Schema valueSchema;
+    private final Schema defaultKeySchema;
+    private final Schema defaultValueSchema;
 
     // todo: per topic
     private final AtomicLong offset = new AtomicLong(0);
 
     public KafkaSinkWrappingProducer(SinkConnector connector,
                                      SinkTask task,
-                                     Schema keySchema,
-                                     Schema valueSchema) {
+                                     Schema defaultKeySchema,
+                                     Schema defaultValueSchema) {
         this.connector = connector;
         this.task = task;
-        this.keySchema = keySchema;
-        this.valueSchema = valueSchema;
+        this.defaultKeySchema = defaultKeySchema;
+        this.defaultValueSchema = defaultValueSchema;
     }
 
     @Override
@@ -99,8 +99,18 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     }
 
     private SinkRecord toSinkRecord(ProducerRecord<K, V> producerRecord) {
+        int partition = producerRecord.partition() == null ? 0 : producerRecord.partition();
+        Schema keySchema = defaultKeySchema;
+        Schema valueSchema = defaultValueSchema;
+
+        if (producerRecord instanceof ProducerRecordWithSchema) {
+            ProducerRecordWithSchema rec = (ProducerRecordWithSchema) producerRecord;
+            keySchema = rec.getKeySchema();
+            valueSchema = rec.getValueSchema();
+        }
+
         SinkRecord sinkRecord = new SinkRecord(producerRecord.topic(),
-                producerRecord.partition() == null ? 0 : producerRecord.partition(),
+                partition,
                 keySchema,
                 producerRecord.key(),
                 valueSchema,

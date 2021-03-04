@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.connect.data.Schema;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -53,5 +54,12 @@ public class KafkaBytesSink extends KafkaAbstractSink<String, byte[]> {
     @Override
     public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
         return new KeyValue<>(record.getKey().orElse(null), record.getValue());
+    }
+
+    @Override
+    public KeyValue<Schema, Schema> extractKeyValueSchemas(Record<byte[]> record) {
+        Schema keySchema = Schema.STRING_SCHEMA;
+        Schema valueSchema = Schema.BYTES_SCHEMA;
+        return new KeyValue(keySchema, valueSchema);
     }
 }
