@@ -2067,15 +2067,14 @@ public abstract class NamespacesBase extends AdminResource {
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_consumer;
     }
 
-    protected void internalSetMaxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
+    protected void internalSetMaxUnackedMessagesPerConsumer(Integer maxUnackedMessagesPerConsumer) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-
+        if (maxUnackedMessagesPerConsumer != null && maxUnackedMessagesPerConsumer < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedMessagesPerConsumer must be 0 or more");
+        }
         try {
-            if (maxUnackedMessagesPerConsumer < 0) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "maxUnackedMessagesPerConsumer must be 0 or more");
-            }
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies)->{
                 policies.max_unacked_messages_per_consumer = maxUnackedMessagesPerConsumer;

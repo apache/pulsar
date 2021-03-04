@@ -1123,6 +1123,12 @@ flexible messaging model and an intuitive client API.</description>
           </annotationProcessorPaths>
           <compilerArgs>
             <arg>-parameters</arg>
+            <!-- enable 'all' lint warnings with some exclusions -->
+            <arg>-Xlint:all</arg>
+            <arg>-Xlint:-options</arg>
+            <arg>-Xlint:-serial</arg>
+            <arg>-Xlint:-classfile</arg>
+            <arg>-Xlint:-processing</arg>
           </compilerArgs>
         </configuration>
       </plugin>
