@@ -96,6 +96,7 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -3896,13 +3897,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         GenericRecord res = consumer.receive().getValue();
         consumer.close();
+        assertEquals(SchemaType.AVRO, res.getSchemaType());
+        org.apache.avro.generic.GenericRecord nativeRecord = res.getNativeRecord(org.apache.avro.generic.GenericRecord.class);
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
             log.info("field {} {}", f.getName(), res.getField(f));
             assertEquals("field", f.getName());
             assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
-            org.apache.avro.Schema.Field fieldDetails = f.unwrap(org.apache.avro.Schema.Field.class);
-
+            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", nativeRecord.get(f.getName()));
         }
+
         assertEquals(1, res.getFields().size());
     }
 
@@ -3932,11 +3935,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         GenericRecord res = consumer.receive().getValue();
         consumer.close();
+        assertEquals(SchemaType.AVRO, res.getSchemaType());
+        org.apache.avro.generic.GenericRecord nativeRecord = res.getNativeRecord(org.apache.avro.generic.GenericRecord.class);
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
             log.info("field {} {}", f.getName(), res.getField(f));
             assertEquals("field", f.getName());
             assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
-            org.apache.avro.Schema.Field fieldDetails = f.unwrap(org.apache.avro.Schema.Field.class);
+
+            // test that the native schema is accessible
+            org.apache.avro.Schema.Field fieldDetails = nativeRecord.getSchema().getField(f.getName());
             // a nullable string is an UNION
             assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
             assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s->s.getType() == org.apache.avro.Schema.Type.STRING));
