@@ -43,6 +43,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -88,6 +89,28 @@ public class BrokersBase extends PulsarWebResource {
             return new HashSet<>(dynamicConfigurationResources().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT));
         } catch (Exception e) {
             LOG.error("[{}] Failed to get active broker list: cluster={}", clientAppId(), cluster, e);
+            throw new RestException(e);
+        }
+    }
+
+    @GET
+    @Path("/leaderBroker")
+    @ApiOperation(
+            value = "Get the service url of the leader broker in the cluster.",
+            response = String.class)
+    @ApiResponses(
+            value = {
+                    @ApiResponse(code = 401, message = "Authentication required"),
+                    @ApiResponse(code = 403, message = "This operation requires super-user access") })
+    public String getLeaderBroker() throws Exception {
+        validateSuperUserAccess();
+
+        try {
+            return pulsar().getLeaderElectionService().getCurrentLeader()
+                    .map(LeaderBroker::getServiceUrl)
+                    .orElse("None");
+        } catch (Exception e) {
+            LOG.error("[{}] Failed to get the service url of the leader broker.", clientAppId(), e);
             throw new RestException(e);
         }
     }

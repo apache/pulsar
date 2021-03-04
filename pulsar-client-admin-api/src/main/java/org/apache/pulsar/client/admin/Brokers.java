@@ -73,6 +73,40 @@ public interface Brokers {
     CompletableFuture<List<String>> getActiveBrokersAsync(String cluster);
 
     /**
+     * Get the service url of the leader broker.
+     * <p/>
+     * Get the service url of the leader broker.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>"prod1-broker1.messaging.use.example.com:8080"</code>
+     * </pre>
+     *
+     * @return the service url of the leader broker
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    String getLeaderBroker() throws PulsarAdminException;
+
+    /**
+     * Get the service url of the leader broker asynchronously.
+     * <p/>
+     * Get the service url of the leader broker.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>"prod1-broker1.messaging.use.example.com:8080"</code>
+     * </pre>
+     *
+     * @return the service url of the leader broker
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    CompletableFuture<String> getLeaderBrokerAsync() throws PulsarAdminException;
+
+    /**
      * Get the map of owned namespaces and their status from a single broker in the cluster.
      * <p/>
      * The map is returned in a JSON object format below
