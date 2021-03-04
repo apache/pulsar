@@ -58,10 +58,11 @@ public interface GenericRecord {
     /**
      * Return the schema tyoe.
      *
-     * @return the schema type, or null if the information is not avilable
+     * @return the schema type
+     * @throws UnsupportedOperationException if this feature is not implemented
      */
     default SchemaType getSchemaType() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     /**
