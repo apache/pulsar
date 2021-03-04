@@ -70,6 +70,7 @@ import org.apache.pulsar.broker.admin.v2.SchemasResource;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
@@ -620,6 +621,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Set<String> activeBrokers = brokers.getActiveBrokers("use");
         assertEquals(activeBrokers.size(), 1);
         assertEquals(activeBrokers, Sets.newHashSet(pulsar.getAdvertisedAddress() + ":" + pulsar.getListenPortHTTP().get()));
+
+        String leaderBroker = brokers.getLeaderBroker();
+        assertEquals(leaderBroker, pulsar.getLeaderElectionService().getCurrentLeader()
+                .map(LeaderBroker::getServiceUrl)
+                .orElse("None"));
     }
 
     @Test
