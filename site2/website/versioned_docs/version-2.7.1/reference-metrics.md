@@ -96,31 +96,20 @@ All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}
 
 The following metrics are available for broker:
 
-- [ZooKeeper](#zookeeper)
-  - [Server metrics](#server-metrics)
-  - [Request metrics](#request-metrics)
-- [BookKeeper](#bookkeeper)
-  - [Server metrics](#server-metrics-1)
-  - [Journal metrics](#journal-metrics)
-  - [Storage metrics](#storage-metrics)
-- [Broker](#broker)
-  - [Namespace metrics](#namespace-metrics)
-    - [Replication metrics](#replication-metrics)
-  - [Topic metrics](#topic-metrics)
-    - [Replication metrics](#replication-metrics-1)
-  - [ManagedLedgerCache metrics](#managedledgercache-metrics)
-  - [ManagedLedger metrics](#managedledger-metrics)
-  - [LoadBalancing metrics](#loadbalancing-metrics)
-    - [BundleUnloading metrics](#bundleunloading-metrics)
-    - [BundleSplit metrics](#bundlesplit-metrics)
-  - [Subscription metrics](#subscription-metrics)
-  - [Consumer metrics](#consumer-metrics)
-  - [Managed ledger bookie client metrics](#managed-ledger-bookie-client-metrics)
-  - [Token metrics](#token-metrics)
-  - [Authentication metrics](#authentication-metrics)
-- [Pulsar Functions](#pulsar-functions)
-- [Proxy](#proxy)
-- [Pulsar SQL Worker](#pulsar-sql-worker)
+* [Namespace metrics](#namespace-metrics)
+    * [Replication metrics](#replication-metrics)
+* [Topic metrics](#topic-metrics)
+    * [Replication metrics](#replication-metrics-1)
+* [ManagedLedgerCache metrics](#managedledgercache-metrics)
+* [ManagedLedger metrics](#managedledger-metrics)
+* [LoadBalancing metrics](#loadbalancing-metrics)
+    * [BundleUnloading metrics](#bundleunloading-metrics)
+    * [BundleSplit metrics](#bundlesplit-metrics)
+* [Subscription metrics](#subscription-metrics)
+* [Consumer metrics](#consumer-metrics)
+* [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
+* [Token metrics](#token-metrics)
+* [Authentication metrics](#authentication-metrics) 
 
 ### Namespace metrics
 
@@ -369,12 +358,9 @@ All the token metrics are labelled with the following labels:
 All the authentication metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
-
 - *provider_name*: `provider_name=${provider_name}`. `${provider_name}` is the class name of the authentication provider.
-
 - *auth_method*: `auth_method=${auth_method}`. `${auth_method}` is the authentication method of the authentication provider.
-
--  *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_count`)
+- *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_count`.)
 
 | Name | Type | Description |
 |---|---|---|
