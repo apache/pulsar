@@ -19,6 +19,7 @@
 package org.apache.pulsar.sql.presto.util;
 
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -28,25 +29,20 @@ public class NoStrictCacheSizeAllocator implements CacheSizeAllocator {
 
     private final long maxCacheSize;
     private final LongAdder availableCacheSize;
-    private final ReentrantReadWriteLock lock;
+    private final ReentrantLock lock;
 
     public NoStrictCacheSizeAllocator(long maxCacheSize) {
         this.maxCacheSize = maxCacheSize;
         this.availableCacheSize = new LongAdder();
         this.availableCacheSize.add(maxCacheSize);
-        this.lock = new ReentrantReadWriteLock();
+        this.lock = new ReentrantLock();
     }
 
     public long getAvailableCacheSize() {
-        try {
-            lock.readLock().lock();
-            if (availableCacheSize.longValue() < 0) {
-                return 0;
-            }
-            return availableCacheSize.longValue();
-        } finally {
-            lock.readLock().unlock();
+        if (availableCacheSize.longValue() < 0) {
+            return 0;
         }
+        return availableCacheSize.longValue();
     }
 
     /**
@@ -59,10 +55,10 @@ public class NoStrictCacheSizeAllocator implements CacheSizeAllocator {
      */
     public void allocate(long size) {
         try {
-            lock.writeLock().lock();
+            lock.lock();
             availableCacheSize.add(-size);
         } finally {
-            lock.writeLock().unlock();
+            lock.unlock();
         }
     }
 
@@ -74,14 +70,14 @@ public class NoStrictCacheSizeAllocator implements CacheSizeAllocator {
      */
     public void release(long size) {
         try {
-            lock.writeLock().lock();
+            lock.lock();
             availableCacheSize.add(size);
             if (availableCacheSize.longValue() > maxCacheSize) {
                 availableCacheSize.reset();
                 availableCacheSize.add(maxCacheSize);
             }
         } finally {
-            lock.writeLock().unlock();
+            lock.unlock();
         }
     }
 
