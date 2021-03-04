@@ -68,7 +68,7 @@ public abstract class AbstractFileTests {
         executor = Executors.newFixedThreadPool(10);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         // Shutdown all of the processing threads
         stopThreads();

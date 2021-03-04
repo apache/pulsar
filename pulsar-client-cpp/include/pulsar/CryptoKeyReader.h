@@ -62,6 +62,8 @@ class PULSAR_PUBLIC CryptoKeyReader {
 
 }; /* namespace pulsar */
 
+typedef std::shared_ptr<CryptoKeyReader> CryptoKeyReaderPtr;
+
 class PULSAR_PUBLIC DefaultCryptoKeyReader : public CryptoKeyReader {
    private:
     std::string publicKeyPath_;
@@ -76,9 +78,9 @@ class PULSAR_PUBLIC DefaultCryptoKeyReader : public CryptoKeyReader {
                         EncryptionKeyInfo& encKeyInfo) const;
     Result getPrivateKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
                          EncryptionKeyInfo& encKeyInfo) const;
+    static CryptoKeyReaderPtr create(const std::string& publicKeyPath, const std::string& privateKeyPath);
 }; /* namespace pulsar */
 
-typedef std::shared_ptr<CryptoKeyReader> CryptoKeyReaderPtr;
 }  // namespace pulsar
 
 #endif /* CRYPTOKEYREADER_H_ */

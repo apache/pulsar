@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 import java.net.URL;
@@ -89,4 +90,23 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals(emptyOverrideWc.getFunctionAuthProviderClassName(),"org.apache.my.overridden.auth");
     }
 
+    @Test
+    public void testLoadResourceRestrictionsConfig() throws Exception {
+        URL emptyUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        WorkerConfig emptyWc = WorkerConfig.load(emptyUrl.toURI().getPath());
+        assertNull(emptyWc.getFunctionInstanceMinResources());
+        assertNull(emptyWc.getFunctionInstanceMaxResources());
+
+        URL newK8SUrl = getClass().getClassLoader().getResource("test_worker_k8s_resource_config.yml");
+        WorkerConfig newK8SWc = WorkerConfig.load(newK8SUrl.toURI().getPath());
+        assertNotNull(newK8SWc.getFunctionInstanceMinResources());
+        assertEquals(newK8SWc.getFunctionInstanceMinResources().getCpu(), 0.5, 0.001);
+        assertEquals(newK8SWc.getFunctionInstanceMinResources().getRam().longValue(), 1073741824L);
+        assertEquals(newK8SWc.getFunctionInstanceMinResources().getDisk().longValue(), 10737418240L);
+
+        assertNotNull(newK8SWc.getFunctionInstanceMaxResources());
+        assertEquals(newK8SWc.getFunctionInstanceMaxResources().getCpu(), 16.0, 0.001);
+        assertEquals(newK8SWc.getFunctionInstanceMaxResources().getRam().longValue(), 17179869184L);
+        assertEquals(newK8SWc.getFunctionInstanceMaxResources().getDisk().longValue(), 107374182400L);
+    }
 }

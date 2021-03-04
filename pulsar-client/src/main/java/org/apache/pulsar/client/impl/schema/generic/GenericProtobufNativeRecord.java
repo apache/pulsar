@@ -24,10 +24,10 @@ import org.apache.pulsar.client.api.schema.Field;
 
 import java.util.List;
 
-public class GenericProtobufNativeRecord<T extends DynamicMessage> extends VersionedGenericRecord {
+public class GenericProtobufNativeRecord extends VersionedGenericRecord {
 
-    private DynamicMessage record;
-    private Descriptors.Descriptor msgDesc;
+    private final DynamicMessage record;
+    private final Descriptors.Descriptor msgDesc;
 
     protected GenericProtobufNativeRecord(byte[] schemaVersion, Descriptors.Descriptor msgDesc, List<Field> fields, DynamicMessage record) {
         super(schemaVersion, fields);

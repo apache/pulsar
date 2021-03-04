@@ -68,6 +68,7 @@ struct Arguments {
     int receiverQueueSize;
     int ioThreads;
     int listenerThreads;
+    bool poolConnections;
     std::string encKeyName;
     std::string encKeyValueFile;
 };
@@ -174,7 +175,7 @@ void startPerfConsumer(const Arguments& args) {
         conf.setAuth(auth);
     }
 
-    Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, false));
+    Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, args.poolConnections));
 
     ConsumerConfiguration consumerConf;
     consumerConf.setMessageListener(messageListener);
@@ -298,6 +299,9 @@ int main(int argc, char** argv) {
 
         ("listener-threads,l", po::value<int>(&args.listenerThreads)->default_value(1),
          "Number of listener threads")  //
+
+        ("pool-connections", po::value<bool>(&args.poolConnections)->default_value(false),
+         "whether pool connections used")  //
 
         ("encryption-key-name,k", po::value<std::string>(&args.encKeyName)->default_value(""),
          "The private key name to decrypt payload")  //

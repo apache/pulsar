@@ -16,13 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
-public class TenantResources extends BaseResources<TenantInfo> {
-    public TenantResources(MetadataStoreExtended store) {
-        super(store, TenantInfo.class);
-    }
+/**
+ * Bookie information.
+ */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
+public class RawBookieInfo {
+    private String bookieId;
 }

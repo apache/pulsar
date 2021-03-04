@@ -36,11 +36,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.sun.org.apache.xml.internal.serialize.OutputFormat.Defaults.Encoding;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -93,11 +93,11 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         config.setManagedLedgerInterceptor(interceptor);
         ManagedLedger ledger = factory.open("my_recovery_index_test_ledger", config);
 
-        ledger.addEntry("dummy-entry-1".getBytes(Encoding), MOCK_BATCH_SIZE);
+        ledger.addEntry("dummy-entry-1".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE);
 
         ManagedCursor cursor = ledger.openCursor("c1");
 
-        ledger.addEntry("dummy-entry-2".getBytes(Encoding), MOCK_BATCH_SIZE);
+        ledger.addEntry("dummy-entry-2".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE);
 
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), MOCK_BATCH_SIZE * 2 - 1);
 
@@ -141,7 +141,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
 
         long firstLedgerId = -1;
         for (int i = 0; i < maxEntriesPerLedger; i++) {
-            firstLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(Encoding), MOCK_BATCH_SIZE)).getLedgerId();
+            firstLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE)).getLedgerId();
         }
 
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 9);
@@ -156,7 +156,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         // roll over ledger
         long secondLedgerId = -1;
         for (int i = 0; i < maxEntriesPerLedger; i++) {
-            secondLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(Encoding), MOCK_BATCH_SIZE)).getLedgerId();
+            secondLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE)).getLedgerId();
         }
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 19);
         assertNotEquals(firstLedgerId, secondLedgerId);
@@ -174,7 +174,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
 
         long thirdLedgerId = -1;
         for (int i = 0; i < maxEntriesPerLedger; i++) {
-            thirdLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(Encoding), MOCK_BATCH_SIZE)).getLedgerId();
+            thirdLedgerId = ((PositionImpl) ledger.addEntry("dummy-entry".getBytes(StandardCharsets.UTF_8), MOCK_BATCH_SIZE)).getLedgerId();
         }
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 29);
         assertNotEquals(secondLedgerId, thirdLedgerId);

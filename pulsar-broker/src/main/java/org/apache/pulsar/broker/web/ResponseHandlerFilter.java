@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ResponseHandlerFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(ResponseHandlerFilter.class);
+    private static final String BROKER_ADDRESS_HEADER_NAME = "broker-address";
 
     private final String brokerAddress;
     private final BrokerInterceptor interceptor;
@@ -55,8 +56,13 @@ public class ResponseHandlerFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
+        if (!response.isCommitted()) {
+            ((HttpServletResponse) response).addHeader(BROKER_ADDRESS_HEADER_NAME, brokerAddress);
+        } else {
+            LOG.warn("Cannot add header {} to request {} since it's already committed.", BROKER_ADDRESS_HEADER_NAME,
+                    request);
+        }
         chain.doFilter(request, response);
-        ((HttpServletResponse) response).addHeader("broker-address", brokerAddress);
         if (((HttpServletResponse) response).getStatus() == Status.INTERNAL_SERVER_ERROR.getStatusCode()) {
             // invalidate current session from servlet-container if it received internal-server-error
             try {

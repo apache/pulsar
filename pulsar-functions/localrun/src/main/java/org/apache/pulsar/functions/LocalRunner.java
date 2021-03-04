@@ -417,6 +417,7 @@ public class LocalRunner {
                 instanceConfig.setInstanceId(i + instanceIdOffset);
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(FunctionCommon.findAvailablePort());
+                instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
                 instanceConfig.setClusterName("local");
                 if (functionConfig != null) {
                     instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
@@ -499,6 +500,7 @@ public class LocalRunner {
             instanceConfig.setInstanceId(i + instanceIdOffset);
             instanceConfig.setMaxBufferedTuples(1024);
             instanceConfig.setPort(FunctionCommon.findAvailablePort());
+            instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
             instanceConfig.setClusterName("local");
             if (functionConfig != null) {
                 instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());

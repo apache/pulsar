@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,7 +17,19 @@
 # under the License.
 #
 
-set -x
+workerId: test-worker
+workerPort: 7654
+pulsarServiceUrl: pulsar://localhost:6650
+functionMetadataTopicName: test-function-metadata-topic
+numFunctionPackageReplicas: 3
+functionRuntimeFactoryClassName: "org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory"
 
-WHEEL_FILE=$(ls /pulsar/pulsar-client | grep cp27)
-pip2 install /pulsar/pulsar-client/${WHEEL_FILE}
+functionInstanceMinResources:
+  cpu: 0.5
+  ram: 1073741824
+  disk: 10737418240
+
+functionInstanceMaxResources:
+  cpu: 16
+  ram: 17179869184
+  disk: 107374182400

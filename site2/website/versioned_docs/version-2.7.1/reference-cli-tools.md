@@ -316,6 +316,10 @@ Options
 |`-m`, `--messages`|Comma-separated string of messages to send; either -m or -f must be specified|[]|
 |`-n`, `--num-produce`|The number of times to send the message(s); the count of messages/files * num-produce should be below 1000|1|
 |`-r`, `--rate`|Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible|0.0|
+|`-c`, `--chunking`|Split the message and publish in chunks if the message size is larger than allowed the max size|false|
+|`-s`, `--separator`|Character to split messages string with.|","|
+|`-k`, `--key`|Message key to add|key=value string, like k1=v1,k2=v2.|
+|`-p`, `--properties`|Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. `k1=v1,k2=v2`.| |
 
 
 ### `consume`
@@ -336,7 +340,10 @@ Options
 |`-s`, `--subscription-name`|Subscription name||
 |`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-p`, `--subscription-position`|The position of the subscription. Possible values: Latest, Earliest.|Latest|
-
+|`-m`, `--subscription-mode`|Subscription mode.|Durable|
+|`-q`, `--queue-size`|The size of consumer's receiver queue.|0|
+|`-mc`, `--max_chunked_msg`|Max pending chunk messages.|0|
+|`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue is the queue full.|false|
 
 
 ## `pulsar-daemon`

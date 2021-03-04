@@ -49,7 +49,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         //No-op
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

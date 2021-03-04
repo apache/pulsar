@@ -35,9 +35,11 @@
   <fileSets>
     <fileSet>
       <directory>${basedir}/../../conf</directory>
+      <lineEnding>unix</lineEnding>
     </fileSet>
     <fileSet>
       <directory>${basedir}/../../bin</directory>
+      <lineEnding>unix</lineEnding>
       <fileMode>755</fileMode>
     </fileSet>
     <fileSet>

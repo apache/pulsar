@@ -26,6 +26,7 @@ import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -124,14 +125,14 @@ public class PartitionCreationTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 60000, dataProvider = "restCreateMissedPartitions")
-    public void testCreateMissedPartitions(boolean useRestApi) throws JsonProcessingException, KeeperException, InterruptedException, PulsarAdminException, PulsarClientException {
+    public void testCreateMissedPartitions(boolean useRestApi) throws JsonProcessingException, KeeperException, InterruptedException, PulsarAdminException, PulsarClientException, MetadataStoreException {
         conf.setAllowAutoTopicCreation(false);
         final String topic = "testCreateMissedPartitions-useRestApi-" + useRestApi;
         String path = ZkAdminPaths.partitionedTopicPath(TopicName.get(topic));
         int numPartitions = 3;
-        byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
         // simulate partitioned topic without partitions
-        ZkUtils.createFullPathOptimistic(pulsar.getGlobalZkCache().getZooKeeper(), path, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources().create(path,
+                new PartitionedTopicMetadata(numPartitions));
         Consumer<byte[]> consumer = null;
         try {
             consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribeAsync().get(3, TimeUnit.SECONDS);

@@ -40,7 +40,7 @@ public class RabbitMQSinkTest {
         rabbitMQBrokerManager.startBroker();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         rabbitMQBrokerManager.stopBroker();
     }

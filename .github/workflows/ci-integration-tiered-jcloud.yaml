@@ -39,7 +39,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 25
+          fetch-depth: 100
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Cache local Maven repository
@@ -89,4 +89,4 @@ jobs:
 
       - name: run integration tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=tiered-jcloud-storage.xml -DintegrationTests -DredirectTestOutputToFile=false
+        run: ./build/run_integration_group.sh TIERED_JCLOUD

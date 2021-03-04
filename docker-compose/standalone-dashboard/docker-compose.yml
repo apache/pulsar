@@ -25,13 +25,13 @@ services:
     image: apachepulsar/pulsar
     expose:
       - 8080
-      - 6650 
+      - 6650
     environment:
       - BOOKIE_MEM=" -Xms512m -Xmx512m -XX:MaxDirectMemorySize=1g"
     command: >
       /bin/bash -c
       "bin/apply-config-from-env.py conf/standalone.conf
-      && bin/pulsar standalone"
+      && bin/pulsar standalone --advertised-address standalone"
 
   dashboard:
     image: apachepulsar/pulsar-dashboard

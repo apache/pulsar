@@ -60,7 +60,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         storage.initialize();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         if (storage != null) {
             storage.closeAsync().get();

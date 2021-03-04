@@ -106,7 +106,7 @@ public class MLTransactionMetadataStore
                             } else {
                                 List<Position> positions = new ArrayList<>();
                                 positions.add(position);
-                                txnMetaMap.put(txnID, MutablePair.of(TxnMetaImpl.create(txnID), positions));
+                                txnMetaMap.put(txnID, MutablePair.of(new TxnMetaImpl(txnID), positions));
                                 txnIdSortedSet.add(transactionMetadataEntry.getTxnidLeastBits());
                                 timeoutTracker.replayAddTransaction(transactionMetadataEntry.getTxnidLeastBits(),
                                         transactionMetadataEntry.getTimeoutMs());
@@ -140,7 +140,6 @@ public class MLTransactionMetadataStore
                                     transactionLog.deletePosition(txnMetaMap.get(txnID).getRight()).thenAccept(v -> {
                                         TxnMeta txnMeta = txnMetaMap.remove(txnID).getLeft();
                                         txnIdSortedSet.remove(transactionMetadataEntry.getTxnidLeastBits());
-                                        ((TxnMetaImpl) txnMeta).recycle();
                                     });
                                 } else {
                                     txnMetaMap.get(txnID).getLeft()
@@ -200,7 +199,7 @@ public class MLTransactionMetadataStore
                 .setLastModificationTime(currentTimeMillis);
         return transactionLog.append(transactionMetadataEntry)
                 .thenCompose(position -> {
-                    TxnMeta txn = TxnMetaImpl.create(txnID);
+                    TxnMeta txn = new TxnMetaImpl(txnID);
                     List<Position> positions = new ArrayList<>();
                     positions.add(position);
                     Pair<TxnMeta, List<Position>> pair = MutablePair.of(txn, positions);
@@ -229,11 +228,13 @@ public class MLTransactionMetadataStore
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
                         try {
-                            txnMetaListPair.getLeft().addProducedPartitions(partitions);
-                            txnMetaMap.get(txnID).getRight().add(position);
+                            synchronized (txnMetaListPair.getLeft()) {
+                                txnMetaListPair.getLeft().addProducedPartitions(partitions);
+                                txnMetaMap.get(txnID).getRight().add(position);
+                            }
                             return CompletableFuture.completedFuture(null);
                         } catch (InvalidTxnStatusException e) {
-                            txnMetaMap.get(txnID).getRight().add(position);
+                            transactionLog.deletePosition(Collections.singletonList(position));
                             log.error("TxnID : " + txnMetaListPair.getLeft().id().toString()
                                     + " add produced partition error with TxnStatus : "
                                     + txnMetaListPair.getLeft().status().name(), e);
@@ -262,11 +263,13 @@ public class MLTransactionMetadataStore
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
                         try {
-                            txnMetaListPair.getLeft().addAckedPartitions(txnSubscriptions);
-                            txnMetaMap.get(txnID).getRight().add(position);
+                            synchronized (txnMetaListPair.getLeft()) {
+                                txnMetaListPair.getLeft().addAckedPartitions(txnSubscriptions);
+                                txnMetaMap.get(txnID).getRight().add(position);
+                            }
                             return CompletableFuture.completedFuture(null);
                         } catch (InvalidTxnStatusException e) {
-                            txnMetaMap.get(txnID).getRight().add(position);
+                            transactionLog.deletePosition(Collections.singletonList(position));
                             log.error("TxnID : " + txnMetaListPair.getLeft().id().toString()
                                     + " add acked subscription error with TxnStatus : "
                                     + txnMetaListPair.getLeft().status().name(), e);
@@ -284,7 +287,9 @@ public class MLTransactionMetadataStore
                             State.Ready, getState(), "update transaction status"));
         }
         return getTxnPositionPair(txnID).thenCompose(txnMetaListPair -> {
-
+            if (txnMetaListPair.getLeft().status() == newStatus) {
+                return CompletableFuture.completedFuture(null);
+            }
             TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry()
                     .setTxnidMostBits(txnID.getMostSigBits())
                     .setTxnidLeastBits(txnID.getLeastSigBits())
@@ -295,19 +300,20 @@ public class MLTransactionMetadataStore
 
             return transactionLog.append(transactionMetadataEntry).thenCompose(position -> {
                 try {
-                    txnMetaListPair.getLeft().updateTxnStatus(newStatus, expectedStatus);
-                    txnMetaListPair.getRight().add(position);
+                    synchronized (txnMetaListPair.getLeft()) {
+                        txnMetaListPair.getLeft().updateTxnStatus(newStatus, expectedStatus);
+                        txnMetaListPair.getRight().add(position);
+                    }
                     if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                         return transactionLog.deletePosition(txnMetaListPair.getRight()).thenCompose(v -> {
                             txnMetaMap.remove(txnID);
                             txnIdSortedSet.remove(txnID.getLeastSigBits());
-                            ((TxnMetaImpl) txnMetaListPair.getLeft()).recycle();
                             return CompletableFuture.completedFuture(null);
                         });
                     }
                     return CompletableFuture.completedFuture(null);
                 } catch (InvalidTxnStatusException e) {
-                    txnMetaListPair.getRight().add(position);
+                    transactionLog.deletePosition(Collections.singletonList(position));
                     log.error("TxnID : " + txnMetaListPair.getLeft().id().toString()
                             + " add update txn status error with TxnStatus : "
                             + txnMetaListPair.getLeft().status().name(), e);

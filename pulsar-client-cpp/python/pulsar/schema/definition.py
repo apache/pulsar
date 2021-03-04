@@ -334,7 +334,7 @@ class Array(Field):
     def schema(self):
         return {
             'type': self.type(),
-            'items': self.array_type.schema() if isinstance(self.array_type, Record) 
+            'items': self.array_type.schema() if isinstance(self.array_type, (Array, Map, Record))
                 else self.array_type.type()
         }
 
@@ -355,7 +355,7 @@ class Map(Field):
         super(Map, self).validate_type(name, val)
 
         for k, v in val.items():
-            if type(k) != str:
+            if type(k) != str and not is_unicode(k):
                 raise TypeError('Map keys for field ' + name + '  should all be strings')
             if type(v) != self.value_type.python_type():
                 raise TypeError('Map values for field ' + name + ' should all be of type '
@@ -366,6 +366,12 @@ class Map(Field):
     def schema(self):
         return {
             'type': self.type(),
-            'values': self.value_type.schema() if isinstance(self.value_type, Record)
+            'values': self.value_type.schema() if isinstance(self.value_type, (Array, Map, Record))
                 else self.value_type.type()
         }
+
+
+# Python3 has no `unicode` type, so here we use a tricky way to check if the type of `x` is `unicode` in Python2
+# and also make it work well with Python3.
+def is_unicode(x):
+    return 'encode' in dir(x) and type(x.encode()) == str

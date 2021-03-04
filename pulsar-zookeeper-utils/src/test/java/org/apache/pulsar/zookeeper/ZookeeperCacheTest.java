@@ -79,7 +79,7 @@ public class ZookeeperCacheTest {
         zkClient = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         zkClient.shutdown();
     }
@@ -90,7 +90,7 @@ public class ZookeeperCacheTest {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     void classTeardown() throws Exception {
         executor.shutdown();
         scheduledExecutor.shutdown();

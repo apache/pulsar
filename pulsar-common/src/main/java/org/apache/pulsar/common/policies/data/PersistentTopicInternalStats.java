@@ -43,6 +43,7 @@ public class PersistentTopicInternalStats {
 
     public List<LedgerInfo> ledgers;
     public Map<String, CursorStats> cursors;
+    public List<LedgerInfo> schemaLedgers;
 
     // LedgerInfo for compacted topic if exist.
     public LedgerInfo compactedLedger;

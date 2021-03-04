@@ -342,6 +342,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public String toString() {
-        return conf != null ? conf.toString() : null;
+        return conf != null ? conf.toString() : "";
     }
 }

@@ -35,8 +35,6 @@ import java.util.concurrent.Executors;
 
 
 public class PulsarClientToolWsTest extends BrokerTestBase {
-    private ProxyServer proxyServer;
-    private WebSocketService service;
 
     @BeforeMethod
     @Override
@@ -44,7 +42,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         super.internalSetup();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.resetConfig();
@@ -81,7 +79,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
                 if (subscriptions.size() == 1) {
                     break;
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
             Thread.sleep(200);
         }
@@ -100,7 +98,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
                 if (subscriptions.size() == 0) {
                     break;
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
             Thread.sleep(200);
         }
@@ -136,7 +134,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
                 if (subscriptions.size() == 1) {
                     break;
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
             Thread.sleep(200);
         }

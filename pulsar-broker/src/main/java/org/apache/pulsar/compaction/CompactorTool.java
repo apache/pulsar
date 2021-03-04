@@ -73,8 +73,19 @@ public class CompactorTool {
             jcommander.usage();
             throw new IllegalArgumentException("Need to specify a configuration file for broker");
         } else {
+            log.info(String.format("read configuration file %s", arguments.brokerConfigFile));
             brokerConfig = PulsarConfigurationLoader.create(
                     arguments.brokerConfigFile, ServiceConfiguration.class);
+        }
+
+
+        if (isBlank(brokerConfig.getZookeeperServers())) {
+            throw new IllegalArgumentException(
+                    String.format("Need to specify `zookeeperServers` in configuration file \n"
+                                    + "or specify configuration file path from command line.\n"
+                                    + "now configuration file path is=[%s]\n",
+                            arguments.brokerConfigFile)
+            );
         }
 
         ClientBuilder clientBuilder = PulsarClient.builder();
@@ -86,6 +97,8 @@ public class CompactorTool {
 
 
         if (brokerConfig.getBrokerServicePortTls().isPresent()) {
+            log.info("Found `brokerServicePortTls` in configuration file. \n"
+                    + "Will connect pulsar use TLS.");
             clientBuilder
                     .serviceUrl(PulsarService.brokerUrlTls(PulsarService.advertisedAddress(brokerConfig),
                             brokerConfig.getBrokerServicePortTls().get()))
