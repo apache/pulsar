@@ -271,6 +271,30 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt the message payloads.
+     *
+     * @param privateKey
+     *            the private key that is always used to decrypt message payloads.
+     * @return the consumer builder instance
+     * @since 2.8.0
+     */
+    ConsumerBuilder<T> defaultCryptoKeyReader(String privateKey);
+
+    /**
+     * Sets the default implementation of {@link CryptoKeyReader}.
+     *
+     * <p>Configure the key reader to be used to decrypt the message payloads.
+     *
+     * @param privateKeys
+     *            the map of private key names and their URIs used to decrypt message payloads.
+     * @return the consumer builder instance
+     * @since 2.8.0
+     */
+    ConsumerBuilder<T> defaultCryptoKeyReader(Map<String, String> privateKeys);
+
+    /**
      * Sets a {@link MessageCrypto}.
      *
      * <p>Contains methods to encrypt/decrypt message for End to End Encryption.

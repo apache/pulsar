@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.testclient.PerfClientUtils;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -300,6 +301,7 @@ public class PerformanceClient {
     public static void main(String[] args) throws Exception {
         PerformanceClient test = new PerformanceClient();
         Arguments arguments = test.loadArguments(args);
+        PerfClientUtils.printJVMInformation(log);
         test.runPerformanceTest(arguments.numMessages, arguments.msgRate, arguments.numTopics, arguments.msgSize,
                 arguments.proxyURL, arguments.topics.get(0), arguments.authPluginClassName, arguments.authParams);
     }

@@ -22,11 +22,9 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.text.DecimalFormat;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -37,8 +35,6 @@ import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -87,8 +83,12 @@ public class PerformanceConsumer {
         @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
         public int numSubscriptions = 1;
 
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
+        @Deprecated
+        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
         public String subscriberName = "sub";
+
+        @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
+        public List<String> subscriptions = Collections.singletonList("sub");
 
         @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
@@ -108,7 +108,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
-        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowlegments grouping delay in millis")
+        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
         @Parameter(names = { "-c",
@@ -154,9 +154,6 @@ public class PerformanceConsumer {
                 "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
         public Boolean tlsAllowInsecureConnection = null;
 
-        @Parameter(names = { "-k", "--encryption-key-name" }, description = "The private key name to decrypt payload")
-        public String encKeyName = null;
-
         @Parameter(names = { "-v",
                 "--encryption-key-value-file" }, description = "The file which contains the private key to decrypt payload")
         public String encKeyFile = null;
@@ -191,14 +188,22 @@ public class PerformanceConsumer {
             System.exit(-1);
         }
 
-        if (arguments.topic.size() != 1) {
-            System.out.println("Only one topic name is allowed");
+        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
+            System.out.println("The size of topics list should be equal to --num-topics");
             jc.usage();
             System.exit(-1);
         }
 
         if (arguments.subscriptionType == SubscriptionType.Exclusive && arguments.numConsumers > 1) {
             System.out.println("Only one consumer is allowed when subscriptionType is Exclusive");
+            jc.usage();
+            System.exit(-1);
+        }
+
+        if (arguments.subscriptionType != SubscriptionType.Exclusive &&
+                arguments.subscriptions != null &&
+                arguments.subscriptions.size() != arguments.numConsumers) {
+            System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
             jc.usage();
             System.exit(-1);
         }
@@ -239,11 +244,10 @@ public class PerformanceConsumer {
         }
 
         // Dump config variables
+        PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance consumer with config: {}", w.writeValueAsString(arguments));
-
-        final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
@@ -295,28 +299,6 @@ public class PerformanceConsumer {
 
         PulsarClient pulsarClient = clientBuilder.build();
 
-        class EncKeyReader implements CryptoKeyReader {
-
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-
-            EncKeyReader(byte[] value) {
-                keyInfo.setKey(value);
-            }
-
-            @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                return null;
-            }
-
-            @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                if (keyName.equals(arguments.encKeyName)) {
-                    return keyInfo;
-                }
-                return null;
-            }
-        }
-
         List<Future<Consumer<byte[]>>> futures = Lists.newArrayList();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer() //
                 .messageListener(listener) //
@@ -336,25 +318,17 @@ public class PerformanceConsumer {
                     TimeUnit.MILLISECONDS);
         }
 
-        if (arguments.encKeyName != null) {
-            byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
-            EncKeyReader keyReader = new EncKeyReader(pKey);
-            consumerBuilder.cryptoKeyReader(keyReader);
+        if (isNotBlank(arguments.encKeyFile)) {
+            consumerBuilder.defaultCryptoKeyReader(arguments.encKeyFile);
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
-                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+            final TopicName topicName = TopicName.get(arguments.topic.get(i));
+
             log.info("Adding {} consumers per subscription on topic {}", arguments.numConsumers, topicName);
 
             for (int j = 0; j < arguments.numSubscriptions; j++) {
-                String subscriberName;
-                if (arguments.numSubscriptions > 1) {
-                    subscriberName = String.format("%s-%d", arguments.subscriberName, j);
-                } else {
-                    subscriberName = arguments.subscriberName;
-                }
-
+                String subscriberName = arguments.subscriptions.get(j);
                 for (int k = 0; k < arguments.numConsumers; k++) {
                     futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
                             .subscribeAsync());

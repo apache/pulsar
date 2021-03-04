@@ -2037,26 +2037,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // if we are starting from latest, we should seek to the actual last message first.
             // allow the last one to be read when read head inclusively.
             if (startMessageId.equals(MessageId.latest)) {
-
                 CompletableFuture<GetLastMessageIdResponse> future = internalGetLastMessageIdAsync();
                 // if the consumer is configured to read inclusive then we need to seek to the last message
                 if (resetIncludeHead) {
                     future = future.thenCompose((lastMessageIdResponse) ->
-                            seekAsync(lastMessageIdResponse.lastMessageId)
-                                    .thenApply((ignore) -> lastMessageIdResponse));
+                        seekAsync(lastMessageIdResponse.lastMessageId)
+                            .thenApply((ignore) -> lastMessageIdResponse));
                 }
-
                 future.thenAccept(response -> {
                     MessageIdImpl lastMessageId = MessageIdImpl.convertToMessageIdImpl(response.lastMessageId);
-                    MessageIdImpl markDeletePosition = MessageIdImpl
-                            .convertToMessageIdImpl(response.markDeletePosition);
-
+                    MessageIdImpl markDeletePosition = MessageIdImpl.convertToMessageIdImpl(response.markDeletePosition);
                     if (markDeletePosition != null) {
                         // we only care about comparing ledger ids and entry ids as mark delete position doesn't have other ids such as batch index
                         int result = ComparisonChain.start()
-                                .compare(markDeletePosition.getLedgerId(), lastMessageId.getLedgerId())
-                                .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())
-                                .result();
+                            .compare(markDeletePosition.getLedgerId(), lastMessageId.getLedgerId())
+                            .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())
+                            .result();
                         if (lastMessageId.getEntryId() < 0) {
                             booleanFuture.complete(false);
                         } else {
@@ -2072,7 +2068,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     booleanFuture.completeExceptionally(ex.getCause());
                     return null;
                 });
-
                 return booleanFuture;
             }
 
@@ -2142,7 +2137,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    @Override
     public CompletableFuture<MessageId> getLastMessageIdAsync() {
         return internalGetLastMessageIdAsync().thenApply(r -> r.lastMessageId);
     }
@@ -2190,17 +2184,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 MessageIdImpl markDeletePosition = null;
                 if (cmd.hasConsumerMarkDeletePosition()) {
                     markDeletePosition = new MessageIdImpl(cmd.getConsumerMarkDeletePosition().getLedgerId(),
-                            cmd.getConsumerMarkDeletePosition().getEntryId(), -1);
+                        cmd.getConsumerMarkDeletePosition().getEntryId(), -1);
                 }
                 log.info("[{}][{}] Successfully getLastMessageId {}:{}",
                     topic, subscription, lastMessageId.getLedgerId(), lastMessageId.getEntryId());
-
                 MessageId lastMsgId = lastMessageId.getBatchIndex() <= 0 ?
-                        new MessageIdImpl(lastMessageId.getLedgerId(),
-                                lastMessageId.getEntryId(), lastMessageId.getPartition())
-                        : new BatchMessageIdImpl(lastMessageId.getLedgerId(),
-                                lastMessageId.getEntryId(), lastMessageId.getPartition(), lastMessageId.getBatchIndex());
-
+                    new MessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(), lastMessageId.getPartition())
+                    : new BatchMessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(), lastMessageId.getPartition(), lastMessageId.getBatchIndex());
                 future.complete(new GetLastMessageIdResponse(lastMsgId, markDeletePosition));
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
