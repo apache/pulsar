@@ -89,7 +89,7 @@ public class PulsarWorkerAssignmentTest {
 
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
-        final Set<String> superUsers = Sets.newHashSet("superUser");
+        final Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());

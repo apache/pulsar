@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.testng.Assert.assertEquals;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import static org.testng.Assert.*;
 
 public class LoadReportNetworkLimit extends MockedPulsarServiceBaseTest {
+    int nicCount;
 
     @BeforeClass
     @Override
@@ -34,6 +36,10 @@ public class LoadReportNetworkLimit extends MockedPulsarServiceBaseTest {
         conf.setLoadBalancerEnabled(true);
         conf.setLoadBalancerOverrideBrokerNicSpeedGbps(5.4);
         super.internalSetup();
+
+        if (SystemUtils.IS_OS_LINUX) {
+            nicCount = new LinuxBrokerHostUsageImpl(pulsar).getNicCount();
+        }
     }
 
     @AfterClass(alwaysRun = true)
@@ -49,8 +55,8 @@ public class LoadReportNetworkLimit extends MockedPulsarServiceBaseTest {
         LoadManagerReport report = admin.brokerStats().getLoadReport();
 
         if (SystemUtils.IS_OS_LINUX) {
-            assertEquals(report.getBandwidthIn().limit, 5.4 * 1024 * 1024);
-            assertEquals(report.getBandwidthOut().limit, 5.4 * 1024 * 1024);
+            assertEquals(report.getBandwidthIn().limit, nicCount * 5.4 * 1024 * 1024);
+            assertEquals(report.getBandwidthOut().limit, nicCount * 5.4 * 1024 * 1024);
         } else {
             // On non-Linux system we don't report the network usage
             assertEquals(report.getBandwidthIn().limit, -1.0);

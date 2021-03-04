@@ -16,16 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.io.batchdiscovery;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import java.util.function.Consumer;
 
-public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.io.core.BatchSourceTriggerer;
+import org.apache.pulsar.io.core.SourceContext;
 
-    public DynamicConfigurationResources(MetadataStoreExtended store) {
-        super(store, new TypeReference<Map<String, String>>(){});
-    }
+@Slf4j
+public class ImmediateTriggerer implements BatchSourceTriggerer {
+	
+  @Override
+  public void init(Map<String, Object> map, SourceContext sourceContext) throws Exception {
+    log.info("Initialized ImmediateTrigger at: {}",  System.currentTimeMillis());
+  }
 
+  @Override
+  public void start(Consumer<String> consumer) {
+    consumer.accept("");
+  }
+
+  @Override
+  public void stop() {
+
+  }
 }

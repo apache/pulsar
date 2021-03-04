@@ -494,9 +494,9 @@ The Apache Software License, Version 2.0
     - joda-time-2.10.1.jar
     - joda-time-joda-time-2.10.1.jar
   * Dropwizard
-    - io.dropwizard.metrics-metrics-core-3.1.0.jar
-    - io.dropwizard.metrics-metrics-graphite-3.1.0.jar
-    - io.dropwizard.metrics-metrics-jvm-3.1.0.jar
+    - io.dropwizard.metrics-metrics-core-3.2.5.jar
+    - io.dropwizard.metrics-metrics-graphite-3.2.5.jar
+    - io.dropwizard.metrics-metrics-jvm-3.2.5.jar
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.5.0.jar
   * Java JSON WebTokens
@@ -511,7 +511,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-3.5.3.jar
     - io.vertx-vertx-web-3.5.3.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-jute-3.5.7.jar
+    - org.apache.zookeeper-zookeeper-jute-3.6.2.jar
+  * Snappy Java  
+    - org.xerial.snappy-snappy-java-1.1.7.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library

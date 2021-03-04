@@ -64,7 +64,7 @@ public class SolrGenericRecordSinkTest {
         solrServerUtil.startStandaloneSolr();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         solrServerUtil.stopStandaloneSolr();
     }

@@ -46,7 +46,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     private static final long serialVersionUID = 1L;
     private TimerTask stat;
     private Timeout statTimeout;
-    private Consumer<?> consumer;
+    private final Consumer<?> consumer;
     private PulsarClientImpl pulsarClient;
     private long oldTime;
     private long statsIntervalSeconds;

@@ -129,7 +129,7 @@ oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"clientId":   "0Xx...Yyxeny",
 	})
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL:              "puslar://my-cluster:6650",
+		URL:              "pulsar://my-cluster:6650",
 		Authentication:   oauth,
 })
 ```
@@ -150,7 +150,7 @@ params = '''
 }
 '''
 
-client = Client("puslar://my-cluster:6650", authentication=AuthenticationOauth2(params))
+client = Client("pulsar://my-cluster:6650", authentication=AuthenticationOauth2(params))
 ```
 
 ## CLI configuration

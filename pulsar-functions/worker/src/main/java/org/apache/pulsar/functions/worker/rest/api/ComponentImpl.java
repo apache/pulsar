@@ -32,6 +32,7 @@ import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailable
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import java.nio.file.Files;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
@@ -1261,24 +1262,24 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         String pkgPath = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName)
                 .getPackageLocation().getPackagePath();
 
+        return getStreamingOutput(pkgPath);
+    }
+
+    private StreamingOutput getStreamingOutput(String pkgPath) {
         final StreamingOutput streamingOutput = output -> {
             if (pkgPath.startsWith(Utils.HTTP)) {
-                URL url = new URL(pkgPath);
-                IOUtils.copy(url.openStream(), output);
-            } else if (pkgPath.startsWith(Utils.FILE)) {
-                URL url = new URL(pkgPath);
-                File file;
-                try {
-                    file = new File(url.toURI());
-                    IOUtils.copy(new FileInputStream(file), output);
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException("invalid file url path: " + pkgPath);
+                URL url = URI.create(pkgPath).toURL();
+                try (InputStream inputStream = url.openStream()) {
+                    IOUtils.copy(inputStream, output);
                 }
+            } else if (pkgPath.startsWith(Utils.FILE)) {
+                URI url = URI.create(pkgPath);
+                File file = new File(url.getPath());
+                Files.copy(file.toPath(), output);
             } else {
                 WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, pkgPath);
             }
         };
-
         return streamingOutput;
     }
 
@@ -1314,25 +1315,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             }
         }
 
-        final StreamingOutput streamingOutput = output -> {
-            if (path.startsWith(Utils.HTTP)) {
-                URL url = new URL(path);
-                IOUtils.copy(url.openStream(), output);
-            } else if (path.startsWith(Utils.FILE)) {
-                URL url = new URL(path);
-                File file;
-                try {
-                    file = new File(url.toURI());
-                    IOUtils.copy(new FileInputStream(file), output);
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException("invalid file url path: " + path);
-                }
-            } else {
-                WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, path);
-            }
-        };
-
-        return streamingOutput;
+        return getStreamingOutput(path);
     }
 
     private void validateListFunctionRequestParams(final String tenant, final String namespace) throws IllegalArgumentException {

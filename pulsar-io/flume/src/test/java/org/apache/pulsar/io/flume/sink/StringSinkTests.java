@@ -103,7 +103,7 @@ public class StringSinkTests extends AbstractFlumeTests {
         });
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         source.stop();
     }

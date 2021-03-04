@@ -51,17 +51,19 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.admin.impl.BaseResources;
-import org.apache.pulsar.broker.admin.impl.ClusterResources;
-import org.apache.pulsar.broker.admin.impl.DynamicConfigurationResources;
-import org.apache.pulsar.broker.admin.impl.NamespaceResources;
-import org.apache.pulsar.broker.admin.impl.NamespaceResources.IsolationPolicyResources;
-import org.apache.pulsar.broker.admin.impl.TenantResources;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.BaseResources;
+import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
+import org.apache.pulsar.broker.resources.LocalPoliciesResources;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.common.naming.Constants;
@@ -869,6 +871,10 @@ public abstract class PulsarWebResource {
         }
     }
 
+    protected PulsarResources getPulsarResources() {
+        return pulsar().getPulsarResources();
+    }
+
     protected TenantResources tenantResources() {
         return pulsar().getPulsarResources().getTenatResources();
     }
@@ -879,6 +885,10 @@ public abstract class PulsarWebResource {
 
     protected NamespaceResources namespaceResources() {
         return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected LocalPoliciesResources getLocalPolicies() {
+        return pulsar().getPulsarResources().getLocalPolicies();
     }
 
     protected IsolationPolicyResources namespaceIsolationPolicies(){

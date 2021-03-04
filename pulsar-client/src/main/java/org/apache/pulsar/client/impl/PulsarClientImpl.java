@@ -421,24 +421,15 @@ public class PulsarClientImpl implements PulsarClient {
             }
 
             ConsumerBase<T> consumer;
-            // gets the next single threaded executor from the list of executors
-            ExecutorService listenerThread = externalExecutorProvider.getExecutor();
             if (metadata.partitions > 0) {
                 consumer = MultiTopicsConsumerImpl.createPartitionedConsumer(PulsarClientImpl.this, conf,
-                    listenerThread, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
+                        externalExecutorProvider, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
             } else {
                 int partitionIndex = TopicName.getPartitionIndex(topic);
-                try {
-                    consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, listenerThread, partitionIndex, false,
-                            consumerSubscribedFuture,null, schema, interceptors,
-                            true /* createTopicIfDoesNotExist */);
-                    consumers.add(consumer);
-                } catch (PulsarClientException.InvalidConfigurationException e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Deadletter topic on Key_Shared subscription type is not supported.");
-                    }
-                    consumerSubscribedFuture.completeExceptionally(e);
-                }
+                consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, externalExecutorProvider, partitionIndex, false,
+                        consumerSubscribedFuture,null, schema, interceptors,
+                        true /* createTopicIfDoesNotExist */);
+                consumers.add(consumer);
             }
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to get partitioned topic metadata", topic, ex);
@@ -453,7 +444,7 @@ public class PulsarClientImpl implements PulsarClient {
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
         ConsumerBase<T> consumer = new MultiTopicsConsumerImpl<>(PulsarClientImpl.this, conf,
-                externalExecutorProvider.getExecutor(), consumerSubscribedFuture, schema, interceptors,
+                externalExecutorProvider, consumerSubscribedFuture, schema, interceptors,
                 true /* createTopicIfDoesNotExist */);
 
         consumers.add(consumer);
@@ -486,7 +477,7 @@ public class PulsarClientImpl implements PulsarClient {
                 ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<T>(conf.getTopicsPattern(),
                     PulsarClientImpl.this,
                     conf,
-                    externalExecutorProvider.getExecutor(),
+                    externalExecutorProvider,
                     consumerSubscribedFuture,
                     schema, subscriptionMode, interceptors);
 
@@ -556,30 +547,21 @@ public class PulsarClientImpl implements PulsarClient {
                 return;
             }
             CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
-            // gets the next single threaded executor from the list of executors
-            ExecutorService listenerThread = externalExecutorProvider.getExecutor();
-            Reader<T> reader = null;
-            ConsumerBase<T> consumer = null;
+            Reader<T> reader;
+            ConsumerBase<T> consumer;
             if (metadata.partitions > 0) {
                 reader = new MultiTopicsReaderImpl<>(PulsarClientImpl.this,
-                        conf, listenerThread, consumerSubscribedFuture, schema);
+                        conf, externalExecutorProvider, consumerSubscribedFuture, schema);
                 consumer = ((MultiTopicsReaderImpl<T>) reader).getMultiTopicsConsumer();
             } else {
-                try {
-                    reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
-                    consumer = ((ReaderImpl<T>) reader).getConsumer();
-                } catch (PulsarClientException.InvalidConfigurationException e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Deadletter topic on Key_Shared subscription type is not supported.");
-                    }
-                    consumerSubscribedFuture.completeExceptionally(e);
-                }
+                reader = new ReaderImpl<>(PulsarClientImpl.this, conf, externalExecutorProvider, consumerSubscribedFuture, schema);
+                consumer = ((ReaderImpl<T>) reader).getConsumer();
             }
 
             consumers.add(consumer);
-            Reader<T> finalReader = reader;
+
             consumerSubscribedFuture.thenRun(() -> {
-                readerFuture.complete(finalReader);
+                readerFuture.complete(reader);
             }).exceptionally(ex -> {
                 log.warn("[{}] Failed to get create topic reader", topic, ex);
                 readerFuture.completeExceptionally(ex);
@@ -703,7 +685,7 @@ public class PulsarClientImpl implements PulsarClient {
         return timer;
     }
 
-    ExecutorProvider externalExecutorProvider() {
+    public ExecutorProvider externalExecutorProvider() {
         return externalExecutorProvider;
     }
 

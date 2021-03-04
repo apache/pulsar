@@ -50,7 +50,7 @@ public class PackagesCliTest {
         pulsarCluster.start();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardown() {
         if (pulsarCluster != null) {
             pulsarCluster.stop();

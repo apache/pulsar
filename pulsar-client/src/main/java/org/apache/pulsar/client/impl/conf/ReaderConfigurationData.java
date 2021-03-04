@@ -33,6 +33,8 @@ import lombok.Data;
 @Data
 public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
+    private static final long serialVersionUID = 1L;
+
     private String topicName;
 
     @JsonIgnore
@@ -55,7 +57,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private boolean readCompacted = false;
     private boolean resetIncludeHead = false;
 
-    private List<Range> keyHashRanges;
+    private transient List<Range> keyHashRanges;
 
     @SuppressWarnings("unchecked")
     public ReaderConfigurationData<T> clone() {

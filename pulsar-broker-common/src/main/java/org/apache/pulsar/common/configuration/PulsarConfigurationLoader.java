@@ -52,7 +52,9 @@ public class PulsarConfigurationLoader {
     public static <T extends PulsarConfiguration> T create(String configFile,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         checkNotNull(configFile);
-        return create(new FileInputStream(configFile), clazz);
+        try (InputStream inputStream = new FileInputStream(configFile)) {
+            return create(inputStream, clazz);
+        }
     }
 
     /**

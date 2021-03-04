@@ -179,7 +179,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
             authenticationException = ae;
         }
         if (states.isEmpty()) {
-            log.error("Failed to initialize a new auth state from {}", remoteAddress, authenticationException);
+            log.debug("Failed to initialize a new auth state from {}", remoteAddress, authenticationException);
             if (authenticationException != null) {
                 throw authenticationException;
             } else {
