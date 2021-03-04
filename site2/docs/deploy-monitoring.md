@@ -67,7 +67,7 @@ brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:
 brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")
 ```
 
-Those metrics are added in the Prometheus interface, you can enable the metrics by setting `exposeCursorMetricsInPrometheus=true`, and then monitor and check the metrics stats in the Grafana.
+Those metrics are added in the Prometheus interface, you can monitor and check the metrics stats in the Grafana.
 
 ## Configure Prometheus
 
