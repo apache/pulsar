@@ -350,7 +350,7 @@ All the token metrics are labelled with the following labels:
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_expired_token_count | Counter | The number of Pulsar expired tokens. |
+| pulsar_expired_token_count | Counter | The number of expired tokens in Pulsar. |
 | pulsar_expiring_token_minutes | Histogram | The remaining time of expiring tokens in minutes. |
 
 ### Authentication metrics
@@ -428,4 +428,4 @@ All the proxy metrics are labelled with the following labels:
 | split_read_latency_per_query | Summary | Total read latency per query. |
 | split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
 | split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
-| split_total_execution_time | Summary | Total execution time . |
+| split_total_execution_time | Summary | The total execution time. |
