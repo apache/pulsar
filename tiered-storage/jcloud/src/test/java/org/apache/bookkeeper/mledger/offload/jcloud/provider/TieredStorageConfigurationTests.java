@@ -19,17 +19,14 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
-
 import org.jclouds.domain.Credentials;
 import org.testng.annotations.Test;
 
 public class TieredStorageConfigurationTests {
-    
+
     /*
      * Previous property names, for backwards-compatibility.
      */

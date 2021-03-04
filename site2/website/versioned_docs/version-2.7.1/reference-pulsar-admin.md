@@ -869,6 +869,8 @@ Subcommands
 * `get-subscribe-rate`
 * `set-subscription-dispatch-rate`
 * `get-subscription-dispatch-rate`
+* `set-subscription-expiration-time`
+* `get-subscription-expiration-time`
 * `clear-backlog`
 * `unsubscribe`
 * `set-encryption-required`
@@ -896,7 +898,9 @@ Subcommands
 * `set-schema-autoupdate-strategy`
 * `set-offload-policies`
 * `get-offload-policies`
-
+* `set-max-subscriptions-per-topic`
+* `get-max-subscriptions-per-topic`
+* `remove-max-subscriptions-per-topic`
 
 ### `list`
 Get the namespaces for a tenant
@@ -1367,6 +1371,27 @@ Usage
 $ pulsar-admin namespaces get-subscription-dispatch-rate tenant/namespace
 ```
 
+### `set-subscription-expiration-time`
+Set the subscription expiration time for a namespace (in minutes).
+
+Usage
+```bash
+$ pulsar-admin namespaces set-subscription-expiration-time tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-t`, `--time`|Subscription expiration time in minutes|0|
+
+### `get-subscription-expiration-time`
+Get the subscription expiration time for a namespace (in minutes).
+
+Usage
+```bash
+$ pulsar-admin namespaces get-subscription-expiration-time tenant/namespace
+```
+
 ### `clear-backlog`
 Clear the backlog for a namespace
 
@@ -1679,6 +1704,59 @@ Options
 |----|---|---|
 |`-m`, `--msg-publish-rate`|Threshold for number of messages per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
 |`-b`, `--byte-publish-rate`|Threshold for number of bytes per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
+
+### `set-offload-policies`
+Set the offload policy for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces set-offload-policies tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-d`, `--driver`|Driver to use to offload old data to long term storage,(Possible values: S3, aws-s3, google-cloud-storage)||
+|`-r`, `--region`|The long term storage region||
+|`-b`, `--bucket`|Bucket to place offloaded ledger into||
+|`-e`, `--endpoint`|Alternative endpoint to connect to||
+|`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
+|`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
+|`-mbs`, `--maxBlockSize`|Max block size|64MB|
+|`-rbs`, `--readBufferSize`|Read buffer size|1MB|
+|`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||
+|`-oae`, `--offloadAfterElapsed`|Offload after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||
+
+### `get-offload-policies`
+Get the offload policy for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces get-offload-policies tenant/namespace
+```
+
+### `set-max-subscriptions-per-topic`
+Set the maximum subscription per topic for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces set-max-subscriptions-per-topic tenant/namespace
+```
+
+### `get-max-subscriptions-per-topic`
+Get the maximum subscription per topic for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces get-max-subscriptions-per-topic tenant/namespace
+```
+### `remove-max-subscriptions-per-topic`
+Remove the maximum subscription per topic for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-max-subscriptions-per-topic tenant/namespace
+```
 
 ## `ns-isolation-policy`
 Operations for managing namespace isolation policies.
@@ -2558,7 +2636,7 @@ $ pulsar-admin schemas delete persistent://tenant/namespace/topic
 
 
 ### `get`
-Retrieve the schema definition assoicated with a topic (at a given version if version is supplied).
+Retrieve the schema definition associated with a topic (at a given version if version is supplied).
 
 Usage
 ```bash
@@ -2568,7 +2646,7 @@ $ pulsar-admin schemas get persistent://tenant/namespace/topic options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--version`|The version of the schema definition to retrive for a topic.||
+|`--version`|The version of the schema definition to retrieve for a topic.||
 
 ### `extract`
 Provide the schema definition for a topic via Java class name contained in a JAR file
@@ -2584,34 +2662,3 @@ Options
 |`-c`, `--classname`|The Java class name||
 |`-j`, `--jar`|A path to the JAR file which contains the above Java class||
 |`-t`, `--type`|The type of the schema (avro or json)||
-
-
-### `get-offload-policies`
-Get the offload policy for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces get-offload-policies tenant/namespace
-```
-
-### `set-offload-policies`
-Set the offload policy for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-offload-policies tenant/namespace
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-d`, `--driver`|Driver to use to offload old data to long term storage,(Possible values: S3, aws-s3, google-cloud-storage)||
-|`-r`, `--region`|The long term storage region||
-|`-b`, `--bucket`|Bucket to place offloaded ledger into||
-|`-e`, `--endpoint`|Alternative endpoint to connect to||
-|`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
-|`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
-|`-mbs`, `--maxBlockSize`|Max block size|64MB|
-|`-rbs`, `--readBufferSize`|Read buffer size|1MB|
-|`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||
-|`-oae`, `--offloadAfterElapsed`|Offload after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||

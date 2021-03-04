@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.topologies;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTP_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_PORT;
 
 import com.google.common.collect.Lists;
@@ -269,6 +270,7 @@ public class PulsarCluster {
                 GenericContainer<?> serviceContainer = service.getValue();
                 serviceContainer.withNetwork(network);
                 serviceContainer.withNetworkAliases(service.getKey());
+                PulsarContainer.configureLeaveContainerRunning(serviceContainer);
                 serviceContainer.start();
                 log.info("Successfully start external service {}.", service.getKey());
             });
@@ -280,12 +282,17 @@ public class PulsarCluster {
         log.info("Starting external service {} ...", networkAlias);
         serviceContainer.withNetwork(network);
         serviceContainer.withNetworkAliases(networkAlias);
+        PulsarContainer.configureLeaveContainerRunning(serviceContainer);
         serviceContainer.start();
         log.info("Successfully start external service {}", networkAlias);
     }
 
-    public void stopService(String networkAlias,
-                            GenericContainer<?> serviceContainer) {
+    public static void stopService(String networkAlias,
+                                   GenericContainer<?> serviceContainer) {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
         log.info("Stopping external service {} ...", networkAlias);
         serviceContainer.stop();
         log.info("Successfully stop external service {}", networkAlias);
@@ -309,6 +316,10 @@ public class PulsarCluster {
     }
 
     public synchronized void stop() {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
 
         List<GenericContainer> containers = new ArrayList<>();
 
@@ -361,6 +372,10 @@ public class PulsarCluster {
     }
 
     public void stopPrestoWorker() {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
         if (sqlFollowWorkerContainers != null && sqlFollowWorkerContainers.size() > 0) {
             for (PrestoWorkerContainer followWorker : sqlFollowWorkerContainers.values()) {
                 followWorker.stop();
@@ -495,6 +510,10 @@ public class PulsarCluster {
     }
 
     public synchronized void stopWorkers() {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
         // Stop workers that have been initialized
         workerContainers.values().parallelStream().forEach(WorkerContainer::stop);
         workerContainers.clear();
@@ -502,6 +521,7 @@ public class PulsarCluster {
 
     public void startContainers(Map<String, GenericContainer<?>> containers) {
         containers.forEach((name, container) -> {
+            PulsarContainer.configureLeaveContainerRunning(container);
             container
                 .withNetwork(network)
                 .withNetworkAliases(name)
@@ -510,9 +530,17 @@ public class PulsarCluster {
         });
     }
 
-    public void stopContainers(Map<String, GenericContainer<?>> containers) {
+    public static void stopContainers(Map<String, GenericContainer<?>> containers) {
+        if (PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            logIgnoringStopDueToLeaveRunning();
+            return;
+        }
         containers.values().parallelStream().forEach(GenericContainer::stop);
         log.info("Successfully stop containers : {}", containers);
+    }
+
+    private static void logIgnoringStopDueToLeaveRunning() {
+        log.warn("Ignoring stop due to PULSAR_CONTAINERS_LEAVE_RUNNING=true.");
     }
 
     public BrokerContainer getAnyBroker() {

@@ -378,14 +378,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         if (queryParams.containsKey("maxRedeliverCount") || queryParams.containsKey("deadLetterTopic")) {
             DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder();
             if (queryParams.containsKey("maxRedeliverCount")) {
-                dlpBuilder.maxRedeliverCount(Integer.parseInt(queryParams.get("maxRedeliverCount")));
-            }
-
-            // Don't provide a default DLQ to Key_Shared sub type as DLQ can't guarantee order.
-            if (!queryParams.containsKey("subscriptionType") ||
-                queryParams.containsKey("subscriptionType") &&
-                SubscriptionType.valueOf(queryParams.get("subscriptionType")) != SubscriptionType.Key_Shared) {
-                dlpBuilder.deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription));
+                dlpBuilder.maxRedeliverCount(Integer.parseInt(queryParams.get("maxRedeliverCount")))
+                        .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription));
             }
 
             if (queryParams.containsKey("deadLetterTopic")) {

@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
+
 /**
  * An timer-task implementation of {@link TransactionTimeoutTracker}.
  */
@@ -39,7 +40,6 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     private final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
     private final long tickTimeMillis;
     private final Clock clock;
-    private final static long BASE_OF_MILLIS_TO_SECOND = 1000L;
     private Timeout currentTimeout;
     private final static long INITIAL_TIMEOUT = 1L;
     // The timeout may wait time longer than the new transaction timeout time, so we should cancel the current timeout

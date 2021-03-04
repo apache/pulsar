@@ -696,4 +696,17 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 4).getData()), "message2");
         Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 5).getData()), "message1");
     }
+
+    @Test
+    public void testOffloadWithNullMessageId() {
+        final String topicName = "topic-123";
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, true);
+
+        try {
+            persistentTopics.triggerOffload(testTenant, testNamespace, topicName, true, null);
+            Assert.fail("should have failed");
+        } catch (RestException e) {
+            Assert.assertEquals(e.getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
+        }
+    }
 }

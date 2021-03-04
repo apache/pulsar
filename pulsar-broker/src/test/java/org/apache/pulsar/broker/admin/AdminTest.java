@@ -462,7 +462,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check deleting non-existing property
         try {
-            response = asynRequests(ctx -> properties.deleteTenant(ctx, "non-existing"));
+            response = asynRequests(ctx -> properties.deleteTenant(ctx, "non-existing", false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -521,7 +521,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         try {
             cache.invalidateAll();
             store.invalidateAll();
-            response = asynRequests(ctx -> properties.deleteTenant(ctx, "test-property"));
+            response = asynRequests(ctx -> properties.deleteTenant(ctx, "test-property", false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -533,14 +533,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             return op == MockZooKeeper.Op.DELETE && path.equals("/admin/policies/error-property");
         });
         try {
-            response = asynRequests(ctx -> properties.deleteTenant(ctx, "error-property"));
+            response = asynRequests(ctx -> properties.deleteTenant(ctx, "error-property", false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
         }
 
-        response = asynRequests(ctx -> properties.deleteTenant(ctx, "test-property"));
-        response = asynRequests(ctx -> properties.deleteTenant(ctx, "error-property"));
+        response = asynRequests(ctx -> properties.deleteTenant(ctx, "test-property", false));
+        response = asynRequests(ctx -> properties.deleteTenant(ctx, "error-property", false));
         response = Lists.newArrayList();
         response = asynRequests(ctx -> properties.getTenants(ctx));
         assertEquals(response, Lists.newArrayList());
@@ -552,7 +552,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         namespaces.createNamespace("my-tenant", "use", "my-namespace", new BundlesData());
 
         try {
-            response = asynRequests(ctx -> properties.deleteTenant(ctx, "my-tenant"));
+            response = asynRequests(ctx -> properties.deleteTenant(ctx, "my-tenant", false));
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -601,7 +601,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
         verify(response2, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
-        response = asynRequests(ctx -> properties.deleteTenant(ctx, "my-tenant"));
+        response = asynRequests(ctx -> properties.deleteTenant(ctx, "my-tenant", false));
     }
 
     @Test
