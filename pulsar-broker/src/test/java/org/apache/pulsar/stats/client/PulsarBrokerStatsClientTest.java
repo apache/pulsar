@@ -44,6 +44,7 @@ import javax.ws.rs.ServerErrorException;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -128,7 +129,8 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
         assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0
                 && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
-
+        assertFalse(cursor.subscriptionHavePendingRead);
+        assertFalse(cursor.subscriptionHavePendingReplayRead);
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
