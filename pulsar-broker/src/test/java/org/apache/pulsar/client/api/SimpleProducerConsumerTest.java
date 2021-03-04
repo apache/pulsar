@@ -3904,7 +3904,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             log.info("field {} {}", f.getName(), res.getField(f));
             assertEquals("field", f.getName());
             assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
-            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", nativeRecord.get(f.getName()));
+            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", nativeRecord.get(f.getName()).toString());
         }
 
         assertEquals(1, res.getFields().size());
@@ -3936,7 +3936,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         GenericRecord res = consumer.receive().getValue();
         consumer.close();
-        assertEquals(SchemaType.AVRO, res.getSchemaType());
+        assertEquals(schema.getSchemaInfo().getType(), res.getSchemaType());
         org.apache.avro.generic.GenericRecord nativeRecord = res.getNativeRecord(org.apache.avro.generic.GenericRecord.class);
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
             log.info("field {} {}", f.getName(), res.getField(f));

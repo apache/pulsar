@@ -41,7 +41,7 @@ public class GenericAvroRecordTest {
         GenericRecord record = schema.newRecordBuilder().set("test", "foo").build();
         assertEquals(GenericAvroRecord.class, record.getClass());
         org.apache.avro.generic.GenericRecord nativeRecord = record.getNativeRecord(org.apache.avro.generic.GenericRecord.class);
-        assertEquals("foo", nativeRecord.get("test"));
+        assertEquals("foo", nativeRecord.get("test").toString());
         assertEquals(1, nativeRecord.getSchema().getFields().size());
         assertEquals(schemaType, record.getSchemaType());
     }
