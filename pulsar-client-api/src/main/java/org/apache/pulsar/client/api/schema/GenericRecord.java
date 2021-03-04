@@ -31,6 +31,15 @@ import org.apache.pulsar.common.schema.SchemaType;
 public interface GenericRecord {
 
     /**
+     * Return schema version.
+     *
+     * @return schema version, or null if the information is not available.
+     */
+    default byte[] getSchemaVersion() {
+        return null;
+    }
+
+    /**
      * Returns the list of fields associated with the record.
      *
      * @return the list of fields associated with the record.
@@ -60,18 +69,12 @@ public interface GenericRecord {
      *
      * @return the schema type
      * @throws UnsupportedOperationException if this feature is not implemented
+     * @see SchemaType#AVRO
+     * @see SchemaType#PROTOBUF_NATIVE
+     * @see SchemaType#JSON
      */
     default SchemaType getSchemaType() {
         throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Return schema version.
-     *
-     * @return schema version, or null if the information is not available.
-     */
-    default byte[] getSchemaVersion() {
-        return null;
     }
 
     /**

@@ -3899,6 +3899,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         assertEquals(SchemaType.AVRO, res.getSchemaType());
         org.apache.avro.generic.GenericRecord nativeRecord = res.getNativeRecord(org.apache.avro.generic.GenericRecord.class);
+        org.apache.avro.Schema schema = nativeRecord.getSchema();
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
             log.info("field {} {}", f.getName(), res.getField(f));
             assertEquals("field", f.getName());

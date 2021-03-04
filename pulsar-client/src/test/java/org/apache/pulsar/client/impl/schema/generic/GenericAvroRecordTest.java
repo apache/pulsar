@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import org.apache.pulsar.client.api.schema.*;
+import static org.testng.Assert.assertEquals;
+
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
-import static org.testng.Assert.*;
 
 public class GenericAvroRecordTest {
 
@@ -43,4 +45,5 @@ public class GenericAvroRecordTest {
         assertEquals(1, nativeRecord.getSchema().getFields().size());
         assertEquals(schemaType, record.getSchemaType());
     }
+
 }

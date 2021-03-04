@@ -75,7 +75,6 @@ public class GenericAvroRecord extends VersionedGenericRecord {
         return null;
     }
 
-
     @Override
     public SchemaType getSchemaType() {
         return SchemaType.AVRO;
