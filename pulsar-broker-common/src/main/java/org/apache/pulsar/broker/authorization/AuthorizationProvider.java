@@ -56,7 +56,7 @@ public interface AuthorizationProvider extends Closeable {
                                                    AuthenticationDataSource authenticationData,
                                                    ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
     }
 
     /**
@@ -68,7 +68,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
     }
 
     /**
@@ -80,7 +80,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     default CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
                                                      AuthenticationDataSource authenticationData) {
-        return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(role) ? true : false);
+        return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(role));
     }
 
     /**

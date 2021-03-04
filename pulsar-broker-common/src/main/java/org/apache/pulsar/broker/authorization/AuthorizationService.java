@@ -50,7 +50,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class AuthorizationService {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationService.class);
 
-    private AuthorizationProvider provider;
+    private final AuthorizationProvider provider;
     private final ServiceConfiguration conf;
 
     public AuthorizationService(ServiceConfiguration conf, ConfigurationCacheService configCache)
@@ -290,7 +290,7 @@ public class AuthorizationService {
      */
     public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
-        CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
+        CompletableFuture<Boolean> finalResult = new CompletableFuture<>();
         canProduceAsync(topicName, role, authenticationData).whenComplete((produceAuthorized, ex) -> {
             if (ex == null) {
                 if (produceAuthorized) {

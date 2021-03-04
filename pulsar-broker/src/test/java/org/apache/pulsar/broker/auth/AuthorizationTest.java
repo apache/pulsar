@@ -58,8 +58,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
     }
 
-    @Test
-    public void simple() throws Exception {
+    @Test(invocationCount = 100)
+    public void testSimple() throws Exception {
         AuthorizationService auth = pulsar.getBrokerService().getAuthorizationService();
 
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));

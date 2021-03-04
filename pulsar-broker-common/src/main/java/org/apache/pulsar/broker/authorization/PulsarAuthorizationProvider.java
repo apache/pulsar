@@ -116,7 +116,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     }
                 } else {
                     if (isNotBlank(subscription)) {
-                        // validate if role is authorize to access subscription. (skip validatation if authorization
+                        // validate if role is authorize to access subscription. (skip validation if authorization
                         // list is empty)
                         Set<String> roles = policies.get().auth_policies.subscription_auth_roles.get(subscription);
                         if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
@@ -124,7 +124,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             PulsarServerException ex = new PulsarServerException(
                                     String.format("%s is not authorized to access subscription %s on topic %s", role,
                                             subscription, topicName));
-                            permissionFuture.complete(false);
+                            permissionFuture.completeExceptionally(ex);
                             return;
                         }
 
@@ -180,7 +180,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
-        CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
+        CompletableFuture<Boolean> finalResult = new CompletableFuture<>();
         canProduceAsync(topicName, role, authenticationData).whenComplete((produceAuthorized, ex) -> {
             if (ex == null) {
                 if (produceAuthorized) {
