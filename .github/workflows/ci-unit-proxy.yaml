@@ -22,11 +22,10 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore: ['site2/**', 'deployment/**']
   push:
     branches:
       - branch-*
-    paths-ignore: ['site2/**', 'deployment/**']
+
 env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
@@ -43,8 +42,14 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 25
+          fetch-depth: 100
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check if this pull request only changes documentation
+        id:   docs
+        uses: apache/pulsar-test-infra/diff-only@master
+        with:
+          args: site2 deployment .asf.yaml .ci ct.yaml
 
       - name: Cache local Maven repository
         uses: actions/cache@v2
@@ -55,9 +60,11 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: build modules pulsar-proxy
+        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
       - name: run unit test 'PROXY'
+        if: steps.docs.outputs.changed_only == 'no'
         run: ./build/run_unit_group.sh PROXY
 
       - name: package surefire artifacts

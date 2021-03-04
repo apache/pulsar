@@ -35,6 +35,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.schema.Schemas;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -45,8 +47,11 @@ import org.testng.annotations.Test;
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 
 @Slf4j
@@ -292,6 +297,53 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
         consumerTwo.close();
         producer.close();
+    }
+
+    @Test
+    public void testSchemaComparison() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String topic = "test-schema-comparison";
+
+        String namespace = "test-namespace-" + randomName(16);
+        String fqtn = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topic
+        ).toString();
+
+        NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME)
+        );
+
+        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
+                SchemaCompatibilityStrategy.FULL);
+        byte[] changeSchemaBytes = (new String(Schema.AVRO(Schemas.PersonOne.class)
+                .getSchemaInfo().getSchema(), UTF_8) + "/n   /n   /n").getBytes();
+        SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();
+        admin.schemas().createSchema(fqtn, schemaInfo);
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+        ProducerBuilder<Schemas.PersonOne> producerOneBuilder = pulsarClient
+                .newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(fqtn);
+        producerOneBuilder.create().close();
+
+        assertArrayEquals(changeSchemaBytes, admin.schemas().getSchemaInfo(fqtn).getSchema());
+
+        ProducerBuilder<Schemas.PersonThree> producerThreeBuilder = pulsarClient
+                .newProducer(Schema.AVRO(Schemas.PersonThree.class))
+                .topic(fqtn);
+        
+        try {
+            producerThreeBuilder.create();
+            fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
+        }
     }
 
     @Test(dataProvider = "AllCheckSchemaCompatibilityStrategy")

@@ -51,6 +51,7 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -235,7 +236,7 @@ public class PulsarAdminToolTest {
         verify(mockTenants).getTenantInfo("my-tenant");
 
         tenants.run(split("delete my-tenant"));
-        verify(mockTenants).deleteTenant("my-tenant");
+        verify(mockTenants).deleteTenant("my-tenant", false);
     }
 
     @Test
@@ -282,6 +283,13 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-clusters myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceReplicationClusters("myprop/clust/ns1");
+
+        namespaces.run(split("set-subscription-types-enabled myprop/clust/ns1 -t Shared,Failover"));
+        verify(mockNamespaces).setSubscriptionTypesEnabled("myprop/clust/ns1",
+                Sets.newHashSet(SubscriptionType.Shared, SubscriptionType.Failover));
+
+        namespaces.run(split("get-subscription-types-enabled myprop/clust/ns1"));
+        verify(mockNamespaces).getSubscriptionTypesEnabled("myprop/clust/ns1");
 
         namespaces
                 .run(split("set-bookie-affinity-group myprop/clust/ns1 --primary-group test1 --secondary-group test2"));
@@ -357,8 +365,12 @@ public class PulsarAdminToolTest {
         namespaces.run(split("set-subscription-expiration-time myprop/clust/ns1 -t 60"));
         verify(mockNamespaces).setSubscriptionExpirationTime("myprop/clust/ns1", 60);
 
+        namespaces.run(split("get-deduplication myprop/clust/ns1"));
+        verify(mockNamespaces).getDeduplicationStatus("myprop/clust/ns1");
         namespaces.run(split("set-deduplication myprop/clust/ns1 --enable"));
         verify(mockNamespaces).setDeduplicationStatus("myprop/clust/ns1", true);
+        namespaces.run(split("remove-deduplication myprop/clust/ns1"));
+        verify(mockNamespaces).removeDeduplicationStatus("myprop/clust/ns1");
 
         namespaces.run(split("set-auto-topic-creation myprop/clust/ns1 -e -t non-partitioned"));
         verify(mockNamespaces).setAutoTopicCreation("myprop/clust/ns1",
@@ -765,10 +777,20 @@ public class PulsarAdminToolTest {
         verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("set-deduplication persistent://myprop/clust/ns1/ds1 --disable"));
-        verify(mockTopics, times(2)).enableDeduplication("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockTopics).setDeduplicationStatus("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("remove-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-subscription-types-enabled persistent://myprop/clust/ns1/ds1 -t Shared,Failover"));
+        verify(mockTopics).setSubscriptionTypesEnabled("persistent://myprop/clust/ns1/ds1",
+                Sets.newHashSet(SubscriptionType.Shared, SubscriptionType.Failover));
+
+        cmdTopics.run(split("get-subscription-types-enabled persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getSubscriptionTypesEnabled("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("set-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1 -md 10 -bd 11 -dt 12"));
         verify(mockTopics).setReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1",
@@ -778,9 +800,9 @@ public class PulsarAdminToolTest {
         verify(mockTopics).removeReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-deduplication-enabled persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("get-deduplication persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics, times(2)).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics, times(2)).getDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1", false);
@@ -875,11 +897,11 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1"
                 , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
 
-        cmdTopics.run(split("get-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        cmdTopics.run(split("get-max-subscriptions persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
-        cmdTopics.run(split("set-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1 -m 100"));
+        cmdTopics.run(split("set-max-subscriptions persistent://myprop/clust/ns1/ds1 -m 100"));
         verify(mockTopics).setMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1", 100);
-        cmdTopics.run(split("remove-max-subscriptions-per-topic persistent://myprop/clust/ns1/ds1"));
+        cmdTopics.run(split("remove-max-subscriptions persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeMaxSubscriptionsPerTopic("persistent://myprop/clust/ns1/ds1");
 
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a

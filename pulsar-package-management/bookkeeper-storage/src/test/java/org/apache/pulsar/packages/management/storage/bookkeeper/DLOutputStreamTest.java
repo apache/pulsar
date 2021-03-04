@@ -57,7 +57,7 @@ public class DLOutputStreamTest {
         when(writer.writeBulk(any(List.class)))
             .thenReturn(CompletableFuture.completedFuture(Collections.singletonList(DLSN.InitialDLSN))); }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws IOException {
         if (dlm != null) {
             dlm.close();

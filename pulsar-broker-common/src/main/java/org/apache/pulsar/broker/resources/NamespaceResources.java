@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Getter;
+
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -33,18 +33,13 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 @Getter
 public class NamespaceResources extends BaseResources<Policies> {
     private IsolationPolicyResources isolationPolicies;
-    private LocalPoliciesResources localPolicies;
     private PartitionedTopicResources partitionedTopicResources;
-    private MetadataStoreExtended localStore;
     private MetadataStoreExtended configurationStore;
 
-    public NamespaceResources(MetadataStoreExtended localStore, MetadataStoreExtended configurationStore,
-            int operationTimeoutSec) {
+    public NamespaceResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
-        this.localStore = localStore;
         this.configurationStore = configurationStore;
         isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
-        localPolicies = new LocalPoliciesResources(localStore, operationTimeoutSec);
         partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
     }
 
@@ -57,12 +52,6 @@ public class NamespaceResources extends BaseResources<Policies> {
         public Optional<NamespaceIsolationPolicies> getPolicies(String path) throws MetadataStoreException {
             Optional<Map<String, NamespaceIsolationData>> data = super.get(path);
             return data.isPresent() ? Optional.of(new NamespaceIsolationPolicies(data.get())) : Optional.empty();
-        }
-    }
-
-    public static class LocalPoliciesResources extends BaseResources<LocalPolicies> {
-        public LocalPoliciesResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
-            super(configurationStore, LocalPolicies.class, operationTimeoutSec);
         }
     }
 

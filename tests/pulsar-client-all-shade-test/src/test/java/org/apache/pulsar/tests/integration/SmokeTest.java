@@ -85,7 +85,7 @@ public class SmokeTest {
         Assert.assertEquals(admin.namespaces().getNamespaces("public"), expectedNamespacesList);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void cleanup(){
         pulsarContainer.stop();
     }

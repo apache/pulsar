@@ -257,17 +257,22 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
-        PulsarService pulsar = spy(new PulsarService(conf));
 
-        setupBrokerMocks(pulsar);
         boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();
         // enable authorization to initialize authorization service which is used by grant-permission
         conf.setAuthorizationEnabled(true);
-        pulsar.start();
+        PulsarService pulsar = startBrokerWithoutAuthorization(conf);
         conf.setAuthorizationEnabled(isAuthorizationEnabled);
+
+        return pulsar;
+    }
+
+    protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
+        PulsarService pulsar = spy(new PulsarService(conf));
+        setupBrokerMocks(pulsar);
+        pulsar.start();
         log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
-
         return pulsar;
     }
 
@@ -284,9 +289,7 @@ public abstract class MockedPulsarServiceBaseTest {
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
         doReturn(new CounterBrokerInterceptor()).when(pulsar).getBrokerInterceptor();
 
-        doAnswer((invocation) -> {
-                return spy(invocation.callRealMethod());
-            }).when(pulsar).newCompactor();
+        doAnswer((invocation) -> spy(invocation.callRealMethod())).when(pulsar).newCompactor();
     }
 
     protected void waitForZooKeeperWatchers() {
@@ -320,7 +323,7 @@ public abstract class MockedPulsarServiceBaseTest {
         return zk;
     }
 
-    public static MockZooKeeper createMockZooKeeperGlobal() throws Exception {
+    public static MockZooKeeper createMockZooKeeperGlobal() {
         return  MockZooKeeper.newInstanceForGlobalZK(MoreExecutors.newDirectExecutorService());
     }
 

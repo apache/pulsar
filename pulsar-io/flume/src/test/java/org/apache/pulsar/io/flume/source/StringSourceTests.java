@@ -71,7 +71,7 @@ public class StringSourceTests extends AbstractFlumeTests {
         mockSourceContext = mock(SourceContext.class);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         sink.stop();
         sink = null;

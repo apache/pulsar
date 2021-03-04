@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -601,7 +602,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
     @Test
     public void testMessageBuilderLoadConf() throws Exception {
-        String topic = "my-topic-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("my-topic");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)

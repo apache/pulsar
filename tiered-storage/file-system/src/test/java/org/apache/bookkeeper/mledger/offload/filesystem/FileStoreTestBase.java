@@ -53,7 +53,7 @@ public class FileStoreTestBase {
                 scheduler, hdfsURI, basePath);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         hdfsCluster.shutdown(true, true);
         hdfsCluster.close();

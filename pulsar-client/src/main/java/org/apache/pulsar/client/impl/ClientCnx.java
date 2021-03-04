@@ -484,9 +484,10 @@ public class ClientCnx extends PulsarHandler {
             log.debug("{} Received success GetLastMessageId response from server: {}", ctx.channel(), success.getRequestId());
         }
         long requestId = success.getRequestId();
-        CompletableFuture<MessageIdData> requestFuture = (CompletableFuture<MessageIdData>) pendingRequests.remove(requestId);
+        CompletableFuture<CommandGetLastMessageIdResponse> requestFuture =
+                (CompletableFuture<CommandGetLastMessageIdResponse>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(success.getLastMessageId());
+            requestFuture.complete(success);
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
@@ -854,7 +855,7 @@ public class ClientCnx extends PulsarHandler {
             ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {
                     CompletableFuture<?> newFuture = pendingRequests.remove(requestId);
-                    if (!newFuture.isDone()) {
+                    if (newFuture != null && !newFuture.isDone()) {
                         log.warn("{} Failed to send {} to broker: {}", ctx.channel(),
                                 requestType.getDescription(), writeFuture.cause().getMessage());
                         future.completeExceptionally(writeFuture.cause());
@@ -874,7 +875,7 @@ public class ClientCnx extends PulsarHandler {
         return future;
     }
 
-    public CompletableFuture<MessageIdData> sendGetLastMessageId(ByteBuf request, long requestId) {
+    public CompletableFuture<CommandGetLastMessageIdResponse> sendGetLastMessageId(ByteBuf request, long requestId) {
         return sendRequestAndHandleTimeout(request, requestId, RequestType.GetLastMessageId, true);
     }
 
@@ -1080,7 +1081,7 @@ public class ClientCnx extends PulsarHandler {
         this.remoteHostName = remoteHostName;
     }
 
-    private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
+    public static PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:
             return new PulsarClientException.AuthenticationException(errorMsg);

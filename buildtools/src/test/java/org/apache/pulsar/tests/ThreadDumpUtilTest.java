@@ -16,17 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.tests;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.Map;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import javax.management.JMException;
+import org.testng.annotations.Test;
 
-public class DynamicConfigurationResources extends BaseResources<Map<String, String>> {
+public class ThreadDumpUtilTest {
 
-    public DynamicConfigurationResources(MetadataStoreExtended store, int operationTimeoutSec) {
-        super(store, new TypeReference<Map<String, String>>() {
-        }, operationTimeoutSec);
+    @Test
+    void testThreadDump() {
+        // simply verify that an exception isn't thrown
+        System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
     }
 
+    @Test
+    void testHelp() throws JMException {
+        System.out.println(ThreadDumpUtil.callDiagnosticCommand("help"));
+    }
 }

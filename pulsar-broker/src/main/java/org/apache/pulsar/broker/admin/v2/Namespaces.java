@@ -43,6 +43,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -335,6 +336,16 @@ public class Namespaces extends NamespacesBase {
         internalSetSubscriptionExpirationTime(expirationTime);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/deduplication")
+    @ApiOperation(value = "Get broker side deduplication for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public Boolean getDeduplication(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetDeduplication();
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/deduplication")
     @ApiOperation(value = "Enable or disable broker side deduplication for all topics in a namespace")
@@ -346,6 +357,16 @@ public class Namespaces extends NamespacesBase {
                                             boolean enableDeduplication) {
         validateNamespaceName(tenant, namespace);
         internalModifyDeduplication(enableDeduplication);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/deduplication")
+    @ApiOperation(value = "Remove broker side deduplication for all topics in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public void removeDeduplication(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalModifyDeduplication(null);
     }
 
     @POST
@@ -1094,7 +1115,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxUnackedMessagesPerConsumer config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxUnackedMessagesPerConsumer(@PathParam("tenant") String tenant,
+    public Integer getMaxUnackedMessagesPerConsumer(@PathParam("tenant") String tenant,
                                        @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetMaxUnackedMessagesPerConsumer();
@@ -1442,6 +1463,34 @@ public class Namespaces extends NamespacesBase {
                     boolean isAllowAutoUpdateSchema) {
         validateNamespaceName(tenant, namespace);
         internalSetIsAllowAutoUpdateSchema(isAllowAutoUpdateSchema);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/subscriptionTypesEnabled")
+    @ApiOperation(value = "The set of whether allow subscription types")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public Set<SubscriptionType> getSubscriptionTypesEnabled(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetSubscriptionTypesEnabled();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/subscriptionTypesEnabled")
+    @ApiOperation(value = "Update set of whether allow share sub type")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setSubscriptionTypesEnabled(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Set of whether allow subscription types", required = true)
+                    Set<SubscriptionType> subscriptionTypesEnabled) {
+        validateNamespaceName(tenant, namespace);
+        internalSetSubscriptionTypesEnabled(subscriptionTypesEnabled);
     }
 
 

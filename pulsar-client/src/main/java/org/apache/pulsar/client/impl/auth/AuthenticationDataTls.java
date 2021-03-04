@@ -33,12 +33,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AuthenticationDataTls implements AuthenticationDataProvider {
+    private static final long serialVersionUID = 1L;
     protected X509Certificate[] tlsCertificates;
     protected PrivateKey tlsPrivateKey;
-    private FileModifiedTimeUpdater certFile, keyFile;
+    private transient FileModifiedTimeUpdater certFile, keyFile;
     // key and cert using stream
-    private InputStream certStream, keyStream;
-    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
+    private transient InputStream certStream, keyStream;
+    private transient Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
     public AuthenticationDataTls(String certFilePath, String keyFilePath) throws KeyManagementException {
         if (certFilePath == null) {
