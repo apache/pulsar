@@ -23,6 +23,20 @@ Publish time | The timestamp of when the message is published. The timestamp is 
 Event time | An optional timestamp attached to a message by applications. For example, applications attach a timestamp on when the message is processed. If nothing is set to event time, the value is `0`. 
 TypedMessageBuilder | It is used to construct a message. You can set message properties such as the message key, message value with `TypedMessageBuilder`. </br> When you set `TypedMessageBuilder`, set the key as a string. If you set the key as other types, for example, an AVRO object, the key is sent as bytes, and it is difficult to get the AVRO object back on the consumer.
 
+Pulsar default message size is 5MB, you can configure the message size by following configurations:
+
+In `broker.conf`:
+```bash
+# Max size of messages.
+maxMessageSize=5242880
+```
+
+In `bookkeeper.conf`:
+```bash
+# The maximum netty frame size in bytes. Any message received larger than this will be rejected. The default value is 5MB.
+nettyMaxFrameSizeBytes=5253120
+```
+
 > For more information on Pulsar message contents, see Pulsar [binary protocol](developing-binary-protocol.md).
 
 ## Producers
