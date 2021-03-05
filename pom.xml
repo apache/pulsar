@@ -1302,6 +1302,23 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
         <configuration>
+          <includes>
+            <include>**/README.md</include>
+            <include>**/LICENSE</include>
+            <include>**/NOTICE</include>
+            <include>**/pom.xml</include>
+            <include>**/src/**</include>
+            <include>**/pulsar-client-cpp/**</include>
+            <include>**/pulsar-client-go/**</include>
+            <include>**/pulsar-function-go/**</include>
+            <include>**/conf/**</include>
+            <include>**/bin/**</include>
+            <include>**/*.txt</include>
+            <include>pulsar-common/*.sh</include>
+            <include>docker/**</include>
+            <include>dashboard/**</include>
+            <include>deployment/**</include>
+          </includes>
           <excludes>
             <!-- Other license files -->
             <exclude>licenses/LICENSE-*.txt</exclude>
@@ -1385,6 +1402,52 @@ flexible messaging model and an intuitive client API.</description>
             <!-- helm files -->
             <exclude>**/.helmignore</exclude>
             <exclude>**/_helpers.tpl</exclude>
+
+            <!-- project ignored files -->
+            <exclude>.git/**</exclude>
+            <exclude>**/*.nar</exclude>
+            <exclude>**/.terraform/**</exclude>
+            <exclude>**/.gitignore</exclude>
+            <exclude>**/.svn</exclude>
+            <exclude>**/*.iws</exclude>
+            <exclude>**/*.ipr</exclude>
+            <exclude>**/*.iml</exclude>
+            <exclude>**/*.cbp</exclude>
+            <exclude>**/*.pyc</exclude>
+            <exclude>**/.classpath</exclude>
+            <exclude>**/.project</exclude>
+            <exclude>**/.settings</exclude>
+            <exclude>**/target/**</exclude>
+            <exclude>**/CMakeFiles/**</exclude>
+            <exclude>**/CMakeCache.txt</exclude>
+            <exclude>**/cmake_install.cmake</exclude>
+            <exclude>pulsar-client-cpp/**/Makefile</exclude>
+            <exclude>pulsar-client-cpp/tests/main</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleAsyncProducer</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleConsumer</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleConsumerListener</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleProducer</exclude>
+            <exclude>pulsar-client-cpp/perf/perfProducer</exclude>
+            <exclude>pulsar-client-cpp/perf/perfConsumer</exclude>
+            <exclude>**/python/dist/**</exclude>
+            <exclude>**/pulsar-client-cpp/pkg/rpm/RPMS/**</exclude>
+            <exclude>**/pulsar-client-cpp/pkg/rpm/SOURCES/**</exclude>
+            <exclude>**/pulsar-client-cpp/pkg/deb/BUILD/**</exclude>
+            <exclude>**/python/wheelhouse/**</exclude>
+            <exclude>**/python/MANIFEST</exclude>
+            <exclude>**/*.egg-info/**</exclude>
+            <!-- until the code that does this is fixed -->
+            <exclude>**/*.log</exclude>
+            <exclude>**/build/**</exclude>
+            <exclude>**/file:/**</exclude>
+            <exclude>**/SecurityAuth.audit*</exclude>
+            <exclude>**/site2/**</exclude>
+            <exclude>**/.idea/**</exclude>
+            <exclude>**/*.a</exclude>
+            <exclude>**/*.so</exclude>
+            <exclude>**/*.so.*</exclude>
+            <exclude>**/*.dylib</exclude>
+
           </excludes>
         </configuration>
       </plugin>
