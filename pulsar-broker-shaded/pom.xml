@@ -82,6 +82,7 @@
                   <include>net.java.dev.jna:*</include>
                   <include>com.carrotsearch:*</include>
                   <include>io.prometheus:*</include>
+                  <include>io.perfmark:*</include>
                   <include>com.github.ben-manes.caffeine:*</include>
                   <include>org.glassfish.jersey.*:*</include>
                   <include>org.rocksdb:*</include>
