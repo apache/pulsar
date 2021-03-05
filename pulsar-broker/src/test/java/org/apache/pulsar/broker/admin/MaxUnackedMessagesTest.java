@@ -42,8 +42,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -58,7 +58,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     private final String myNamespace = testTenant + "/" + testNamespace;
     private final String testTopic = "persistent://" + myNamespace + "/max-unacked-";
 
-    @BeforeClass
+    @BeforeMethod
     @Override
     protected void setup() throws Exception {
         this.conf.setSystemTopicEnabled(true);
@@ -67,10 +67,11 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
     }
 
     @Test(timeOut = 10000)
@@ -198,6 +199,27 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
         assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName));
+    }
+
+    @Test(timeOut = 20000)
+    public void testMaxUnackedMessagesOnConsumerAppliedApi() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topicName, 3);
+        waitCacheInit(topicName);
+        Integer max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
+        assertEquals(max.intValue(), pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer());
+
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 10);
+        Awaitility.await().untilAsserted(()
+                -> assertNotNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace)));
+        max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
+        assertEquals(max.intValue(), 10);
+
+        admin.topics().setMaxUnackedMessagesOnConsumer(topicName, 20);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
+        max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
+        assertEquals(max.intValue(), 20);
     }
 
     @Test(timeOut = 30000)
