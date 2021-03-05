@@ -18,7 +18,7 @@
  */
 #ifndef LIB_UNACKEDMESSAGETRACKERENABLED_H_
 #define LIB_UNACKEDMESSAGETRACKERENABLED_H_
-#include "gtest/gtest_prod.h"
+#include "lib/TestUtil.h"
 #include "lib/UnAckedMessageTrackerInterface.h"
 
 #include <mutex>

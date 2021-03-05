@@ -1163,7 +1163,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>logs/**</exclude>
             <exclude>**/circe/**</exclude>
             <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
-            <exclude>pulsar-client-cpp/include/gtest/gtest_prod.h</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
