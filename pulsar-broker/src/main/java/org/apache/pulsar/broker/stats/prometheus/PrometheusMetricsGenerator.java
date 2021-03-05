@@ -86,7 +86,7 @@ public class PrometheusMetricsGenerator {
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
         boolean includeProducerMetrics, boolean includeManagedCursorMetrics, OutputStream out) throws IOException {
-        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, includeManagedCursorMetrics, out,null);
+        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, includeManagedCursorMetrics, out, null);
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
