@@ -1302,23 +1302,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
         <configuration>
-          <includes>
-            <include>**/README.md</include>
-            <include>**/LICENSE</include>
-            <include>**/NOTICE</include>
-            <include>**/pom.xml</include>
-            <include>**/src/**</include>
-            <include>**/pulsar-client-cpp/**</include>
-            <include>**/pulsar-client-go/**</include>
-            <include>**/pulsar-function-go/**</include>
-            <include>**/conf/**</include>
-            <include>**/bin/**</include>
-            <include>**/*.txt</include>
-            <include>pulsar-common/*.sh</include>
-            <include>docker/**</include>
-            <include>dashboard/**</include>
-            <include>deployment/**</include>
-          </includes>
           <excludes>
             <!-- Other license files -->
             <exclude>licenses/LICENSE-*.txt</exclude>
@@ -1404,7 +1387,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/_helpers.tpl</exclude>
 
             <!-- project ignored files -->
-            <exclude>.git/**</exclude>
+            <exclude>*.md</exclude>
+            <exclude>.github/**</exclude>
             <exclude>**/*.nar</exclude>
             <exclude>**/.terraform/**</exclude>
             <exclude>**/.gitignore</exclude>
