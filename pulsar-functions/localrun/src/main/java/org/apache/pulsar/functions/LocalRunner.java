@@ -18,19 +18,36 @@
  */
 package org.apache.pulsar.functions;
 
+import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
-
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -57,29 +74,15 @@ import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.TreeMap;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
-
 @Slf4j
-public class LocalRunner {
+public class LocalRunner implements AutoCloseable {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final List<RuntimeSpawner> spawners = new LinkedList<>();
-    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+    private final String narExtractionDirectory;
+    private final Thread shutdownHook;
+    private ClassLoader userCodeClassLoader;
+    private boolean userCodeClassLoaderCreated;
 
     public enum RuntimeEnv {
         THREAD,
@@ -177,7 +180,7 @@ public class LocalRunner {
             stateStorageServiceUrl, String brokerServiceUrl, String clientAuthPlugin, String clientAuthParams,
                        boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
                        String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
-                       String secretsProviderClassName, String secretsProviderConfig) {
+                       String secretsProviderClassName, String secretsProviderConfig, String narExtractionDirectory) {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
@@ -193,66 +196,90 @@ public class LocalRunner {
         this.runtimeEnv = runtimeEnv;
         this.secretsProviderClassName = secretsProviderClassName;
         this.secretsProviderConfig = secretsProviderConfig;
-
-        java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
+        this.narExtractionDirectory = narExtractionDirectory != null ? narExtractionDirectory
+                : NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+        shutdownHook = new Thread() {
             public void run() {
                 LocalRunner.this.stop();
             }
-        });
+        };
+    }
+
+    @Override
+    public void close() throws Exception {
+        stop();
     }
 
     public synchronized void stop() {
-        running.set(false);
-        log.info("Shutting down the localrun runtimeSpawner ...");
-        for (RuntimeSpawner spawner : spawners) {
-            spawner.close();
+        if (running.compareAndSet(true, false)) {
+            try {
+                Runtime.getRuntime().removeShutdownHook(shutdownHook);
+            } catch (IllegalStateException e) {
+                // ignore possible "Shutdown in progress"
+            }
+            log.info("Shutting down the localrun runtimeSpawner ...");
+            for (RuntimeSpawner spawner : spawners) {
+                spawner.close();
+            }
+            spawners.clear();
+
+            if (userCodeClassLoaderCreated) {
+                if (userCodeClassLoader instanceof Closeable) {
+                    try {
+                        ((Closeable) userCodeClassLoader).close();
+                    } catch (IOException e) {
+                        log.warn("Error closing classloader", e);
+                    }
+                }
+                userCodeClassLoaderCreated = false;
+                userCodeClassLoader = null;
+            }
         }
-        spawners.clear();
     }
 
     public void start(boolean blocking) throws Exception {
         List<RuntimeSpawner> local = new LinkedList<>();
         synchronized (this) {
-            if (running.get() == true) {
+            if (!running.compareAndSet(false, true)) {
                 throw new IllegalArgumentException("Pulsar Function local run already started!");
             }
-
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
             Function.FunctionDetails functionDetails;
-            String userCodeFile;
+            String userCodeFile = null;
             int parallelism;
             if (functionConfig != null) {
                 FunctionConfigUtils.inferMissingArguments(functionConfig, true);
-                ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 parallelism = functionConfig.getParallelism();
                 if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                     userCodeFile = functionConfig.getJar();
 
-                    // if code file not specified try to get location of the code based on class.
-                    if (userCodeFile == null && functionConfig.getClassName() != null) {
-                        userCodeFile = Thread.currentThread().getContextClassLoader()
-                                .loadClass(functionConfig.getClassName())
-                                .getProtectionDomain().getCodeSource().getLocation().getFile();
-                    }
-
-                    boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
-                    if(isBuiltin){
+                    boolean isBuiltin = !StringUtils.isEmpty(functionConfig.getJar())
+                            && functionConfig.getJar().startsWith(Utils.BUILTIN);
+                    if (isBuiltin){
                         WorkerConfig workerConfig = WorkerConfig.load(System.getenv("PULSAR_HOME") + "/conf/functions_worker.yml");
                         Functions functions = FunctionUtils.searchForFunctions(System.getenv("PULSAR_HOME") + workerConfig.getFunctionsDirectory().replaceFirst("^.", ""));
                         String functionType = functionConfig.getJar().replaceFirst("^builtin://", "");
                         userCodeFile = functions.getFunctions().get(functionType).toString();
                     }
                      
-                    if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
+                    if (Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                         File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                        classLoader = FunctionConfigUtils.validate(functionConfig, file);
-                    } else {
+                        userCodeClassLoader = FunctionConfigUtils.validate(functionConfig, file);
+                        userCodeClassLoaderCreated = true;
+                    } else if (userCodeFile != null) {
                         File file = new File(userCodeFile);
                         if (!file.exists()) {
                             throw new RuntimeException("User jar does not exist");
                         }
-                        classLoader = FunctionConfigUtils.validate(functionConfig, file);
+                        userCodeClassLoader = FunctionConfigUtils.validate(functionConfig, file);
+                        userCodeClassLoaderCreated = true;
+                    } else {
+                        if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
+                            throw new IllegalStateException("The jar property must be specified in FunctionConfig.");
+                        }
+                        FunctionConfigUtils.validateJavaFunction(functionConfig, Thread.currentThread()
+                                .getContextClassLoader());
                     }
-
                 } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
                     userCodeFile = functionConfig.getGo();
                 } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON) {
@@ -261,90 +288,89 @@ public class LocalRunner {
                     throw new UnsupportedOperationException();
                 }
 
-                functionDetails = FunctionConfigUtils.convert(functionConfig, classLoader);
+                functionDetails = FunctionConfigUtils.convert(functionConfig,
+                        userCodeClassLoader != null ? userCodeClassLoader :
+                                Thread.currentThread().getContextClassLoader());
             } else if (sourceConfig != null) {
                 inferMissingArguments(sourceConfig);
                 userCodeFile = sourceConfig.getArchive();
-
-                // if code file not specified try to get location of the code based on class.
-                if (userCodeFile == null && sourceConfig.getClassName() != null) {
-                    userCodeFile = Thread.currentThread().getContextClassLoader()
-                            .loadClass(sourceConfig.getClassName())
-                            .getProtectionDomain().getCodeSource().getLocation().getFile();
-                }
-
-                if (userCodeFile == null) {
-                    userCodeFile = Thread.currentThread().getContextClassLoader()
-                            .loadClass(LocalRunner.class.getName())
-                            .getProtectionDomain().getCodeSource().getLocation().getFile();
-                }
-
                 parallelism = sourceConfig.getParallelism();
 
-                ClassLoader builtInSourceClassLoader = isBuiltInSource(userCodeFile);
+                ClassLoader builtInSourceClassLoader = userCodeFile != null ? isBuiltInSource(userCodeFile) : null;
                 if (builtInSourceClassLoader != null) {
                     functionDetails = SourceConfigUtils.convert(
                             sourceConfig, SourceConfigUtils.validateAndExtractDetails(
                                     sourceConfig, builtInSourceClassLoader, true));
-                } else if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
+                    userCodeClassLoader = builtInSourceClassLoader;
+                } else if (userCodeFile != null && Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    ClassLoader classLoader = FunctionCommon.getClassLoaderFromPackage(
+                    ClassLoader sourceClassLoader = FunctionCommon.getClassLoaderFromPackage(
                             Function.FunctionDetails.ComponentType.SOURCE,
                             sourceConfig.getClassName(), file, narExtractionDirectory);
                     functionDetails = SourceConfigUtils.convert(
-                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(sourceConfig, classLoader, true));
-                } else {
+                            sourceConfig,
+                            SourceConfigUtils.validateAndExtractDetails(sourceConfig, sourceClassLoader, true));
+                    userCodeClassLoader = sourceClassLoader;
+                    userCodeClassLoaderCreated = true;
+                } else if (userCodeFile != null) {
                     File file = new File(userCodeFile);
                     if (!file.exists()) {
                         throw new RuntimeException("Source archive (" + userCodeFile + ") does not exist");
                     }
-                    ClassLoader classLoader = FunctionCommon.getClassLoaderFromPackage(
+                    ClassLoader sourceClassLoader = FunctionCommon.getClassLoaderFromPackage(
                             Function.FunctionDetails.ComponentType.SOURCE,
                             sourceConfig.getClassName(), file, narExtractionDirectory);
                     functionDetails = SourceConfigUtils.convert(
-                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(sourceConfig, classLoader, true));
+                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(sourceConfig, sourceClassLoader, true));
+                    userCodeClassLoader = sourceClassLoader;
+                    userCodeClassLoaderCreated = true;
+                } else {
+                    if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
+                        throw new IllegalStateException("The archive property must be specified in SourceConfig.");
+                    }
+                    functionDetails = SourceConfigUtils.convert(
+                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(
+                                    sourceConfig, Thread.currentThread().getContextClassLoader(), true));
                 }
             } else if (sinkConfig != null) {
                 inferMissingArguments(sinkConfig);
                 userCodeFile = sinkConfig.getArchive();
-
-                // if code file not specified try to get location of the code based on class.
-                if (userCodeFile == null && sinkConfig.getClassName() != null) {
-                    userCodeFile = Thread.currentThread().getContextClassLoader()
-                            .loadClass(sinkConfig.getClassName())
-                            .getProtectionDomain().getCodeSource().getLocation().getFile();
-                }
-
-                if (userCodeFile == null) {
-                    userCodeFile = Thread.currentThread().getContextClassLoader()
-                            .loadClass(LocalRunner.class.getName())
-                            .getProtectionDomain().getCodeSource().getLocation().getFile();
-                }
-
                 parallelism = sinkConfig.getParallelism();
 
-                ClassLoader builtInSinkClassLoader = isBuiltInSink(userCodeFile);
+                ClassLoader builtInSinkClassLoader = userCodeFile != null ? isBuiltInSink(userCodeFile) : null;
                 if (builtInSinkClassLoader != null) {
                     functionDetails = SinkConfigUtils.convert(
                             sinkConfig, SinkConfigUtils.validateAndExtractDetails(
                                     sinkConfig, builtInSinkClassLoader, true));
-                } else if (org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(userCodeFile)) {
+                    userCodeClassLoader = builtInSinkClassLoader;
+                } else if (Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                    ClassLoader classLoader = FunctionCommon.getClassLoaderFromPackage(
+                    ClassLoader sinkClassLoader = FunctionCommon.getClassLoaderFromPackage(
                             Function.FunctionDetails.ComponentType.SINK,
                             sinkConfig.getClassName(), file, narExtractionDirectory);
                     functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, classLoader, true));
-                } else {
+                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, true));
+                    userCodeClassLoader = sinkClassLoader;
+                    userCodeClassLoaderCreated = true;
+                } else if (userCodeFile != null) {
                     File file = new File(userCodeFile);
                     if (!file.exists()) {
                         throw new RuntimeException("Sink archive does not exist");
                     }
-                    ClassLoader classLoader = FunctionCommon.getClassLoaderFromPackage(
+                    ClassLoader sinkClassLoader = FunctionCommon.getClassLoaderFromPackage(
                             Function.FunctionDetails.ComponentType.SINK,
                             sinkConfig.getClassName(), file, narExtractionDirectory);
                     functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, classLoader,  true));
+                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader,  true));
+                    userCodeClassLoader = sinkClassLoader;
+                    userCodeClassLoaderCreated = true;
+                } else {
+                    if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
+                        throw new IllegalStateException("The archive property must be specified in SourceConfig.");
+                    }
+                    functionDetails = SinkConfigUtils.convert(
+                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(
+                                    sinkConfig, Thread.currentThread().getContextClassLoader(), true));
                 }
             } else {
                 throw new IllegalArgumentException("Must specify Function, Source or Sink config");
@@ -484,13 +510,23 @@ public class LocalRunner {
         if (functionConfig != null && functionConfig.getExposePulsarAdminClientEnabled() != null) {
             exposePulsarAdminClientEnabled = functionConfig.getExposePulsarAdminClientEnabled();
         }
-        ThreadRuntimeFactory threadRuntimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
-                serviceUrl,
-                stateStorageServiceUrl,
-                authConfig,
-                secretsProvider,
-                null, narExtractionDirectory, null,
-                exposePulsarAdminClientEnabled, webServiceUrl);
+        ThreadRuntimeFactory threadRuntimeFactory;
+        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            if (userCodeClassLoader != null) {
+                Thread.currentThread().setContextClassLoader(userCodeClassLoader);
+            }
+            threadRuntimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
+                    serviceUrl,
+                    stateStorageServiceUrl,
+                    authConfig,
+                    secretsProvider,
+                    null, narExtractionDirectory,
+                    null,
+                    exposePulsarAdminClientEnabled, webServiceUrl);
+        } finally {
+            Thread.currentThread().setContextClassLoader(originalClassLoader);
+        }
         for (int i = 0; i < parallelism; ++i) {
             InstanceConfig instanceConfig = new InstanceConfig();
             instanceConfig.setFunctionDetails(functionDetails);
