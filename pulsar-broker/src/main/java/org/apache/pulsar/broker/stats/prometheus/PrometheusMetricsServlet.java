@@ -43,16 +43,18 @@ public class PrometheusMetricsServlet extends HttpServlet {
     private final boolean shouldExportTopicMetrics;
     private final boolean shouldExportConsumerMetrics;
     private final boolean shouldExportProducerMetrics;
+    private final boolean shouldExportManagedCursorMetrics;
     private List<PrometheusRawMetricsProvider> metricsProviders;
 
     private ExecutorService executor = null;
 
     public PrometheusMetricsServlet(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-                                    boolean shouldExportProducerMetrics) {
+                                    boolean shouldExportProducerMetrics, boolean shouldExportManagedCursorMetrics) {
         this.pulsar = pulsar;
         this.shouldExportTopicMetrics = includeTopicMetrics;
         this.shouldExportConsumerMetrics = includeConsumerMetrics;
         this.shouldExportProducerMetrics = shouldExportProducerMetrics;
+        this.shouldExportManagedCursorMetrics = shouldExportManagedCursorMetrics;
     }
 
     @Override
@@ -70,7 +72,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
                 res.setStatus(HttpStatus.OK_200);
                 res.setContentType("text/plain");
                 PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,
-                        shouldExportProducerMetrics, res.getOutputStream(), metricsProviders);
+                        shouldExportProducerMetrics, shouldExportManagedCursorMetrics, res.getOutputStream(), metricsProviders);
                 context.complete();
 
             } catch (Exception e) {

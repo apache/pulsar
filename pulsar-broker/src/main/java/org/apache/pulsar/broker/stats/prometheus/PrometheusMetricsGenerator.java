@@ -85,12 +85,12 @@ public class PrometheusMetricsGenerator {
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        boolean includeProducerMetrics, OutputStream out) throws IOException {
-        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, out, null);
+        boolean includeProducerMetrics, boolean includeManagedCursorMetrics, OutputStream out) throws IOException {
+        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, includeManagedCursorMetrics, out,null);
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        boolean includeProducerMetrics, OutputStream out, List<PrometheusRawMetricsProvider> metricsProviders)
+        boolean includeProducerMetrics, boolean includeManagedCursorMetrics, OutputStream out, List<PrometheusRawMetricsProvider> metricsProviders)
         throws IOException {
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         try {
@@ -105,7 +105,7 @@ public class PrometheusMetricsGenerator {
                 pulsar.getWorkerService().generateFunctionsStats(stream);
             }
 
-            generateBrokerBasicMetrics(pulsar, stream);
+            generateBrokerBasicMetrics(pulsar, includeManagedCursorMetrics, stream);
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
 
@@ -120,7 +120,7 @@ public class PrometheusMetricsGenerator {
         }
     }
 
-    private static void generateBrokerBasicMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
+    private static void generateBrokerBasicMetrics(PulsarService pulsar, boolean includeManagedCursorMetrics, SimpleTextOutputStream stream) {
         String clusterName = pulsar.getConfiguration().getClusterName();
         // generate managedLedgerCache metrics
         parseMetricsToPrometheusMetrics(new ManagedLedgerCacheMetrics(pulsar).generate(),
@@ -130,9 +130,11 @@ public class PrometheusMetricsGenerator {
         parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
 
-        // generate managedCursor metrics
-        parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+        if(includeManagedCursorMetrics){
+            // generate managedCursor metrics
+            parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
+                    clusterName, Collector.Type.GAUGE, stream);
+        }
 
         // generate loadBalance metrics
         parseMetricsToPrometheusMetrics(pulsar.getLoadManager().get().getLoadBalancingMetrics(),
