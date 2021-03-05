@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -188,6 +189,7 @@ public abstract class MockedPulsarServiceBaseTest {
             stopBroker();
             pulsar = null;
         }
+        resetConfig();
         if (mockBookKeeper != null) {
             mockBookKeeper.reallyShutdown();
             mockBookKeeper = null;
@@ -220,7 +222,6 @@ public abstract class MockedPulsarServiceBaseTest {
             }
             bkExecutor = null;
         }
-
     }
 
     protected abstract void setup() throws Exception;
@@ -253,16 +254,18 @@ public abstract class MockedPulsarServiceBaseTest {
         if (admin != null) {
             admin.close();
         }
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
+        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString());
+        customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
+        admin = spy(pulsarAdminBuilder.build());
+    }
+
+    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
+
     }
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
 
-        boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();
-        // enable authorization to initialize authorization service which is used by grant-permission
-        conf.setAuthorizationEnabled(true);
         PulsarService pulsar = startBrokerWithoutAuthorization(conf);
-        conf.setAuthorizationEnabled(isAuthorizationEnabled);
 
         return pulsar;
     }
