@@ -33,6 +33,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.connect.connector.ConnectorContext;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkConnector;
@@ -146,13 +147,21 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
             SinkConnector connector = (SinkConnector)clazz.getConstructor().newInstance();
 
             Class<? extends Task> taskClass = connector.taskClass();
+            SinkContextSim sinkContext = new SinkContextSim();
+            connector.initialize(sinkContext);
             connector.start(Maps.fromProperties(props));
+
             List<Map<String, String>> configs = connector.taskConfigs(1);
-
             SinkTask task = (SinkTask)taskClass.getConstructor().newInstance();
+            SinkTaskContextSim taskContext =
+                    new SinkTaskContextSim(configs.get(0), KafkaSinkWrappingProducer.getPartitions());
+            task.initialize(taskContext);
             task.start(configs.get(0));
+            task.open(KafkaSinkWrappingProducer.getPartitions());
 
-            Producer<K, V> producer = new KafkaSinkWrappingProducer<>(connector, task, keySchema, valueSchema);
+            Producer<K, V> producer = new KafkaSinkWrappingProducer<>(connector, task,
+                    keySchema, valueSchema,
+                    sinkContext, taskContext);
             return producer;
         } catch (Exception e) {
             log.error("Failed to create KafkaSinkWrappingProducer with {}, {} & {}",

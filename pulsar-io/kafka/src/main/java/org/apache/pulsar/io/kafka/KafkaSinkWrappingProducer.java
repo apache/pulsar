@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.io.kafka;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -26,10 +28,7 @@ import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.Metric;
-import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.*;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.Schema;
@@ -40,6 +39,7 @@ import org.apache.kafka.connect.sink.SinkTask;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,18 +58,33 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     private final SinkTask task;
     private final Schema defaultKeySchema;
     private final Schema defaultValueSchema;
+    private final SinkContextSim sinkContext;
+    private final SinkTaskContextSim taskContext;
 
-    // todo: per topic
-    private final AtomicLong offset = new AtomicLong(0);
+    public final static String TOPIC_NAME = "fake-topic";
+
+    private final static Set<TopicPartition> partitions =
+            ImmutableSet.of(new TopicPartition(TOPIC_NAME, 0));
+    private final static Node node = new Node(0, "localhost", 0);
+    private final static PartitionInfo info = new PartitionInfo(TOPIC_NAME, 0, node, new Node[] {node}, new Node[] {node});
+    private final static List<PartitionInfo> partitionInfos = ImmutableList.of(info);
 
     public KafkaSinkWrappingProducer(SinkConnector connector,
                                      SinkTask task,
                                      Schema defaultKeySchema,
-                                     Schema defaultValueSchema) {
+                                     Schema defaultValueSchema,
+                                     SinkContextSim sinkContext,
+                                     SinkTaskContextSim taskContext) {
         this.connector = connector;
         this.task = task;
         this.defaultKeySchema = defaultKeySchema;
         this.defaultValueSchema = defaultValueSchema;
+        this.sinkContext = sinkContext;
+        this.taskContext = taskContext;
+    }
+
+    public static Set<TopicPartition> getPartitions() {
+        return partitions;
     }
 
     @Override
@@ -115,7 +130,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
                 producerRecord.key(),
                 valueSchema,
                 producerRecord.value(),
-                offset.getAndIncrement(),
+                taskContext.getAndIncrementOffset(),
                 producerRecord.timestamp(),
                 TimestampType.NO_TIMESTAMP_TYPE);
         return sinkRecord;
@@ -123,12 +138,14 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     @Override
     public Future<RecordMetadata> send(ProducerRecord<K, V> producerRecord) {
+        sinkContext.throwIfNeeded();
         task.put(Lists.newArrayList(toSinkRecord(producerRecord)));
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public Future<RecordMetadata> send(ProducerRecord<K, V> producerRecord, Callback callback) {
+        sinkContext.throwIfNeeded();
         try {
             task.put(Lists.newArrayList(toSinkRecord(producerRecord)));
             callback.onCompletion(null, null);
@@ -140,16 +157,19 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     @Override
     public void flush() {
+        sinkContext.throwIfNeeded();
         task.flush(Maps.newHashMap());
     }
 
     @Override
     public List<PartitionInfo> partitionsFor(String s) {
-        return Lists.newLinkedList();
+        sinkContext.throwIfNeeded();
+        return partitionInfos;
     }
 
     @Override
     public Map<MetricName, ? extends Metric> metrics() {
+        sinkContext.throwIfNeeded();
         return null;
     }
 
@@ -161,6 +181,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     @Override
     public void close(Duration duration) {
+        sinkContext.throwIfNeeded();
         task.flush(Maps.newHashMap());
         task.stop();
         connector.stop();
