@@ -48,6 +48,7 @@
         <module>cassandra</module>
         <module>aerospike</module>
         <module>kafka</module>
+        <module>kafka-nar</module>
         <module>rabbitmq</module>
         <module>kinesis</module>
         <module>hdfs3</module>
