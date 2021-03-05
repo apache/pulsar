@@ -32,6 +32,8 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -3937,18 +3939,30 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         GenericRecord res = consumer.receive().getValue();
         consumer.close();
         assertEquals(schema.getSchemaInfo().getType(), res.getSchemaType());
-        org.apache.avro.generic.GenericRecord nativeRecord = res.getNativeRecord(org.apache.avro.generic.GenericRecord.class);
+        org.apache.avro.generic.GenericRecord nativeAvroRecord = null;
+        JsonNode nativeJsonRecord = null;
+        if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
+            nativeAvroRecord = res.getNativeRecord(org.apache.avro.generic.GenericRecord.class);
+            assertNotNull(nativeAvroRecord);
+        } else {
+            nativeJsonRecord = res.getNativeRecord(JsonNode.class);
+            assertNotNull(nativeJsonRecord);
+        }
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
             log.info("field {} {}", f.getName(), res.getField(f));
             assertEquals("field", f.getName());
             assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
 
-            // test that the native schema is accessible
-            org.apache.avro.Schema.Field fieldDetails = nativeRecord.getSchema().getField(f.getName());
-            // a nullable string is an UNION
-            assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
-            assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s->s.getType() == org.apache.avro.Schema.Type.STRING));
-            assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s->s.getType() == org.apache.avro.Schema.Type.NULL));
+            if (nativeAvroRecord != null) {
+                // test that the native schema is accessible
+                org.apache.avro.Schema.Field fieldDetails = nativeAvroRecord.getSchema().getField(f.getName());
+                // a nullable string is an UNION
+                assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
+                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.STRING));
+                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.NULL));
+            } else {
+                assertEquals(JsonNodeType.STRING, nativeJsonRecord.get("field").getNodeType());
+            }
         }
         assertEquals(1, res.getFields().size());
     }
