@@ -29,8 +29,10 @@ MVN_TEST_OPTIONS='mvn -B -ntp -Dassembly.skipAssembly=true -DskipSourceReleaseAs
 
 function mvn_test() {
   (
+    [ "$CI" = "true" ] && RETRY="./build/retry.sh" || RETRY=""
+    [ "$NORETRY" = "true" ] && RETRY=""
     echo "::group::Run tests for " "$@"
-    $MVN_TEST_OPTIONS test "$@" "${COMMANDLINE_ARGS[@]}"
+    $RETRY $MVN_TEST_OPTIONS test "$@" "${COMMANDLINE_ARGS[@]}"
     echo "::endgroup::"
     set +x
     ci_move_test_reports
@@ -45,8 +47,10 @@ function mvn_install() {
 
 function mvn_install_and_test() {
   (
+    [ "$CI" = "true" ] && RETRY="./build/retry.sh" || RETRY=""
+    [ "$NORETRY" = "true" ] && RETRY=""
     echo "::group::Install dependencies for " "$@"
-    $MVN_TEST_OPTIONS install "$@" "${COMMANDLINE_ARGS[@]}"
+    $RETRY $MVN_TEST_OPTIONS install "$@" "${COMMANDLINE_ARGS[@]}"
     echo "::endgroup::"
     set +x
     ci_move_test_reports
@@ -198,6 +202,10 @@ if [ -z "$TEST_GROUP" ]; then
   exit 1
 fi
 shift
+if [[ "$1" == "--no-retry" ]]; then
+  NORETRY="true"
+  shift
+fi
 COMMANDLINE_ARGS=("$@")
 echo "Test Group : $TEST_GROUP"
 test_group_function_name="test_group_$(echo "$TEST_GROUP" | tr '[:upper:]' '[:lower:]')"

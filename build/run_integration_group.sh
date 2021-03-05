@@ -45,6 +45,13 @@ mvn_list_modules() {
 mvn_run_integration_test() {
   (
   set +x
+  RETRY=""
+  # wrap with retry.sh script if next parameter is "--retry"
+  if [[ "$1" == "--retry" ]]; then
+    RETRY="./build/retry.sh"
+    shift
+  fi
+  [ "$NORETRY" = "true" ] && RETRY=""
   skip_build_deps=0
   while [[ "$1" == "--skip-build-deps" ]]; do
     skip_build_deps=1
@@ -60,7 +67,7 @@ mvn_run_integration_test() {
     echo "::endgroup::"
   fi
   echo "::group::Run tests for " "$@"
-  mvn -B -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -DredirectTestOutputToFile=false test "$@"
+  $RETRY mvn -B -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -DredirectTestOutputToFile=false test "$@"
   echo "::endgroup::"
   set +x
   ci_move_test_reports
@@ -72,7 +79,7 @@ test_group_shade() {
 }
 
 test_group_backwards_compat() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DBackwardsCompatTests
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DBackwardsCompatTests
 }
 
 test_group_cli() {
@@ -96,7 +103,7 @@ test_group_messaging() {
 }
 
 test_group_schema() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-schema.xml -DintegrationTests
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-schema.xml -DintegrationTests
 }
 
 test_group_standalone() {
@@ -104,11 +111,11 @@ test_group_standalone() {
 }
 
 test_group_transaction() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-transaction.xml -DintegrationTests
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-transaction.xml -DintegrationTests
 }
 
 test_group_tiered_filesystem() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=tiered-filesystem-storage.xml -DintegrationTests
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=tiered-filesystem-storage.xml -DintegrationTests
 }
 
 test_group_tiered_jcloud() {
@@ -117,20 +124,20 @@ test_group_tiered_jcloud() {
 
 test_group_pulsar_connectors_thread() {
   # run integration function
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=function
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=function
   # run integration source
-  mvn_run_integration_test --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=source
+  mvn_run_integration_test --retry --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=source
   # run integration sink
-  mvn_run_integration_test --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=sink
+  mvn_run_integration_test --retry --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=sink
 }
 
 test_group_pulsar_connectors_process() {
   # run integration function
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=function
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=function
   # run integration source
-  mvn_run_integration_test --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=source
+  mvn_run_integration_test --retry --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=source
   # run integraion sink
-  mvn_run_integration_test --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=sink
+  mvn_run_integration_test --retry --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=sink
 }
 
 test_group_sql() {
@@ -149,7 +156,10 @@ if [ -z "$TEST_GROUP" ]; then
   exit 1
 fi
 shift
-
+if [[ "$1" == "--no-retry" ]]; then
+  NORETRY="true"
+  shift
+fi
 echo "Test Group : $TEST_GROUP"
 test_group_function_name="test_group_$(echo "$TEST_GROUP" | tr '[:upper:]' '[:lower:]')"
 if [[ "$(LC_ALL=C type -t $test_group_function_name)" == "function" ]]; then
