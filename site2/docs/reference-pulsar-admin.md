@@ -1908,6 +1908,9 @@ Subcommands
 * `get-inactive-topic-policies`
 * `set-inactive-topic-policies`
 * `remove-inactive-topic-policies`
+* `set-max-subscriptions`
+* `get-max-subscriptions`
+* `remove-max-subscriptions`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -2063,7 +2066,7 @@ $ pulsar-admin topics terminate {persistent|non-persistent}://tenant/namespace/t
 ```
 
 ### `permissions`
-Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
+Get the permissions on a topic. Retrieve the effective permissions for a destination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
 
 Usage
 ```bash
@@ -2437,6 +2440,30 @@ Remove a deduplication policy from a topic.
 Usage
 ```bash
 $ pulsar-admin topics remove-deduplication tenant/namespace/topic
+```
+
+### `set-max-subscriptions`
+Set the maximum number of subscriptions for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-max-subscriptions {persistent|non-persistent}://tenant/namespace/topic options
+```
+
+### `get-max-subscriptions`
+Get the maximum number of subscriptions for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-max-subscriptions {persistent|non-persistent}://tenant/namespace/topic
+```
+
+### `remove-max-subscriptions`
+Remove the maximum number of subscriptions for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-max-subscriptions {persistent|non-persistent}://tenant/namespace/topic
 ```
 
 ## `tenants`
