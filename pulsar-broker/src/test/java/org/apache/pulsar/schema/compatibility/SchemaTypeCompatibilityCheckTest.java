@@ -20,34 +20,35 @@ package org.apache.pulsar.schema.compatibility;
 
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.schema.Schemas;
-import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 
 public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     private final static String CLUSTER_NAME = "test";
     private final static String PUBLIC_TENANT = "public";
-    private final String namespace = "test-namespace";
-    private final String namespaceName = PUBLIC_TENANT + "/" + namespace;
+    private final static String namespace = "test-namespace";
+    private final static String namespaceName = PUBLIC_TENANT + "/" + namespace;
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     public void setup() throws Exception {
         super.internalSetup();
@@ -62,7 +63,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -70,6 +71,8 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void structTypeProducerProducer() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
+
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
@@ -90,6 +93,8 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void structTypeProducerConsumer() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
+
         final String subName = "my-sub";
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
@@ -114,6 +119,8 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void structTypeConsumerProducer() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
+
         final String subName = "my-sub";
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
@@ -138,6 +145,8 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void structTypeConsumerConsumer() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
+
         final String subName = "my-sub";
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
@@ -191,6 +200,8 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void primitiveTypeProducerProducer() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
+
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
@@ -211,6 +222,8 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void primitiveProducerConsumer() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
+
         final String subName = "my-sub";
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
@@ -235,6 +248,8 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void primitiveConsumerProducer() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
+
         final String subName = "my-sub";
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
@@ -259,6 +274,8 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void primitiveConsumerConsumer() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
+
         final String subName = "my-sub";
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
