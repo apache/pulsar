@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,26 +17,18 @@
 # under the License.
 #
 
-function fail {
-  echo $1 >&2
-  exit 1
-}
-
-function retry {
-  local n=1
-  local max=3
-  local delay=10
-  while true; do
-    "$@" && break || {
-      if [[ $n -lt $max ]]; then
-        ((n++))
-        echo "::warning::Command failed. Attempt $n/$max:"
-        sleep $delay;
-      else
-        fail "::error::The command has failed after $n attempts."
-      fi
-    }
-  done
-}
-
-retry "$@"
+name: Log Runner VM state
+description: Logs available disk space, memory, etc.
+runs:
+  using: composite
+  steps:
+    - run: |
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+          echo "::group::Available diskspace"
+          df -BM / /mnt /tmp
+          echo "::endgroup::"
+          echo "::group::Available memory"
+          free -m
+          echo "::endgroup::"
+        fi
+      shell: bash

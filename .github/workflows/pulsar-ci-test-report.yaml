@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,26 +17,23 @@
 # under the License.
 #
 
-function fail {
-  echo $1 >&2
-  exit 1
-}
-
-function retry {
-  local n=1
-  local max=3
-  local delay=10
-  while true; do
-    "$@" && break || {
-      if [[ $n -lt $max ]]; then
-        ((n++))
-        echo "::warning::Command failed. Attempt $n/$max:"
-        sleep $delay;
-      else
-        fail "::error::The command has failed after $n attempts."
-      fi
-    }
-  done
-}
-
-retry "$@"
+name: 'Pulsar CI Test Report'
+on:
+  workflow_run:
+    workflows: ['Pulsar CI']    # runs after Pulsar CI workflow
+    types:
+      - completed
+jobs:
+  report:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: dorny/test-reporter@v1
+        env:
+          ACTIONS_STEP_DEBUG: true
+        with:
+          artifact: /(.*)-test-report/
+          name: '$1 Tests'
+          path: '*.xml'
+          reporter: jest-junit
+          max-annotations: 50
+          token: ${{ secrets.GITHUB_TOKEN }}

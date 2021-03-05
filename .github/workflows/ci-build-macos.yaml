@@ -22,42 +22,67 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore: ['site2/**', 'deployment/**']
   push:
     branches:
       - branch-*
-    paths-ignore: ['site2/**', 'deployment/**']
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Xmx1024m -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+
+
 
 jobs:
+  changed_files_job:
+    name: 'Changed files check'
+    runs-on: ubuntu-20.04
+    outputs:
+      changes_outcome: ${{ steps.changes.outcome }}
+      has_source_files: ${{ steps.changes.outputs.src }}
+    steps:
+      - id: changes
+        uses: dorny/paths-filter@v2
+        # ignore failures until https://github.com/dorny/paths-filter/issues/73 is fixed
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            src:
+              # pattern syntax uses https://github.com/micromatch/picomatch
+              - '!((site2|deployment)/**)'
 
   build:
+    needs: changed_files_job
+    if: needs.changed_files_job.outputs.changes_outcome=='failure' || needs.changed_files_job.outputs.has_source_files == 'true'
     name:
     runs-on: macos-latest
-    timeout-minutes: 120
+    timeout-minutes: 45
 
     steps:
-      - name: checkout
+      - name: Checkout pull request HEAD commit
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v2
         with:
-          fetch-depth: 100
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout pushed commit on branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
 
       - name: Cache Maven dependencies
         uses: actions/cache@v2
         with:
           path: |
-            ~/.m2/repository
+            ~/.m2/repository/*/*/*
             !~/.m2/repository/org/apache/pulsar
-            !~/.m2/.gradle-enterprise
-          key: ${{ runner.os }}-maven-dependencies-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+
+      - name: Replace maven's wagon-http version
+        run: sudo ./build/ci_build_functions.sh ci_replace_maven_wagon_http_library
 
       - name: build package
         run: mvn -B clean install -DskipTests

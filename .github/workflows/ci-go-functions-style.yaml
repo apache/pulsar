@@ -22,63 +22,71 @@ on:
   pull_request:
     branches:
       - master
-    paths:
-      - '.github/workflows/**'
-      - 'pulsar-function-go/**'
   push:
     branches:
       - branch-*
-    paths:
-      - '.github/workflows/**'
-      - 'pulsar-function-go/**'
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Xmx1024m -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
-  check-style:
+  changed_files_job:
+    name: 'Changed files check'
+    runs-on: ubuntu-20.04
+    outputs:
+      changes_outcome: ${{ steps.changes.outcome }}
+      has_source_files: ${{ steps.changes.outputs.src }}
+    steps:
+      - id: changes
+        uses: dorny/paths-filter@v2
+        # ignore failures until https://github.com/dorny/paths-filter/issues/73 is fixed
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            src:
+              # pattern syntax uses https://github.com/micromatch/picomatch
+              - .github/workflows/**
+              - pulsar-function-go/**'
 
+  check-style:
+    needs: changed_files_job
+    if: needs.changed_files_job.outputs.changes_outcome=='failure' || needs.changed_files_job.outputs.has_source_files == 'true'
     name: Go ${{ matrix.go-version }} Functions style check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         go-version: [1.11, 1.12, 1.13, 1.14]
 
     steps:
-      - name: Check out code into the Go module directory
+      - name: Checkout pull request HEAD commit
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v2
         with:
-          fetch-depth: 100
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
+      - name: Checkout pushed commit on branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: steps.docs.outputs.changed_only == 'no'
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: InstallTool
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
           wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
           ./bin/golangci-lint --version
 
       - name: Build
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
           go build ./...
 
       - name: CheckStyle
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
           ./bin/golangci-lint run -c ./golangci.yml ./pf

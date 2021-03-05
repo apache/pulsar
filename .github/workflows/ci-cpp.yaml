@@ -27,63 +27,75 @@ on:
       - branch-*
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Xmx1024m -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
+  changed_files_job:
+    name: 'Changed files check'
+    runs-on: ubuntu-20.04
+    outputs:
+      changes_outcome: ${{ steps.changes.outcome }}
+      has_source_files: ${{ steps.changes.outputs.src }}
+    steps:
+      - id: changes
+        uses: dorny/paths-filter@v2
+        # ignore failures until https://github.com/dorny/paths-filter/issues/73 is fixed
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            src:
+              # pattern syntax uses https://github.com/micromatch/picomatch
+              - '!((site2|deployment)/**)'
 
   cpp-tests:
+    needs: changed_files_job
+    if: needs.changed_files_job.outputs.changes_outcome=='failure' || needs.changed_files_job.outputs.has_source_files == 'true'
     name:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 120
 
     steps:
-      - name: checkout
+      - name: Checkout pull request HEAD commit
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v2
         with:
-          fetch-depth: 100
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
+      - name: Checkout pushed commit on branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
 
-      - name: Cache local Maven repository
-        if: steps.docs.outputs.changed_only == 'no'
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk
+        uses: ./.github/actions/clean-disk
+
+      - name: Cache Maven dependencies
         uses: actions/cache@v2
         with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-cpp-m2repository-${{ hashFiles('**/pom.xml') }}
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
-        if: steps.docs.outputs.changed_only == 'no'
         with:
           java-version: 1.8
 
-      - name: clean disk
-        if: steps.docs.outputs.changed_only == 'no'
-        run: |
-          sudo swapoff -a
-          sudo rm -f /swapfile
-          sudo apt clean
-          docker rmi $(docker images -q) -f
-          df -h
+      - name: Replace maven's wagon-http version
+        run: sudo ./build/ci_build_functions.sh ci_replace_maven_wagon_http_library
 
       - name: build package
-        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
       - name: build cpp artifacts
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           echo "Build C++ client library"
           export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF -DPYTHON_INCLUDE_DIR=/usr/include/python2.7 -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython2.7.so"
           pulsar-client-cpp/docker-build.sh
 
       - name: run c++ tests
-        if: steps.docs.outputs.changed_only == 'no'
         run: pulsar-client-cpp/docker-tests.sh

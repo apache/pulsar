@@ -1,0 +1,627 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Pulsar CI
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - branch-*
+
+env:
+  MAVEN_OPTS: -Dmaven.test.failure.ignore=true -DtestRetryCount=0 -Xmx1024m -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+
+jobs:
+  changed_files_job:
+    name: 'Changed files check'
+    runs-on: ubuntu-20.04
+    outputs:
+      changes_outcome: ${{ steps.changes.outcome }}
+      has_source_files: ${{ steps.changes.outputs.src }}
+    steps:
+      - id: changes
+        uses: dorny/paths-filter@v2
+        # ignore failures until https://github.com/dorny/paths-filter/issues/73 is fixed
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            src:
+              # pattern syntax uses https://github.com/micromatch/picomatch
+              - '!((site2|deployment)/**)'
+
+  build-and-license-check:
+    needs: changed_files_job
+    if: needs.changed_files_job.outputs.changes_outcome=='failure' || needs.changed_files_job.outputs.has_source_files == 'true'
+    name: Build and License check
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout pull request HEAD commit
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout pushed commit on branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        env:
+          ACTIONS_STEP_DEBUG: true
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Replace maven's wagon-http version
+        run: sudo ./build/ci_build_functions.sh ci_replace_maven_wagon_http_library
+
+      - name: Check source code license headers
+        run: ./build/ci_build_functions.sh ci_check_license_headers
+
+      - name: Build core-modules
+        run: ./build/ci_build_functions.sh ci_build_core_modules
+
+      - name: Check binary licenses
+        run: src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: Save maven build results to Github artifact cache so that the results can be reused
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_store_to_github_actions_cache pulsar-build-${{ github.sha }} tar --exclude .m2/repository/org/apache/pulsar/pulsar-io-data-generator \
+                                                                           --exclude .m2/repository/org/apache/pulsar/pulsar-io-batch-data-generator \
+                                                                           --exclude .m2/repository/org/apache/pulsar/pulsar-io-cassandra \
+                                                                           --exclude .m2/repository/org/apache/pulsar/pulsar-io-twitter \
+                                                                           -I zstd -cf - .m2/repository/org/apache/pulsar
+
+      - name: Save pulsar-io batch-data-generator and data-generator .nar files to Github artifact cache so that the results can be reused
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_store_to_github_actions_cache pulsar-io-data-generator-${{ github.sha }} tar -I zstd -cf - .m2/repository/org/apache/pulsar/pulsar-io-{batch-,}data-generator
+
+      - name: Save pulsar-io cassandra and twitter .nar files to Github artifact cache so that the results can be reused
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_store_to_github_actions_cache pulsar-io-samples-${{ github.sha }} tar -I zstd -cf - .m2/repository/org/apache/pulsar/pulsar-io-{cassandra,twitter}
+
+      - name: Log Runner VM state
+        if: always()
+        uses: ./.github/actions/log-runner-vm-state
+
+  unit-tests:
+    name: CI - Unit - ${{ matrix.name }}
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    needs: build-and-license-check
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: Other
+            group: OTHER
+            setup: |
+              cd $HOME
+              # restore pulsar-io cassandra and twitter .nar files
+              $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_restore_tar_from_github_actions_cache pulsar-io-samples-${{ github.sha }}
+          - name: Brokers - Broker Group 1
+            group: BROKER_GROUP_1
+          - name: Brokers - Broker Group 2
+            group: BROKER_GROUP_2
+          - name: Brokers - Client Api
+            group: BROKER_CLIENT_API
+          - name: Brokers - Client Impl
+            group: BROKER_CLIENT_IMPL
+          - name: Brokers - Other
+            group: BROKER_CLIENT_OTHER
+          - name: Proxy
+            group: PROXY
+
+    steps:
+      - name: Checkout pull request HEAD commit
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout pushed commit on branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Replace maven's wagon-http version
+        run: sudo ./build/ci_build_functions.sh ci_replace_maven_wagon_http_library
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: Restore maven build results from Github artifact cache
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_restore_tar_from_github_actions_cache pulsar-build-${{ github.sha }}
+
+      - name: Restore pulsar-io batch-data-generator and data-generator nar files
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_restore_tar_from_github_actions_cache pulsar-io-data-generator-${{ github.sha }}
+
+      - name: Run setup commands
+        if: matrix.setup
+        run: |
+          ${{ matrix.setup }}
+
+      - name: Run unit test group '${{ matrix.group }}'
+        run: |
+          ./build/run_unit_group.sh ${{ matrix.group }}
+
+      - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
+        if: always()
+        uses: ./.github/actions/copy-test-reports
+
+      - name: Report test summary as warning
+        if: always()
+        uses: ./.github/actions/merge-test-reports
+        with:
+          summary_title: 'Test Summary for Unit - ${{ matrix.name }}:'
+
+      - name: Publish the Test reports in Junit xml format
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: Unit-${{ matrix.group }}-test-report
+          path: test-reports
+
+      - name: Upload Surefire reports
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: Unit-${{ matrix.group }}-surefire-reports
+          path: surefire-reports
+
+      - name: Log Runner VM state
+        if: always()
+        uses: ./.github/actions/log-runner-vm-state
+
+      - name: Cancel all other jobs in the workflow if the job fails
+        uses: actions/github-script@v2
+        if: failure()
+        with:
+          script: |
+            console.log('Cancelling ...');
+            const { owner, repo } = context.repo
+            const run_id = "${{ github.run_id }}"
+            await github.actions.cancelWorkflowRun({ owner, repo, run_id })
+
+  pulsar-java-test-image:
+    name: Build Pulsar java-test-image docker image
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    needs: build-and-license-check
+    steps:
+      - name: Checkout pull request HEAD commit
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout pushed commit on branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}-integration-tests
+          restore-keys: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Replace maven's wagon-http version
+        run: sudo ./build/ci_build_functions.sh ci_replace_maven_wagon_http_library
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: restore maven build results from Github artifact cache
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_restore_tar_from_github_actions_cache pulsar-build-${{ github.sha }}
+
+      - name: Build java-test-image docker image
+        run: |
+          # build docker image
+          ./build/ci_build_functions.sh ci_build_java_test_image
+
+      - name: save docker image apachepulsar/java-test-image:latest to Github artifact cache
+        run: |
+          ./build/ci_build_functions.sh ci_docker_save_image_to_github_actions_cache apachepulsar/java-test-image:latest pulsar-java-test-image-${{ github.sha }}
+
+      - name: Log Runner VM state
+        if: always()
+        uses: ./.github/actions/log-runner-vm-state
+
+      - name: Cancel all other jobs in the workflow if the job fails
+        uses: actions/github-script@v2
+        if: failure()
+        with:
+          script: |
+            console.log('Cancelling ...');
+            const { owner, repo } = context.repo
+            const run_id = "${{ github.run_id }}"
+            await github.actions.cancelWorkflowRun({ owner, repo, run_id })
+
+  integration-tests:
+    name: CI - Integration - ${{ matrix.name }}
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    needs: [pulsar-java-test-image]
+    env:
+      PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
+      PULSAR_CONTAINERS_USE_TMPFS: true
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: Shade
+            group: SHADE
+
+          - name: Backwards Compatibility
+            group: BACKWARDS_COMPAT
+
+          - name: Cli
+            group: CLI
+
+          - name: Function State
+            group: FUNCTION_STATE
+
+          - name: Messaging
+            group: MESSAGING
+
+          - name: Schema
+            group: SCHEMA
+
+          - name: Standalone
+            group: STANDALONE
+
+          - name: Transaction
+            group: TRANSACTION
+
+    steps:
+      - name: Checkout pull request HEAD commit
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout pushed commit on branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}-integration-tests
+          restore-keys: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Replace maven's wagon-http version
+        run: sudo ./build/ci_build_functions.sh ci_replace_maven_wagon_http_library
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: Restore maven build results from Github artifact cache
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_restore_tar_from_github_actions_cache pulsar-build-${{ github.sha }}
+
+      - name: Load docker image apachepulsar/java-test-image:latest from Github artifact cache
+        run: |
+          ./build/ci_build_functions.sh ci_docker_load_image_from_github_actions_cache pulsar-java-test-image-${{ github.sha }}
+
+      - name: Run setup commands
+        if: matrix.setup
+        run: |
+          ${{ matrix.setup }}
+
+      - name: Run integration test group '${{ matrix.group }}'
+        run: |
+          ./build/run_integration_group.sh ${{ matrix.group }}
+
+      - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
+        if: always()
+        uses: ./.github/actions/copy-test-reports
+
+      - name: Report test summary as warning
+        if: always()
+        uses: ./.github/actions/merge-test-reports
+        with:
+          summary_title: 'Test Summary for Integration - ${{ matrix.name }}:'
+
+      - name: Publish the Test reports in Junit xml format
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: Integration-${{ matrix.group }}-test-report
+          path: test-reports
+
+      - name: Upload Surefire reports
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: Integration-${{ matrix.group }}-surefire-reports
+          path: surefire-reports
+
+      - name: Log Runner VM state
+        if: always()
+        uses: ./.github/actions/log-runner-vm-state
+
+      - name: Cancel all other jobs in the workflow if the job fails
+        uses: actions/github-script@v2
+        if: failure()
+        with:
+          script: |
+            console.log('Cancelling ...');
+            const { owner, repo } = context.repo
+            const run_id = "${{ github.run_id }}"
+            await github.actions.cancelWorkflowRun({ owner, repo, run_id })
+
+  pulsar-test-latest-version-image:
+    name: Build Pulsar docker image
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    needs: build-and-license-check
+    steps:
+      - name: Checkout pull request HEAD commit
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout pushed commit on branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk
+        uses: ./.github/actions/clean-disk
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}-full-build
+          restore-keys: |
+            ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}-integration-tests
+            ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Replace maven's wagon-http version
+        run: sudo ./build/ci_build_functions.sh ci_replace_maven_wagon_http_library
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: restore maven build results from Github artifact cache
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_restore_tar_from_github_actions_cache pulsar-build-${{ github.sha }}
+
+      - name: Log Runner VM state
+        uses: ./.github/actions/log-runner-vm-state
+
+      - name: Build latest-version-image docker image
+        run: |
+          # build docker image
+          ./build/ci_build_functions.sh ci_build_pulsar_test_image
+
+      - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
+        run: |
+          ./build/ci_build_functions.sh ci_docker_save_image_to_github_actions_cache apachepulsar/pulsar-test-latest-version:latest pulsar-test-latest-version-image-${{ github.sha }}
+
+      - name: Log Runner VM state
+        if: always()
+        uses: ./.github/actions/log-runner-vm-state
+
+      - name: Cancel all other jobs in the workflow if the job fails
+        uses: actions/github-script@v2
+        if: failure()
+        with:
+          script: |
+            console.log('Cancelling ...');
+            const { owner, repo } = context.repo
+            const run_id = "${{ github.run_id }}"
+            await github.actions.cancelWorkflowRun({ owner, repo, run_id })
+
+  system-tests:
+    name: CI - System - ${{ matrix.name }}
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    needs: [pulsar-test-latest-version-image]
+    env:
+      PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
+      PULSAR_CONTAINERS_USE_TMPFS: true
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: Tiered FileSystem
+            group: TIERED_FILESYSTEM
+
+          - name: Tiered JCloud
+            group: TIERED_JCLOUD
+
+          - name: Pulsar Connectors - Thread
+            group: PULSAR_CONNECTORS_THREAD
+
+          - name: Pulsar Connectors - Process
+            group: PULSAR_CONNECTORS_PROCESS
+
+          - name: Sql
+            group: SQL
+
+    steps:
+      - name: Checkout pull request HEAD commit
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout pushed commit on branch
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v2
+
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}-integration-tests
+          restore-keys: ${{ runner.os }}-m2repository-${{ hashFiles('**/pom.xml') }}
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Replace maven's wagon-http version
+        run: sudo ./build/ci_build_functions.sh ci_replace_maven_wagon_http_library
+
+      - name: Start HTTP proxy for Github artifact cache
+        uses: cirruslabs/http-cache-action@master
+
+      - name: Restore maven build results from Github artifact cache
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/ci_build_functions.sh ci_restore_tar_from_github_actions_cache pulsar-build-${{ github.sha }}
+
+      - name: Load docker image apachepulsar/pulsar-test-latest-version:latest from Github artifact cache
+        run: |
+          ./build/ci_build_functions.sh ci_docker_load_image_from_github_actions_cache pulsar-test-latest-version-image-${{ github.sha }}
+
+      - name: Run setup commands
+        if: matrix.setup
+        run: |
+          ${{ matrix.setup }}
+
+      - name: Run system test group '${{ matrix.group }}'
+        run: |
+          ./build/run_integration_group.sh ${{ matrix.group }}
+
+      - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
+        if: always()
+        uses: ./.github/actions/copy-test-reports
+
+      - name: Report test summary as warning
+        if: always()
+        uses: ./.github/actions/merge-test-reports
+        with:
+          summary_title: 'Test Summary for System - ${{ matrix.name }}:'
+
+      - name: Publish the Test reports in Junit xml format
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: System-${{ matrix.group }}-test-report
+          path: test-reports
+
+      - name: Upload Surefire reports
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: System-${{ matrix.name }}-surefire-reports
+          path: surefire-reports
+
+      - name: Log Runner VM state
+        if: always()
+        uses: ./.github/actions/log-runner-vm-state
+
+      - name: Cancel all other jobs in the workflow if the job fails
+        uses: actions/github-script@v2
+        if: failure()
+        with:
+          script: |
+            console.log('Cancelling ...');
+            const { owner, repo } = context.repo
+            const run_id = "${{ github.run_id }}"
+            await github.actions.cancelWorkflowRun({ owner, repo, run_id })

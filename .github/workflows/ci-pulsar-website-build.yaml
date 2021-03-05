@@ -23,27 +23,28 @@ on:
     - cron: '0 */6 * * *'
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Xmx1024m -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
   build-website:
     name: Build and publish pulsar website
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 120
     steps:
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk
+        uses: ./.github/actions/clean-disk
+
+      - name: Log Runner VM state
+        uses: ./.github/actions/log-runner-vm-state
 
       - name: build
         run: mvn -B clean package -DskipTests -Pswagger
-
-      - name: clean disk
-        run: |
-          sudo swapoff -a
-          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt clean
-          docker rmi $(docker images -q) -f
-          df -h
 
       - name: publish
         env:
@@ -60,3 +61,7 @@ jobs:
           site2/tools/docker-build-site.sh
           # Script was initially made for travis
           bash -e site2/tools/publish-website.sh
+
+      - name: Log Runner VM state
+        if: always()
+        uses: ./.github/actions/log-runner-vm-state

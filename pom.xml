@@ -1643,6 +1643,10 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
     <profile>
       <id>docker</id>
+      <modules>
+        <module>docker</module>
+        <module>tests</module>
+      </modules>
     </profile>
 
     <profile>
@@ -1758,16 +1762,17 @@ flexible messaging model and an intuitive client API.</description>
 
         <module>pulsar-client-messagecrypto-bc</module>
 
-        <!-- all these 3 modules should be put at the end in this exact sequence -->
-        <module>distribution</module>
-        <module>docker</module>
-        <module>tests</module>
         <module>pulsar-metadata</module>
         <module>jclouds-shaded</module>
 
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
         <!-- package management releated modules (end) -->
+
+        <!-- all these 3 modules should be put at the end in this exact sequence -->
+        <module>distribution</module>
+        <module>docker</module>
+        <module>tests</module>
       </modules>
     </profile>
 
