@@ -2004,6 +2004,19 @@ public interface Namespaces {
     CompletableFuture<PublishRate> getPublishRateAsync(String namespace);
 
     /**
+     * Remove message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDispatchRateAsync(String namespace);
+    /**
      * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
      *
      * @param namespace

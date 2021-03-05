@@ -2284,6 +2284,28 @@ public interface Topics {
     CompletableFuture<DispatchRate> getDispatchRateAsync(String topic);
 
     /**
+     * Get applied message-dispatch-rate (topic can dispatch this many messages per second).
+     *
+     * @param topic
+     * @returns messageRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getDispatchRate(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied message-dispatch-rate asynchronously.
+     * <p/>
+     * Topic can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns messageRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getDispatchRateAsync(String topic, boolean applied);
+
+    /**
      * Remove message-dispatch-rate.
      * <p/>
      * Remove topic message dispatch rate

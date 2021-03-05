@@ -472,6 +472,38 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetDispatchRateApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getDispatchRate(topic));
+        assertNull(admin.namespaces().getDispatchRate(myNamespace));
+        DispatchRate brokerDispatchRate = new DispatchRate(
+                pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
+                pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte(),
+                1
+        );
+        assertEquals(admin.topics().getDispatchRate(topic, true), brokerDispatchRate);
+        DispatchRate namespaceDispatchRate = new DispatchRate(10, 11, 12);
+
+        admin.namespaces().setDispatchRate(myNamespace, namespaceDispatchRate);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getDispatchRate(myNamespace)));
+        assertEquals(admin.topics().getDispatchRate(topic, true), namespaceDispatchRate);
+
+        DispatchRate topicDispatchRate = new DispatchRate(20, 21, 22);
+        admin.topics().setDispatchRate(topic, topicDispatchRate);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getDispatchRate(topic)));
+        assertEquals(admin.topics().getDispatchRate(topic, true), topicDispatchRate);
+
+        admin.namespaces().removeDispatchRate(myNamespace);
+        admin.topics().removeDispatchRate(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getDispatchRate(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getDispatchRate(topic)));
+        assertEquals(admin.topics().getDispatchRate(topic, true), brokerDispatchRate);
+    }
+
+    @Test
     public void testRemovePersistence() throws Exception {
         PersistencePolicies persistencePoliciesForNamespace = new PersistencePolicies(2, 2, 2, 0.3);
         admin.namespaces().setPersistence(myNamespace, persistencePoliciesForNamespace);
