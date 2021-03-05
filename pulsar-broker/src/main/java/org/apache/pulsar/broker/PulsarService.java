@@ -83,6 +83,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
+import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
@@ -174,6 +175,7 @@ public class PulsarService implements AutoCloseable {
     private GlobalZooKeeperCache globalZkCache;
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
     private Compactor compactor;
+    private ResourceUsageTransportManager resourceUsageTransportManager;
 
     private final ScheduledExecutorService executor;
     private final ScheduledExecutorService cacheExecutor;
@@ -702,6 +704,11 @@ public class PulsarService implements AutoCloseable {
             // start packages management service if necessary
             if (config.isEnablePackagesManagement()) {
                 this.startPackagesManagementService();
+            }
+
+            // Start the task to publish resource usage, if necessary
+            if (config.isResourceUsagePublishToTopic()) {
+                this.resourceUsageTransportManager = new ResourceUsageTransportManager(this);
             }
 
             final String bootstrapMessage = "bootstrap service "
@@ -1335,6 +1342,10 @@ public class PulsarService implements AutoCloseable {
 
     public TopicPoliciesService getTopicPoliciesService() {
         return topicPoliciesService;
+    }
+
+    public ResourceUsageTransportManager getResourceUsageTransportManager() {
+        return resourceUsageTransportManager;
     }
 
     public void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {

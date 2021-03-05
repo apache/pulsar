@@ -680,6 +680,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " non-backlog consumers as well.")
     private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
 
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Default policy for publishing usage reports to system topic is disabled."
+            + "This enables publishing of usage reports"
+    )
+    private boolean resourceUsagePublishToTopic = false;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Topic to publish usage reports to if resourceUsagePublishToTopic is enabled."
+    )
+    private String resourceUsagePublishTopicName = "non-persistent://pulsar/system/resource-usage";
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
+    )
+    private int resourceUsagePublishIntervalInSecs = 60;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,

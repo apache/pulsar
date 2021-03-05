@@ -16,33 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto2";
+package org.apache.pulsar.broker.resourcegroup;
 
-package pulsar.resource.usage;
-option java_package = "org.apache.pulsar.broker.service.resource.usage";
-option optimize_for = SPEED;
+import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 
-message NetworkUsage {
-  required uint64 bytesPerPeriod = 1;
-  required uint64 messagesPerPeriod = 2;
-}
+/*
+ * Interface that a resource owner (tenant, namespace or topic) needs to implement.
+ */
+public interface ResourceUsageConsumer {
+    /*
+     * Get the unique identifier for the owner
+     * @return return the owner ID
+     */
+    String getID();
 
-message StorageUsage {
-  required uint64 totalBytes = 1;
-}
-
-message ResourceUsage {
-  // owner is the key(ID) of the entity that reports the usage
-  // It could be a resource-group or tenant, namespace or a topic
-  required string owner = 1;
-  optional NetworkUsage publish = 2;
-  optional NetworkUsage dispatch = 3;
-  optional StorageUsage storage = 4;
-}
-
-message ResourceUsageInfo {
-  // Name of the broker
-  required string broker = 1;
-
-  repeated ResourceUsage usageMap = 2;
+    /*
+     * Listener for resource usage published by other brokers
+     * @param broker name
+     * @param Resource usage object
+     */
+    void resourceUsageListener(String broker, ResourceUsage resourceUsage);
 }
