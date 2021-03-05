@@ -35,7 +35,6 @@ COPY scripts/watch-znode.py /pulsar/bin
 COPY scripts/install-pulsar-client-37.sh /pulsar/bin
 
 COPY target/python-client/ /pulsar/pulsar-client
-COPY target/cpp-client/ /pulsar/cpp-client
 
 RUN mkdir /pulsar/data
 
@@ -74,10 +73,6 @@ RUN mkdir /pulsar && chown pulsar:0 /pulsar && chmod g=u /pulsar
 COPY --from=pulsar --chown=pulsar:0 /pulsar /pulsar
 
 RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/jre/lib/security/java.security
-RUN apt-get update \
-     && apt install -y /pulsar/cpp-client/*.deb \
-     && apt-get clean \
-     && rm -rf /var/lib/apt/lists/*
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
