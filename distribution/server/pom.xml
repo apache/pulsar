@@ -182,6 +182,12 @@
       <artifactId>grpc-all</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>io.perfmark</groupId>
+      <artifactId>perfmark-api</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
     <!-- bookkeeper http server -->
     <dependency>
       <groupId>org.apache.bookkeeper.http</groupId>

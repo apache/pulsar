@@ -481,6 +481,8 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-rls-1.45.1.jar
     - io.grpc-grpc-okhttp-1.45.1.jar
     - io.grpc-grpc-testing-1.45.1.jar
+  * Perfmark
+    - io.perfmark-perfmark-api-0.19.0.jar
   * OpenCensus
     - io.opencensus-opencensus-api-0.28.0.jar
     - io.opencensus-opencensus-contrib-http-util-0.28.0.jar
@@ -591,7 +593,8 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.13.jar
 
 Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
- * Jakarta Activation -- jakarta.activation-jakarta.activation-api-1.2.1.jar
+ * Jakarta Activation
+   - jakarta.activation-jakarta.activation-api-1.2.1.jar
  * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.2.jar
 
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
