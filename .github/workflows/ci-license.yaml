@@ -78,3 +78,13 @@ jobs:
       - name: license check
         if: steps.docs.outputs.changed_only == 'no'
         run: src/check-binary-license ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+
+      - name: license headers check in src package
+        if: steps.docs.outputs.changed_only == 'no'
+        run: |
+          version=`src/get-project-version.py`
+          cd distribution/server/target
+          tar -xf apache-pulsar-${version}-src.tar.gz
+          cd apache-pulsar-${version}
+          mvn apache-rat:check
+
