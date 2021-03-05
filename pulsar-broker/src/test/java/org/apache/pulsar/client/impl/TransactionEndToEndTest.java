@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -29,6 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
@@ -743,5 +745,22 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
         }
+
+        Transaction timeoutTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(1, TimeUnit.SECONDS)
+                .build().get();
+
+        Thread.sleep(2000);
+        try {
+            timeoutTxn.commit().get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionNotFoundException);
+        }
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxn);
+        assertEquals(state, TransactionImpl.State.ERROR);
     }
 }

@@ -65,7 +65,11 @@ public class TransactionImpl implements Transaction {
 
     public enum State {
         OPEN,
-        CLOSE
+        COMMITTING,
+        ABORTING,
+        COMMITTED,
+        ABORTED,
+        ERROR
     }
 
     TransactionImpl(PulsarClientImpl client,
@@ -141,6 +145,7 @@ public class TransactionImpl implements Transaction {
     public CompletableFuture<Void> commit() {
         return checkIfOpen().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
+            this.state = State.COMMITTING;
             allOpComplete().whenComplete((v, e) -> {
                 if (e != null) {
                     abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
@@ -150,11 +155,11 @@ public class TransactionImpl implements Transaction {
                                 if (ex != null) {
                                     if (ex instanceof TransactionNotFoundException
                                             || ex instanceof InvalidTxnStatusException) {
-                                        this.state = State.CLOSE;
+                                        this.state = State.ERROR;
                                     }
                                     commitFuture.completeExceptionally(ex);
                                 } else {
-                                    this.state = State.CLOSE;
+                                    this.state = State.COMMITTED;
                                     commitFuture.complete(vx);
                                 }
                             });
@@ -186,11 +191,11 @@ public class TransactionImpl implements Transaction {
                     if (ex != null) {
                         if (ex instanceof TransactionNotFoundException
                                 || ex instanceof InvalidTxnStatusException) {
-                            this.state = State.CLOSE;
+                            this.state = State.ERROR;
                         }
                         abortFuture.completeExceptionally(ex);
                     } else {
-                        this.state = State.CLOSE;
+                        this.state = State.ABORTED;
                         abortFuture.complete(null);
                     }
 
@@ -206,7 +211,7 @@ public class TransactionImpl implements Transaction {
             return CompletableFuture.completedFuture(null);
         } else {
             return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
-                    + txnIdLeastBits + "] Transaction has been committed or aborted!"));
+                    + txnIdLeastBits + "] Transaction in " + state.name() + "state!"));
         }
     }
 
