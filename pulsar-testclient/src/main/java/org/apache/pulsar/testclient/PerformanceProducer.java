@@ -54,6 +54,8 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -139,6 +141,9 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
         public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+
+        @Parameter(names = { "--partitions" }, description = "Create a partitioned topics with the given number of partitions, set 0 to not create the topic")
+        public int createTopicPartitions = 0;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -324,6 +329,28 @@ public class PerformanceProducer {
             printAggregatedThroughput(start);
             printAggregatedStats();
         }));
+
+        if (arguments.createTopicPartitions > 0) {
+            PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
+                    .serviceHttpUrl(arguments.serviceURL)
+                    .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+
+            if (isNotBlank(arguments.authPluginClassName)) {
+                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+            }
+
+            if (arguments.tlsAllowInsecureConnection != null) {
+                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
+            }
+
+            PulsarAdmin client = clientBuilder.build();
+            for (int i = 0; i < arguments.numTopics; i++) {
+                String topic = arguments.topics.get(i);
+                log.info("Creating partitioned topic {} with {} partitions", topic, arguments.createTopicPartitions);
+                client.topics().createPartitionedTopic(topic, arguments.createTopicPartitions);
+            }
+            client.close();
+        }
 
         CountDownLatch doneLatch = new CountDownLatch(arguments.numTestThreads);
 
