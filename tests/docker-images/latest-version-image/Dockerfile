@@ -113,8 +113,6 @@ COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-rabbitmq-*.
 # change ownership of files
 RUN chown -R pulsar:0 /pulsar && chmod -R g=u /pulsar
 
-# remove static libpulsar*.a libraries to reduce image size
-RUN rm /usr/lib/libpulsar*.a
 # remove gcc
 RUN apt-get -y remove --autoremove --purge build-essential
 
