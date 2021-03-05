@@ -422,12 +422,17 @@ public class PulsarRecordCursor implements RecordCursor {
         }
     }
 
+    /**
+     * Check the queue has available cache size quota or not.
+     * 1. If the CacheSizeAllocator is NullCacheSizeAllocator, return true.
+     * 2. If the available cache size > 0, return true.
+     * 3. If the available cache size is invalid and the queue size == 0, return true, ensure not block the query.
+     */
     private boolean haveAvailableCacheSize(CacheSizeAllocator cacheSizeAllocator, SpscArrayQueue queue) {
         if (cacheSizeAllocator instanceof NullCacheSizeAllocator) {
             return true;
         }
-        return cacheSizeAllocator.getAvailableCacheSize() > 0
-                || cacheSizeAllocator.getAvailableCacheSize() == 0 && queue.size() == 0;
+        return cacheSizeAllocator.getAvailableCacheSize() > 0 || queue.size() == 0;
     }
 
     @Override
@@ -687,13 +692,13 @@ public class PulsarRecordCursor implements RecordCursor {
     }
 
     private void initEntryCacheSizeAllocator(PulsarConnectorConfig connectorConfig) {
-        if (connectorConfig.getMaxSplitEntryQueueSizeBytes() >= 0) {
+        if (connectorConfig.getMaxSplitQueueSizeBytes() >= 0) {
             this.entryQueueCacheSizeAllocator = new NoStrictCacheSizeAllocator(
-                    connectorConfig.getMaxSplitEntryQueueSizeBytes() / 2);
+                    connectorConfig.getMaxSplitQueueSizeBytes() / 2);
             this.messageQueueCacheSizeAllocator = new NoStrictCacheSizeAllocator(
-                    connectorConfig.getMaxSplitEntryQueueSizeBytes() / 2);
+                    connectorConfig.getMaxSplitQueueSizeBytes() / 2);
             log.info("Init cacheSizeAllocator with maxSplitEntryQueueSizeBytes {}.",
-                    connectorConfig.getMaxSplitEntryQueueSizeBytes());
+                    connectorConfig.getMaxSplitQueueSizeBytes());
         } else {
             this.entryQueueCacheSizeAllocator = new NullCacheSizeAllocator();
             this.messageQueueCacheSizeAllocator = new NullCacheSizeAllocator();

@@ -47,7 +47,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
     private int maxSplitEntryQueueSize = 1000;
-    private long maxSplitEntryQueueSizeBytes = -1;
+    private long maxSplitQueueSizeBytes = -1;
     private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
     private String statsProvider = NullStatsProvider.class.getName();
 
@@ -161,13 +161,13 @@ public class PulsarConnectorConfig implements AutoCloseable {
     }
 
     @NotNull
-    public long getMaxSplitEntryQueueSizeBytes() {
-        return this.maxSplitEntryQueueSizeBytes;
+    public long getMaxSplitQueueSizeBytes() {
+        return this.maxSplitQueueSizeBytes;
     }
 
-    @Config("pulsar.max-split-entry-queue-cache-size")
-    public PulsarConnectorConfig setMaxSplitEntryQueueSizeBytes(long maxSplitEntryQueueSizeBytes) {
-        this.maxSplitEntryQueueSizeBytes = maxSplitEntryQueueSizeBytes;
+    @Config("pulsar.max-split-queue-cache-size")
+    public PulsarConnectorConfig setMaxSplitQueueSizeBytes(long maxSplitQueueSizeBytes) {
+        this.maxSplitQueueSizeBytes = maxSplitQueueSizeBytes;
         return this;
     }
 

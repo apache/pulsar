@@ -67,7 +67,7 @@ public class TestPulsarConnectorConfig {
         Assert.assertEquals(0L, connectorConfig.getManagedLedgerCacheSizeMB());
         Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumWorkerThreads());
         Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumSchedulerThreads());
-        Assert.assertEquals(connectorConfig.getMaxSplitEntryQueueSizeBytes(), -1);
+        Assert.assertEquals(connectorConfig.getMaxSplitQueueSizeBytes(), -1);
     }
 
     @Test

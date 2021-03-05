@@ -120,7 +120,7 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
                 topicName, Schema.BYTES.getSchemaInfo(), PulsarColumnHandle.HandleKeyValueType.NONE, true);
 
         PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
-        connectorConfig.setMaxSplitEntryQueueSizeBytes(entryQueueSizeBytes);
+        connectorConfig.setMaxSplitQueueSizeBytes(entryQueueSizeBytes);
 
         ConnectorContext prestoConnectorContext = new TestingConnectorContext();
         PulsarRecordCursor pulsarRecordCursor = new PulsarRecordCursor(
