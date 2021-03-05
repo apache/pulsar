@@ -120,9 +120,6 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
         if (obj instanceof PositionImpl) {
             PositionImpl other = (PositionImpl) obj;
             return ledgerId == other.ledgerId && entryId == other.entryId;
