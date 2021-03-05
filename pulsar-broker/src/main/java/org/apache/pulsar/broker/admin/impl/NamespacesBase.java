@@ -325,6 +325,12 @@ public abstract class NamespacesBase extends AdminResource {
         validateTenantOperation(namespaceName.getTenant(), TenantOperation.DELETE_NAMESPACE);
         validatePoliciesReadOnlyAccess();
 
+        if (!pulsar().getConfiguration().isForceDeleteNamespaceAllowed()) {
+            asyncResponse.resume(
+                    new RestException(Status.FORBIDDEN, "Broker doesn't allow forced deletion of namespaces"));
+            return;
+        }
+
         // ensure that non-global namespace is directed to the correct cluster
         if (!namespaceName.isGlobal()) {
             validateClusterOwnership(namespaceName.getCluster());

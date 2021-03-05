@@ -290,6 +290,12 @@ public class TenantsBase extends PulsarWebResource {
     }
 
     protected void internalDeleteTenantForcefully(AsyncResponse asyncResponse, String tenant) {
+        if (!pulsar().getConfiguration().isForceDeleteTenantAllowed()) {
+            asyncResponse.resume(
+                    new RestException(Status.FORBIDDEN, "Broker doesn't allow forced deletion of tenants"));
+            return;
+        }
+
         List<String> namespaces;
         try {
             namespaces = getListOfNamespaces(tenant);
