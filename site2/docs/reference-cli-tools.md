@@ -343,7 +343,8 @@ Options
 |`-q`, `--queue-size`|The size of consumer's receiver queue.|0|
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages.|0|
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full.|false|
-
+|`--hide-content`|Do not print the message to the console.|false|
+|`-st`, `--schema-type`|Set the schema type. Use `auto_consume` to dump AVRO and other structured data types. Possible values: bytes, auto_consume.|bytes|
 
 ## `pulsar-daemon`
 A wrapper around the pulsar tool that’s used to start and stop processes, such as ZooKeeper, bookies, and Pulsar brokers, in the background using nohup.
