@@ -422,19 +422,19 @@ Options
 |`--auth_params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
 |`--auth_plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
-|`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
+|`--acks-delay-millis`|Acknowlegments grouping delay in millis|100|
 |`-k`, `--encryption-key-name`|The private key name to decrypt payload||
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`-h`, `--help`|Help message|false|
 |`--conf-file`|Configuration file||
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
-|`-t`, `--num-topics`|The number of topics|1|
+|`-t`, `--num-topic`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message consumer (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
 |`-u`, `--service-url`|Pulsar service URL||
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled|0|
-|`-ss`, `--subscriptions`|A list of subscriptions to consume on (e.g. sub1,sub2)|sub|
+|`-s`, `--subscriber-name`|Subscriber name prefix|sub|
 |`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
@@ -497,7 +497,7 @@ Options
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
-|`-t`, `--num-topics`|The number of topics|1|
+|`-t`, `--num-topic`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message reader (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
 |`-u`, `--service-url`|Pulsar service URL||
