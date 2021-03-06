@@ -29,6 +29,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -70,7 +71,7 @@ public class TransactionBufferTest {
     @BeforeMethod
     public void setup() throws Exception {
         PersistentTopic persistentTopic = mock(PersistentTopic.class);
-        this.buffer = this.provider.newTransactionBuffer(persistentTopic);
+        this.buffer = this.provider.newTransactionBuffer(persistentTopic, new CompletableFuture<>());
     }
 
     @AfterMethod(alwaysRun = true)

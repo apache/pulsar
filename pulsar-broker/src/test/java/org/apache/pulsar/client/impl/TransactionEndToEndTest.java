@@ -148,11 +148,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         int messageCnt = 1000;
         for (int i = 0; i < messageCnt; i++) {
             if (i % 5 == 0) {
-                MessageId messageId = producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
-                log.info("txnId : {}, messageId : {}", new TxnID(((TransactionImpl)txn1).getTxnIdMostBits(), ((TransactionImpl)txn1).getTxnIdLeastBits()), messageId);
+                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
             } else {
-                MessageId messageId = producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
-                log.info("txnId : {}, messageId : {}", new TxnID(((TransactionImpl)txn2).getTxnIdMostBits(), ((TransactionImpl)txn2).getTxnIdLeastBits()), messageId);
+                producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
             }
             txnMessageCnt++;
         }

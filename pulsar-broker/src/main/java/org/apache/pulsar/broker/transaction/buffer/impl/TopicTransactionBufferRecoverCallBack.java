@@ -41,4 +41,9 @@ public interface TopicTransactionBufferRecoverCallBack {
      * @param entry the transaction message entry
      */
     void handleTxnEntry(Entry entry);
+
+    /**
+     * Topic transaction buffer recover exceptionally.
+     */
+    void recoverExceptionally(Exception e);
 }

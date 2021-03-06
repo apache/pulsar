@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.transaction.buffer;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.Beta;
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.broker.service.Topic;
 
 /**
@@ -54,7 +56,8 @@ public interface TransactionBufferProvider {
      * Open the persistent transaction buffer.
      *
      * @param originTopic
+     * @param transactionBufferFuture the transaction buffer future
      * @return
      */
-    TransactionBuffer newTransactionBuffer(Topic originTopic);
+    TransactionBuffer newTransactionBuffer(Topic originTopic, CompletableFuture<Void> transactionBufferFuture);
 }

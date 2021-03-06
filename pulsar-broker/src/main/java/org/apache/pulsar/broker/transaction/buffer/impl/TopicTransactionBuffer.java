@@ -86,9 +86,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final int takeSnapshotIntervalTime;
 
-    public TopicTransactionBuffer(PersistentTopic topic) {
+    private final CompletableFuture<Void> transactionBufferFuture;
+
+    public TopicTransactionBuffer(PersistentTopic topic, CompletableFuture<Void> transactionBufferFuture) {
         super(State.None);
         this.topic = topic;
+        this.transactionBufferFuture = transactionBufferFuture;
         this.changeToInitializingState();
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
@@ -106,7 +109,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         } else {
                             timer.newTimeout(TopicTransactionBuffer.this,
                                     takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                            topic.completeTransactionBufferFuture();
+                            transactionBufferFuture.complete(null);
                         }
                     }
 
@@ -141,6 +144,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 handleTransactionMessage(txnID, position);
                             }
                         }
+                    }
+
+                    @Override
+                    public void recoverExceptionally(Exception e) {
+                        transactionBufferFuture.completeExceptionally(e);
                     }
                 }, this.topic, this));
     }
@@ -388,9 +396,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private final AtomicLong exceptionNumber = new AtomicLong();
 
-        // TODO: MAX_EXCEPTION_NUMBER can config
-        private static final int MAX_EXCEPTION_NUMBER = 500;
-
         public static final String SUBSCRIPTION_NAME = "transaction-buffer-sub";
 
         private final TopicTransactionBuffer topicTransactionBuffer;
@@ -423,7 +428,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 } catch (PulsarClientException pulsarClientException) {
                     log.error("[{}]Transaction buffer recover fail when read "
                             + "transactionBufferSnapshot!", topic.getName(), pulsarClientException);
-                    topic.completeExceptionallyTransactionBufferFuture(new PersistenceException(pulsarClientException));
+                    callBack.recoverExceptionally(pulsarClientException);
                     reader.closeAsync().exceptionally(e -> {
                         log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
                         return null;
@@ -440,7 +445,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     managedCursor = topic.getManagedLedger()
                             .newNonDurableCursor(this.startReadCursorPosition, SUBSCRIPTION_NAME);
                 } catch (ManagedLedgerException e) {
-                    topic.completeExceptionallyTransactionBufferFuture(e);
+                    callBack.recoverExceptionally(e);
                     log.error("[{}]Transaction buffer recover fail when open cursor!", topic.getName(), e);
                     return;
                 }
@@ -460,15 +465,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 entry.release();
                             }
                         } else {
-                            if (exceptionNumber.get() > MAX_EXCEPTION_NUMBER) {
-                                log.error("[{}]Transaction buffer recover fail when "
-                                        + "replay message error number > {}!", topic.getName(), MAX_EXCEPTION_NUMBER);
-                                topic.completeExceptionallyTransactionBufferFuture(
-                                        new PersistenceException(
-                                                new ManagedLedgerException("Transaction buffer recover error")));
-                                closeCursor(managedCursor);
-                                return;
-                            }
                             try {
                                 Thread.sleep(1);
                             } catch (InterruptedException e) {
@@ -481,7 +477,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 closeCursor(managedCursor);
                 callBack.recoverComplete();
             }).exceptionally(e -> {
-                topic.completeExceptionallyTransactionBufferFuture(new PersistenceException(e));
+                callBack.recoverExceptionally(new Exception(e));
                 log.error("[{}]Transaction buffer new snapshot reader fail!", topic.getName(), e);
                 return null;
             });

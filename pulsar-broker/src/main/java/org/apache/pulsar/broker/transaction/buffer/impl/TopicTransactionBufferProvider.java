@@ -23,13 +23,15 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * A provider that provides topic implementations of {@link TransactionBuffer}.
  */
 public class TopicTransactionBufferProvider implements TransactionBufferProvider {
 
     @Override
-    public TransactionBuffer newTransactionBuffer(Topic originTopic) {
-        return new TopicTransactionBuffer((PersistentTopic) originTopic);
+    public TransactionBuffer newTransactionBuffer(Topic originTopic, CompletableFuture<Void> transactionBufferFuture) {
+        return new TopicTransactionBuffer((PersistentTopic) originTopic, transactionBufferFuture);
     }
 }

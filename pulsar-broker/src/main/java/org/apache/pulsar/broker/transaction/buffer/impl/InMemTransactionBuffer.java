@@ -209,12 +209,10 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
-    public InMemTransactionBuffer(Topic topic) {
+    public InMemTransactionBuffer(Topic topic, CompletableFuture<Void> transactionBufferFuture) {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
-        if (topic instanceof PersistentTopic) {
-            ((PersistentTopic) topic).completeTransactionBufferFuture();
-        }
+        transactionBufferFuture.complete(null);
     }
 
     @Override
