@@ -230,13 +230,16 @@ class PULSAR_PUBLIC ProducerConfiguration {
      */
     const MessageRoutingPolicyPtr& getMessageRouterPtr() const;
 
-    /**
-     * Set the hashing scheme, which is a standard hashing function available when choosing the partition to
-     * use for a particular message. <ul> <li>{@link HashingScheme#JavaStringHash}: Java {@code
-     * String.hashCode()} (Default) <li>{@link HashingScheme#BoostHash}: Use [Boost hashing
-     * function](https://www.boost.org/doc/libs/1_72_0/doc/html/boost/hash.html). <li>{@link
-     * HashingScheme#Murmur3_32Hash}: Use [Murmur3 hashing
-     * function](https://en.wikipedia.org/wiki/MurmurHash">https://en.wikipedia.org/wiki/MurmurHash).
+    /** Set the hashing scheme, which is a standard hashing function available when choosing the partition to
+     * use for a particular message.
+     *
+     * <p>Standard hashing functions available are:
+     * <ul>
+     * <li>{@link HashingScheme::JavaStringHash}: Java {@code String.hashCode()} (Default).
+     * <li>{@link HashingScheme::BoostHash}: Use [Boost hashing
+     * function](https://www.boost.org/doc/libs/1_72_0/doc/html/boost/hash.html).
+     * <li>{@link HashingScheme::Murmur3_32Hash}: Use [Murmur3 hashing
+     * function](https://en.wikipedia.org/wiki/MurmurHash").
      * </ul>
      *
      * @param scheme hashing scheme.
