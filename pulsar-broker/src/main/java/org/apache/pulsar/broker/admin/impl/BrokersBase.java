@@ -108,7 +108,7 @@ public class BrokersBase extends PulsarWebResource {
         try {
             return pulsar().getLeaderElectionService().getCurrentLeader()
                     .map(LeaderBroker::getServiceUrl)
-                    .orElse("None");
+                    .orElse(null);
         } catch (Exception e) {
             LOG.error("[{}] Failed to get the service url of the leader broker.", clientAppId(), e);
             throw new RestException(e);

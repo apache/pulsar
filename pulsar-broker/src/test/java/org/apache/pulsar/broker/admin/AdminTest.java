@@ -625,7 +625,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         String leaderBroker = brokers.getLeaderBroker();
         assertEquals(leaderBroker, pulsar.getLeaderElectionService().getCurrentLeader()
                 .map(LeaderBroker::getServiceUrl)
-                .orElse("None"));
+                .orElse(null));
     }
 
     @Test
