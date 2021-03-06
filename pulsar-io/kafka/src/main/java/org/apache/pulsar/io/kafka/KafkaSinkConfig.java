@@ -90,10 +90,9 @@ public class KafkaSinkConfig implements Serializable {
     private String kafkaConnectorSinkClass;
 
     @FieldDoc(
-            defaultValue = "konnector.",
-            help = "A prefix for the values to pass to the kafka connector. "
-                 + "Prefix will be trimmed. Example: 'konnector.file=/a/b/c.txt'")
-    private String kafkaConnectorConfigPrefix;
+            defaultValue = "",
+            help = "Config properties to pass to the kafka connector.")
+    private Map<String, String> kafkaConnectorConfigProperties;
 
     public static KafkaSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

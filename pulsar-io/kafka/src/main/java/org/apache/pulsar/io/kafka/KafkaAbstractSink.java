@@ -33,7 +33,6 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.connect.connector.ConnectorContext;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkConnector;
@@ -91,9 +90,10 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         kafkaSinkConfig = KafkaSinkConfig.load(config);
         // kafkaSinkConfig.setKafkaConnectorSinkClass("org.apache.kafka.connect.file.FileStreamSinkConnector");
+        Objects.requireNonNull(kafkaSinkConfig.getTopic(), "Kafka topic is not set");
+
         String kafkaConnectorName = kafkaSinkConfig.getKafkaConnectorSinkClass();
         if (Strings.isNullOrEmpty(kafkaConnectorName)) {
-            Objects.requireNonNull(kafkaSinkConfig.getTopic(), "Kafka topic is not set");
             Objects.requireNonNull(kafkaSinkConfig.getBootstrapServers(), "Kafka bootstrapServers is not set");
             Objects.requireNonNull(kafkaSinkConfig.getAcks(), "Kafka acks mode is not set");
             if (kafkaSinkConfig.getBatchSize() <= 0) {
@@ -117,16 +117,8 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
 
             producer = new KafkaProducer<>(beforeCreateProducer(props));
         } else {
-            String prefix = kafkaSinkConfig.getKafkaConnectorConfigPrefix();
-            config.entrySet().stream()
-                    .filter(kv -> kv.getKey().startsWith(prefix))
-                    .forEach(kv -> {
-                        String name = kv.getKey().substring(prefix.length());
-                        props.put(name, kv.getValue());
-                    });
-
-            // props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, kafkaSinkConfig.getKeySerializerClass());
-            // props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, kafkaSinkConfig.getValueSerializerClass());
+            kafkaSinkConfig.getKafkaConnectorConfigProperties().entrySet().stream()
+                    .forEach(kv -> props.put(kv.getKey(), kv.getValue()));
 
             // todo: schemas from config
 

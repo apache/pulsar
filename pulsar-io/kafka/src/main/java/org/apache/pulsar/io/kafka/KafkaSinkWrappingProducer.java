@@ -42,7 +42,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicLong;
 
 /***
  * Adapter from a SinkTask to a KafkaProducer to use producer api to write to the sink
