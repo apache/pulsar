@@ -2639,7 +2639,8 @@ public class PersistentTopic extends AbstractTopic
                         transactionBuffer.appendBufferToTxn(txnID, publishContext.getSequenceId(), headersAndPayload)
                                 .thenAccept(position -> {
                                     // Message has been successfully persisted
-                                    messageDeduplication.recordMessagePersisted(publishContext, (PositionImpl) position);
+                                    messageDeduplication.recordMessagePersisted(publishContext,
+                                            (PositionImpl) position);
                                     publishContext.completed(null, ((PositionImpl) position).getLedgerId(),
                                             ((PositionImpl) position).getEntryId());
 

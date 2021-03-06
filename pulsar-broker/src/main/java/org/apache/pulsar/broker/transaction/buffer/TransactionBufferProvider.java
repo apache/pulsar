@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.Beta;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.broker.service.Topic;
 
 /**

@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * A provider that provides in-memory implementations of {@link TransactionBuffer}.
