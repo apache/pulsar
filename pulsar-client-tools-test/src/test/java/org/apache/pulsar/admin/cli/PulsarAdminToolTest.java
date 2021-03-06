@@ -539,6 +539,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-subscription-dispatch-rate myprop/clust/ns1"));
         verify(mockNamespaces).getSubscriptionDispatchRate("myprop/clust/ns1");
 
+        namespaces.run(split("remove-subscription-dispatch-rate myprop/clust/ns1"));
+        verify(mockNamespaces).removeSubscriptionDispatchRate("myprop/clust/ns1");
+
         namespaces.run(split("get-compaction-threshold myprop/clust/ns1"));
         verify(mockNamespaces).getCompactionThreshold("myprop/clust/ns1");
 
@@ -778,6 +781,13 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("set-deduplication persistent://myprop/clust/ns1/ds1 --disable"));
         verify(mockTopics).setDeduplicationStatus("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("set-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2"));
+        verify(mockTopics).setSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1", new DispatchRate(-1, -1, 2));
+        cmdTopics.run(split("get-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("remove-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("remove-deduplication persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeDeduplicationStatus("persistent://myprop/clust/ns1/ds1");

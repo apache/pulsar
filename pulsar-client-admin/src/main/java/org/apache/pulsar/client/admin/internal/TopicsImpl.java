@@ -2438,9 +2438,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public DispatchRate getSubscriptionDispatchRate(String topic) throws PulsarAdminException {
+    public DispatchRate getSubscriptionDispatchRate(String topic, boolean applied) throws PulsarAdminException {
         try {
-            return getSubscriptionDispatchRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getSubscriptionDispatchRateAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -2452,23 +2452,34 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic) {
+    public CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, boolean applied) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscriptionDispatchRate");
+        path = path.queryParam("applied", applied);
         final CompletableFuture<DispatchRate> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<DispatchRate>() {
-                    @Override
-                    public void completed(DispatchRate dispatchRate) {
-                        future.complete(dispatchRate);
-                    }
+            new InvocationCallback<DispatchRate>() {
+                @Override
+                public void completed(DispatchRate dispatchRate) {
+                    future.complete(dispatchRate);
+                }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+                @Override
+                public void failed(Throwable throwable) {
+                    future.completeExceptionally(getApiException(throwable.getCause()));
+                }
+            });
         return future;
+    }
+
+    @Override
+    public DispatchRate getSubscriptionDispatchRate(String topic) throws PulsarAdminException {
+        return getSubscriptionDispatchRate(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic) {
+        return getSubscriptionDispatchRateAsync(topic, false);
     }
 
     @Override

@@ -402,10 +402,6 @@ public abstract class AdminResource extends PulsarWebResource {
             policies.topicDispatchRate.put(cluster, dispatchRate());
         }
 
-        if (policies.subscriptionDispatchRate.isEmpty()) {
-            policies.subscriptionDispatchRate.put(cluster, subscriptionDispatchRate());
-        }
-
         if (policies.clusterSubscribeRate.isEmpty()) {
             policies.clusterSubscribeRate.put(cluster, subscribeRate());
         }
