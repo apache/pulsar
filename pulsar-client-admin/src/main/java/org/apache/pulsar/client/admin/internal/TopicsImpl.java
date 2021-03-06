@@ -2458,17 +2458,17 @@ public class TopicsImpl extends BaseResource implements Topics {
         path = path.queryParam("applied", applied);
         final CompletableFuture<DispatchRate> future = new CompletableFuture<>();
         asyncGetRequest(path,
-            new InvocationCallback<DispatchRate>() {
-                @Override
-                public void completed(DispatchRate dispatchRate) {
-                    future.complete(dispatchRate);
-                }
+                new InvocationCallback<DispatchRate>() {
+                    @Override
+                    public void completed(DispatchRate dispatchRate) {
+                        future.complete(dispatchRate);
+                    }
 
-                @Override
-                public void failed(Throwable throwable) {
-                    future.completeExceptionally(getApiException(throwable.getCause()));
-                }
-            });
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
         return future;
     }
 
