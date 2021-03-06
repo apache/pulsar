@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -442,7 +443,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(list2.size(), 1);
 
         String leaderBroker = admin.brokers().getLeaderBroker();
-        Assert.assertNotNull(leaderBroker);
+        Assert.assertEquals(leaderBroker, pulsar.getLeaderElectionService().getCurrentLeader()
+                .map(LeaderBroker::getServiceUrl)
+                .orElse(null));
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("test", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
@@ -637,7 +640,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof NotFoundException);
         }
-        
+
         Set<String> allowedClusters = Sets.newHashSet("test");
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), allowedClusters);
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
