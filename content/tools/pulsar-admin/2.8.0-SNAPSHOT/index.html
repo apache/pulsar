@@ -3871,7 +3871,7 @@
 </tr>
 <tr>
 <td><code>--offloadedReadPriority, -orp</code></td>
-<td>read priority for offloaded messages</td>
+<td>Read priority for offloaded messages. By default, once messages are offloaded to long-term storage, brokers read messages from long-term storage, but messages can still exist in BookKeeper for a period depends on your configuration. For messages that exist in both long-term storage and BookKeeper, you can set where to read messages from with the option <code>tiered-storage-first</code> or <code>bookkeeper-first</code>.</td>
 <td>null</td>
 </tr>
 <tr>
@@ -7064,7 +7064,7 @@
 </tr>
 <tr>
 <td><code>--offloadedReadPriority, -orp</code></td>
-<td>read priority for offloaded messages</td>
+<td>Read priority for offloaded messages. By default, once messages are offloaded to long-term storage, brokers read messages from long-term storage, but messages can still exist in BookKeeper for a period depends on your configuration. For messages that exist in both long-term storage and BookKeeper, you can set where to read messages from with the option <code>tiered-storage-first</code> or <code>bookkeeper-first</code>.</td>
 <td>null</td>
 </tr>
 <tr>
