@@ -201,7 +201,6 @@ http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
     * Performance and memory usage improvement
 
 ------------------------------------------------------------------------------------
-- org.checkerframework-checker-compat-qual-2.5.2.jar
 
 A few parts of the Checker Framework have more permissive licenses.
 

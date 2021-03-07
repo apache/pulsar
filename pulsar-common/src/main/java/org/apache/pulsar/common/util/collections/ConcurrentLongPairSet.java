@@ -86,23 +86,23 @@ public class ConcurrentLongPairSet implements LongPairSet {
 
     public long size() {
         long size = 0;
-        for (Section s : sections) {
-            size += s.size;
+        for (int i = 0; i < sections.length; i++) {
+            size += sections[i].size;
         }
         return size;
     }
 
     public long capacity() {
         long capacity = 0;
-        for (Section s : sections) {
-            capacity += s.capacity;
+        for (int i = 0; i < sections.length; i++) {
+            capacity += sections[i].capacity;
         }
         return capacity;
     }
 
     public boolean isEmpty() {
-        for (Section s : sections) {
-            if (s.size != 0) {
+        for (int i = 0; i < sections.length; i++) {
+            if (sections[i].size != 0) {
                 return false;
             }
         }
@@ -111,8 +111,8 @@ public class ConcurrentLongPairSet implements LongPairSet {
 
     long getUsedBucketCount() {
         long usedBucketCount = 0;
-        for (Section s : sections) {
-            usedBucketCount += s.usedBuckets;
+        for (int i = 0; i < sections.length; i++) {
+            usedBucketCount += sections[i].usedBuckets;
         }
         return usedBucketCount;
     }
@@ -154,8 +154,8 @@ public class ConcurrentLongPairSet implements LongPairSet {
     }
 
     public void forEach(LongPairConsumer processor) {
-        for (Section s : sections) {
-            s.forEach(processor);
+        for (int i = 0; i < sections.length; i++) {
+            sections[i].forEach(processor);
         }
     }
 
@@ -169,8 +169,8 @@ public class ConcurrentLongPairSet implements LongPairSet {
      */
     public int removeIf(LongPairPredicate filter) {
         int removedValues = 0;
-        for (Section s : sections) {
-            removedValues += s.removeIf(filter);
+        for (int i = 0; i < sections.length; i++) {
+            removedValues += sections[i].removeIf(filter);
         }
         return removedValues;
     }
@@ -194,8 +194,8 @@ public class ConcurrentLongPairSet implements LongPairSet {
     @Override
     public <T> Set<T> items(int numberOfItems, LongPairFunction<T> longPairConverter) {
         Set<T> items = new HashSet<>();
-        for (Section s : sections) {
-            s.forEach((item1, item2) -> {
+        for (int i = 0; i < sections.length; i++) {
+            sections[i].forEach((item1, item2) -> {
                 if (items.size() < numberOfItems) {
                     items.add(longPairConverter.apply(item1, item2));
                 }
@@ -398,42 +398,35 @@ public class ConcurrentLongPairSet implements LongPairSet {
         }
 
         public void forEach(LongPairConsumer processor) {
-            long stamp = tryOptimisticRead();
-
             long[] table = this.table;
-            boolean acquiredReadLock = false;
 
-            try {
-
-                // Validate no rehashing
-                if (!validate(stamp)) {
-                    // Fallback to read lock
-                    stamp = readLock();
-                    acquiredReadLock = true;
-                    table = this.table;
+            // Go through all the buckets for this section. We try to renew the stamp only after a validation
+            // error, otherwise we keep going with the same.
+            long stamp = 0;
+            for (int bucket = 0; bucket < table.length; bucket += 2) {
+                if (stamp == 0) {
+                    stamp = tryOptimisticRead();
                 }
 
-                // Go through all the buckets for this section
-                for (int bucket = 0; bucket < table.length; bucket += 2) {
-                    long storedItem1 = table[bucket];
-                    long storedItem2 = table[bucket + 1];
+                long storedItem1 = table[bucket];
+                long storedItem2 = table[bucket + 1];
 
-                    if (!acquiredReadLock && !validate(stamp)) {
-                        // Fallback to acquiring read lock
-                        stamp = readLock();
-                        acquiredReadLock = true;
+                if (!validate(stamp)) {
+                    // Fallback to acquiring read lock
+                    stamp = readLock();
 
+                    try {
                         storedItem1 = table[bucket];
                         storedItem2 = table[bucket + 1];
+                    } finally {
+                        unlockRead(stamp);
                     }
 
-                    if (storedItem1 != DeletedItem && storedItem1 != EmptyItem) {
-                        processor.accept(storedItem1, storedItem2);
-                    }
+                    stamp = 0;
                 }
-            } finally {
-                if (acquiredReadLock) {
-                    unlockRead(stamp);
+
+                if (storedItem1 != DeletedItem && storedItem1 != EmptyItem) {
+                    processor.accept(storedItem1, storedItem2);
                 }
             }
         }
