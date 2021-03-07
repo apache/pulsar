@@ -2418,6 +2418,23 @@ public interface Topics {
     CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String topic);
 
     /**
+     * Get applied replicatorDispatchRate for the topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    DispatchRate getReplicatorDispatchRate(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied replicatorDispatchRate asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String topic, boolean applied);
+
+    /**
      * Remove replicatorDispatchRate for a topic.
      * @param topic
      *            Topic name

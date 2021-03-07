@@ -302,6 +302,15 @@ public class PulsarAdminToolTest {
         namespaces.run(split("delete-bookie-affinity-group myprop/clust/ns1"));
         verify(mockNamespaces).deleteBookieAffinityGroup("myprop/clust/ns1");
 
+        namespaces.run(split("set-replicator-dispatch-rate myprop/clust/ns1 -md 10 -bd 11 -dt 12"));
+        verify(mockNamespaces).setReplicatorDispatchRate("myprop/clust/ns1", new DispatchRate(10, 11, 12));
+
+        namespaces.run(split("get-replicator-dispatch-rate myprop/clust/ns1"));
+        verify(mockNamespaces).getReplicatorDispatchRate("myprop/clust/ns1");
+
+        namespaces.run(split("remove-replicator-dispatch-rate myprop/clust/ns1"));
+        verify(mockNamespaces).removeReplicatorDispatchRate("myprop/clust/ns1");
+
         namespaces.run(split("unload myprop/clust/ns1"));
         verify(mockNamespaces).unload("myprop/clust/ns1");
 
@@ -782,8 +791,8 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-deduplication persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeDeduplicationStatus("persistent://myprop/clust/ns1/ds1");
 
-        cmdTopics.run(split("get-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("get-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1", true);
 
         cmdTopics.run(split("set-subscription-types-enabled persistent://myprop/clust/ns1/ds1 -t Shared,Failover"));
         verify(mockTopics).setSubscriptionTypesEnabled("persistent://myprop/clust/ns1/ds1",
