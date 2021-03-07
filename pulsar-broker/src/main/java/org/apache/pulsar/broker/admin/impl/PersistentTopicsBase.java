@@ -2704,8 +2704,8 @@ public class PersistentTopicsBase extends AdminResource {
                     if (applied) {
                         PersistencePolicies namespacePolicy = getNamespacePolicies(namespaceName)
                                 .persistence;
-                        return namespacePolicy == null ?
-                                new PersistencePolicies(
+                        return namespacePolicy == null
+                                ? new PersistencePolicies(
                                         pulsar().getConfiguration().getManagedLedgerDefaultEnsembleSize(),
                                         pulsar().getConfiguration().getManagedLedgerDefaultWriteQuorum(),
                                         pulsar().getConfiguration().getManagedLedgerDefaultAckQuorum(),
