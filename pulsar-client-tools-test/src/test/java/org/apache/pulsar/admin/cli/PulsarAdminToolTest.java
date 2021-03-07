@@ -722,6 +722,14 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
 
+        cmdTopics.run(split("get-backlog-quotas persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getBacklogQuotaMap("persistent://myprop/clust/ns1/ds1", true);
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -p producer_request_hold"));
+        verify(mockTopics).setBacklogQuota("persistent://myprop/clust/ns1/ds1"
+                , new BacklogQuota(10L, BacklogQuota.RetentionPolicy.producer_request_hold));
+        cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeBacklogQuota("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
 

@@ -2516,6 +2516,28 @@ public class PersistentTopicsBase extends AdminResource {
         return offlineTopicStats;
     }
 
+    protected Map<BacklogQuota.BacklogQuotaType, BacklogQuota> internalGetBacklogQuota(boolean applied) {
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> quotaMap = getTopicPolicies(topicName)
+                .map(TopicPolicies::getBackLogQuotaMap)
+                .map(map -> {
+                    HashMap<BacklogQuota.BacklogQuotaType, BacklogQuota> hashMap = Maps.newHashMap();
+                    map.forEach((key, value) -> hashMap.put(BacklogQuota.BacklogQuotaType.valueOf(key), value));
+                    return hashMap;
+                }).orElse(Maps.newHashMap());
+        if (applied && quotaMap.isEmpty()) {
+            quotaMap = getNamespacePolicies(namespaceName).backlog_quota_map;
+            if (quotaMap.isEmpty()) {
+                String namespace = namespaceName.toString();
+                quotaMap.put(
+                        BacklogQuota.BacklogQuotaType.destination_storage,
+                        namespaceBacklogQuota(namespace, AdminResource.path(POLICIES, namespace))
+                );
+
+            }
+        }
+        return quotaMap;
+    }
+
     protected void internalSetBacklogQuota(AsyncResponse asyncResponse,
                                            BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
         if (backlogQuotaType == null) {

@@ -382,10 +382,6 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void mergeNamespaceWithDefaults(Policies policies, String namespace, String namespacePath) {
-        if (policies.backlog_quota_map.isEmpty()) {
-            Policies.setStorageQuota(policies, namespaceBacklogQuota(namespace, namespacePath));
-        }
-
         final ServiceConfiguration config = pulsar().getConfiguration();
 
         if (policies.max_consumers_per_subscription < 1) {

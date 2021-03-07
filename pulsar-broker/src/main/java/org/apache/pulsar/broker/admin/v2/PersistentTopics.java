@@ -1520,19 +1520,11 @@ public class PersistentTopics extends PersistentTopicsBase {
                     message = "Topic level policy is disabled, to enable the topic level policy and retry")})
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
                                                                   @PathParam("namespace") String namespace,
-                                                                  @PathParam("topic") @Encoded String encodedTopic) {
+                                                                  @PathParam("topic") @Encoded String encodedTopic,
+                                                                  @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        return getTopicPolicies(topicName)
-                .map(TopicPolicies::getBackLogQuotaMap)
-                .map(map -> {
-                    HashMap<BacklogQuotaType, BacklogQuota> hashMap = Maps.newHashMap();
-                    map.forEach((key, value) -> {
-                        hashMap.put(BacklogQuotaType.valueOf(key), value);
-                    });
-                    return hashMap;
-                })
-                .orElse(Maps.newHashMap());
+        return internalGetBacklogQuota(applied);
     }
 
     @POST

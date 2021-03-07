@@ -1536,6 +1536,16 @@ public interface Topics {
     Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic) throws PulsarAdminException;
 
     /**
+     * Get applied backlog quota map for a topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic, boolean applied)
+            throws PulsarAdminException;
+
+    /**
      * Set a backlog quota for a topic.
      * The backlog quota can be set on this resource:
      *

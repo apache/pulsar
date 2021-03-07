@@ -1522,9 +1522,16 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic) throws PulsarAdminException {
+        return getBacklogQuotaMap(topic, false);
+    }
+
+    @Override
+    public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic, boolean applied)
+            throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "backlogQuotaMap");
+            path = path.queryParam("applied", applied);
             return request(path).get(new GenericType<Map<BacklogQuotaType, BacklogQuota>>() {
             });
         } catch (Exception e) {

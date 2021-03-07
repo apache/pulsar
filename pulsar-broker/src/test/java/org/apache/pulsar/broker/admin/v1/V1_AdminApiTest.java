@@ -643,8 +643,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.bundles = Policies.defaultBundle();
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
 
-        // set default quotas on namespace
-        Policies.setStorageQuota(policies, ConfigHelper.backlogQuota(conf));
         policies.topicDispatchRate.put("test", ConfigHelper.topicDispatchRate(conf));
         policies.subscriptionDispatchRate.put("test", ConfigHelper.subscriptionDispatchRate(conf));
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
@@ -1353,11 +1351,11 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void backlogQuotas() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1"),
-                ConfigHelper.backlogQuotaMap(conf));
+                Maps.newHashMap());
 
         Map<BacklogQuotaType, BacklogQuota> quotaMap = admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1");
-        assertEquals(quotaMap.size(), 1);
-        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), ConfigHelper.backlogQuota(conf));
+        assertEquals(quotaMap.size(), 0);
+        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), Maps.newHashMap());
 
         admin.namespaces().setBacklogQuota("prop-xyz/use/ns1",
                 new BacklogQuota(1 * 1024 * 1024, RetentionPolicy.producer_exception));
@@ -1369,8 +1367,8 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeBacklogQuota("prop-xyz/use/ns1");
 
         quotaMap = admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1");
-        assertEquals(quotaMap.size(), 1);
-        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), ConfigHelper.backlogQuota(conf));
+        assertEquals(quotaMap.size(), 0);
+        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), Maps.newHashMap());
     }
 
     @Test
