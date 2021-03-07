@@ -211,7 +211,7 @@ public class TransactionImpl implements Transaction {
             return CompletableFuture.completedFuture(null);
         } else {
             return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
-                    + txnIdLeastBits + "] Transaction in " + state.name() + "state!"));
+                    + txnIdLeastBits + "] Transaction in " + state.name() + " state!"));
         }
     }
 
