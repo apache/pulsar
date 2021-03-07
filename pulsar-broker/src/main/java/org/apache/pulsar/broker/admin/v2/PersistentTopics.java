@@ -3109,7 +3109,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                 asyncResponse.resume(new RestException(ex));
             } else {
                 asyncResponse.resume(res);
-            }});
+            }
+        });
     }
 
     @POST
