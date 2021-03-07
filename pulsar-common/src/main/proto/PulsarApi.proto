@@ -844,6 +844,7 @@ message CommandEndTxnOnSubscription {
     optional uint64 txnid_most_bits = 3 [default = 0];
     optional Subscription subscription= 4;
     optional TxnAction txn_action = 5;
+    optional uint64 txnid_least_bits_of_low_watermark = 6;
 }
 
 message CommandEndTxnOnSubscriptionResponse {

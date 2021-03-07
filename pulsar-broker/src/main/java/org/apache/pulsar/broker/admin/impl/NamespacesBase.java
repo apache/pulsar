@@ -377,9 +377,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         List<String> topics;
         try {
-            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
-            topics.addAll(getPartitionedTopicList(TopicDomain.persistent));
-            topics.addAll(getPartitionedTopicList(TopicDomain.non_persistent));
+            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName).join();
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;
@@ -2069,15 +2067,14 @@ public abstract class NamespacesBase extends AdminResource {
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_consumer;
     }
 
-    protected void internalSetMaxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
+    protected void internalSetMaxUnackedMessagesPerConsumer(Integer maxUnackedMessagesPerConsumer) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-
+        if (maxUnackedMessagesPerConsumer != null && maxUnackedMessagesPerConsumer < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedMessagesPerConsumer must be 0 or more");
+        }
         try {
-            if (maxUnackedMessagesPerConsumer < 0) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "maxUnackedMessagesPerConsumer must be 0 or more");
-            }
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies)->{
                 policies.max_unacked_messages_per_consumer = maxUnackedMessagesPerConsumer;

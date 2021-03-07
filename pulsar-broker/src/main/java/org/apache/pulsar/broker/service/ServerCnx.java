@@ -1886,7 +1886,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
 
                 CompletableFuture<Void> completableFuture =
-                        subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction);
+                        subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction,
+                                command.getTxnidLeastBitsOfLowWatermark());
                 completableFuture.whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
                         log.error("Handle end txn on subscription failed for request {}", requestId);

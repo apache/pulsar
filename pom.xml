@@ -96,7 +96,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.12.1</bookkeeper.version>
+    <bookkeeper.version>4.13.0</bookkeeper.version>
     <zookeeper.version>3.6.2</zookeeper.version>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
@@ -124,7 +124,8 @@ flexible messaging model and an intuitive client API.</description>
     <typetools.version>0.5.0</typetools.version>
     <protobuf3.version>3.11.4</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.18.0</grpc.version>
+    <grpc.version>1.33.0</grpc.version>
+    <perfmark.version>0.19.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     <gson.version>2.8.6</gson.version>
     <sketches.version>0.8.3</sketches.version>
@@ -839,6 +840,19 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.perfmark</groupId>
+        <artifactId>perfmark-api</artifactId>
+        <version>${perfmark.version}</version>
+        <scope>runtime</scope>
+        <exclusions>
+          <exclusion>
+            <artifactId>error_prone_annotations</artifactId>
+            <groupId>com.google.errorprone</groupId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-stub</artifactId>
         <version>${grpc.version}</version>
@@ -1122,6 +1136,12 @@ flexible messaging model and an intuitive client API.</description>
           </annotationProcessorPaths>
           <compilerArgs>
             <arg>-parameters</arg>
+            <!-- enable 'all' lint warnings with some exclusions -->
+            <arg>-Xlint:all</arg>
+            <arg>-Xlint:-options</arg>
+            <arg>-Xlint:-serial</arg>
+            <arg>-Xlint:-classfile</arg>
+            <arg>-Xlint:-processing</arg>
           </compilerArgs>
         </configuration>
       </plugin>
@@ -1221,7 +1241,6 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>logs/**</exclude>
                 <exclude>**/circe/**</exclude>
                 <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
-                <exclude>pulsar-client-cpp/include/gtest/gtest_prod.h</exclude>
                 <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
                 <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
                 <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>

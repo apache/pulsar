@@ -55,6 +55,7 @@
         <module>data-generator</module>
         <module>elastic-search</module>
         <module>kafka-connect-adaptor</module>
+        <module>kafka-connect-adaptor-nar</module>
         <module>debezium</module>
         <module>hdfs2</module>
         <module>canal</module>
@@ -76,6 +77,7 @@
       <modules>
         <module>core</module>
         <module>batch-discovery-triggerers</module>
+        <module>batch-data-generator</module>
         <module>common</module>
         <module>twitter</module>
         <module>cassandra</module>
