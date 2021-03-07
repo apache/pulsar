@@ -1355,7 +1355,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Map<BacklogQuotaType, BacklogQuota> quotaMap = admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1");
         assertEquals(quotaMap.size(), 0);
-        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), Maps.newHashMap());
+        assertNull(quotaMap.get(BacklogQuotaType.destination_storage));
 
         admin.namespaces().setBacklogQuota("prop-xyz/use/ns1",
                 new BacklogQuota(1 * 1024 * 1024, RetentionPolicy.producer_exception));
@@ -1368,7 +1368,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         quotaMap = admin.namespaces().getBacklogQuotaMap("prop-xyz/use/ns1");
         assertEquals(quotaMap.size(), 0);
-        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), Maps.newHashMap());
+        assertNull(quotaMap.get(BacklogQuotaType.destination_storage));
     }
 
     @Test
