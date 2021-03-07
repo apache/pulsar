@@ -406,9 +406,6 @@ public abstract class AdminResource extends PulsarWebResource {
             policies.subscriptionDispatchRate.put(cluster, subscriptionDispatchRate());
         }
 
-        if (policies.clusterSubscribeRate.isEmpty()) {
-            policies.clusterSubscribeRate.put(cluster, subscribeRate());
-        }
     }
 
     protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {

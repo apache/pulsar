@@ -2068,6 +2068,21 @@ public interface Namespaces {
     CompletableFuture<Void> setSubscribeRateAsync(String namespace, SubscribeRate subscribeRate);
 
     /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscribeRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeSubscribeRateAsync(String namespace);
+
+    /**
      * Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period).
      *
      * @param namespace

@@ -1213,6 +1213,37 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(persistenceTopic, true);
     }
 
+    @Test(timeOut = 20000)
+    public void testGetSubscribeRateApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getSubscribeRate(topic));
+        assertNull(admin.namespaces().getSubscribeRate(myNamespace));
+        SubscribeRate brokerPolicy = new SubscribeRate(
+                pulsar.getConfiguration().getSubscribeThrottlingRatePerConsumer(),
+                pulsar.getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
+        );
+        assertEquals(admin.topics().getSubscribeRate(topic, true), brokerPolicy);
+        SubscribeRate namespacePolicy = new SubscribeRate(10, 11);
+
+        admin.namespaces().setSubscribeRate(myNamespace, namespacePolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getSubscribeRate(myNamespace)));
+        assertEquals(admin.topics().getSubscribeRate(topic, true), namespacePolicy);
+
+        SubscribeRate topicPolicy = new SubscribeRate(20, 21);
+        admin.topics().setSubscribeRate(topic, topicPolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getSubscribeRate(topic)));
+        assertEquals(admin.topics().getSubscribeRate(topic, true), topicPolicy);
+
+        admin.namespaces().removeSubscribeRate(myNamespace);
+        admin.topics().removeSubscribeRate(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getSubscribeRate(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getSubscribeRate(topic)));
+        assertEquals(admin.topics().getSubscribeRate(topic, true), brokerPolicy);
+    }
+
     @Test
     public void testRemoveSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);

@@ -533,6 +533,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-subscribe-rate myprop/clust/ns1"));
         verify(mockNamespaces).getSubscribeRate("myprop/clust/ns1");
 
+        namespaces.run(split("remove-subscribe-rate myprop/clust/ns1"));
+        verify(mockNamespaces).removeSubscribeRate("myprop/clust/ns1");
+
         namespaces.run(split("set-subscription-dispatch-rate myprop/clust/ns1 -md -1 -bd -1 -dt 2"));
         verify(mockNamespaces).setSubscriptionDispatchRate("myprop/clust/ns1", new DispatchRate(-1, -1, 2));
 
@@ -739,6 +742,15 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("expire-messages persistent://myprop/clust/ns1/ds1 -s sub1 -t 100"));
         verify(mockTopics).expireMessages("persistent://myprop/clust/ns1/ds1", "sub1", 100);
+
+        cmdTopics.run(split("get-subscribe-rate persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getSubscribeRate("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("set-subscribe-rate persistent://myprop/clust/ns1/ds1 -sr 2 -st 60"));
+        verify(mockTopics).setSubscribeRate("persistent://myprop/clust/ns1/ds1", new SubscribeRate(2, 60));
+
+        cmdTopics.run(split("remove-subscribe-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeSubscribeRate("persistent://myprop/clust/ns1/ds1");
 
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopics(() -> admin);

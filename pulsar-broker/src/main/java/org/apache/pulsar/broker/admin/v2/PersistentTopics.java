@@ -3096,21 +3096,20 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getSubscribeRate(@Suspended final AsyncResponse asyncResponse,
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace,
-                                @PathParam("topic") @Encoded String encodedTopic) {
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<SubscribeRate> subscribeRate = internalGetSubscribeRate();
-            if (!subscribeRate.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
+        internalGetSubscribeRate(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get subscribe rate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get subscribe rate", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(subscribeRate.get());
-            }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+                asyncResponse.resume(res);
+            }});
     }
 
     @POST
