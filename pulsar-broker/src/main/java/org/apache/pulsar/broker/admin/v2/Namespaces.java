@@ -734,6 +734,16 @@ public class Namespaces extends NamespacesBase {
         internalSetPersistence(persistence);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/persistence")
+    @ApiOperation(value = "Delete the persistence configuration for all topics on a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deleteSubscriptionDispatchRate(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetPersistence(null);
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/persistence/bookieAffinity")
     @ApiOperation(value = "Set the bookie-affinity-group to namespace-persistent policy.")

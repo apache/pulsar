@@ -1044,6 +1044,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove the persistence policies for a namespace")
+    private class RemovePersistence extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removePersistence(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set the persistence policies for a namespace")
     private class SetPersistence extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -2019,6 +2031,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-persistence", new GetPersistence());
         jcommander.addCommand("set-persistence", new SetPersistence());
+        jcommander.addCommand("remove-persistence", new RemovePersistence());
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());

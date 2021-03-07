@@ -2115,6 +2115,22 @@ public interface Topics {
     CompletableFuture<PersistencePolicies> getPersistenceAsync(String topic);
 
     /**
+     * Get the applied configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    PersistencePolicies getPersistence(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the applied configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<PersistencePolicies> getPersistenceAsync(String topic, boolean applied);
+
+    /**
      * Remove the configuration of persistence policies for specified topic.
      *
      * @param topic Topic name

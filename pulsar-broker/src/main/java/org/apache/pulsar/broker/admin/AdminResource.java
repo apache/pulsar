@@ -827,7 +827,9 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void validatePersistencePolicies(PersistencePolicies persistence) {
-        checkNotNull(persistence, "persistence policies should not be null");
+        if (persistence == null) {
+            return;
+        }
         final ServiceConfiguration config = pulsar().getConfiguration();
         checkArgument(persistence.getBookkeeperEnsemble() <= config.getManagedLedgerMaxEnsembleSize(),
                 "Bookkeeper-Ensemble must be <= " + config.getManagedLedgerMaxEnsembleSize());
