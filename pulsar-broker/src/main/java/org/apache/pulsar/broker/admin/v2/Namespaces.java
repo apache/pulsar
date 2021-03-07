@@ -1142,7 +1142,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Remove maxUnackedMessagesPerConsumer config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void removeMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
+    public void removeMaxUnackedmessagesPerConsumer(@PathParam("tenant") String tenant,
                                                         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxUnackedMessagesPerConsumer(null);
@@ -1153,7 +1153,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxUnackedMessagesPerSubscription config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
+    public Integer getMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
                                               @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetMaxUnackedMessagesPerSubscription();
@@ -1172,6 +1172,17 @@ public class Namespaces extends NamespacesBase {
                     int maxUnackedMessagesPerSubscription) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxUnackedMessagesPerSubscription(maxUnackedMessagesPerSubscription);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/maxUnackedMessagesPerSubscription")
+    @ApiOperation(value = "Remove maxUnackedMessagesPerSubscription config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public void removeMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
+                                                        @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxUnackedMessagesPerSubscription(null);
     }
 
     @GET
