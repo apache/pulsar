@@ -61,14 +61,14 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         super.setup();
     }
 
     @Override
     @AfterClass(alwaysRun = true, timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
+    public void cleanup() throws Exception {
+        super.cleanup();
         resetConfig1();
         resetConfig2();
         resetConfig3();
@@ -85,7 +85,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     @Test
     public void testReplicatorRatePriority() throws Exception {
-        shutdown();
+        cleanup();
         config1.setSystemTopicEnabled(true);
         config1.setTopicLevelPoliciesEnabled(true);
         config1.setDispatchThrottlingRatePerReplicatorInMsg(100);

@@ -883,6 +883,19 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove subscription configured message-dispatch-rate " +
+            "for all topics of the namespace")
+    private class RemoveSubscriptionDispatchRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeSubscriptionDispatchRate(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get subscription configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)")
     private class GetSubscriptionDispatchRate extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1494,6 +1507,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove maxUnackedMessagesPerSubscription for a namespace")
+    private class RemoveMaxUnackedMessagesPerSubscription extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get compactionThreshold for a namespace")
     private class GetCompactionThreshold extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1830,7 +1855,7 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--offloadedReadPriority", "-orp"},
-                description = "read priority for offloaded messages",
+                description = "Read priority for offloaded messages. By default, once messages are offloaded to long-term storage, brokers read messages from long-term storage, but messages can still exist in BookKeeper for a period depends on your configuration. For messages that exist in both long-term storage and BookKeeper, you can set where to read messages from with the option `tiered-storage-first` or `bookkeeper-first`.",
                 required = false
         )
         private String offloadReadPriorityStr;
@@ -2079,6 +2104,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
         jcommander.addCommand("get-subscription-dispatch-rate", new GetSubscriptionDispatchRate());
+        jcommander.addCommand("remove-subscription-dispatch-rate", new RemoveSubscriptionDispatchRate());
 
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
@@ -2112,8 +2138,13 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
         jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
+
         jcommander.addCommand("get-max-unacked-messages-per-subscription", new GetMaxUnackedMessagesPerSubscription());
         jcommander.addCommand("set-max-unacked-messages-per-subscription", new SetMaxUnackedMessagesPerSubscription());
+        jcommander.addCommand("remove-max-unacked-messages-per-subscription",
+                new RemoveMaxUnackedMessagesPerSubscription());
+
+
         jcommander.addCommand("get-max-unacked-messages-per-consumer", new GetMaxUnackedMessagesPerConsumer());
         jcommander.addCommand("set-max-unacked-messages-per-consumer", new SetMaxUnackedMessagesPerConsumer());
 

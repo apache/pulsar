@@ -808,6 +808,11 @@ public class FunctionConfigUtils {
         }
     }
 
+    public static void validateJavaFunction(FunctionConfig functionConfig, ClassLoader classLoader) {
+        doCommonChecks(functionConfig);
+        doJavaChecks(functionConfig, classLoader);
+    }
+
     public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig) {
         FunctionConfig mergedConfig = existingConfig.toBuilder().build();
         if (!existingConfig.getTenant().equals(newConfig.getTenant())) {

@@ -2101,6 +2101,20 @@ public interface Namespaces {
     CompletableFuture<SubscribeRate> getSubscribeRateAsync(String namespace);
 
     /**
+     * Remove subscription-message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove subscription-message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String namespace);
+
+    /**
      * Set subscription-message-dispatch-rate.
      * <p/>
      * Subscriptions under this namespace can dispatch this many messages per second
@@ -3009,7 +3023,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
+    Integer getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxUnackedMessagesPerSubscription for a namespace asynchronously.
@@ -3065,6 +3079,22 @@ public interface Namespaces {
      */
     CompletableFuture<Void> setMaxUnackedMessagesPerSubscriptionAsync(
             String namespace, int maxUnackedMessagesPerSubscription);
+
+    /**
+     * Remove maxUnackedMessagesPerSubscription for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesPerSubscription(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Remove maxUnackedMessagesPerSubscription for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesPerSubscriptionAsync(
+            String namespace);
 
     /**
      * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace

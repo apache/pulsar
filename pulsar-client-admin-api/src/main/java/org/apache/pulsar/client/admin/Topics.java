@@ -1536,6 +1536,16 @@ public interface Topics {
     Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic) throws PulsarAdminException;
 
     /**
+     * Get applied backlog quota map for a topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic, boolean applied)
+            throws PulsarAdminException;
+
+    /**
      * Set a backlog quota for a topic.
      * The backlog quota can be set on this resource:
      *
@@ -2052,6 +2062,21 @@ public interface Topics {
     CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic);
 
     /**
+     * get max unacked messages on subscription of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnSubscription(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic, boolean applied);
+
+    /**
      * set max unacked messages on subscription of a topic.
      * @param topic
      * @param maxNum
@@ -2344,6 +2369,30 @@ public interface Topics {
      *            number of messages per second
      */
     CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Get applied subscription-message-dispatch-rate.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getSubscriptionDispatchRate(String namespace, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied subscription-message-dispatch-rate asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String namespace, boolean applied);
 
     /**
      * Get subscription-message-dispatch-rate for the topic.
