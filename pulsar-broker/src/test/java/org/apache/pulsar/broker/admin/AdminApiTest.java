@@ -708,7 +708,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
 
         policies.topicDispatchRate.put("test", ConfigHelper.topicDispatchRate(conf));
-        policies.subscriptionDispatchRate.put("test", ConfigHelper.subscriptionDispatchRate(conf));
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);

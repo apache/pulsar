@@ -3704,8 +3704,18 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
-    protected Optional<DispatchRate> internalGetSubscriptionDispatchRate() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getSubscriptionDispatchRate);
+    protected CompletableFuture<DispatchRate> internalGetSubscriptionDispatchRate(boolean applied) {
+        DispatchRate dispatchRate = getTopicPolicies(topicName)
+                .map(TopicPolicies::getSubscriptionDispatchRate)
+                .orElseGet(() -> {
+                    if (applied) {
+                        DispatchRate namespacePolicy = getNamespacePolicies(namespaceName)
+                                .subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
+                        return namespacePolicy == null ? subscriptionDispatchRate() : namespacePolicy;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(dispatchRate);
     }
 
     protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {

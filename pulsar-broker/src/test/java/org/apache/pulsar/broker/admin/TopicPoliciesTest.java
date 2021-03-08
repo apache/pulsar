@@ -379,6 +379,38 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
+    public void testGetSubDispatchRateApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getSubscriptionDispatchRate(topic));
+        assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace));
+        DispatchRate brokerDispatchRate = new DispatchRate(
+                pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(),
+                pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInByte(),
+                1
+        );
+        assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), brokerDispatchRate);
+        DispatchRate namespaceDispatchRate = new DispatchRate(10, 11, 12);
+
+        admin.namespaces().setSubscriptionDispatchRate(myNamespace, namespaceDispatchRate);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace)));
+        assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), namespaceDispatchRate);
+
+        DispatchRate topicDispatchRate = new DispatchRate(20, 21, 22);
+        admin.topics().setSubscriptionDispatchRate(topic, topicDispatchRate);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getSubscriptionDispatchRate(topic)));
+        assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), topicDispatchRate);
+
+        admin.namespaces().removeSubscriptionDispatchRate(myNamespace);
+        admin.topics().removeSubscriptionDispatchRate(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getSubscriptionDispatchRate(topic)));
+        assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), brokerDispatchRate);
+    }
+
+    @Test(timeOut = 20000)
     public void testRetentionPriority() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();

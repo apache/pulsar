@@ -2355,6 +2355,30 @@ public interface Topics {
     CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, DispatchRate dispatchRate);
 
     /**
+     * Get applied subscription-message-dispatch-rate.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getSubscriptionDispatchRate(String namespace, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied subscription-message-dispatch-rate asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String namespace, boolean applied);
+
+    /**
      * Get subscription-message-dispatch-rate for the topic.
      * <p/>
      * Subscriptions under this namespace can dispatch this many messages per second.

@@ -1198,8 +1198,6 @@ public abstract class NamespacesBase extends AdminResource {
         validateSuperUserAccess();
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
-        Entry<Policies, Stat> policiesNode = null;
-
         try {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
@@ -1215,19 +1213,29 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalDeleteSubscriptionDispatchRate() {
+        validateSuperUserAccess();
+
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            updatePolicies(path, (policies) -> {
+                policies.subscriptionDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                return policies;
+            });
+            log.info("[{}] Successfully delete the subscriptionDispatchRate for cluster on namespace {}",
+                    clientAppId(), namespaceName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to delete the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     protected DispatchRate internalGetSubscriptionDispatchRate() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        DispatchRate dispatchRate =
-                policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
-        if (dispatchRate != null) {
-            return dispatchRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "Subscription-Dispatch-rate is not configured for cluster "
-                            + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {
