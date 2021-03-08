@@ -32,6 +32,7 @@ import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.util.Codec;
 
@@ -77,7 +78,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    public String getLeaderBroker() throws PulsarAdminException {
+    public BrokerInfo getLeaderBroker() throws PulsarAdminException {
         try {
             return getLeaderBrokerAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -91,13 +92,13 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    public CompletableFuture<String> getLeaderBrokerAsync() {
+    public CompletableFuture<BrokerInfo> getLeaderBrokerAsync() {
         WebTarget path = adminBrokers.path("leaderBroker");
-        final CompletableFuture<String> future = new CompletableFuture<>();
+        final CompletableFuture<BrokerInfo> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<String>() {
+                new InvocationCallback<BrokerInfo>() {
                     @Override
-                    public void completed(String leaderBroker) {
+                    public void completed(BrokerInfo leaderBroker) {
                         future.complete(leaderBroker);
                     }
 

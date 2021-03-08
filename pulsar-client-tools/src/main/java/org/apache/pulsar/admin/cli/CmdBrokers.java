@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import java.util.Optional;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 
 import com.beust.jcommander.Parameter;
@@ -41,12 +40,12 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the service url of the leader broker")
+    @Parameters(commandDescription = "Get the information of the leader broker")
     private class LeaderBroker extends CliCommand {
 
         @Override
         void run() throws Exception {
-            print(Optional.ofNullable(getAdmin().brokers().getLeaderBroker()).orElse("NoLeader"));
+            print(getAdmin().brokers().getLeaderBroker());
         }
     }
 

@@ -80,6 +80,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -622,10 +623,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(activeBrokers.size(), 1);
         assertEquals(activeBrokers, Sets.newHashSet(pulsar.getAdvertisedAddress() + ":" + pulsar.getListenPortHTTP().get()));
 
-        String leaderBroker = brokers.getLeaderBroker();
-        assertEquals(leaderBroker, pulsar.getLeaderElectionService().getCurrentLeader()
-                .map(LeaderBroker::getServiceUrl)
-                .orElse(null));
+        BrokerInfo leaderBroker = brokers.getLeaderBroker();
+        assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
     }
 
     @Test

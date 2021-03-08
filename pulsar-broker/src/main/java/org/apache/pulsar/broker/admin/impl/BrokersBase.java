@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,21 +97,24 @@ public class BrokersBase extends PulsarWebResource {
     @GET
     @Path("/leaderBroker")
     @ApiOperation(
-            value = "Get the service url of the leader broker in the cluster.",
-            response = String.class)
+            value = "Get the information of the leader broker.",
+            response = BrokerInfo.class)
     @ApiResponses(
             value = {
                     @ApiResponse(code = 401, message = "Authentication required"),
-                    @ApiResponse(code = 403, message = "This operation requires super-user access") })
-    public String getLeaderBroker() throws Exception {
+                    @ApiResponse(code = 403, message = "This operation requires super-user access"),
+                    @ApiResponse(code = 404, message = "Leader broker not found") })
+    public BrokerInfo getLeaderBroker() throws Exception {
         validateSuperUserAccess();
 
         try {
-            return pulsar().getLeaderElectionService().getCurrentLeader()
-                    .map(LeaderBroker::getServiceUrl)
-                    .orElse(null);
+            LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
+            BrokerInfo brokerInfo = new BrokerInfo();
+            brokerInfo.setServiceUrl(leaderBroker.getServiceUrl());
+            return brokerInfo;
         } catch (Exception e) {
-            LOG.error("[{}] Failed to get the service url of the leader broker.", clientAppId(), e);
+            LOG.error("[{}] Failed to get the information of the leader broker.", clientAppId(), e);
             throw new RestException(e);
         }
     }

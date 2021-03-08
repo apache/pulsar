@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 
 /**
@@ -73,21 +74,21 @@ public interface Brokers {
     CompletableFuture<List<String>> getActiveBrokersAsync(String cluster);
 
     /**
-     * Get the service url of the leader broker.
+     * Get the information of the leader broker.
      * <p/>
-     * Get the service url of the leader broker.
+     * Get the information of the leader broker.
      * <p/>
      * Response Example:
      *
      * <pre>
-     * <code>"prod1-broker1.messaging.use.example.com:8080"</code>
+     * <code>{serviceUrl:"prod1-broker1.messaging.use.example.com:8080"}</code>
      * </pre>
      *
-     * @return the service url of the leader broker
+     * @return the information of the leader broker.
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    String getLeaderBroker() throws PulsarAdminException;
+    BrokerInfo getLeaderBroker() throws PulsarAdminException;
 
     /**
      * Get the service url of the leader broker asynchronously.
@@ -97,14 +98,14 @@ public interface Brokers {
      * Response Example:
      *
      * <pre>
-     * <code>"prod1-broker1.messaging.use.example.com:8080"</code>
+     * <code>{serviceUrl:"prod1-broker1.messaging.use.example.com:8080"}</code>
      * </pre>
      *
      * @return the service url of the leader broker
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    CompletableFuture<String> getLeaderBrokerAsync() throws PulsarAdminException;
+    CompletableFuture<BrokerInfo> getLeaderBrokerAsync() throws PulsarAdminException;
 
     /**
      * Get the map of owned namespaces and their status from a single broker in the cluster.
