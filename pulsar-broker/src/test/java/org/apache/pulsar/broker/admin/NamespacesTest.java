@@ -126,7 +126,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     public NamespacesTest() {
         super();
-        conf.setClusterName(testLocalCluster);
     }
 
     @BeforeClass
@@ -149,6 +148,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     public void setup() throws Exception {
+        resetConfig();
+        conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
         namespaces = spy(new Namespaces());
@@ -191,6 +192,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
+        conf.setClusterName(testLocalCluster);
     }
 
     @Test
@@ -1439,7 +1441,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMaxTopicsPerNamespace() throws Exception {
-        super.internalCleanup();
+        cleanup();
         conf.setMaxTopicsPerNamespace(15);
         super.internalSetup();
 
@@ -1488,7 +1490,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
 
         // check producer/consumer auto create partitioned topic
-        super.internalCleanup();
+        cleanup();
         conf.setMaxTopicsPerNamespace(0);
         conf.setDefaultNumPartitions(3);
         conf.setAllowAutoTopicCreationType("partitioned");
@@ -1518,7 +1520,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // check producer/consumer auto create non-partitioned topic
-        super.internalCleanup();
+        cleanup();
         conf.setMaxTopicsPerNamespace(0);
         conf.setDefaultNumPartitions(1);
         conf.setAllowAutoTopicCreationType("non-partitioned");
