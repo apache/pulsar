@@ -125,9 +125,9 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTopicPolicyDisabled() throws Exception {
+        super.internalCleanup();
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(false);
-        super.internalCleanup();
         super.internalSetup();
 
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
