@@ -2174,6 +2174,22 @@ public interface Namespaces {
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate);
 
     /**
+     * Remove replicator-message-dispatch-rate.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeReplicatorDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set replicator-message-dispatch-rate asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace);
+
+    /**
      * Get replicator-message-dispatch-rate.
      * <p/>
      * Replicators under this namespace can dispatch this many messages per second.

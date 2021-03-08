@@ -1926,21 +1926,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getReplicatorDispatchRate(@Suspended final AsyncResponse asyncResponse,
                                           @PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace,
-                                          @PathParam("topic") @Encoded String encodedTopic) {
+                                          @PathParam("topic") @Encoded String encodedTopic,
+                                          @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<DispatchRate> dispatchRate = internalGetReplicatorDispatchRate();
-            if (dispatchRate.isPresent()) {
-                asyncResponse.resume(dispatchRate.get());
+        internalGetReplicatorDispatchRate(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get replicator dispatchRate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get replicator dispatchRate", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(Response.noContent().build());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST

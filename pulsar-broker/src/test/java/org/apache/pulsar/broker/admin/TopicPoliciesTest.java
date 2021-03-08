@@ -1776,6 +1776,38 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 -> assertNull(admin.topics().getReplicatorDispatchRate(topic)));
     }
 
+    @Test(timeOut = 20000)
+    public void testGetReplicatorRateApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getReplicatorDispatchRate(topic));
+        assertNull(admin.namespaces().getReplicatorDispatchRate(myNamespace));
+        DispatchRate brokerDispatchRate = new DispatchRate(
+                pulsar.getConfiguration().getDispatchThrottlingRatePerReplicatorInMsg(),
+                pulsar.getConfiguration().getDispatchThrottlingRatePerReplicatorInByte(),
+                1
+        );
+        assertEquals(admin.topics().getReplicatorDispatchRate(topic, true), brokerDispatchRate);
+        DispatchRate namespaceDispatchRate = new DispatchRate(10, 11, 12);
+
+        admin.namespaces().setReplicatorDispatchRate(myNamespace, namespaceDispatchRate);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getReplicatorDispatchRate(myNamespace)));
+        assertEquals(admin.topics().getReplicatorDispatchRate(topic, true), namespaceDispatchRate);
+
+        DispatchRate topicDispatchRate = new DispatchRate(20, 21, 22);
+        admin.topics().setReplicatorDispatchRate(topic, topicDispatchRate);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getReplicatorDispatchRate(topic)));
+        assertEquals(admin.topics().getReplicatorDispatchRate(topic, true), topicDispatchRate);
+
+        admin.namespaces().removeReplicatorDispatchRate(myNamespace);
+        admin.topics().removeReplicatorDispatchRate(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getReplicatorDispatchRate(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getReplicatorDispatchRate(topic)));
+        assertEquals(admin.topics().getReplicatorDispatchRate(topic, true), brokerDispatchRate);
+    }
+
     @Test(timeOut = 30000)
     public void testAutoCreationDisabled() throws Exception {
         cleanup();

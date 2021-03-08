@@ -990,6 +990,19 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove replicator configured message-dispatch-rate " +
+            "for all topics of the namespace")
+    private class RemoveReplicatorDispatchRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeReplicatorDispatchRate(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get the backlog quota policies for a namespace")
     private class GetBacklogQuotaMap extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -2099,6 +2112,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-replicator-dispatch-rate", new SetReplicatorDispatchRate());
         jcommander.addCommand("get-replicator-dispatch-rate", new GetReplicatorDispatchRate());
+        jcommander.addCommand("remove-replicator-dispatch-rate", new RemoveReplicatorDispatchRate());
 
         jcommander.addCommand("clear-backlog", new ClearBacklog());
 

@@ -1268,6 +1268,23 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalRemoveReplicatorDispatchRate() {
+        validateSuperUserAccess();
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            updatePolicies(path, (policies) -> {
+                policies.replicatorDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                return policies;
+            });
+            log.info("[{}] Successfully delete the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
+                    namespaceName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to delete the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     protected void internalSetReplicatorDispatchRate(DispatchRate dispatchRate) {
         validateSuperUserAccess();
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
@@ -1290,14 +1307,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        DispatchRate dispatchRate = policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
-        if (dispatchRate != null) {
-            return dispatchRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "replicator-Dispatch-rate is not configured for cluster "
-                            + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     protected void internalSetBacklogQuota(BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {

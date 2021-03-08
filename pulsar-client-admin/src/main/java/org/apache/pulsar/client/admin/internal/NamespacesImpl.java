@@ -1798,6 +1798,27 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void removeReplicatorDispatchRate(String namespace) throws PulsarAdminException {
+        try {
+            removeReplicatorDispatchRateAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "replicatorDispatchRate");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public DispatchRate getReplicatorDispatchRate(String namespace) throws PulsarAdminException {
         try {
             return getReplicatorDispatchRateAsync(namespace).

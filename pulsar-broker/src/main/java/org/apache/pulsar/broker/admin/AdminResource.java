@@ -455,6 +455,14 @@ public abstract class AdminResource extends PulsarWebResource {
         );
     }
 
+    protected DispatchRate replicatorDispatchRate() {
+        return new DispatchRate(
+                pulsar().getConfiguration().getDispatchThrottlingRatePerReplicatorInMsg(),
+                pulsar().getConfiguration().getDispatchThrottlingRatePerReplicatorInByte(),
+                1
+        );
+    }
+
     protected SubscribeRate subscribeRate() {
         return new SubscribeRate(
                 pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
