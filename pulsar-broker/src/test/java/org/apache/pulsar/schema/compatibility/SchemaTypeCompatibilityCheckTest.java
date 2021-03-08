@@ -70,14 +70,14 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void structTypeProducerProducer() throws Exception {
+    public void structTypeProducerProducerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "structTypeProducerProducer"
+                "structTypeProducerProducerUndefinedCompatible"
         ).toString();
 
         pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
@@ -92,7 +92,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void structTypeProducerConsumer() throws Exception {
+    public void structTypeProducerConsumerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         final String subName = "my-sub";
@@ -100,7 +100,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "structTypeProducerConsumer"
+                "structTypeProducerConsumerUndefinedCompatible"
         ).toString();
 
         pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
@@ -111,14 +111,14 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName + "2");
+                .subscriptionName(subName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
         assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
     @Test
-    public void structTypeConsumerProducer() throws Exception {
+    public void structTypeConsumerProducerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         final String subName = "my-sub";
@@ -126,7 +126,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "structTypeConsumerProducer"
+                "structTypeConsumerProducerUndefinedCompatible"
         ).toString();
 
         pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
@@ -144,7 +144,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void structTypeConsumerConsumer() throws Exception {
+    public void structTypeConsumerConsumerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         final String subName = "my-sub";
@@ -152,7 +152,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "structTypeConsumerConsumer"
+                "structTypeConsumerConsumerUndefinedCompatible"
         ).toString();
 
         pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
@@ -173,14 +173,83 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void structTypeAlwaysCompatible() throws Exception {
+    public void structTypeProducerProducerAlwaysCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                PUBLIC_TENANT,
+                namespace,
+                "structTypeProducerProducerAlwaysCompatible"
+        ).toString();
+
+        pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+                .topic(topicName)
+                .create();
+
+        pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topicName)
+                .create();
+    }
+
+    @Test
+    public void structTypeProducerConsumerAlwaysCompatible() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
         final String subName = "my-sub";
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "structTypeAlwaysCompatible"
+                "structTypeProducerConsumerAlwaysCompatible"
+        ).toString();
+
+        pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+                .topic(topicName)
+                .create();
+
+        pulsarClient.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionName(subName)
+                .subscribe();
+    }
+
+    @Test
+    public void structTypeConsumerProducerAlwaysCompatible() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        final String subName = "my-sub";
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                PUBLIC_TENANT,
+                namespace,
+                "structTypeConsumerProducerAlwaysCompatible"
+        ).toString();
+
+        pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionName(subName)
+                .subscribe();
+
+        pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topicName)
+                .create();
+    }
+
+    @Test
+    public void structTypeConsumerConsumerAlwaysCompatible() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        final String subName = "my-sub";
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                PUBLIC_TENANT,
+                namespace,
+                "structTypeConsumerConsumerAlwaysCompatible"
         ).toString();
 
         pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
@@ -199,14 +268,14 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void primitiveTypeProducerProducer() throws Exception {
+    public void primitiveTypeProducerProducerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "primitiveTypeProducerProducer"
+                "primitiveTypeProducerProducerUndefinedCompatible"
         ).toString();
 
         pulsarClient.newProducer(Schema.INT32)
@@ -221,7 +290,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void primitiveProducerConsumer() throws Exception {
+    public void primitiveTypeProducerConsumerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         final String subName = "my-sub";
@@ -229,7 +298,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "primitiveProducerConsumer"
+                "primitiveTypeProducerConsumerUndefinedCompatible"
         ).toString();
 
         pulsarClient.newProducer(Schema.INT32)
@@ -240,14 +309,14 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName + "2");
+                .subscriptionName(subName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
         assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
     @Test
-    public void primitiveConsumerProducer() throws Exception {
+    public void primitiveTypeConsumerProducerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         final String subName = "my-sub";
@@ -255,7 +324,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "primitiveConsumerProducer"
+                "primitiveTypeConsumerProducerUndefinedCompatible"
         ).toString();
 
         pulsarClient.newConsumer(Schema.INT32)
@@ -273,7 +342,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void primitiveConsumerConsumer() throws Exception {
+    public void primitiveTypeConsumerConsumerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
         final String subName = "my-sub";
@@ -281,7 +350,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "primitiveConsumerConsumer"
+                "primitiveTypeConsumerConsumerUndefinedCompatible"
         ).toString();
 
         pulsarClient.newConsumer(Schema.INT32)
@@ -302,14 +371,83 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void primitiveAlwaysCompatible() throws Exception {
+    public void primitiveTypeProducerProducerAlwaysCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                PUBLIC_TENANT,
+                namespace,
+                "primitiveTypeProducerProducerAlwaysCompatible"
+        ).toString();
+
+        pulsarClient.newProducer(Schema.INT32)
+                .topic(topicName)
+                .create();
+
+        pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+    }
+
+    @Test
+    public void primitiveTypeProducerConsumerAlwaysCompatible() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
         final String subName = "my-sub";
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "primitiveAlwaysCompatible"
+                "primitiveTypeProducerConsumerAlwaysCompatible"
+        ).toString();
+
+        pulsarClient.newProducer(Schema.INT32)
+                .topic(topicName)
+                .create();
+
+        pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionName(subName + "2")
+                .subscribe();
+    }
+
+    @Test
+    public void primitiveTypeConsumerProducerAlwaysCompatible() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        final String subName = "my-sub";
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                PUBLIC_TENANT,
+                namespace,
+                "primitiveTypeConsumerProducerAlwaysCompatible"
+        ).toString();
+
+        pulsarClient.newConsumer(Schema.INT32)
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionName(subName)
+                .subscribe();
+
+        pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+    }
+
+    @Test
+    public void primitiveTypeConsumerConsumerAlwaysCompatible() throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        final String subName = "my-sub";
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                PUBLIC_TENANT,
+                namespace,
+                "primitiveTypeConsumerConsumerAlwaysCompatible"
         ).toString();
 
         pulsarClient.newConsumer(Schema.INT32)
@@ -325,6 +463,6 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscriptionName(subName + "2")
                 .subscribe();
-
     }
+
 }

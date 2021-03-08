@@ -140,7 +140,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                                               SchemaCompatibilityStrategy strategy) {
         return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
                 getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
-            if (schemaAndMetadataList.size() > 0) {
+            if ((strategy == SchemaCompatibilityStrategy.BACKWARD
+                        || strategy == SchemaCompatibilityStrategy.FORWARD
+                        || strategy == SchemaCompatibilityStrategy.FORWARD_TRANSITIVE
+                        || strategy == SchemaCompatibilityStrategy.FULL)
+                    && schemaAndMetadataList.size() > 0) {
                 for (SchemaAndMetadata metadata : schemaAndMetadataList) {
                     if (schema.getType() != metadata.schema.getType()) {
                         return FutureUtil.failedFuture(new IncompatibleSchemaException(
