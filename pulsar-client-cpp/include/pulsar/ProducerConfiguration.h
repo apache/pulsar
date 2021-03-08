@@ -199,7 +199,6 @@ class PULSAR_PUBLIC ProducerConfiguration {
     ProducerConfiguration& setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
 
     /**
-     *
      * @return the maximum number of pending messages allowed across all the partitions
      */
     int getMaxPendingMessagesAcrossPartitions() const;
@@ -230,7 +229,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
      */
     const MessageRoutingPolicyPtr& getMessageRouterPtr() const;
 
-    /** Set the hashing scheme, which is a standard hashing function available when choosing the partition to
+    /** 
+     * Set the hashing scheme, which is a standard hashing function available when choosing the partition to
      * use for a particular message.
      *
      * <p>Standard hashing functions available are:
