@@ -115,9 +115,14 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
     public void testMaxUnackedMessagesOnSubscription() throws Exception {
         admin.namespaces().createNamespace("max-unacked-messages/default-on-subscription");
         String namespace = "max-unacked-messages/default-on-subscription";
-        assertEquals(200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
+        assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
         admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2*200000);
-        assertEquals(2*200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertEquals(2*200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace).intValue()));
+
+        admin.namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()
+                -> assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace)));
     }
 
     @Test

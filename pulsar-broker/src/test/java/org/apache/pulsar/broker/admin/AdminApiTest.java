@@ -711,7 +711,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Policies.setStorageQuota(policies, ConfigHelper.backlogQuota(conf));
         policies.topicDispatchRate.put("test", ConfigHelper.topicDispatchRate(conf));
         policies.subscriptionDispatchRate.put("test", ConfigHelper.subscriptionDispatchRate(conf));
-        policies.max_unacked_messages_per_subscription = 200000;
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/ns1"), policies.auth_policies.namespace_auth);

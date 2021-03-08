@@ -2103,7 +2103,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected int internalGetMaxUnackedMessagesPerSubscription() {
+    protected Integer internalGetMaxUnackedMessagesPerSubscription() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_subscription;
     }
@@ -2123,15 +2123,14 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("max_subscriptions_per_topic", maxSubscriptionsPerTopic);
     }
 
-    protected void internalSetMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
+    protected void internalSetMaxUnackedMessagesPerSubscription(Integer maxUnackedMessagesPerSubscription) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-
+        if (maxUnackedMessagesPerSubscription != null && maxUnackedMessagesPerSubscription < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedMessagesPerSubscription must be 0 or more");
+        }
         try {
-            if (maxUnackedMessagesPerSubscription < 0) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "maxUnackedMessagesPerSubscription must be 0 or more");
-            }
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
                 policies.max_unacked_messages_per_subscription = maxUnackedMessagesPerSubscription;
