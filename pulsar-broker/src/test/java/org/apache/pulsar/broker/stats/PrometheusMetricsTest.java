@@ -83,7 +83,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
-    public void testMetricsTopicCount() throws Exception{
+    public void testMetricsTopicCount() throws Exception {
         String ns1 = "prop/ns-abc1";
         String ns2 = "prop/ns-abc2";
         admin.namespaces().createNamespace(ns1);
@@ -212,7 +212,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         admin.namespaces().createNamespace(ns);
         String topic1 = "persistent://" + ns + "/testPerTopicExpiredStat1";
         String topic2 = "persistent://" + ns + "/testPerTopicExpiredStat2";
-        List<String> topicList = Arrays.asList(topic2,topic1);
+        List<String> topicList = Arrays.asList(topic2, topic1);
         Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic1).create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic(topic2).create();
         final String subName = "test";
@@ -235,7 +235,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
         // Let the message expire
         for (String topic : topicList) {
-            PersistentTopic persistentTopic = (PersistentTopic)pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+            PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
             persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(-1);
         }
         pulsar.getBrokerService().forEachTopic(Topic::checkMessageExpiry);
@@ -295,7 +295,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("namespace"), ns);
         //check value
         for (int i = 0; i < topicList.size(); i++) {
-            assertEquals(messages, (long)cm.get(i).value);
+            assertEquals(messages, (long) cm.get(i).value);
         }
 
     }
@@ -599,7 +599,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
             if (!typeDefs.containsKey(metricName)) {
                 // This may be OK if this is a _sum or _count metric from a summary
-                if(metricName.endsWith("_sum")) {
+                if (metricName.endsWith("_sum")) {
                     String summaryMetricName = metricName.substring(0, metricName.indexOf("_sum"));
                     if (!typeDefs.containsKey(summaryMetricName)) {
                         fail("Metric " + metricName + " does not have a corresponding summary type definition");
@@ -972,6 +972,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             consumer.acknowledge(consumer.receive().getMessageId());
         }
 
+        // enable ExposeManagedCursorMetricsInPrometheus
+        pulsar.getConfiguration().setExposeManagedCursorMetricsInPrometheus(true);
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = new String(statsOut.toByteArray());
@@ -982,6 +984,15 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
         assertEquals(cm.get(0).tags.get("cursor_name"), subName);
+
+        // disable ExposeManagedCursorMetricsInPrometheus
+        pulsar.getConfiguration().setExposeManagedCursorMetricsInPrometheus(false);
+        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut2);
+        String metricsStr2 = new String(statsOut2.toByteArray());
+        Multimap<String, Metric> metrics2 = parseMetrics(metricsStr2);
+        List<Metric> cm2 = (List<Metric>) metrics2.get("pulsar_ml_cursor_persistLedgerSucceed");
+        assertEquals(cm2.size(), 0);
 
         producer.close();
         consumer.close();
