@@ -286,6 +286,10 @@ public class ReplicatorTestBase extends TestRetrySupport {
         bkEnsemble2.stop();
         bkEnsemble3.stop();
         globalZkS.stop();
+
+        resetConfig1();
+        resetConfig2();
+        resetConfig3();
     }
 
     static class MessageProducer implements AutoCloseable {
