@@ -430,7 +430,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
             "--name", functionName
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
     private void deleteSource(String sourceName) throws Exception {
@@ -443,7 +443,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--name", sourceName
         );
         assertTrue(result.getStdout().contains("Delete source successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
     private void deleteSink(String sinkName) throws Exception {
@@ -456,7 +456,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--name", sinkName
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
     private void getSourceInfoNotFound(String sourceName) throws Exception {
