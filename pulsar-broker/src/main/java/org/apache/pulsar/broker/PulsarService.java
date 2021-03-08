@@ -481,6 +481,11 @@ public class PulsarService implements AutoCloseable {
                 throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
             }
 
+            if (config.isAuthorizationEnabled() && !config.isAuthenticationEnabled()) {
+                throw new IllegalStateException("Invalid broker configuration. Authentication must be enabled with "
+                        + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
+            }
+
             localMetadataStore = createLocalMetadataStore();
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
@@ -1166,7 +1171,13 @@ public class PulsarService implements AutoCloseable {
         if (this.adminClient == null) {
             try {
                 ServiceConfiguration conf = this.getConfiguration();
-                String adminApiUrl = conf.isBrokerClientTlsEnabled() ? webServiceAddressTls : webServiceAddress;
+                final String adminApiUrl = conf.isBrokerClientTlsEnabled() ? webServiceAddressTls : webServiceAddress;
+                if (adminApiUrl == null) {
+                    throw new IllegalArgumentException("Web service address was not set properly "
+                            + ", isBrokerClientTlsEnabled: " + conf.isBrokerClientTlsEnabled()
+                            + ", webServiceAddressTls: " + webServiceAddressTls
+                            + ", webServiceAddress: " + webServiceAddress);
+                }
                 PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
                         .authentication(//
                                 conf.getBrokerClientAuthenticationPlugin(), //

@@ -1878,24 +1878,12 @@ Subcommands
 * `get-deduplication`
 * `set-deduplication`
 * `remove-deduplication`
-* `get-max-producers`
-* `set-max-producers`
-* `remove-max-producers`
-* `get-max-consumers`
-* `set-max-consumers`
-* `remove-max-consumers`
 * `get-retention`
 * `set-retention`
 * `remove-retention`
 * `get-dispatch-rate`
 * `set-dispatch-rate`
 * `remove-dispatch-rate`
-* `get-compaction-threshold`
-* `set-compaction-threshold`
-* `remove-compaction-threshold`
-* `get-offload-policies`
-* `set-offload-policies`
-* `remove-offload-policies`
 * `get-max-unacked-messages-per-subscription`
 * `set-max-unacked-messages-per-subscription`
 * `remove-max-unacked-messages-per-subscription`
@@ -1905,6 +1893,18 @@ Subcommands
 * `get-delayed-delivery`
 * `set-delayed-delivery`
 * `remove-delayed-delivery`
+* `get-max-producers`
+* `set-max-producers`
+* `remove-max-producers`
+* `get-max-consumers`
+* `set-max-consumers`
+* `remove-max-consumers`
+* `get-compaction-threshold`
+* `set-compaction-threshold`
+* `remove-compaction-threshold`
+* `get-offload-policies`
+* `set-offload-policies`
+* `remove-offload-policies`
 * `get-inactive-topic-policies`
 * `set-inactive-topic-policies`
 * `remove-inactive-topic-policies`
@@ -1965,7 +1965,7 @@ Options
 ### `create-partitioned-topic`
 Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
 
-> #### Note
+> **Note**
 >
 > By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
 >
@@ -2005,7 +2005,7 @@ $ pulsar-admin topics delete-partitioned-topic {persistent|non-persistent}
 ### `create`
 Creates a non-partitioned topic. A non-partitioned topic must explicitly be created by the user if allowAutoTopicCreation or createIfMissing is disabled.
 
-> #### Note
+> **Note**
 >
 > By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
 >
@@ -2303,14 +2303,6 @@ Options
 |`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
 |`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
 
-### `last-message-id`
-Get the last commit message id of topic.
-
-Usage
-```bash
-$ pulsar-admin topics last-message-id persistent://tenant/namespace/topic
-```
-
 ### `get-message-by-id`
 Get message by ledger id and entry id
 
@@ -2326,6 +2318,14 @@ Options
 |`-l`, `--ledgerId`|The ledger id |0|
 |`-e`, `--entryId`|The entry id |0|
 
+### `last-message-id`
+Get the last commit message ID of the topic.
+
+Usage
+```bash
+$ pulsar-admin topics last-message-id persistent://tenant/namespace/topic
+```
+
 ### `get-backlog-quotas`
 Get the backlog quota policies for a topic.
 
@@ -2340,28 +2340,7 @@ Set a backlog quota policy for a topic.
 Usage
 ```bash
 $ pulsar-admin topics set-backlog-quota tenant/namespace/topic options
-=======
-### `get-deduplication`
-Get a deduplication policy for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics get-deduplication tenant/namespace/topic
 ```
-
-### `set-deduplication`
-Enable or disable message deduplication on a topic.
-
-Usage
-```bash
-$ pulsar-admin topics set-deduplication tenant/namespace/topic
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-l`, `--limit`|Size limit (eg: 10M, 16G)", required = true)||
-|`-p`, `--policy`|Retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
 
 ### `remove-backlog-quota`
 Remove a backlog quota policy from a topic.
@@ -2428,42 +2407,40 @@ Remove the message TTL for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics remove-message-ttl tenant/namespace/topic
-=======
+$ pulsar-admin topics remove-message-ttl tenant/namespace/topic 
+```
+
+Options 
+|Flag|Description|Default|
 |---|---|---|
 |`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
 |`--disable`, `-d`|Disable message deduplication on the specified topic.|false|
 
+### `get-deduplication`
+Get a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-deduplication tenant/namespace/topic
+```
+
+### `set-deduplication`
+Set a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-deduplication tenant/namespace/topic options
+```
+
 ### `remove-deduplication`
-Remove a deduplication policy from a topic.
+Remove a deduplication policy for a topic.
 
 Usage
 ```bash
 $ pulsar-admin topics remove-deduplication tenant/namespace/topic
 ```
 
-### `set-max-subscriptions`
-Set the maximum number of subscriptions for a topic.
 
-Usage
-```bash
-$ pulsar-admin topics set-max-subscriptions {persistent|non-persistent}://tenant/namespace/topic options
-```
-
-### `get-max-subscriptions`
-Get the maximum number of subscriptions for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics get-max-subscriptions {persistent|non-persistent}://tenant/namespace/topic
-```
-
-### `remove-max-subscriptions`
-Remove the maximum number of subscriptions for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics remove-max-subscriptions {persistent|non-persistent}://tenant/namespace/topic
 ```
 
 ## `tenants`
@@ -2671,3 +2648,4 @@ Options
 |`-c`, `--classname`|The Java class name||
 |`-j`, `--jar`|A path to the JAR file which contains the above Java class||
 |`-t`, `--type`|The type of the schema (avro or json)||
+

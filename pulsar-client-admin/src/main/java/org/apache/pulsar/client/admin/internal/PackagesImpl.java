@@ -160,7 +160,12 @@ public class PackagesImpl extends ComponentResource implements Packages {
             Thread.currentThread().interrupt();
             throw new PulsarAdminException(e);
         } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
+            Throwable cause = e.getCause();
+            if (cause instanceof PulsarAdminException) {
+                throw (PulsarAdminException) cause;
+            } else {
+                throw new PulsarAdminException(cause);
+            }
         }
     }
 
