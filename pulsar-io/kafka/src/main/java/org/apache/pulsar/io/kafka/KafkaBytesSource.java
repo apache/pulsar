@@ -75,7 +75,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
 
         // replace KafkaAvroDeserializer with our custom implementation
         if (currentValueDeserializer != null && currentValueDeserializer.equals(KafkaAvroDeserializer.class.getName())) {
-            props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SchemaExtractorDeserializer.class.getName());
+            props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ExtractKafkaAvroSchemaDeserializer.class.getName());
             KafkaAvroDeserializerConfig config = new KafkaAvroDeserializerConfig(props);
             List<String> urls = config.getSchemaRegistryUrls();
             int maxSchemaObject = config.getMaxSchemasPerSubject();
@@ -88,8 +88,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
     @Override
     public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
-        if (value instanceof BytesWithSchema) {
-            return ((BytesWithSchema) value).getValue();
+        if (value instanceof BytesWithKafkaSchema) {
+            return ((BytesWithKafkaSchema) value).getValue();
         }
         return value;
     }
@@ -97,17 +97,17 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
     @Override
     public org.apache.pulsar.client.api.Schema<byte[]> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
-        if (value instanceof BytesWithSchema) {
-            return schemaCache.get(((BytesWithSchema) value).getSchemaId());
+        if (value instanceof BytesWithKafkaSchema) {
+            return schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId());
         } else {
             return org.apache.pulsar.client.api.Schema.BYTES;
         }
     }
 
-    public static class SchemaExtractorDeserializer implements Deserializer<BytesWithSchema> {
+    public static class ExtractKafkaAvroSchemaDeserializer implements Deserializer<BytesWithKafkaSchema> {
 
         @Override
-        public BytesWithSchema deserialize(String topic, byte[] payload) {
+        public BytesWithKafkaSchema deserialize(String topic, byte[] payload) {
             if (payload == null) {
                 return null;
             } else {
@@ -117,7 +117,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
                     int id = buffer.getInt();
                     byte[] avroEncodedData = new byte[buffer.remaining()];
                     buffer.get(avroEncodedData);
-                    return new BytesWithSchema(avroEncodedData, id);
+                    return new BytesWithKafkaSchema(avroEncodedData, id);
                 } catch (Exception err) {
                     throw new SerializationException("Error deserializing Avro message", err);
                 }

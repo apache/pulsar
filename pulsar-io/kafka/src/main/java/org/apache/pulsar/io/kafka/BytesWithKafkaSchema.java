@@ -20,11 +20,13 @@ package org.apache.pulsar.io.kafka;
 
 import lombok.Value;
 
+import java.nio.ByteBuffer;
+
 /**
  * This is a wrapper around a Byte array (the Avro encoded record) and a schema id in the Kafka Schema Registry.
  */
 @Value
-public class BytesWithSchema {
+public class BytesWithKafkaSchema {
     private final byte[] value;
     private final int schemaId;
 }

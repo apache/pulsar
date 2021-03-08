@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.io.kafka;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
-import io.confluent.kafka.serializers.subject.TopicNameStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
@@ -28,16 +30,22 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
-class AvroSchemaCache {
-    private ConcurrentHashMap<Integer, Schema<byte[]>> cache = new ConcurrentHashMap<>();
+final class AvroSchemaCache {
+    private final LoadingCache<Integer, Schema<byte[]>> cache = CacheBuilder
+            .newBuilder()
+            .maximumSize(100)
+            .build(new CacheLoader<Integer, Schema<byte[]>>() {
+                @Override
+                public Schema<byte[]> load(Integer schemaId) throws Exception {
+                    return fetchSchema(schemaId);
+                }
+            });
+
     private final SchemaRegistryClient schemaRegistryClient;
 
     public AvroSchemaCache(SchemaRegistryClient schemaRegistryClient) {
@@ -45,27 +53,27 @@ class AvroSchemaCache {
     }
 
     public Schema<byte[]> get(int schemaId) {
-        if (cache.size() > 100) {
-            // very simple auto cleanup
-            // schema do not change very often, we just do not want this map to grow
-            // without limits
-            cache.clear();
+        try {
+            return cache.get(schemaId);
+        } catch (ExecutionException err) {
+            throw new RuntimeException(err.getCause());
         }
-        return cache.computeIfAbsent(schemaId, id -> {
-            try {
-                org.apache.avro.Schema schema = schemaRegistryClient.getById(schemaId);
-                String definition = schema.toString(false);
-                log.info("Schema {} definition {}", schemaId, definition);
-                return Schema.AUTO_PRODUCE_BYTES(GenericAvroSchema.of(SchemaInfo.builder()
-                        .type(SchemaType.AVRO)
-                        .name(schema.getName())
-                        .properties(Collections.emptyMap())
-                        .schema(definition.getBytes(StandardCharsets.UTF_8)
-                        ).build()));
-            } catch (IOException | RestClientException e) {
-                throw new RuntimeException(e);
-            }
-        });
+    }
+
+    private Schema<byte[]> fetchSchema(int schemaId) {
+        try {
+            org.apache.avro.Schema schema = schemaRegistryClient.getById(schemaId);
+            String definition = schema.toString(false);
+            log.info("Schema {} definition {}", schemaId, definition);
+            return Schema.AUTO_PRODUCE_BYTES(GenericAvroSchema.of(SchemaInfo.builder()
+                    .type(SchemaType.AVRO)
+                    .name(schema.getName())
+                    .properties(Collections.emptyMap())
+                    .schema(definition.getBytes(StandardCharsets.UTF_8)
+                    ).build()));
+        } catch (IOException | RestClientException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

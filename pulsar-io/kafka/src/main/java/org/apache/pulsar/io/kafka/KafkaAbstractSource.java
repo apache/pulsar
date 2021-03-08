@@ -129,7 +129,6 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                 int index = 0;
                 for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
                     KafkaRecord record = new KafkaRecord(consumerRecord,
-                            extractKey(consumerRecord),
                             extractValue(consumerRecord),
                             extractSchema(consumerRecord));
                     consume(record);
@@ -158,11 +157,6 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         return consumerRecord.value();
     }
 
-    public Optional<String> extractKey(ConsumerRecord<Object, Object> consumerRecord) {
-        // we are currently supporting only String keys
-        return Optional.ofNullable((String) consumerRecord.key());
-    }
-
     public abstract Schema<V> extractSchema(ConsumerRecord<Object, Object> consumerRecord);
 
     @Slf4j
@@ -170,14 +164,12 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         private final ConsumerRecord<String, ?> record;
         private final V value;
         private final Schema<V> schema;
-        private final Optional<String> key;
 
         @Getter
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public KafkaRecord(ConsumerRecord<String,?> record, Optional<String> key, V value, Schema<V> schema) {
+        public KafkaRecord(ConsumerRecord<String,?> record, V value, Schema<V> schema) {
             this.record = record;
-            this.key = key;
             this.value = value;
             this.schema = schema;
         }
@@ -193,7 +185,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
         @Override
         public Optional<String> getKey() {
-            return key;
+            return Optional.ofNullable(record.key());
         }
 
         @Override
