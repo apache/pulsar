@@ -86,7 +86,7 @@ class PULSAR_PUBLIC ProducerConfiguration {
     ProducerConfiguration& operator=(const ProducerConfiguration&);
 
     /**
-     * Set the producer name which could have been assigned by the system or specified by the client.
+     * Set the producer name which could be assigned by the system or specified by the client.
      *
      * @param producerName producer name.
      * @return
@@ -137,7 +137,7 @@ class PULSAR_PUBLIC ProducerConfiguration {
     /**
      * Set the baseline of the sequence ID for messages published by the producer.
      * <p>
-     * First message uses (initialSequenceId + 1) as its sequence ID and subsequent messages are assigned
+     * The first message uses (initialSequenceId + 1) as its sequence ID and subsequent messages are assigned
      * incremental sequence IDs.
      *
      * @param initialSequenceId the initial sequence ID for the producer.
@@ -230,8 +230,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
     const MessageRoutingPolicyPtr& getMessageRouterPtr() const;
 
     /** 
-     * Set the hashing scheme, which is a standard hashing function available when choosing the partition to
-     * use for a particular message.
+     * Set the hashing scheme, which is a standard hashing function available when choosing the partition 
+     * used for a particular message.
      *
      * <p>Standard hashing functions available are:
      * <ul>
@@ -267,9 +267,9 @@ class PULSAR_PUBLIC ProducerConfiguration {
 
     /**
      * Control whether automatic batching of messages is enabled or not for the producer. <i>Default value:
-     * false (no batching).</i>
+     * false (no automatic batching).</i>
      *
-     * When batching is enabled, multiple calls to Producer::sendAsync can result in a single batch to be sent
+     * When automatic batching is enabled, multiple calls to Producer::sendAsync can result in a single batch to be sent
      * to the broker, leading to better throughput, especially when publishing small messages. If compression
      * is enabled, messages are compressed at the batch level, leading to a much better compression ratio for
      * similar headers or contents.
