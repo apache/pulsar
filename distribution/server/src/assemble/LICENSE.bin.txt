@@ -450,7 +450,7 @@ The Apache Software License, Version 2.0
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.3.4.jar
  * Apache Thrifth - org.apache.thrift-libthrift-0.12.0.jar
  * OkHttp and OkHttp3
-     - com.squareup.okhttp-okhttp-2.5.0.jar
+     - com.squareup.okhttp-okhttp-2.7.4.jar
      - com.squareup.okhttp3-logging-interceptor-3.14.9.jar
      - com.squareup.okhttp3-okhttp-3.14.9.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
