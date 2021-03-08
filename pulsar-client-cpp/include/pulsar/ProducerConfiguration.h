@@ -229,8 +229,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
      */
     const MessageRoutingPolicyPtr& getMessageRouterPtr() const;
 
-    /** 
-     * Set the hashing scheme, which is a standard hashing function available when choosing the partition 
+    /**
+     * Set the hashing scheme, which is a standard hashing function available when choosing the partition
      * used for a particular message.
      *
      * <p>Standard hashing functions available are:
@@ -269,10 +269,10 @@ class PULSAR_PUBLIC ProducerConfiguration {
      * Control whether automatic batching of messages is enabled or not for the producer. <i>Default value:
      * false (no automatic batching).</i>
      *
-     * When automatic batching is enabled, multiple calls to Producer::sendAsync can result in a single batch to be sent
-     * to the broker, leading to better throughput, especially when publishing small messages. If compression
-     * is enabled, messages are compressed at the batch level, leading to a much better compression ratio for
-     * similar headers or contents.
+     * When automatic batching is enabled, multiple calls to Producer::sendAsync can result in a single batch
+     * to be sent to the broker, leading to better throughput, especially when publishing small messages. If
+     * compression is enabled, messages are compressed at the batch level, leading to a much better
+     * compression ratio for similar headers or contents.
      *
      * When the default batch delay is set to 10 ms and the default batch size is 1000 messages.
      *
