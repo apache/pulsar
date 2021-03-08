@@ -18,36 +18,40 @@
  */
 package org.apache.pulsar.client.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 @Slf4j
 public class ExecutorProvider {
     private final int numThreads;
     private final List<ExecutorService> executors;
     private final AtomicInteger currentThread = new AtomicInteger(0);
+    private final String poolName;
     private volatile boolean isShutdown;
 
-    public ExecutorProvider(int numThreads, ThreadFactory threadFactory) {
+    public ExecutorProvider(int numThreads, String poolName) {
         checkArgument(numThreads > 0);
         this.numThreads = numThreads;
-        checkNotNull(threadFactory);
+        checkNotNull(poolName);
         executors = Lists.newArrayListWithCapacity(numThreads);
         for (int i = 0; i < numThreads; i++) {
-            executors.add(Executors.newSingleThreadScheduledExecutor(threadFactory));
+            executors.add(Executors.newSingleThreadScheduledExecutor(PulsarClientImpl.getThreadFactory(poolName)));
         }
         isShutdown = false;
+        this.poolName = poolName;
     }
 
     public ExecutorService getExecutor() {
@@ -71,7 +75,9 @@ public class ExecutorProvider {
         executors.forEach(executor -> {
             executor.shutdownNow();
             try {
-                executor.awaitTermination(10, TimeUnit.SECONDS);
+                if(!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                    log.error("Failed to terminate executor with pool name {} within timeout. The following are stack traces of still running threads.\n{}", poolName, getThreadDump());
+                }
             } catch (InterruptedException e) {
                 log.warn("Shutdown of thread pool was interrupted");
             }
@@ -81,5 +87,30 @@ public class ExecutorProvider {
 
     public boolean isShutdown() {
         return isShutdown;
+    }
+
+    private String getThreadDump() {
+        List<Map.Entry<Thread, StackTraceElement[]>> activeThreads =
+                Thread.getAllStackTraces().entrySet().stream()
+                        .filter(threadEntry -> threadEntry.getKey().getName().startsWith(poolName))
+                        .collect(Collectors.toList());
+
+        StringBuilder dump = new StringBuilder();
+        
+        for (Map.Entry<Thread, StackTraceElement[]> e : activeThreads) {
+            Thread thread = e.getKey();
+            dump.append('\n');
+            dump.append(String.format("\"%s\" %s prio=%d tid=%d %s%njava.lang.Thread.State: %s", thread.getName(),
+                    (thread.isDaemon() ? "daemon" : ""), thread.getPriority(), thread.getId(),
+                    Thread.State.WAITING.equals(thread.getState()) ? "in Object.wait()" : thread.getState().name(),
+                    Thread.State.WAITING.equals(thread.getState()) ? "WAITING (on object monitor)"
+                            : thread.getState()));
+            for (StackTraceElement stackTraceElement : e.getValue()) {
+                dump.append("\n        at ");
+                dump.append(stackTraceElement);
+            }
+            dump.append("\n");
+        }
+        return dump.toString();
     }
 }

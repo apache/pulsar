@@ -3295,6 +3295,53 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void test() throws Exception
+    {
+        String topicName = "persistent://my-property/my-ns/testReachedEndOfTopic";
+        Producer producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false).create();
+
+
+
+        CountDownLatch latch = new CountDownLatch(2);
+        Consumer consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .messageListener(new MessageListener()
+                {
+                    @Override
+                    public void reachedEndOfTopic(Consumer consumer)
+                    {
+                        log.info("called reachedEndOfTopic  {}", methodName);
+                    }
+
+                    @Override
+                    public void received(Consumer consumer, Message message)
+                    {
+                        while(true) {
+                            try {
+                                log.info("sleep");
+                                Thread.sleep(10000000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                })
+                .subscribe();
+
+        Thread.sleep(1000);
+        producer.send("foo".getBytes());
+        Thread.sleep(1000);
+
+        consumer.close();
+        producer.close();
+        pulsarClient.close();
+
+    }
+
     // Issue 1452: https://github.com/apache/pulsar/issues/1452
     // reachedEndOfTopic should be called only once if a topic has been terminated before subscription
     @Test

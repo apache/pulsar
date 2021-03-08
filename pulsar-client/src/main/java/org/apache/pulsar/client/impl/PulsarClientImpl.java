@@ -145,8 +145,8 @@ public class PulsarClientImpl implements PulsarClient {
         this.clientClock = conf.getClock();
         conf.getAuthentication().start();
         this.cnxPool = cnxPool;
-        externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(), getThreadFactory("pulsar-external-listener"));
-        internalExecutorService = new ExecutorProvider(conf.getNumIoThreads(), getThreadFactory("pulsar-client-internal"));
+        externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(),"pulsar-external-listener");
+        internalExecutorService = new ExecutorProvider(conf.getNumIoThreads(),"pulsar-client-internal");
         if (conf.getServiceUrl().startsWith("http")) {
             lookup = new HttpLookupService(conf, eventLoopGroup);
         } else {
@@ -791,7 +791,7 @@ public class PulsarClientImpl implements PulsarClient {
         return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
     }
 
-    private static ThreadFactory getThreadFactory(String poolName) {
+    public static ThreadFactory getThreadFactory(String poolName) {
         return new DefaultThreadFactory(poolName, Thread.currentThread().isDaemon());
     }
 
