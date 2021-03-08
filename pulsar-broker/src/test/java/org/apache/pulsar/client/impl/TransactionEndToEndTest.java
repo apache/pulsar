@@ -30,8 +30,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -65,6 +66,8 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -750,8 +753,25 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .newTransaction()
                 .withTransactionTimeout(1, TimeUnit.SECONDS)
                 .build().get();
+        AtomicReference<TransactionMetadataStore> transactionMetadataStore = new AtomicReference<>();
+        getPulsarServiceList().forEach(pulsarService -> {
+            if (pulsarService.getTransactionMetadataStoreService().getStores()
+                    .containsKey(TransactionCoordinatorID.get(((TransactionImpl) timeoutTxn).getTxnIdMostBits()))) {
+                transactionMetadataStore.set(pulsarService.getTransactionMetadataStoreService().getStores()
+                        .get(TransactionCoordinatorID.get(((TransactionImpl) timeoutTxn).getTxnIdMostBits())));
+            }
+        });
 
-        Thread.sleep(2000);
+        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(() -> {
+            try {
+                transactionMetadataStore.get().getTxnMeta(new TxnID(((TransactionImpl) timeoutTxn)
+                        .getTxnIdMostBits(), ((TransactionImpl) timeoutTxn).getTxnIdLeastBits())).get();
+                return false;
+            } catch (Exception e) {
+                return true;
+            }
+        });
+
         try {
             timeoutTxn.commit().get();
             fail();

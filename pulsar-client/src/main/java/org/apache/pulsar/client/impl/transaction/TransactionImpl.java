@@ -173,6 +173,7 @@ public class TransactionImpl implements Transaction {
     public CompletableFuture<Void> abort() {
         return checkIfOpen().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
+            this.state = State.ABORTING;
             allOpComplete().whenComplete((v, e) -> {
                 if (e != null) {
                     log.error(e.getMessage());
@@ -211,7 +212,8 @@ public class TransactionImpl implements Transaction {
             return CompletableFuture.completedFuture(null);
         } else {
             return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
-                    + txnIdLeastBits + "] Transaction in " + state.name() + " state!"));
+                    + txnIdLeastBits + "] with unexpected state : "
+                    + state.name() + ", expect " + State.OPEN + " state!"));
         }
     }
 
