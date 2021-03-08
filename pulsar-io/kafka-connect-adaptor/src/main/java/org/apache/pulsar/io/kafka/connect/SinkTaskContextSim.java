@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.io.kafka;
+package org.apache.pulsar.io.kafka.connect;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkTaskContext;

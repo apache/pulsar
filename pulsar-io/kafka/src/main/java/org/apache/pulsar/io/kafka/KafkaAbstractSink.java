@@ -19,28 +19,24 @@
 
 package org.apache.pulsar.io.kafka;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Properties;
-
 import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.sink.SinkConnector;
-import org.apache.kafka.connect.sink.SinkTask;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.kafka.connect.KafkaSinkWrappingProducer;
+import org.apache.pulsar.io.kafka.connect.ProducerRecordWithSchema;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
 
 /**
  * A Simple abstract class for Kafka sink
@@ -122,44 +118,12 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
 
             // todo: schemas from config
 
-            producer = createKafkaSinkWrappingProducer(kafkaConnectorName,
+            producer = KafkaSinkWrappingProducer.create(kafkaConnectorName,
                             props,
                             Schema.STRING_SCHEMA,
                             Schema.BYTES_SCHEMA);
         }
         log.info("Kafka sink started : {}.", props);
-    }
-
-    public static <K, V> Producer<K,V> createKafkaSinkWrappingProducer(String kafkaConnectorName,
-                                                          Properties props,
-                                                          Schema keySchema,
-                                                          Schema valueSchema) {
-        try {
-            Class<?> clazz = Class.forName(kafkaConnectorName);
-            SinkConnector connector = (SinkConnector)clazz.getConstructor().newInstance();
-
-            Class<? extends Task> taskClass = connector.taskClass();
-            SinkContextSim sinkContext = new SinkContextSim();
-            connector.initialize(sinkContext);
-            connector.start(Maps.fromProperties(props));
-
-            List<Map<String, String>> configs = connector.taskConfigs(1);
-            SinkTask task = (SinkTask)taskClass.getConstructor().newInstance();
-            SinkTaskContextSim taskContext =
-                    new SinkTaskContextSim(configs.get(0), KafkaSinkWrappingProducer.getPartitions());
-            task.initialize(taskContext);
-            task.start(configs.get(0));
-            task.open(KafkaSinkWrappingProducer.getPartitions());
-
-            Producer<K, V> producer = new KafkaSinkWrappingProducer<>(connector, task,
-                    keySchema, valueSchema,
-                    sinkContext, taskContext);
-            return producer;
-        } catch (Exception e) {
-            log.error("Failed to create KafkaSinkWrappingProducer with {}, {} & {}",
-                    props, keySchema.name(), valueSchema.name(), e);
-            throw new IllegalArgumentException("failed to create KafkaSink with given parameters", e);
-        }
     }
 
     public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> message);

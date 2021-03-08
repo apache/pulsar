@@ -17,32 +17,14 @@
  * under the License.
  */
 
-package org.apache.pulsar.io.kafka;
+package org.apache.pulsar.io.kafka.connect;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.connect.connector.ConnectorContext;
+import org.apache.kafka.connect.connector.Task;
+import org.apache.kafka.connect.file.FileStreamSinkConnector;
 
-@Slf4j
-public class SinkContextSim implements ConnectorContext {
-
-    volatile Exception lastException = null;
-
-    public void throwIfNeeded() {
-        if (lastException != null) {
-            RuntimeException toThrow = new RuntimeException(lastException);
-            log.error("error was raised", toThrow);
-            throw toThrow;
-        }
-    }
-
+public class SchemaedFileStreamSinkConnector extends FileStreamSinkConnector {
     @Override
-    public void requestTaskReconfiguration() {
-        // noop;
-    }
-
-    @Override
-    public void raiseError(Exception e) {
-        log.warn("raiseError called", lastException);
-        lastException = e;
+    public Class<? extends Task> taskClass() {
+        return SchemaedFileStreamSinkTask.class;
     }
 }

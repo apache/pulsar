@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.io.kafka;
+package org.apache.pulsar.io.kafka.connect;
 
 import lombok.EqualsAndHashCode;
 import org.apache.kafka.clients.producer.ProducerRecord;

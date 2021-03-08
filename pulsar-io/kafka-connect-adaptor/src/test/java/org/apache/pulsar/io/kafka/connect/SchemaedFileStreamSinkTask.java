@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.io.kafka.sink;
+package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;

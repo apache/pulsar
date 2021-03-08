@@ -17,20 +17,14 @@
  * under the License.
  */
 
-package org.apache.pulsar.io.kafka.sink;
+package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.file.FileStreamSinkTask;
-import org.apache.kafka.connect.sink.SinkRecord;
-import org.apache.pulsar.io.kafka.KafkaAbstractSink;
-import org.apache.pulsar.io.kafka.ProducerRecordWithSchema;
 import org.junit.Test;
-import org.testng.collections.Maps;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -49,7 +43,7 @@ public class KafkaSinkWrappingProducerTest {
         Path file = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
         props.put("file", file.toString());
         Producer<String, String> producer =
-                KafkaAbstractSink.createKafkaSinkWrappingProducer(
+                KafkaSinkWrappingProducer.create(
                     "org.apache.kafka.connect.file.FileStreamSinkConnector",
                         props,
                         Schema.STRING_SCHEMA,
@@ -89,7 +83,7 @@ public class KafkaSinkWrappingProducerTest {
         props.put("file", file.toString());
         // configure with wrong schema, schema from ProducerRecordWithSchema should be used
         Producer<String, byte[]> producer =
-                KafkaAbstractSink.createKafkaSinkWrappingProducer(
+                KafkaSinkWrappingProducer.create(
                         SchemaedFileStreamSinkConnector.class.getCanonicalName(),
                         props,
                         Schema.INT8_SCHEMA,

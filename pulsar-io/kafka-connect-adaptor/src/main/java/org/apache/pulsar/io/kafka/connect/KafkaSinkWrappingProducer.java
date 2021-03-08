@@ -17,12 +17,13 @@
  * under the License.
  */
 
-package org.apache.pulsar.io.kafka;
+package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.Producer;
@@ -31,16 +32,14 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.*;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkConnector;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -52,6 +51,7 @@ import java.util.concurrent.Future;
  * @param <K>
  * @param <V>
  */
+@Slf4j
 public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     private final SinkConnector connector;
@@ -69,6 +69,38 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     private final static PartitionInfo info = new PartitionInfo(TOPIC_NAME, 0, node, new Node[] {node}, new Node[] {node});
     private final TopicPartition topicPartition = new TopicPartition(TOPIC_NAME, 0);
     private final static List<PartitionInfo> partitionInfos = ImmutableList.of(info);
+
+    public static <K, V> Producer<K,V> create(String kafkaConnectorName,
+                                               Properties props,
+                                               Schema keySchema,
+                                               Schema valueSchema) {
+        try {
+            Class<?> clazz = Class.forName(kafkaConnectorName);
+            SinkConnector connector = (SinkConnector)clazz.getConstructor().newInstance();
+
+            Class<? extends Task> taskClass = connector.taskClass();
+            SinkContextSim sinkContext = new SinkContextSim();
+            connector.initialize(sinkContext);
+            connector.start(Maps.fromProperties(props));
+
+            List<Map<String, String>> configs = connector.taskConfigs(1);
+            SinkTask task = (SinkTask)taskClass.getConstructor().newInstance();
+            SinkTaskContextSim taskContext =
+                    new SinkTaskContextSim(configs.get(0), KafkaSinkWrappingProducer.getPartitions());
+            task.initialize(taskContext);
+            task.start(configs.get(0));
+            task.open(KafkaSinkWrappingProducer.getPartitions());
+
+            Producer<K, V> producer = new KafkaSinkWrappingProducer<>(connector, task,
+                    keySchema, valueSchema,
+                    sinkContext, taskContext);
+            return producer;
+        } catch (Exception e) {
+            log.error("Failed to create KafkaSinkWrappingProducer with {}, {} & {}",
+                    props, keySchema.name(), valueSchema.name(), e);
+            throw new IllegalArgumentException("failed to create KafkaSink with given parameters", e);
+        }
+    }
 
     public KafkaSinkWrappingProducer(SinkConnector connector,
                                      SinkTask task,
