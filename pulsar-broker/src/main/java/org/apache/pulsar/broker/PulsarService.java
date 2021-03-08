@@ -306,8 +306,13 @@ public class PulsarService implements AutoCloseable {
 
             // close the service in reverse order v.s. in which they are started
             if (this.webService != null) {
-                this.webService.close();
-                this.webService = null;
+                try {
+                    this.webService.close();
+                    this.webService = null;
+                } catch (Exception e) {
+                    LOG.error("Web service closing failed", e);
+                    // Even if the web service fails to close, the graceful shutdown process continues
+                }
             }
 
             if (this.webSocketService != null) {
