@@ -39,6 +39,7 @@ import org.apache.kafka.connect.sink.SinkTask;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -66,6 +67,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
             ImmutableSet.of(new TopicPartition(TOPIC_NAME, 0));
     private final static Node node = new Node(0, "localhost", 0);
     private final static PartitionInfo info = new PartitionInfo(TOPIC_NAME, 0, node, new Node[] {node}, new Node[] {node});
+    private final TopicPartition topicPartition = new TopicPartition(TOPIC_NAME, 0);
     private final static List<PartitionInfo> partitionInfos = ImmutableList.of(info);
 
     public KafkaSinkWrappingProducer(SinkConnector connector,
@@ -139,6 +141,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     public Future<RecordMetadata> send(ProducerRecord<K, V> producerRecord) {
         sinkContext.throwIfNeeded();
         task.put(Lists.newArrayList(toSinkRecord(producerRecord)));
+        flush();
         return CompletableFuture.completedFuture(null);
     }
 
@@ -147,6 +150,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
         sinkContext.throwIfNeeded();
         try {
             task.put(Lists.newArrayList(toSinkRecord(producerRecord)));
+            flush();
             callback.onCompletion(null, null);
         } catch (Exception e) {
             callback.onCompletion(null, e);
@@ -157,7 +161,10 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     @Override
     public void flush() {
         sinkContext.throwIfNeeded();
-        task.flush(Maps.newHashMap());
+        Map<TopicPartition, OffsetAndMetadata> currentOffsets = Maps.newHashMap();
+        currentOffsets.put(topicPartition,
+                new OffsetAndMetadata(taskContext.currentOffset(), Optional.empty(), null));
+        task.flush(currentOffsets);
     }
 
     @Override

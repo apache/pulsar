@@ -46,6 +46,10 @@ public class SinkTaskContextSim implements SinkTaskContext {
         return offset.getAndIncrement();
     }
 
+    public long currentOffset() {
+        return offset.get();
+    }
+
     @Override
     public void offset(Map<TopicPartition, Long> map) {
         map.entrySet().stream().forEach(kv -> offset(kv.getKey(), kv.getValue()));
