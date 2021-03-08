@@ -1369,6 +1369,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/test/resources/athenz.conf.test</exclude>
             <exclude>deployment/terraform-ansible/templates/myid</exclude>
             <exclude>certificate-authority/index.txt</exclude>
+            <exclude>certificate-authority/serial</exclude>
             <exclude>certificate-authority/README.md</exclude>
 
             <!-- Exclude ZK test data file -->
@@ -1384,6 +1385,51 @@ flexible messaging model and an intuitive client API.</description>
             <!-- helm files -->
             <exclude>**/.helmignore</exclude>
             <exclude>**/_helpers.tpl</exclude>
+
+            <!-- project ignored files -->
+            <exclude>*.md</exclude>
+            <exclude>.github/**</exclude>
+            <exclude>**/*.nar</exclude>
+            <exclude>**/.terraform/**</exclude>
+            <exclude>**/.gitignore</exclude>
+            <exclude>**/.svn</exclude>
+            <exclude>**/*.iws</exclude>
+            <exclude>**/*.ipr</exclude>
+            <exclude>**/*.iml</exclude>
+            <exclude>**/*.cbp</exclude>
+            <exclude>**/*.pyc</exclude>
+            <exclude>**/.classpath</exclude>
+            <exclude>**/.project</exclude>
+            <exclude>**/.settings</exclude>
+            <exclude>**/target/**</exclude>
+            <exclude>**/CMakeFiles/**</exclude>
+            <exclude>**/CMakeCache.txt</exclude>
+            <exclude>**/cmake_install.cmake</exclude>
+            <exclude>pulsar-client-cpp/**/Makefile</exclude>
+            <exclude>pulsar-client-cpp/tests/main</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleAsyncProducer</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleConsumer</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleConsumerListener</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleProducer</exclude>
+            <exclude>pulsar-client-cpp/perf/perfProducer</exclude>
+            <exclude>pulsar-client-cpp/perf/perfConsumer</exclude>
+            <exclude>**/python/dist/**</exclude>
+            <exclude>**/pulsar-client-cpp/pkg/rpm/RPMS/**</exclude>
+            <exclude>**/pulsar-client-cpp/pkg/rpm/SOURCES/**</exclude>
+            <exclude>**/pulsar-client-cpp/pkg/deb/BUILD/**</exclude>
+            <exclude>**/python/wheelhouse/**</exclude>
+            <exclude>**/python/MANIFEST</exclude>
+            <exclude>**/*.egg-info/**</exclude>
+            <exclude>**/*.log</exclude>
+            <exclude>**/build/**</exclude>
+            <exclude>**/file:/**</exclude>
+            <exclude>**/SecurityAuth.audit*</exclude>
+            <exclude>**/site2/**</exclude>
+            <exclude>**/.idea/**</exclude>
+            <exclude>**/*.a</exclude>
+            <exclude>**/*.so</exclude>
+            <exclude>**/*.so.*</exclude>
+            <exclude>**/*.dylib</exclude>
           </excludes>
         </configuration>
       </plugin>
