@@ -30,18 +30,19 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
 final class AvroSchemaCache {
-    private final LoadingCache<Integer, Schema<byte[]>> cache = CacheBuilder
+    private final LoadingCache<Integer, Schema<ByteBuffer>> cache = CacheBuilder
             .newBuilder()
             .maximumSize(100)
-            .build(new CacheLoader<Integer, Schema<byte[]>>() {
+            .build(new CacheLoader<Integer, Schema<ByteBuffer>>() {
                 @Override
-                public Schema<byte[]> load(Integer schemaId) throws Exception {
+                public Schema<ByteBuffer> load(Integer schemaId) throws Exception {
                     return fetchSchema(schemaId);
                 }
             });
@@ -52,7 +53,7 @@ final class AvroSchemaCache {
         this.schemaRegistryClient = schemaRegistryClient;
     }
 
-    public Schema<byte[]> get(int schemaId) {
+    public Schema<ByteBuffer> get(int schemaId) {
         try {
             return cache.get(schemaId);
         } catch (ExecutionException err) {
@@ -60,7 +61,7 @@ final class AvroSchemaCache {
         }
     }
 
-    private Schema<byte[]> fetchSchema(int schemaId) {
+    private Schema<ByteBuffer> fetchSchema(int schemaId) {
         try {
             org.apache.avro.Schema schema = schemaRegistryClient.getById(schemaId);
             String definition = schema.toString(false);
@@ -71,10 +72,10 @@ final class AvroSchemaCache {
                     .properties(Collections.emptyMap())
                     .schema(definition.getBytes(StandardCharsets.UTF_8)
                     ).build();
-            return new Schema<byte[]>() {
+            return new Schema<ByteBuffer>() {
                 @Override
-                public byte[] encode(byte[] message) {
-                    return message;
+                public byte[] encode(ByteBuffer message) {
+                    return getBytes(message);
                 }
 
                 @Override
@@ -83,13 +84,22 @@ final class AvroSchemaCache {
                 }
 
                 @Override
-                public Schema<byte[]> clone() {
+                public Schema<ByteBuffer> clone() {
                     return this;
                 }
             };
         } catch (IOException | RestClientException e) {
             throw new RuntimeException(e);
         }
+    }
+
+
+    private static byte[] getBytes(ByteBuffer buffer) {
+        buffer.mark();
+        byte[] avroEncodedData = new byte[buffer.remaining()];
+        buffer.get(avroEncodedData);
+        buffer.reset();
+        return avroEncodedData;
     }
 
 }

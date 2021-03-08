@@ -27,6 +27,6 @@ import java.nio.ByteBuffer;
  */
 @Value
 public class BytesWithKafkaSchema {
-    private final byte[] value;
+    private final ByteBuffer value;
     private final int schemaId;
 }

@@ -33,6 +33,7 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
@@ -47,7 +48,7 @@ import org.apache.pulsar.io.core.annotations.IOType;
     configClass = KafkaSourceConfig.class
 )
 @Slf4j
-public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
+public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
     private AvroSchemaCache schemaCache;
 
@@ -90,17 +91,22 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
         Object value = consumerRecord.value();
         if (value instanceof BytesWithKafkaSchema) {
             return ((BytesWithKafkaSchema) value).getValue();
+        } else if (value instanceof byte[]) {
+            return ByteBuffer.wrap((byte[]) value);
+        } else if (value == null) {
+            return null;
+        } else {
+            throw new UnsupportedOperationException("Cannot extract a value from a " + value.getClass());
         }
-        return value;
     }
 
     @Override
-    public org.apache.pulsar.client.api.Schema<byte[]> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
+    public org.apache.pulsar.client.api.Schema<ByteBuffer> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
         if (value instanceof BytesWithKafkaSchema) {
             return schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId());
         } else {
-            return org.apache.pulsar.client.api.Schema.BYTES;
+            return Schema.BYTEBUFFER;
         }
     }
 
@@ -115,9 +121,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<byte[]> {
                     ByteBuffer buffer = ByteBuffer.wrap(payload);
                     buffer.get(); // magic number
                     int id = buffer.getInt();
-                    byte[] avroEncodedData = new byte[buffer.remaining()];
-                    buffer.get(avroEncodedData);
-                    return new BytesWithKafkaSchema(avroEncodedData, id);
+                    return new BytesWithKafkaSchema(buffer, id);
                 } catch (Exception err) {
                     throw new SerializationException("Error deserializing Avro message", err);
                 }
