@@ -1376,11 +1376,21 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalDeletePersistence() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+        doUpdatePersistence(null);
+    }
+
     protected void internalSetPersistence(PersistencePolicies persistence) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         validatePersistencePolicies(persistence);
 
+        doUpdatePersistence(persistence);
+    }
+
+    private void doUpdatePersistence(PersistencePolicies persistence) {
         try {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies)->{

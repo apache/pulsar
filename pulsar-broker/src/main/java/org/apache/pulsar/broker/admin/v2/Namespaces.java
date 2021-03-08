@@ -741,7 +741,7 @@ public class Namespaces extends NamespacesBase {
     public void deleteSubscriptionDispatchRate(@PathParam("tenant") String tenant,
                                                @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetPersistence(null);
+        internalDeletePersistence();
     }
 
     @POST
