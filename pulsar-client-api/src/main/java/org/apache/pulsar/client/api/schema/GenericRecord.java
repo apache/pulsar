@@ -35,9 +35,7 @@ public interface GenericRecord {
      *
      * @return schema version, or null if the information is not available.
      */
-    default byte[] getSchemaVersion() {
-        return null;
-    }
+    byte[] getSchemaVersion();
 
     /**
      * Returns the list of fields associated with the record.
