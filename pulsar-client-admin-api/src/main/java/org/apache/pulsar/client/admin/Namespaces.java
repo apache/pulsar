@@ -2103,6 +2103,20 @@ public interface Namespaces {
     CompletableFuture<SubscribeRate> getSubscribeRateAsync(String namespace);
 
     /**
+     * Remove subscription-message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove subscription-message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String namespace);
+
+    /**
      * Set subscription-message-dispatch-rate.
      * <p/>
      * Subscriptions under this namespace can dispatch this many messages per second

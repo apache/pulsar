@@ -545,6 +545,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-subscription-dispatch-rate myprop/clust/ns1"));
         verify(mockNamespaces).getSubscriptionDispatchRate("myprop/clust/ns1");
 
+        namespaces.run(split("remove-subscription-dispatch-rate myprop/clust/ns1"));
+        verify(mockNamespaces).removeSubscriptionDispatchRate("myprop/clust/ns1");
+
         namespaces.run(split("get-compaction-threshold myprop/clust/ns1"));
         verify(mockNamespaces).getCompactionThreshold("myprop/clust/ns1");
 
@@ -728,6 +731,14 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
 
+        cmdTopics.run(split("get-backlog-quotas persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getBacklogQuotaMap("persistent://myprop/clust/ns1/ds1", true);
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -p producer_request_hold"));
+        verify(mockTopics).setBacklogQuota("persistent://myprop/clust/ns1/ds1"
+                , new BacklogQuota(10L, BacklogQuota.RetentionPolicy.producer_request_hold));
+        cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeBacklogQuota("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
 
@@ -793,6 +804,13 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("set-deduplication persistent://myprop/clust/ns1/ds1 --disable"));
         verify(mockTopics).setDeduplicationStatus("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("set-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2"));
+        verify(mockTopics).setSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1", new DispatchRate(-1, -1, 2));
+        cmdTopics.run(split("get-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("remove-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("remove-deduplication persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeDeduplicationStatus("persistent://myprop/clust/ns1/ds1");

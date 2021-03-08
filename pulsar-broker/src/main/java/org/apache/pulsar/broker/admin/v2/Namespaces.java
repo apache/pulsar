@@ -598,6 +598,16 @@ public class Namespaces extends NamespacesBase {
     }
 
     @DELETE
+    @Path("/{tenant}/{namespace}/subscriptionDispatchRate")
+    @ApiOperation(value = "Delete Subscription dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deleteSubscriptionDispatchRate(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeleteSubscriptionDispatchRate();
+    }
+
+    @DELETE
     @Path("/{tenant}/{namespace}/subscribeRate")
     @ApiOperation(value = "Delete subscribe-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
