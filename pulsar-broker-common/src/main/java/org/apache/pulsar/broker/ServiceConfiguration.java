@@ -1789,6 +1789,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeConsumerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "If true, export managed cursor metrics"
+    )
+    private boolean exposeManagedCursorMetricsInPrometheus = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 
