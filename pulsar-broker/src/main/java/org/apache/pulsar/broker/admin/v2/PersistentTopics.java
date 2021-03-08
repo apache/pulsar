@@ -3044,15 +3044,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
         internalGetSubscribeRate(applied).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed get subscribe rate", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed get subscribe rate", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(res);
-            }
+            internalHandleResult(asyncResponse, res, ex, "Failed get subscribe rate");
         });
     }
 
