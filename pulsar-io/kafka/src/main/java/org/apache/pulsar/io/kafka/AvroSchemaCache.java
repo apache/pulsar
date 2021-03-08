@@ -65,12 +65,28 @@ final class AvroSchemaCache {
             org.apache.avro.Schema schema = schemaRegistryClient.getById(schemaId);
             String definition = schema.toString(false);
             log.info("Schema {} definition {}", schemaId, definition);
-            return Schema.AUTO_PRODUCE_BYTES(GenericAvroSchema.of(SchemaInfo.builder()
+            SchemaInfo schemaInfo = SchemaInfo.builder()
                     .type(SchemaType.AVRO)
                     .name(schema.getName())
                     .properties(Collections.emptyMap())
                     .schema(definition.getBytes(StandardCharsets.UTF_8)
-                    ).build()));
+                    ).build();
+            return new Schema<byte[]>() {
+                @Override
+                public byte[] encode(byte[] message) {
+                    return message;
+                }
+
+                @Override
+                public SchemaInfo getSchemaInfo() {
+                    return schemaInfo;
+                }
+
+                @Override
+                public Schema<byte[]> clone() {
+                    return this;
+                }
+            };
         } catch (IOException | RestClientException e) {
             throw new RuntimeException(e);
         }
