@@ -50,7 +50,7 @@ admin.brokers().getActiveBrokers(clusterName)
 
 ### Get the information of the leader broker
 
-Fetch the information of the leader broker.
+Fetch the information of the leader broker, for example, the service url.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -60,7 +60,7 @@ $ pulsar-admin brokers leader-broker
 ```
 
 ```
-broker1.use.org.com:8080
+BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 ```
 
 <!--REST API-->
