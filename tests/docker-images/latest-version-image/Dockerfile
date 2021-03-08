@@ -110,16 +110,4 @@ COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-jdbc-postgr
 COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
 COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
 
-# change ownership of files
-RUN chown -R pulsar:0 /pulsar && chmod -R g=u /pulsar
-
-# remove gcc
-RUN apt-get -y remove --autoremove --purge build-essential
-
-# cleanup
-RUN apt-get -y autoremove \
-    && apt-get clean \
-    && apt-get autoclean \
-    && rm -rf /var/lib/apt/lists/*
-
 CMD bash
