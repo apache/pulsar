@@ -19,8 +19,4 @@
 
 -->
 <FindBugsFilter>
-    <Match>
-        <Class name="org.apache.pulsar.io.kafka.BytesWithKafkaSchema" />
-        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
-    </Match>
 </FindBugsFilter>
