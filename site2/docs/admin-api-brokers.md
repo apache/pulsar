@@ -48,9 +48,9 @@ admin.brokers().getActiveBrokers(clusterName)
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Get the service url of the leader broker
+### Get the information of the leader broker
 
-Fetch the service url of the leader broker, or print NoLeader when it not exists.
+Fetch the information of the leader broker.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
