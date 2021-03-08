@@ -327,7 +327,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         if (!pulsar().getConfiguration().isForceDeleteNamespaceAllowed()) {
             asyncResponse.resume(
-                    new RestException(Status.FORBIDDEN, "Broker doesn't allow forced deletion of namespaces"));
+                    new RestException(Status.METHOD_NOT_ALLOWED, "Broker doesn't allow forced deletion of namespaces"));
             return;
         }
 
