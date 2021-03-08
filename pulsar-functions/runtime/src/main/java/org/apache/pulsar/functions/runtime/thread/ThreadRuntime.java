@@ -102,7 +102,6 @@ public class ThreadRuntime implements Runtime {
                                                       String narExtractionDirectory,
                                                       FunctionCacheManager fnCache,
                                                       Optional<ConnectorsManager> connectorsManager) throws Exception {
-
         if (FunctionCommon.isFunctionCodeBuiltin(instanceConfig.getFunctionDetails())
                 && connectorsManager.isPresent()) {
             switch (InstanceUtils.calculateSubjectType(instanceConfig.getFunctionDetails())) {
@@ -124,6 +123,9 @@ public class ThreadRuntime implements Runtime {
                                  InstanceConfig instanceConfig,
                                  String narExtractionDirectory,
                                  FunctionCacheManager fnCache) throws Exception {
+        if (jarFile == null) {
+            return Thread.currentThread().getContextClassLoader();
+        }
         ClassLoader fnClassLoader;
         try {
             log.info("Load JAR: {}", jarFile);
@@ -175,6 +177,13 @@ public class ThreadRuntime implements Runtime {
                 String.format("%s-%s",
                         FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
                         instanceConfig.getInstanceId()));
+        this.fnThread.setContextClassLoader(functionClassLoader);
+        this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+                log.error("Uncaught exception in thread {}", t, e);
+            }
+        });
         this.fnThread.start();
     }
 
