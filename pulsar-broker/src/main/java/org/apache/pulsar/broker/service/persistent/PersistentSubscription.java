@@ -950,7 +950,7 @@ public class PersistentSubscription implements Subscription {
             });
         }
 
-        subStats.type = getType();
+        subStats.type = getTypeString();
         if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             Consumer activeConsumer = ((PersistentDispatcherSingleActiveConsumer) dispatcher).getActiveConsumer();
             if (activeConsumer != null) {

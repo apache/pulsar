@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 /**
  * Statistics about subscription.
@@ -66,7 +65,7 @@ public class SubscriptionStats {
     public long unackedMessages;
 
     /** Whether this subscription is Exclusive or Shared or Failover. */
-    public SubType type;
+    public String type;
 
     /** The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive. */
     public String activeConsumerName;

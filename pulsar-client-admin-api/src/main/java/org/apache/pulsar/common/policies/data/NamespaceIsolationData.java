@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -87,7 +86,8 @@ public class NamespaceIsolationData {
 
     public void validate() {
         checkArgument(namespaces != null && !namespaces.isEmpty() && primary != null && !primary.isEmpty()
-                && validateRegex(primary) && secondary != null && validateRegex(secondary) && auto_failover_policy != null);
+                && validateRegex(primary) && secondary != null
+                && validateRegex(secondary) && auto_failover_policy != null);
         auto_failover_policy.validate();
     }
 

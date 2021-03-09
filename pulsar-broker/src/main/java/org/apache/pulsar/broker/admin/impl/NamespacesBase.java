@@ -62,7 +62,6 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -2369,7 +2368,7 @@ public abstract class NamespacesBase extends AdminResource {
                 PolicyOperation.READ);
         Set<SubscriptionType> subscriptionTypes = new HashSet<>();
         getNamespacePolicies(namespaceName).subscription_types_enabled.forEach(subType ->
-                subscriptionTypes.add(SubscriptionType.valueOf(subType.name())));
+                subscriptionTypes.add(SubscriptionType.valueOf(subType)));
         return subscriptionTypes;
     }
 
@@ -2377,8 +2376,8 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
                 PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-        Set<SubType> subTypes = new HashSet<>();
-        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
+        Set<String> subTypes = new HashSet<>();
+        subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(subscriptionType.name()));
         mutatePolicy((policies) -> {
                     policies.subscription_types_enabled = subTypes;
                     return policies;

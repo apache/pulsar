@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
-import lombok.EqualsAndHashCode;
-
 import java.io.Serializable;
+import lombok.EqualsAndHashCode;
 
 /**
  */

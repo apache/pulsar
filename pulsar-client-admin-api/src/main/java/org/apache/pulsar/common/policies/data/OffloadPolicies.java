@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.util.FieldParser.value;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -124,7 +123,8 @@ public class OffloadPolicies implements Serializable {
     public final static String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
-    public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.TIERED_STORAGE_FIRST;
+    public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY =
+            OffloadedReadPriority.TIERED_STORAGE_FIRST;
 
     // common config
     @Configuration

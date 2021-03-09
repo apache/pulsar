@@ -115,4 +115,9 @@ public interface Subscription {
     static boolean isIndividualAckMode(SubType subType) {
         return SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType);
     }
+
+    static boolean isIndividualAckMode(String subTypeString) {
+        SubType subType = SubType.valueOf(subTypeString);
+        return SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType);
+    }
 }

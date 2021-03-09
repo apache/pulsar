@@ -19,7 +19,6 @@
 package org.apache.pulsar.discovery.service.web;
 
 import static javax.ws.rs.core.Response.Status.BAD_GATEWAY;
-import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;

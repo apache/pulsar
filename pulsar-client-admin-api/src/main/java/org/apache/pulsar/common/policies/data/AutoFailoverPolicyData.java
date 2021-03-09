@@ -23,7 +23,6 @@ import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.Map;
-import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
 
 /**
  * The auto failover policy configuration data.
@@ -74,7 +73,11 @@ public class AutoFailoverPolicyData {
 
     public void validate() {
         checkArgument(policy_type != null && parameters != null);
-        AutoFailoverPolicyFactory.create(this);
+        // TODO: Add more policy types when needed
+        if (!AutoFailoverPolicyType.min_available.equals(policy_type)) {
+            // right now, only support one type of policy: MinAvailablePolicy
+            throw new IllegalArgumentException("Unrecognized auto_failover_policy: " + policy_type);
+        }
     }
 
     @Override

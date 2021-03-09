@@ -22,14 +22,11 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import javax.ws.rs.core.Response.Status;
-
-import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.RestException;
 
 /**
@@ -122,7 +119,8 @@ public class Policies {
 
     public Integer deduplicationSnapshotIntervalSeconds = null;
 
-    public Set<SubType> subscription_types_enabled = Sets.newHashSet();
+    @SuppressWarnings("checkstyle:MemberName")
+    public Set<String> subscription_types_enabled = Sets.newHashSet();
 
     @Override
     public int hashCode() {

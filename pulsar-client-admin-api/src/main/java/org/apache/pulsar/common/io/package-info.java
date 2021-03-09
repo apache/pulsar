@@ -16,19 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.impl;
-
-import org.apache.pulsar.common.policies.AutoFailoverPolicy;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-
 /**
- * Factory to generate an instance of {@link AutoFailoverPolicy}.
+ * Common utils.
  */
-public class AutoFailoverPolicyFactory {
-
-    public static AutoFailoverPolicy create(AutoFailoverPolicyData policyData) {
-        policyData.validate();
-        return new MinAvailablePolicy(policyData);
-    }
-
-}
+package org.apache.pulsar.common.io;

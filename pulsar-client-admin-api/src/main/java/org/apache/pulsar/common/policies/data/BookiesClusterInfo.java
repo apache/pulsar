@@ -16,19 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.impl;
+package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.AutoFailoverPolicy;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 /**
- * Factory to generate an instance of {@link AutoFailoverPolicy}.
+ * Raw bookies information.
  */
-public class AutoFailoverPolicyFactory {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+public class BookiesClusterInfo {
 
-    public static AutoFailoverPolicy create(AutoFailoverPolicyData policyData) {
-        policyData.validate();
-        return new MinAvailablePolicy(policyData);
-    }
+    private static final long serialVersionUID = 0L;
+
+    private List<RawBookieInfo> bookies;
 
 }

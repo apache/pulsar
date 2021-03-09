@@ -16,26 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-
-import java.util.List;
-
 /**
- * Raw bookies information.
+ * Common utils.
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@ToString
-public class BookiesClusterInfo {
-
-    private static final long serialVersionUID = 0L;
-
-    private List<RawBookieInfo> bookies;
-
-}
+package org.apache.pulsar.common.util;
