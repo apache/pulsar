@@ -99,7 +99,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
-                .getConfiguration().getTransactionBufferSnapshotMinTimeInMills();
+                .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.topic.getBrokerService().getPulsar().getTransactionExecutor()
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override

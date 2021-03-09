@@ -1967,7 +1967,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_TRANSACTION,
             doc = "Transaction buffer take snapshot min interval time"
     )
-    private int transactionBufferSnapshotMinTimeInMills = 5000;
+    private int transactionBufferSnapshotMinTimeInMillis = 5000;
 
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(
