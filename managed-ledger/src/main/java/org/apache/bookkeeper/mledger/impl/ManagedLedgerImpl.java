@@ -2963,7 +2963,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (exception != null) {
                         log.warn("Error cleaning up offload for {}, (cleanup reason: {})", ledgerId, cleanupReason,
                                 exception);
-                        return;
                     }
                 });
     }
