@@ -306,8 +306,13 @@ public class PulsarService implements AutoCloseable {
 
             // close the service in reverse order v.s. in which they are started
             if (this.webService != null) {
-                this.webService.close();
-                this.webService = null;
+                try {
+                    this.webService.close();
+                    this.webService = null;
+                } catch (Exception e) {
+                    LOG.error("Web service closing failed", e);
+                    // Even if the web service fails to close, the graceful shutdown process continues
+                }
             }
 
             if (this.webSocketService != null) {
@@ -479,6 +484,11 @@ public class PulsarService implements AutoCloseable {
 
             if (!config.getBrokerServicePort().isPresent() && !config.getBrokerServicePortTls().isPresent()) {
                 throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
+            }
+
+            if (config.isAuthorizationEnabled() && !config.isAuthenticationEnabled()) {
+                throw new IllegalStateException("Invalid broker configuration. Authentication must be enabled with "
+                        + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
             }
 
             localMetadataStore = createLocalMetadataStore();
@@ -1166,7 +1176,13 @@ public class PulsarService implements AutoCloseable {
         if (this.adminClient == null) {
             try {
                 ServiceConfiguration conf = this.getConfiguration();
-                String adminApiUrl = conf.isBrokerClientTlsEnabled() ? webServiceAddressTls : webServiceAddress;
+                final String adminApiUrl = conf.isBrokerClientTlsEnabled() ? webServiceAddressTls : webServiceAddress;
+                if (adminApiUrl == null) {
+                    throw new IllegalArgumentException("Web service address was not set properly "
+                            + ", isBrokerClientTlsEnabled: " + conf.isBrokerClientTlsEnabled()
+                            + ", webServiceAddressTls: " + webServiceAddressTls
+                            + ", webServiceAddress: " + webServiceAddress);
+                }
                 PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
                         .authentication(//
                                 conf.getBrokerClientAuthenticationPlugin(), //

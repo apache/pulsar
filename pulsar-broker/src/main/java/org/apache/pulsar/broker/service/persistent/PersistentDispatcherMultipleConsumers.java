@@ -714,17 +714,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public void addUnAckedMessages(int numberOfMessages) {
         int maxUnackedMessages = topic.getMaxUnackedMessagesOnSubscription();
-        if (maxUnackedMessages == -1) {
-            maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
-                    .getMaxUnackedMessagesPerSubscription();
-        }
         // don't block dispatching if maxUnackedMessages = 0
-        if (maxUnackedMessages <= 0) {
-            return;
+        if (maxUnackedMessages <= 0 && blockedDispatcherOnUnackedMsgs == TRUE
+                && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+            log.info("[{}] Dispatcher is unblocked, since maxUnackedMessagesPerSubscription=0", name);
+            topic.getBrokerService().executor().execute(() -> readMoreEntries());
         }
 
         int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);
-        if (unAckedMessages >= maxUnackedMessages
+        if (unAckedMessages >= maxUnackedMessages && maxUnackedMessages > 0
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
             // block dispatcher if it reaches maxUnAckMsg limit
             log.info("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,

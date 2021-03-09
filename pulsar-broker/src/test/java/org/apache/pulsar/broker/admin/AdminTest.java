@@ -123,12 +123,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     public AdminTest() {
         super();
-        conf.setClusterName(configClusterName);
     }
 
     @Override
     @BeforeMethod
     public void setup() throws Exception {
+        conf.setClusterName(configClusterName);
         super.internalSetup();
 
         configurationCache = pulsar.getConfigurationCache();
@@ -194,6 +194,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
+        conf.setClusterName(configClusterName);
     }
 
     @Test

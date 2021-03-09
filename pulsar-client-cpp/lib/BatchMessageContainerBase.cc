@@ -36,6 +36,9 @@ Result BatchMessageContainerBase::createOpSendMsgHelper(OpSendMsg& opSendMsg,
                                                         const FlushCallback& flushCallback,
                                                         const MessageAndCallbackBatch& batch) const {
     opSendMsg.sendCallback_ = batch.createSendCallback();
+    opSendMsg.messagesCount_ = batch.messagesCount();
+    opSendMsg.messagesSize_ = batch.messagesSize();
+
     if (flushCallback) {
         auto sendCallback = opSendMsg.sendCallback_;
         opSendMsg.sendCallback_ = [sendCallback, flushCallback](Result result, const MessageId& id) {
