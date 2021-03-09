@@ -132,12 +132,8 @@ public class GenericJsonRecord extends VersionedGenericRecord {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> T getNativeRecord(Class<T> clazz) {
-        if (clazz == JsonNode.class) {
-            return (T) this.jn;
-        }
-        return null;
+    public Object getNativeRecord() {
+        return jn;
     }
 
     @Override

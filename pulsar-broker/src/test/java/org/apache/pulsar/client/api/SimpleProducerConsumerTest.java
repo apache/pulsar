@@ -3900,7 +3900,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         GenericRecord res = consumer.receive().getValue();
         consumer.close();
         assertEquals(SchemaType.AVRO, res.getSchemaType());
-        org.apache.avro.generic.GenericRecord nativeRecord = res.getNativeRecord(org.apache.avro.generic.GenericRecord.class);
+        org.apache.avro.generic.GenericRecord nativeRecord = (org.apache.avro.generic.GenericRecord) res.getNativeRecord();
         org.apache.avro.Schema schema = nativeRecord.getSchema();
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
             log.info("field {} {}", f.getName(), res.getField(f));
@@ -3942,10 +3942,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         org.apache.avro.generic.GenericRecord nativeAvroRecord = null;
         JsonNode nativeJsonRecord = null;
         if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
-            nativeAvroRecord = res.getNativeRecord(org.apache.avro.generic.GenericRecord.class);
+            nativeAvroRecord = (org.apache.avro.generic.GenericRecord) res.getNativeRecord();
             assertNotNull(nativeAvroRecord);
         } else {
-            nativeJsonRecord = res.getNativeRecord(JsonNode.class);
+            nativeJsonRecord = (JsonNode) res.getNativeRecord();
             assertNotNull(nativeJsonRecord);
         }
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {

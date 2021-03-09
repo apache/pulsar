@@ -46,12 +46,8 @@ public class GenericProtobufNativeRecord extends VersionedGenericRecord {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> T getNativeRecord(Class<T> clazz) {
-        if (clazz == DynamicMessage.class) {
-            return (T) record;
-        }
-        return null;
+    public Object getNativeRecord() {
+        return record;
     }
 
     @Override

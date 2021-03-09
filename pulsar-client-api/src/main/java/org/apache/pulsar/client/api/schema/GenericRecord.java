@@ -78,13 +78,12 @@ public interface GenericRecord {
     /**
      * Return the internal native representation of the Record,
      * like a AVRO GenericRecord.
-     * You have to pass the type you would like to obtain.
-     * This method will return null if such type is not supported.
      *
-     * @return the internal representation of the record, or null if the requested information is not available.
+     * @return the internal representation of the record
+     * @throws UnsupportedOperationException if the operation is not supported
      */
-    default <T> T getNativeRecord(Class<T> clazz) {
-        return null;
+    default Object getNativeRecord() {
+        throw new UnsupportedOperationException();
     }
 
 }
