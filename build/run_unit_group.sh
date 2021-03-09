@@ -32,10 +32,10 @@ function broker_group_1() {
                                       -DtestReuseFork=true
 
   $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="org/apache/pulsar/broker/**/*.java" \
-                                      -Dexclude="org/apache/pulsar/broker/zookeeper/**/*.java,
+                                      -Dexclude='**/*$*,org/apache/pulsar/broker/zookeeper/**/*.java,
                                                  org/apache/pulsar/broker/loadbalance/**/*.java,
                                                  org/apache/pulsar/broker/service/**/*.java,
-                                                 **/AdminApiOffloadTest.java"
+                                                 **/AdminApiOffloadTest.java'
 
 }
 
@@ -63,11 +63,11 @@ function broker_group_2() {
   $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="org/apache/pulsar/broker/zookeeper/**/*.java,
                                                  org/apache/pulsar/broker/loadbalance/**/*.java,
                                                  org/apache/pulsar/broker/service/**/*.java" \
-                                      -Dexclude="**/ReplicatorTest.java,
+                                      -Dexclude='**/*$*,**/ReplicatorTest.java,
                                                  **/MessagePublishBufferThrottleTest.java,
                                                  **/TopicOwnerTest.java,
                                                  **/*StreamingDispatcher*Test.java,
-                                                 **/AntiAffinityNamespaceGroupTest.java"
+                                                 **/AntiAffinityNamespaceGroupTest.java'
 }
 
 function broker_client_api() {
@@ -80,8 +80,8 @@ function broker_client_api() {
                                       -DtestReuseFork=true
 
   $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="org/apache/pulsar/client/api/**/*.java" \
-                                      -Dexclude="**/DispatcherBlockConsumerTest.java,
-                                                 **/SimpleProducerConsumerTest.java"
+                                      -Dexclude='**/*$*,**/DispatcherBlockConsumerTest.java,
+                                                 **/SimpleProducerConsumerTest.java'
 }
 
 function broker_client_impl() {
@@ -89,8 +89,8 @@ function broker_client_impl() {
 }
 
 function broker_client_other() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dexclude="org/apache/pulsar/broker/**/*.java,
-                                                 org/apache/pulsar/client/**/*.java"
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dexclude='**/*$*,org/apache/pulsar/broker/**/*.java,
+                                                 org/apache/pulsar/client/**/*.java'
 }
 
 function proxy() {
@@ -119,20 +119,20 @@ function proxy() {
                                      -DtestReuseFork=true
 
   $MVN_TEST_COMMAND -pl pulsar-proxy -DtestForkCount=1 \
-                                     -Dexclude="**/ProxyRolesEnforcementTest.java,
+                                     -Dexclude='**/*$*,**/ProxyRolesEnforcementTest.java,
                                                 **/ProxyAuthenticationTest.java,
                                                 **/ProxyTest.java,
-                                                **/MessagePublishBufferThrottleTest.java" \
+                                                **/MessagePublishBufferThrottleTest.java' \
                                      -DtestReuseFork=true
 }
 
 function other() {
   build/retry.sh mvn -B -ntp install -PbrokerSkipTest \
-                                     -Dexclude="org/apache/pulsar/proxy/**/*.java,
+                                     -Dexclude='**/*$*,org/apache/pulsar/proxy/**/*.java,
                                                 **/ManagedLedgerTest.java,
                                                 **/TestPulsarKeyValueSchemaHandler.java,
                                                 **/PrimitiveSchemaTest.java,
-                                                BlobStoreManagedLedgerOffloaderTest.java"
+                                                BlobStoreManagedLedgerOffloaderTest.java'
 
   $MVN_TEST_COMMAND -pl managed-ledger -Dinclude="**/ManagedLedgerTest.java" \
                                        -DtestForkCount=1 \

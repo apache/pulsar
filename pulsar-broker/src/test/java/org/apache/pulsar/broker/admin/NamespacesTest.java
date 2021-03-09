@@ -148,6 +148,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     public void setup() throws Exception {
+        resetConfig();
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 

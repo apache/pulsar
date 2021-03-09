@@ -130,9 +130,11 @@ public class PrometheusMetricsGenerator {
         parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
 
-        // generate managedCursor metrics
-        parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+        if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
+            // generate managedCursor metrics
+            parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
+                    clusterName, Collector.Type.GAUGE, stream);
+        }
 
         // generate loadBalance metrics
         parseMetricsToPrometheusMetrics(pulsar.getLoadManager().get().getLoadBalancingMetrics(),

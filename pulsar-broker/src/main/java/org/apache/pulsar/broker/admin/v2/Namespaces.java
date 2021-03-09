@@ -597,6 +597,16 @@ public class Namespaces extends NamespacesBase {
         return internalGetSubscriptionDispatchRate();
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/subscriptionDispatchRate")
+    @ApiOperation(value = "Delete Subscription dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deleteSubscriptionDispatchRate(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeleteSubscriptionDispatchRate();
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/subscribeRate")
     @ApiOperation(value = "Set subscribe-rate throttling for all topics of the namespace")
@@ -616,6 +626,17 @@ public class Namespaces extends NamespacesBase {
                                         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetSubscribeRate();
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/replicatorDispatchRate")
+    @ApiOperation(value = "Remove replicator dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
+    public void removeReplicatorDispatchRate(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalRemoveReplicatorDispatchRate();
     }
 
     @POST

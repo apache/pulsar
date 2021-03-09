@@ -2088,6 +2088,20 @@ public interface Namespaces {
     CompletableFuture<SubscribeRate> getSubscribeRateAsync(String namespace);
 
     /**
+     * Remove subscription-message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove subscription-message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String namespace);
+
+    /**
      * Set subscription-message-dispatch-rate.
      * <p/>
      * Subscriptions under this namespace can dispatch this many messages per second
@@ -2158,6 +2172,22 @@ public interface Namespaces {
      *            number of messages per second
      */
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Remove replicator-message-dispatch-rate.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeReplicatorDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set replicator-message-dispatch-rate asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace);
 
     /**
      * Get replicator-message-dispatch-rate.

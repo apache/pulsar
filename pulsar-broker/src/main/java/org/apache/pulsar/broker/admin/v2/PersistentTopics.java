@@ -20,13 +20,11 @@ package org.apache.pulsar.broker.admin.v2;
 
 import static org.apache.pulsar.common.util.Codec.decode;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.collect.Maps;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -1463,19 +1461,11 @@ public class PersistentTopics extends PersistentTopicsBase {
                     message = "Topic level policy is disabled, to enable the topic level policy and retry")})
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
                                                                   @PathParam("namespace") String namespace,
-                                                                  @PathParam("topic") @Encoded String encodedTopic) {
+                                                                  @PathParam("topic") @Encoded String encodedTopic,
+                                                                  @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        return getTopicPolicies(topicName)
-                .map(TopicPolicies::getBackLogQuotaMap)
-                .map(map -> {
-                    HashMap<BacklogQuotaType, BacklogQuota> hashMap = Maps.newHashMap();
-                    map.forEach((key, value) -> {
-                        hashMap.put(BacklogQuotaType.valueOf(key), value);
-                    });
-                    return hashMap;
-                })
-                .orElse(Maps.newHashMap());
+        return internalGetBacklogQuota(applied);
     }
 
     @POST
@@ -1936,21 +1926,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getReplicatorDispatchRate(@Suspended final AsyncResponse asyncResponse,
                                           @PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace,
-                                          @PathParam("topic") @Encoded String encodedTopic) {
+                                          @PathParam("topic") @Encoded String encodedTopic,
+                                          @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<DispatchRate> dispatchRate = internalGetReplicatorDispatchRate();
-            if (dispatchRate.isPresent()) {
-                asyncResponse.resume(dispatchRate.get());
+        internalGetReplicatorDispatchRate(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get replicator dispatchRate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get replicator dispatchRate", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(Response.noContent().build());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST
@@ -2590,21 +2580,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getSubscriptionDispatchRate(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic) {
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<DispatchRate> dispatchRate = internalGetSubscriptionDispatchRate();
-            if (!dispatchRate.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
+        internalGetSubscriptionDispatchRate(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get subscription dispatchRate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get subscription dispatchRate", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(dispatchRate.get());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST
