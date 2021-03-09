@@ -25,10 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.producer.Callback;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.common.*;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.record.TimestampType;
@@ -39,14 +36,21 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
 
 import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /***
- * Adapter from a SinkTask to a KafkaProducer to use producer api to write to the sink
+ * Adapter from a SinkTask to a KafkaProducer to use producer api to write to the sink.
  *
- * TODO: record metadata / return RecordMetadata/PartitionInfo where needed (if needed)
+ * Supports kafka Producer's config options of
+ *  - linger.ms
+ *  - batch.size
  *
  * @param <K>
  * @param <V>
@@ -58,42 +62,78 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     private final SinkTask task;
     private final Schema defaultKeySchema;
     private final Schema defaultValueSchema;
-    private final SinkContextSim sinkContext;
-    private final SinkTaskContextSim taskContext;
+    private final PulsarKafkaSinkContext sinkContext;
+    private final PulsarKafkaSinkTaskContext taskContext;
+    private final int batchSize;
+    private final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    private final AtomicInteger numPendingRecords = new AtomicInteger(0);
+
+    private volatile CompletableFuture<Void> pendingFlush = new CompletableFuture<>();
 
     public final static String TOPIC_NAME = "fake-topic";
 
     private final static Set<TopicPartition> partitions =
             ImmutableSet.of(new TopicPartition(TOPIC_NAME, 0));
     private final static Node node = new Node(0, "localhost", 0);
-    private final static PartitionInfo info = new PartitionInfo(TOPIC_NAME, 0, node, new Node[] {node}, new Node[] {node});
-    private final TopicPartition topicPartition = new TopicPartition(TOPIC_NAME, 0);
+    private final static PartitionInfo info = new PartitionInfo(TOPIC_NAME, 0, node, new Node[]{node}, new Node[]{node});
+    private final static TopicPartition topicPartition = new TopicPartition(TOPIC_NAME, 0);
     private final static List<PartitionInfo> partitionInfos = ImmutableList.of(info);
 
-    public static <K, V> Producer<K,V> create(String kafkaConnectorName,
+
+    private static long getLingerMs(Properties props) {
+        long lingerMs = 2147483647L; // as in kafka
+        final String lingerPropName = "linger.ms";
+        if (props.containsKey(lingerPropName)) {
+            try {
+                lingerMs = Long.parseLong((String) props.get(lingerPropName));
+            } catch (NumberFormatException nfe) {
+                log.warn("Could not parse property " + lingerPropName +
+                        " from " + props.get(lingerPropName) + " - will use default", nfe);
+            }
+        }
+        return lingerMs;
+    }
+
+    private static int getBatchSize(Properties props) {
+        final String batchSizePropName = "batch.size";
+        int batchSize = 1;
+        if (props.containsKey(batchSizePropName)) {
+            try {
+                batchSize = Math.max(batchSize, Integer.parseInt((String) props.get(batchSizePropName)));
+            } catch (NumberFormatException nfe) {
+                log.warn("Could not parse property " + batchSizePropName +
+                        " from " + props.get(batchSizePropName) + " - will use default", nfe);
+            }
+        }
+
+        return batchSize;
+    }
+
+    public static <K, V> Producer<K, V> create(String kafkaConnectorFQClassName,
                                                Properties props,
                                                Schema keySchema,
                                                Schema valueSchema) {
         try {
-            Class<?> clazz = Class.forName(kafkaConnectorName);
-            SinkConnector connector = (SinkConnector)clazz.getConstructor().newInstance();
+            Class<?> clazz = Class.forName(kafkaConnectorFQClassName);
+            SinkConnector connector = (SinkConnector) clazz.getConstructor().newInstance();
 
             Class<? extends Task> taskClass = connector.taskClass();
-            SinkContextSim sinkContext = new SinkContextSim();
+            PulsarKafkaSinkContext sinkContext = new PulsarKafkaSinkContext();
             connector.initialize(sinkContext);
             connector.start(Maps.fromProperties(props));
 
             List<Map<String, String>> configs = connector.taskConfigs(1);
-            SinkTask task = (SinkTask)taskClass.getConstructor().newInstance();
-            SinkTaskContextSim taskContext =
-                    new SinkTaskContextSim(configs.get(0), KafkaSinkWrappingProducer.getPartitions());
+            SinkTask task = (SinkTask) taskClass.getConstructor().newInstance();
+            PulsarKafkaSinkTaskContext taskContext =
+                    new PulsarKafkaSinkTaskContext(configs.get(0), KafkaSinkWrappingProducer.getPartitions());
             task.initialize(taskContext);
             task.start(configs.get(0));
             task.open(KafkaSinkWrappingProducer.getPartitions());
 
             Producer<K, V> producer = new KafkaSinkWrappingProducer<>(connector, task,
                     keySchema, valueSchema,
-                    sinkContext, taskContext);
+                    sinkContext, taskContext, props);
+
             return producer;
         } catch (Exception e) {
             log.error("Failed to create KafkaSinkWrappingProducer with {}, {} & {}",
@@ -102,18 +142,23 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
         }
     }
 
-    public KafkaSinkWrappingProducer(SinkConnector connector,
-                                     SinkTask task,
-                                     Schema defaultKeySchema,
-                                     Schema defaultValueSchema,
-                                     SinkContextSim sinkContext,
-                                     SinkTaskContextSim taskContext) {
+    private KafkaSinkWrappingProducer(SinkConnector connector,
+                                      SinkTask task,
+                                      Schema defaultKeySchema,
+                                      Schema defaultValueSchema,
+                                      PulsarKafkaSinkContext sinkContext,
+                                      PulsarKafkaSinkTaskContext taskContext,
+                                      Properties props) {
         this.connector = connector;
         this.task = task;
         this.defaultKeySchema = defaultKeySchema;
         this.defaultValueSchema = defaultValueSchema;
         this.sinkContext = sinkContext;
         this.taskContext = taskContext;
+        this.batchSize = getBatchSize(props);
+
+        long lingerMs = getLingerMs(props);
+        scheduledExecutor.scheduleAtFixedRate(() -> this.flushIfNeeded(true), lingerMs, lingerMs, TimeUnit.MILLISECONDS);
     }
 
     public static Set<TopicPartition> getPartitions() {
@@ -172,31 +217,89 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     @Override
     public Future<RecordMetadata> send(ProducerRecord<K, V> producerRecord) {
         sinkContext.throwIfNeeded();
-        task.put(Lists.newArrayList(toSinkRecord(producerRecord)));
-        flush();
-        return CompletableFuture.completedFuture(null);
+        CompletableFuture<RecordMetadata> result = new CompletableFuture<>();
+        try {
+            task.put(Lists.newArrayList(toSinkRecord(producerRecord)));
+        } catch (Exception ex) {
+            result.completeExceptionally(ex);
+            return result;
+        }
+        pendingFlush.whenComplete((ignore, ex) -> {
+            if (ex == null) {
+                result.complete(null);
+            } else {
+                result.completeExceptionally(ex);
+            }
+        });
+        numPendingRecords.incrementAndGet();
+        flushIfNeeded(false);
+        return result;
     }
 
     @Override
     public Future<RecordMetadata> send(ProducerRecord<K, V> producerRecord, Callback callback) {
         sinkContext.throwIfNeeded();
+        CompletableFuture<RecordMetadata> result = new CompletableFuture<>();
+        result.whenComplete((ignore, ex) -> {
+            if (ex == null) {
+                callback.onCompletion(null, null);
+            } else {
+                if (ex instanceof Exception) {
+                    callback.onCompletion(null, (Exception) ex);
+                } else {
+                    callback.onCompletion(null, new Exception(ex));
+                }
+            }
+            numPendingRecords.decrementAndGet();
+        });
+
         try {
             task.put(Lists.newArrayList(toSinkRecord(producerRecord)));
-            flush();
-            callback.onCompletion(null, null);
-        } catch (Exception e) {
-            callback.onCompletion(null, e);
+        } catch (Exception ex) {
+            result.completeExceptionally(ex);
+            return result;
         }
-        return CompletableFuture.completedFuture(null);
+        pendingFlush.whenComplete((ignore, ex) -> {
+            if (ex == null) {
+                result.complete(null);
+            } else {
+                result.completeExceptionally(ex);
+            }
+        });
+        numPendingRecords.incrementAndGet();
+        flushIfNeeded(false);
+        return result;
+    }
+
+    private void flushIfNeeded(boolean force) {
+        if (force || numPendingRecords.get() >= batchSize) {
+            flush();
+        }
     }
 
     @Override
     public void flush() {
         sinkContext.throwIfNeeded();
+
+        if (numPendingRecords.getAndSet(0) == 0) {
+            return;
+        }
+
+        CompletableFuture<Void> flushCf;
+        synchronized (this) {
+            flushCf = pendingFlush;
+            pendingFlush = new CompletableFuture<>();
+        }
+
         Map<TopicPartition, OffsetAndMetadata> currentOffsets = Maps.newHashMap();
         currentOffsets.put(topicPartition,
                 new OffsetAndMetadata(taskContext.currentOffset(), Optional.empty(), null));
-        task.flush(currentOffsets);
+        try {
+            task.flush(currentOffsets);
+            flushCf.complete(null);
+        } catch (Throwable t) {
+            flushCf.completeExceptionally(t);
+        }
     }
 
     @Override
@@ -220,7 +323,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     @Override
     public void close(Duration duration) {
         sinkContext.throwIfNeeded();
-        task.flush(Maps.newHashMap());
+        flush();
         task.stop();
         connector.stop();
     }
