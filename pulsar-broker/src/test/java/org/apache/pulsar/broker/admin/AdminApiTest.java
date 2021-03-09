@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -42,14 +43,18 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -111,6 +116,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
@@ -119,6 +125,7 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -429,6 +436,31 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
+    }
+
+    @Test
+    public void testPoliciesDeserialize() throws Exception {
+        final String namespace = "prop-xyz/ns1";
+        DispatchRate dispatchRate = new DispatchRate(1, 2, 3);
+        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+        admin.namespaces().setReplicatorDispatchRate(namespace, dispatchRate);
+        SubscribeRate subscribeRate = new SubscribeRate(1, 2);
+        admin.namespaces().setSubscribeRate(namespace, subscribeRate);
+        BacklogQuota backlogQuota = new BacklogQuota(1, RetentionPolicy.producer_request_hold);
+        admin.namespaces().setBacklogQuota(namespace, backlogQuota);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.namespaces().getReplicatorDispatchRate(namespace), dispatchRate));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.namespaces().getSubscribeRate(namespace), subscribeRate));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.namespaces().getBacklogQuotaMap(namespace).size(), 1));
+        final String policyPath = AdminResource.path(POLICIES, namespace);
+        Policies policies = pulsar.getPulsarResources().getNamespaceResources().get(policyPath).get();
+        assertTrue(policies.topicDispatchRate instanceof ConcurrentHashMap);
+        assertTrue(policies.replicatorDispatchRate instanceof ConcurrentHashMap);
+        assertTrue(policies.backlog_quota_map instanceof ConcurrentHashMap);
     }
 
     @Test

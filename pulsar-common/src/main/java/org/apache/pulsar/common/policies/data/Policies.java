@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -43,13 +45,19 @@ public class Policies {
     public Set<String> replication_clusters = Sets.newHashSet();
     public BundlesData bundles;
     @SuppressWarnings("checkstyle:MemberName")
-    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
+    @JsonDeserialize(as = ConcurrentHashMap.class)
+    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newConcurrentMap();
     @Deprecated
-    public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
-    public Map<String, DispatchRate> topicDispatchRate = Maps.newHashMap();
-    public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
-    public Map<String, DispatchRate> replicatorDispatchRate = Maps.newHashMap();
-    public Map<String, SubscribeRate> clusterSubscribeRate = Maps.newHashMap();
+    @JsonDeserialize(as = ConcurrentHashMap.class)
+    public Map<String, DispatchRate> clusterDispatchRate = Maps.newConcurrentMap();
+    @JsonDeserialize(as = ConcurrentHashMap.class)
+    public Map<String, DispatchRate> topicDispatchRate = Maps.newConcurrentMap();
+    @JsonDeserialize(as = ConcurrentHashMap.class)
+    public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newConcurrentMap();
+    @JsonDeserialize(as = ConcurrentHashMap.class)
+    public Map<String, DispatchRate> replicatorDispatchRate = Maps.newConcurrentMap();
+    @JsonDeserialize(as = ConcurrentHashMap.class)
+    public Map<String, SubscribeRate> clusterSubscribeRate = Maps.newConcurrentMap();
     public PersistencePolicies persistence = null;
 
     // If set, it will override the broker settings for enabling deduplication
@@ -58,10 +66,12 @@ public class Policies {
     public AutoTopicCreationOverride autoTopicCreationOverride = null;
     // If set, it will override the broker settings for allowing auto subscription creation
     public AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = null;
-    public Map<String, PublishRate> publishMaxMessageRate = Maps.newHashMap();
+    @JsonDeserialize(as = ConcurrentHashMap.class)
+    public Map<String, PublishRate> publishMaxMessageRate = Maps.newConcurrentMap();
 
     @SuppressWarnings("checkstyle:MemberName")
-    public Map<String, Integer> latency_stats_sample_rate = Maps.newHashMap();
+    @JsonDeserialize(as = ConcurrentHashMap.class)
+    public Map<String, Integer> latency_stats_sample_rate = Maps.newConcurrentMap();
     @SuppressWarnings("checkstyle:MemberName")
     public Integer message_ttl_in_seconds = null;
     @SuppressWarnings("checkstyle:MemberName")
