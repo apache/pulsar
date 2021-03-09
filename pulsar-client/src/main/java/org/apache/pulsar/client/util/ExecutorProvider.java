@@ -96,7 +96,7 @@ public class ExecutorProvider {
                         .collect(Collectors.toList());
 
         StringBuilder dump = new StringBuilder();
-        
+
         for (Map.Entry<Thread, StackTraceElement[]> e : activeThreads) {
             Thread thread = e.getKey();
             dump.append('\n');
