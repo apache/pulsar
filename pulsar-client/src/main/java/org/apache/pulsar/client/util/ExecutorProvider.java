@@ -20,9 +20,9 @@ package org.apache.pulsar.client.util;
 
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import javafx.util.Pair;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 import java.util.List;
@@ -68,7 +68,7 @@ public class ExecutorProvider {
             ExtendedThreadFactory threadFactory = new ExtendedThreadFactory(
                     poolName, Thread.currentThread().isDaemon());
             ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(threadFactory);
-            executors.add(new Pair<>(executor, threadFactory));
+            executors.add(Pair.of(executor, threadFactory));
         }
         isShutdown = false;
         this.poolName = poolName;
