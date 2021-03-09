@@ -21,7 +21,7 @@
 set -e
 
 cd /pulsar
-ROOT_DIR=$(pwd)
+ROOT_DIR=$(dirname $0)/../..
 cd $ROOT_DIR/pulsar-client-cpp/pkg/rpm
 
 POM_VERSION=`$ROOT_DIR/src/get-project-version.py`

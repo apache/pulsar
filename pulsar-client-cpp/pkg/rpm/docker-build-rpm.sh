@@ -20,7 +20,7 @@
 
 set -e
 
-ROOT_DIR=$(dirname $0)/../..
+ROOT_DIR=$(dirname $0)/../../../..
 
 docker pull apachepulsar/pulsar-build:centos-7
 
