@@ -26,13 +26,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class SinkTaskContextSim implements SinkTaskContext {
+public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     private final Map<String, String> config;
     private final Set<TopicPartition> partitions;
     private final AtomicLong offset = new AtomicLong(0L);
 
-    public SinkTaskContextSim(Map<String, String> config, Set<TopicPartition> partitions) {
+    public PulsarKafkaSinkTaskContext(Map<String, String> config, Set<TopicPartition> partitions) {
         this.config = config;
         this.partitions = partitions;
     }

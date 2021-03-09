@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.connector.ConnectorContext;
 
 @Slf4j
-public class SinkContextSim implements ConnectorContext {
+public class PulsarKafkaSinkContext implements ConnectorContext {
 
     volatile Exception lastException = null;
 
