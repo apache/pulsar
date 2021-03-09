@@ -27,6 +27,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.Schema.Parser;
@@ -45,6 +46,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -424,19 +426,6 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void newConsumerWithSchemaOnExistingTopicWithoutSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
-
-        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create();
-             Consumer<V1Data> c = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
-                .topic(topic).subscriptionName("sub1").subscribe()) {
-            Assert.fail("Shouldn't be able to consume with a schema from a topic which has no schema set");
-        } catch (PulsarClientException e) {
-            Assert.assertTrue(e instanceof IncompatibleSchemaException);
-        }
-    }
-
-    @Test
     public void newConsumerWithSchemaTopicHasSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -635,5 +624,41 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Assert.assertTrue(httpLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
         Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
         Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
+    }
+
+    @Test
+    public void testAutoCreatedSchema() throws Exception {
+        final String topic1 = "persistent://my-property/my-ns/testAutoCreatedSchema-1";
+        final String topic2 = "persistent://my-property/my-ns/testAutoCreatedSchema-2";
+
+        try (Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic1).create()) {
+            // topic1's schema becomes BYTES now.
+        }
+        try {
+            admin.schemas().getSchemaInfo(topic1);
+            fail("The schema of topic1 should not exist");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 404);
+        }
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic1).create()) {
+            // Should pass, STRING schema is compatible with BYTES schema
+        }
+        Assert.assertEquals(admin.schemas().getSchemaInfo(topic1).getType(), SchemaType.STRING);
+
+        try (Consumer<byte[]> consumer
+                     = pulsarClient.newConsumer(Schema.BYTES).topic(topic2).subscriptionName("sub").subscribe()) {
+            // topic2's schema becomes BYTES now.
+        }
+        try {
+            admin.schemas().getSchemaInfo(topic2);
+            fail("The schema of topic2 should not exist");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 404);
+        }
+        try (Consumer<String> consumer
+                     = pulsarClient.newConsumer(Schema.STRING).topic(topic2).subscriptionName("sub").subscribe()) {
+            // topic2's schema becomes BYTES now.
+        }
+        Assert.assertEquals(admin.schemas().getSchemaInfo(topic2).getType(), SchemaType.STRING);
     }
 }
