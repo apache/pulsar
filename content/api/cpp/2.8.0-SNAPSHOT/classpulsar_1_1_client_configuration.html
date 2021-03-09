@@ -105,6 +105,10 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:af68d49bea5fbd9762e21a40fd95bc2b4"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="af68d49bea5fbd9762e21a40fd95bc2b4"></a>
 <a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a> &amp;)</td></tr>
 <tr class="separator:af68d49bea5fbd9762e21a40fd95bc2b4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af210745300be240b56ba71b77edc06fe"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#af210745300be240b56ba71b77edc06fe">setMemoryLimit</a> (uint64_t memoryLimitBytes)</td></tr>
+<tr class="separator:af210745300be240b56ba71b77edc06fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa60e5e74d0a079941a2f07f3f2c52eb8"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#aa60e5e74d0a079941a2f07f3f2c52eb8">getMemoryLimit</a> () const </td></tr>
+<tr class="separator:aa60e5e74d0a079941a2f07f3f2c52eb8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a16a85a3a43b649d3e45b4e998695b723"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#a16a85a3a43b649d3e45b4e998695b723">setAuth</a> (const AuthenticationPtr &amp;authentication)</td></tr>
 <tr class="separator:a16a85a3a43b649d3e45b4e998695b723"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aafbf0377be1ba157d3b7455b34af9d37"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_authentication.html">Authentication</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#aafbf0377be1ba157d3b7455b34af9d37">getAuth</a> () const </td></tr>
@@ -243,6 +247,22 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <p>Get the path of log configuration file (log4cpp) </p>
+
+</div>
+</div>
+<a class="anchor" id="aa60e5e74d0a079941a2f07f3f2c52eb8"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint64_t pulsar::ClientConfiguration::getMemoryLimit </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>the client memory limit in bytes </dd></dl>
 
 </div>
 </div>
@@ -403,6 +423,29 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 <p>Configure a custom logger backend to route of Pulsar client library to a different logger implementation.</p>
 <p>By default, log messages are printed on standard output.</p>
 <p>When passed in, the configuration takes ownership of the loggerFactory object. The logger factory can only be set once per process. Any subsequent calls to set the logger factory will have no effect, though the logger factory object will be cleaned up. </p>
+
+</div>
+</div>
+<a class="anchor" id="af210745300be240b56ba71b77edc06fe"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a>&amp; pulsar::ClientConfiguration::setMemoryLimit </td>
+          <td>(</td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>memoryLimitBytes</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Configure a limit on the amount of memory that will be allocated by this client instance. Setting this to 0 will disable the limit. By default this is disabled.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">memoryLimitBytes</td><td>the memory limit </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

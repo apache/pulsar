@@ -23,6 +23,7 @@ var searchData=
   ['getlogconffilepath',['getLogConfFilePath',['../classpulsar_1_1_client_configuration.html#a529fd8eca1a762badfabbe6a379fd52e',1,'pulsar::ClientConfiguration']]],
   ['getmaxpendingmessagesacrosspartitions',['getMaxPendingMessagesAcrossPartitions',['../classpulsar_1_1_producer_configuration.html#a4791e6a58ba180382e9fdc1e349a4188',1,'pulsar::ProducerConfiguration']]],
   ['getmaxtotalreceiverqueuesizeacrosspartitions',['getMaxTotalReceiverQueueSizeAcrossPartitions',['../classpulsar_1_1_consumer_configuration.html#a2ad7b00cae770f1f75ad5791ddf22052',1,'pulsar::ConsumerConfiguration']]],
+  ['getmemorylimit',['getMemoryLimit',['../classpulsar_1_1_client_configuration.html#aa60e5e74d0a079941a2f07f3f2c52eb8',1,'pulsar::ClientConfiguration']]],
   ['getmessageid',['getMessageId',['../classpulsar_1_1_message.html#a21e6cb758f3ed40507023f76ee9b791d',1,'pulsar::Message']]],
   ['getmessagelistenerthreads',['getMessageListenerThreads',['../classpulsar_1_1_client_configuration.html#a5e0051dc9e1d106dac05038402c588f5',1,'pulsar::ClientConfiguration']]],
   ['getmsgbacklog',['getMsgBacklog',['../classpulsar_1_1_broker_consumer_stats.html#a453c7d2e95d471d6ca3f3416bb9fc211',1,'pulsar::BrokerConsumerStats']]],

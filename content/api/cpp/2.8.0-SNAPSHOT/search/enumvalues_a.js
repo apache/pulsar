@@ -21,6 +21,7 @@ var searchData=
   ['resultinvalidtxnstatuserror',['ResultInvalidTxnStatusError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba742ada2f12ae5b2ca11fa674889dc186',1,'pulsar']]],
   ['resultinvalidurl',['ResultInvalidUrl',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba685954a2aedb14c0f3669d579bfd1193',1,'pulsar']]],
   ['resultlookuperror',['ResultLookupError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba42ae88341f22c34ed9baac35804f1b01',1,'pulsar']]],
+  ['resultmemorybufferisfull',['ResultMemoryBufferIsFull',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba7eaf7df2c4a2ac2f874e044db02c6733',1,'pulsar']]],
   ['resultmessagetoobig',['ResultMessageTooBig',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba43765d6a6cab85363b2cad047371294b',1,'pulsar']]],
   ['resultnotallowederror',['ResultNotAllowedError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbad38a4ab387c0769f3c8c30fd2c7413a1',1,'pulsar']]],
   ['resultnotconnected',['ResultNotConnected',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba00976fab0138d80c5fc621e3a44046b6',1,'pulsar']]],
