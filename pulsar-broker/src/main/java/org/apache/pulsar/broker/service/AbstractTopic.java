@@ -735,6 +735,7 @@ public abstract class AbstractTopic implements Topic {
         //topic-level policy is not set, try to use namespace-level rate policy
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
         final PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
+                && clusterName != null
                 ? policies.publishMaxMessageRate.get(clusterName)
                 : null;
 
