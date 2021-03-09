@@ -226,6 +226,29 @@
         </execution>
       </executions>
     </plugin>
+<!--    <plugin>-->
+<!--      <groupId>org.apache.maven.plugins</groupId>-->
+<!--      <artifactId>maven-assembly-plugin</artifactId>-->
+<!--      <version>3.3.0</version>-->
+<!--      <configuration>-->
+<!--        &lt;!&ndash; get all project dependencies &ndash;&gt;-->
+<!--        <descriptorRefs>-->
+<!--          <descriptorRef>jar-with-dependencies</descriptorRef>-->
+<!--        </descriptorRefs>-->
+<!--        <finalName>pulsar-common-jar</finalName>-->
+<!--        <appendAssemblyId>false</appendAssemblyId>-->
+<!--      </configuration>-->
+<!--      <executions>-->
+<!--        <execution>-->
+<!--          <id>make-assembly</id>-->
+<!--          &lt;!&ndash; bind to the packaging phase &ndash;&gt;-->
+<!--          <phase>package</phase>-->
+<!--          <goals>-->
+<!--            <goal>single</goal>-->
+<!--          </goals>-->
+<!--        </execution>-->
+<!--      </executions>-->
+<!--    </plugin>-->
     <plugin>
       <groupId>com.github.spotbugs</groupId>
       <artifactId>spotbugs-maven-plugin</artifactId>

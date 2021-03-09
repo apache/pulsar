@@ -17,6 +17,6 @@
  * under the License.
  */
 /**
- * Configuration classes for IO.
+ * Classes to work with schemas.
  */
-package org.apache.pulsar.common.io;
+package org.apache.pulsar.common.protocol.schema.util;

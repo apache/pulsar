@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.protocol.schema;
+package org.apache.pulsar.common.protocol.schema.util;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -26,6 +26,8 @@ import lombok.experimental.UtilityClass;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.Schema;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
