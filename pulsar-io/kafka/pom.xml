@@ -73,12 +73,6 @@
     </dependency>
 
     <dependency>
-      <groupId>io.confluent</groupId>
-      <artifactId>kafka-streams-avro-serde</artifactId>
-      <version>${kafka.confluent.avroserializer.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>

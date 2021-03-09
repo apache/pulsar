@@ -86,6 +86,11 @@ final class AvroSchemaCache {
                 public Schema<ByteBuffer> clone() {
                     return this;
                 }
+
+                @Override
+                public ByteBuffer decode(byte[] bytes, byte[] schemaVersion) {
+                    throw new UnsupportedOperationException();
+                }
             };
         } catch (IOException | RestClientException e) {
             throw new RuntimeException(e);
