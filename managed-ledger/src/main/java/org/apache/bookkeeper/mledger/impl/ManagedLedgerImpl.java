@@ -2764,6 +2764,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                            scheduledExecutor, name)
                             .whenComplete((ignore2, exception) -> {
                                     if (exception != null) {
+                                        log.error("Failed to offload data for ledgerId {}", ledgerId, exception);
                                         cleanupOffloaded(
                                             ledgerId, uuid,
                                             driverName, driverMetadata,
@@ -2954,6 +2955,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                                                        * identify offloader
                                                                                        */
             Map<String, String> offloadDriverMetadata, String cleanupReason) {
+        log.info("cleanup offloaded data uuid {} for reason {}", uuid.toString(), cleanupReason);
         Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
                 Retries.NonFatalPredicate,
                 () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, offloadDriverMetadata),
@@ -2961,6 +2963,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (exception != null) {
                         log.warn("Error cleaning up offload for {}, (cleanup reason: {})", ledgerId, cleanupReason,
                                 exception);
+                        return;
                     }
                 });
     }
