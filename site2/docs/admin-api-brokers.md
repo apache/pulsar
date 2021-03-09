@@ -72,6 +72,7 @@ BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 ```java
 admin.brokers().getLeaderBroker()
 ```
+For the detail of the code above, see [here](https://github.com/apache/pulsar/blob/master/pulsar-client-admin/src/main/java/org/apache/pulsar/client/admin/internal/BrokersImpl.java#L80)
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
