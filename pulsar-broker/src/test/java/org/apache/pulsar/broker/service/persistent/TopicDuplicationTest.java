@@ -224,6 +224,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testTopicPolicyTakeSnapshot() throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
@@ -231,7 +232,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(7);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -335,12 +335,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     }
 
     private void testTakeSnapshot(boolean enabledSnapshot) throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(enabledSnapshot ? 1 : 0);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -412,12 +412,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testNamespacePolicyTakeSnapshot() throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(3);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -464,12 +464,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testDisableNamespacePolicyTakeSnapshot() throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 

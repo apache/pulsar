@@ -707,12 +707,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.auth_policies.namespace_auth.put("spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
 
-        // set default quotas on namespace
-        Policies.setStorageQuota(policies, ConfigHelper.backlogQuota(conf));
         policies.topicDispatchRate.put("test", ConfigHelper.topicDispatchRate(conf));
-        policies.subscriptionDispatchRate.put("test", ConfigHelper.subscriptionDispatchRate(conf));
         policies.clusterSubscribeRate.put("test", ConfigHelper.subscribeRate(conf));
-        policies.max_unacked_messages_per_subscription = 200000;
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/ns1"), policies.auth_policies.namespace_auth);
@@ -1107,6 +1103,46 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().deleteNamespace("prop-xyz/ns1-bundles");
         assertEquals(admin.namespaces().getNamespaces("prop-xyz", "test"), Lists.newArrayList());
+    }
+
+    @Test
+    public void testDeleteTenantForcefully() throws Exception {
+        String tenant = "my-tenant";
+        assertFalse(admin.tenants().getTenants().contains(tenant));
+
+        // create tenant
+        admin.tenants().createTenant(tenant,
+                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+
+        assertTrue(admin.tenants().getTenants().contains(tenant));
+
+        // create namespace
+        String namespace = tenant + "/my-ns";
+        admin.namespaces().createNamespace("my-tenant/my-ns", Sets.newHashSet("test"));
+
+        assertEquals(admin.namespaces().getNamespaces(tenant), Lists.newArrayList("my-tenant/my-ns"));
+
+        // create topic
+        String topic = namespace + "/my-topic";
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        assertFalse(admin.topics().getList(namespace).isEmpty());
+
+        try {
+            admin.tenants().deleteTenant(tenant, false);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // Expected: cannot delete non-empty tenant
+        }
+
+        // delete tenant forcefully
+        admin.tenants().deleteTenant(tenant, true);
+        assertFalse(admin.tenants().getTenants().contains(tenant));
+
+        admin.tenants().createTenant(tenant,
+                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+        assertTrue(admin.tenants().getTenants().contains(tenant));
+        assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
     }
 
     @Test
@@ -1638,11 +1674,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void backlogQuotas() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop-xyz/ns1"),
-                ConfigHelper.backlogQuotaMap(conf));
+                Maps.newHashMap());
 
         Map<BacklogQuotaType, BacklogQuota> quotaMap = admin.namespaces().getBacklogQuotaMap("prop-xyz/ns1");
-        assertEquals(quotaMap.size(), 1);
-        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), ConfigHelper.backlogQuota(conf));
+        assertEquals(quotaMap.size(), 0);
+        assertNull(quotaMap.get(BacklogQuotaType.destination_storage));
 
         admin.namespaces().setBacklogQuota("prop-xyz/ns1",
                 new BacklogQuota(1 * 1024 * 1024, RetentionPolicy.producer_exception));
@@ -1654,8 +1690,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeBacklogQuota("prop-xyz/ns1");
 
         quotaMap = admin.namespaces().getBacklogQuotaMap("prop-xyz/ns1");
-        assertEquals(quotaMap.size(), 1);
-        assertEquals(quotaMap.get(BacklogQuotaType.destination_storage), ConfigHelper.backlogQuota(conf));
+        assertEquals(quotaMap.size(), 0);
+        assertNull(quotaMap.get(BacklogQuotaType.destination_storage));
     }
 
     @Test

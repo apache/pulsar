@@ -928,10 +928,6 @@ TEST(BatchMessageTest, testPartitionedTopics) {
 
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages - globalPublishCountQueueFull);
-
-    for (const auto& q : PulsarFriend::getProducerMessageQueue(producer, Partitioned)) {
-        ASSERT_EQ(0, q->reservedSpots());
-    }
 }
 
 TEST(BatchMessageTest, producerFailureResult) {
@@ -1040,10 +1036,6 @@ TEST(BatchMessageTest, testSendCallback) {
 
     latch.wait();
     ASSERT_EQ(sentIdSet, receivedIdSet);
-
-    for (const auto& q : PulsarFriend::getProducerMessageQueue(producer, NonPartitioned)) {
-        ASSERT_EQ(0, q->reservedSpots());
-    }
 
     consumer.close();
     producer.close();
