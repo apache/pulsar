@@ -364,6 +364,11 @@ public class ManagedCursorContainerTest {
                 throws InterruptedException, ManagedLedgerException {
             return null;
         }
+
+        @Override
+        public boolean checkAndUpdateReadPositionChanged() {
+            return false;
+        }
     }
 
     @Test

@@ -20,23 +20,21 @@ package org.apache.pulsar.client.impl.transaction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.google.common.collect.Lists;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * The default implementation of {@link Transaction}.
@@ -63,11 +61,22 @@ public class TransactionImpl implements Transaction {
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
+    private volatile State state;
+
+    public enum State {
+        OPEN,
+        COMMITTING,
+        ABORTING,
+        COMMITTED,
+        ABORTED,
+        ERROR
+    }
 
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
                     long txnIdLeastBits,
                     long txnIdMostBits) {
+        this.state = State.OPEN;
         this.client = client;
         this.transactionTimeoutMs = transactionTimeoutMs;
         this.txnIdLeastBits = txnIdLeastBits;
@@ -82,15 +91,19 @@ public class TransactionImpl implements Transaction {
     }
 
     // register the topics that will be modified by this transaction
-    public synchronized CompletableFuture<Void> registerProducedTopic(String topic) {
-        // we need to issue the request to TC to register the produced topic
-        return registerPartitionMap.compute(topic, (key, future) -> {
-            if (future != null) {
-                return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-            } else {
-                return tcClient.addPublishPartitionToTxnAsync(
-                            new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic))
-                        .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+    public CompletableFuture<Void> registerProducedTopic(String topic) {
+        return checkIfOpen().thenCompose(value -> {
+            synchronized (TransactionImpl.this) {
+                // we need to issue the request to TC to register the produced topic
+                return registerPartitionMap.compute(topic, (key, future) -> {
+                    if (future != null) {
+                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                    } else {
+                        return tcClient.addPublishPartitionToTxnAsync(
+                                new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic))
+                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                    }
+                });
             }
         });
     }
@@ -100,15 +113,19 @@ public class TransactionImpl implements Transaction {
     }
 
     // register the topics that will be modified by this transaction
-    public synchronized CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
-        // we need to issue the request to TC to register the acked topic
-        return registerSubscriptionMap.compute(topic, (key, future) -> {
-            if (future != null) {
-                return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-            } else {
-                return tcClient.addSubscriptionToTxnAsync(
-                        new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription)
-                        .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+    public CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
+        return checkIfOpen().thenCompose(value -> {
+            synchronized (TransactionImpl.this) {
+                // we need to issue the request to TC to register the acked topic
+                return registerSubscriptionMap.compute(topic, (key, future) -> {
+                    if (future != null) {
+                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                    } else {
+                        return tcClient.addSubscriptionToTxnAsync(
+                                new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription)
+                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                    }
+                });
             }
         });
     }
@@ -126,52 +143,78 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-        allOpComplete().whenComplete((v, e) -> {
-            if (e != null) {
-                abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
-            } else {
-                tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
-                        .whenComplete((vx, ex) -> {
-                    if (ex != null) {
-                        commitFuture.completeExceptionally(ex);
-                    } else {
-                        commitFuture.complete(vx);
-                    }
-                });
-            }
+        return checkIfOpen().thenCompose((value) -> {
+            CompletableFuture<Void> commitFuture = new CompletableFuture<>();
+            this.state = State.COMMITTING;
+            allOpComplete().whenComplete((v, e) -> {
+                if (e != null) {
+                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
+                } else {
+                    tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
+                            .whenComplete((vx, ex) -> {
+                                if (ex != null) {
+                                    if (ex instanceof TransactionNotFoundException
+                                            || ex instanceof InvalidTxnStatusException) {
+                                        this.state = State.ERROR;
+                                    }
+                                    commitFuture.completeExceptionally(ex);
+                                } else {
+                                    this.state = State.COMMITTED;
+                                    commitFuture.complete(vx);
+                                }
+                            });
+                }
+            });
+            return commitFuture;
         });
-        return commitFuture;
     }
 
     @Override
     public CompletableFuture<Void> abort() {
-        CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-        allOpComplete().whenComplete((v, e) -> {
-            if (e != null) {
-                log.error(e.getMessage());
-            }
-            if (cumulativeAckConsumers != null) {
-                cumulativeAckConsumers.forEach((consumer, integer) ->
-                        cumulativeAckConsumers
-                                .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
-            }
-            tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
+        return checkIfOpen().thenCompose(value -> {
+            CompletableFuture<Void> abortFuture = new CompletableFuture<>();
+            this.state = State.ABORTING;
+            allOpComplete().whenComplete((v, e) -> {
+                if (e != null) {
+                    log.error(e.getMessage());
+                }
                 if (cumulativeAckConsumers != null) {
-                    cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
-                    cumulativeAckConsumers.clear();
+                    cumulativeAckConsumers.forEach((consumer, integer) ->
+                            cumulativeAckConsumers
+                                    .putIfAbsent(consumer, consumer.clearIncomingMessagesAndGetMessageNumber()));
                 }
+                tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
+                    if (cumulativeAckConsumers != null) {
+                        cumulativeAckConsumers.forEach(ConsumerImpl::increaseAvailablePermits);
+                        cumulativeAckConsumers.clear();
+                    }
 
-                if (ex != null) {
-                    abortFuture.completeExceptionally(ex);
-                } else {
-                    abortFuture.complete(null);
-                }
+                    if (ex != null) {
+                        if (ex instanceof TransactionNotFoundException
+                                || ex instanceof InvalidTxnStatusException) {
+                            this.state = State.ERROR;
+                        }
+                        abortFuture.completeExceptionally(ex);
+                    } else {
+                        this.state = State.ABORTED;
+                        abortFuture.complete(null);
+                    }
 
+                });
             });
-        });
 
-        return abortFuture;
+            return abortFuture;
+        });
+    }
+
+    private CompletableFuture<Void> checkIfOpen() {
+        if (state == State.OPEN) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
+                    + txnIdLeastBits + "] with unexpected state : "
+                    + state.name() + ", expect " + State.OPEN + " state!"));
+        }
     }
 
     private CompletableFuture<Void> allOpComplete() {

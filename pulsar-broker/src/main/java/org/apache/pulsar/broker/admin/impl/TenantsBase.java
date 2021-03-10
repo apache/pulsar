@@ -227,6 +227,7 @@ public class TenantsBase extends PulsarWebResource {
     @ApiOperation(value = "Delete a tenant and all namespaces and topics under it.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 405, message = "Broker doesn't allow forced deletion of tenants"),
             @ApiResponse(code = 409, message = "The tenant still has active namespaces") })
     public void deleteTenant(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant,
@@ -290,6 +291,12 @@ public class TenantsBase extends PulsarWebResource {
     }
 
     protected void internalDeleteTenantForcefully(AsyncResponse asyncResponse, String tenant) {
+        if (!pulsar().getConfiguration().isForceDeleteTenantAllowed()) {
+            asyncResponse.resume(
+                    new RestException(Status.METHOD_NOT_ALLOWED, "Broker doesn't allow forced deletion of tenants"));
+            return;
+        }
+
         List<String> namespaces;
         try {
             namespaces = getListOfNamespaces(tenant);

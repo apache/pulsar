@@ -34,6 +34,7 @@
 #include "OpSendMsg.h"
 #include "BatchMessageContainerBase.h"
 #include "PendingFailures.h"
+#include "Semaphore.h"
 
 using namespace pulsar;
 
@@ -45,6 +46,7 @@ typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
 class PulsarFriend;
 
 class Producer;
+class MemoryLimitController;
 
 class ProducerImpl : public HandlerBase,
                      public std::enable_shared_from_this<ProducerImpl>,
@@ -91,7 +93,7 @@ class ProducerImpl : public HandlerBase,
    protected:
     ProducerStatsBasePtr producerStatsBasePtr_;
 
-    typedef BlockingQueue<OpSendMsg> MessageQueue;
+    typedef std::deque<OpSendMsg> MessageQueue;
 
     void setMessageMetadata(const Message& msg, const uint64_t& sequenceId, const uint32_t& uncompressedSize);
 
@@ -129,6 +131,10 @@ class ProducerImpl : public HandlerBase,
     bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
                         SharedBuffer& encryptedPayload);
 
+    Result canEnqueueRequest(uint32_t payloadSize);
+    void releaseSemaphore(uint32_t payloadSize);
+    void releaseSemaphoreForSendOp(const OpSendMsg& op);
+
     void cancelTimers();
 
     typedef std::unique_lock<std::mutex> Lock;
@@ -137,6 +143,7 @@ class ProducerImpl : public HandlerBase,
 
     ExecutorServicePtr executor_;
 
+    std::unique_ptr<Semaphore> semaphore_;
     MessageQueue pendingMessagesQueue_;
 
     int32_t partition_;  // -1 if topic is non-partitioned
@@ -168,6 +175,8 @@ class ProducerImpl : public HandlerBase,
     MessageCryptoPtr msgCrypto_;
     DeadlineTimerPtr dataKeyGenTImer_;
     uint32_t dataKeyGenIntervalSec_;
+
+    MemoryLimitController& memoryLimitController_;
 };
 
 struct ProducerImplCmp {

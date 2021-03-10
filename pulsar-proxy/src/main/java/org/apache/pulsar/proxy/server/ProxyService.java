@@ -163,6 +163,11 @@ public class ProxyService implements Closeable {
     }
 
     public void start() throws Exception {
+        if (proxyConfig.isAuthorizationEnabled() && !proxyConfig.isAuthenticationEnabled()) {
+            throw new IllegalStateException("Invalid proxy configuration. Authentication must be enabled with "
+                    + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
+        }
+
         if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getConfigurationStoreServers())) {
             localMetadataStore = createLocalMetadataStore();
             configMetadataStore = createConfigurationMetadataStore();

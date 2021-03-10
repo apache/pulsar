@@ -138,6 +138,9 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
 
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(txn, TransactionImpl.State.OPEN);
         producer.newMessage(txn).value(TEST2.getBytes()).send();
 
         message = consumer.receive(2, TimeUnit.SECONDS);
@@ -236,6 +239,9 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         assertTrue(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
                 ((TransactionImpl) txn).getTxnIdLeastBits())));
         txn.commit().get();
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(txn, TransactionImpl.State.OPEN);
         assertFalse(individualAckOfTransaction.containsKey(new TxnID(((TransactionImpl) txn).getTxnIdMostBits(),
                 ((TransactionImpl) txn).getTxnIdLeastBits())));
 

@@ -29,4 +29,18 @@ public class EventsTopicNames {
      */
     public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
 
+    /**
+     * Local topic name for the namespace events.
+     */
+    public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
+
+    public static boolean checkTopicIsEventsNames(String topicName) {
+        if (topicName.endsWith(NAMESPACE_EVENTS_LOCAL_NAME)) {
+            return true;
+        } else if (topicName.endsWith(TRANSACTION_BUFFER_SNAPSHOT)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 }
