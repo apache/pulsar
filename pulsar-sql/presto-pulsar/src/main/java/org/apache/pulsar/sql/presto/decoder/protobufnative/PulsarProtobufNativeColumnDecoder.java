@@ -112,7 +112,7 @@ public class PulsarProtobufNativeColumnDecoder {
             List<Type> typeParameters = type.getTypeParameters();
             checkArgument(typeParameters.size() == 2,
                     "expecting exactly two type parameters for map");
-            return isSupportedType(type.getTypeParameters().get(1)) && isSupportedType(type.getTypeParameters().get(0));
+            return isSupportedType(typeParameters.get(1)) && isSupportedType(typeParameters.get(0));
         }
 
         if (type instanceof RowType) {

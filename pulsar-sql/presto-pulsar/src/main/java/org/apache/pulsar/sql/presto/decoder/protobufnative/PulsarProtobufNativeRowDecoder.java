@@ -24,6 +24,7 @@ import static io.prestosql.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
 
 import com.google.protobuf.DynamicMessage;
+import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
@@ -65,7 +66,7 @@ public class PulsarProtobufNativeRowDecoder implements PulsarRowDecoder {
             GenericProtobufNativeRecord record = (GenericProtobufNativeRecord) genericProtobufNativeSchema.decode(byteBuf);
             dynamicMessage = record.getProtobufRecord();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e);
             throw new PrestoException(GENERIC_INTERNAL_ERROR, "Decoding protobuf record failed.", e);
         }
         return Optional.of(columnDecoders.entrySet().stream()
@@ -73,4 +74,6 @@ public class PulsarProtobufNativeRowDecoder implements PulsarRowDecoder {
                         Map.Entry::getKey,
                         entry -> entry.getValue().decodeField(dynamicMessage))));
     }
+
+    private static final Logger log = Logger.get(PulsarProtobufNativeRowDecoder.class);
 }
