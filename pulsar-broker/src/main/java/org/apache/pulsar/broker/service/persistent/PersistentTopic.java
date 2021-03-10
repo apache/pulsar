@@ -1621,6 +1621,10 @@ public class PersistentTopic extends AbstractTopic
                 topicStatsHelper.aggMsgRateOut += subMsgRateOut;
                 topicStatsHelper.aggMsgThroughputOut += subMsgThroughputOut;
                 nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog(false);
+                // check stuck subscription
+                if (brokerService.getPulsar().getConfig().isUnblockStuckSubscriptionEnabled()) {
+                    subscription.checkAndUnblockIfStuck();
+                }
             } catch (Exception e) {
                 log.error("Got exception when creating consumer stats for subscription {}: {}", subscriptionName,
                         e.getMessage(), e);
