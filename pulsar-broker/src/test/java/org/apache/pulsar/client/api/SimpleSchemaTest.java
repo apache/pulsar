@@ -56,6 +56,7 @@ import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -422,6 +423,19 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             V1Data toSend = new V1Data(1);
             p.send(toSend);
             Assert.assertEquals(toSend, c.receive().getValue());
+        }
+    }
+
+    @Test
+    public void newConsumerWithSchemaOnExistingTopicWithoutSchema() throws Exception {
+        String topic = "my-property/my-ns/schema-test";
+
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create();
+             Consumer<V1Data> c = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                     .topic(topic).subscriptionName("sub1").subscribe()) {
+            Assert.fail("Shouldn't be able to consume with a schema from a topic which has no schema set");
+        } catch (PulsarClientException e) {
+            Assert.assertTrue(e instanceof IncompatibleSchemaException);
         }
     }
 

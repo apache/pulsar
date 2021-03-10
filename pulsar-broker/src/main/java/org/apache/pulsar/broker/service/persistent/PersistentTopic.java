@@ -2513,7 +2513,10 @@ public class PersistentTopic extends AbstractTopic
                 int numActiveConsumers = subscriptions.values().stream()
                         .map(subscription -> subscription.getConsumers().size())
                         .reduce(0, Integer::sum);
-                if (hasSchema || (numActiveConsumers != 0) || (ledger.getTotalSize() != 0)) {
+                if (hasSchema
+                        || (!producers.isEmpty())
+                        || (numActiveConsumers != 0)
+                        || (ledger.getTotalSize() != 0)) {
                     return checkSchemaCompatibleForConsumer(schema);
                 } else {
                     return addSchema(schema).thenCompose(schemaVersion ->
