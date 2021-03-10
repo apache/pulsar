@@ -69,6 +69,8 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
+
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -361,6 +363,12 @@ public class PerformanceProducer {
                         client.topics().createPartitionedTopic(topic, arguments.createTopicPartitions);
                     } catch (PulsarAdminException.ConflictException alreadyExists) {
                         log.debug("Topic "+topic+" already exists: " + alreadyExists);
+                        PartitionedTopicMetadata partitionedTopicMetadata = client.topics().getPartitionedTopicMetadata(topic);
+                        if (partitionedTopicMetadata.partitions != arguments.createTopicPartitions) {
+                            log.error("Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
+                                    topic, partitionedTopicMetadata.partitions, arguments.createTopicPartitions);
+                            System.exit(-1);
+                        }
                     }
                 }
             }
