@@ -26,8 +26,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.junit.Test;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
     @Override

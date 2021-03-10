@@ -19,12 +19,10 @@
 package org.apache.pulsar.io.flume.source;
 
 import static org.mockito.Mockito.mock;
-
+import static org.testng.Assert.assertEquals;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
-
 import java.util.Map;
-
 import org.apache.flume.Channel;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
@@ -36,7 +34,6 @@ import org.apache.flume.event.EventBuilder;
 import org.apache.flume.sink.AvroSink;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.flume.AbstractFlumeTests;
-import org.junit.Assert;
 import org.mockito.Mock;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -101,10 +98,10 @@ public class StringSourceTests extends AbstractFlumeTests {
 
         for (int i = 0; i < 5; i++) {
             Sink.Status status = sink.process();
-            Assert.assertEquals(Sink.Status.READY, status);
+            assertEquals(status, Sink.Status.READY);
         }
 
-        Assert.assertEquals(Sink.Status.BACKOFF, sink.process());
+        assertEquals(sink.process(), Sink.Status.BACKOFF);
         stringSource.close();
     }
 }

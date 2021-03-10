@@ -19,21 +19,20 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
-
+import static org.testng.Assert.assertNotNull;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Consumer;
@@ -53,9 +52,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
@@ -103,7 +99,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
     /**
      * Validates proxy connection stats api.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -143,7 +139,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
     /**
      * Validate proxy topic stats api
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -194,7 +190,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
     /**
      * Change proxy log level dynamically
-     * 
+     *
      * @throws Exception
      */
     @Test
