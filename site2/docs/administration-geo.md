@@ -45,6 +45,32 @@ All messages produced in any of the three clusters are delivered to all subscrip
 
 As stated in [Geo-replication and Pulsar properties](#geo-replication-and-pulsar-properties) section, geo-replication in Pulsar is managed at the [tenant](reference-terminology.md#tenant) level.
 
+The following example connects three clusters: **us-east**, **us-west**, and **us-cent**.
+
+### Connect Clusters
+
+To replicate among clusters, you must first configure each cluster to connect to the other. You can use the [`pulsar-admin`](reference-pulsar-admin.md#clusters) tool to create the connection.
+
+Run the following command in **us-west** to configure the connection to **us-east**:
+
+```shell
+$ bin/pulsar-admin clusters create \
+  --broker-url pulsar://<DNS-OF-US-EAST>:<PORT>	\
+  --url http://<DNS-OF-US-EAST>:<PORT> \
+  us-east
+```
+
+Then, run the following command in **us-west** to configure the connection to **us-cent**:
+
+```shell
+$ bin/pulsar-admin clusters create \
+  --broker-url pulsar://<DNS-OF-US-CENT>:<PORT>	\
+  --url http://<DNS-OF-US-CENT>:<PORT> \
+  us-cent
+```
+
+Analogous commands will need to be run in **us-east** and **us-cent** to create the remaining necessary cluster connections for replication. For clusters using a secure connection, see the [`pulsar-admin`](reference-pulsar-admin.md#clusters) create command. 
+
 ### Grant permissions to properties
 
 To replicate to a cluster, the tenant needs permission to use that cluster. You can grant permission to the tenant when you create the tenant or grant later.
