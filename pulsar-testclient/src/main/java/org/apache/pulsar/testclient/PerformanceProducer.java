@@ -56,6 +56,7 @@ import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -119,6 +120,9 @@ public class PerformanceProducer {
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
         public String serviceURL;
 
+        @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
+        public String adminURL;
+
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
@@ -142,7 +146,7 @@ public class PerformanceProducer {
         @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
         public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
-        @Parameter(names = { "--partitions" }, description = "Create a partitioned topics with the given number of partitions, set 0 to not create the topic")
+        @Parameter(names = { "-np", "--partitions" }, description = "Create partitioned topics with the given number of partitions, set 0 to not try to create the topic")
         public int createTopicPartitions = 0;
 
         @Parameter(names = { "-c",
@@ -275,6 +279,13 @@ public class PerformanceProducer {
                 arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
             }
 
+            if (arguments.adminURL == null) {
+                arguments.adminURL = prop.getProperty("webServiceUrl");
+            }
+            if (arguments.adminURL == null) {
+                arguments.adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
+            }
+
             if (arguments.authPluginClassName == null) {
                 arguments.authPluginClassName = prop.getProperty("authPlugin", null);
             }
@@ -332,7 +343,7 @@ public class PerformanceProducer {
 
         if (arguments.createTopicPartitions > 0) {
             PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
-                    .serviceHttpUrl(arguments.serviceURL)
+                    .serviceHttpUrl(arguments.adminURL)
                     .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
             if (isNotBlank(arguments.authPluginClassName)) {
@@ -343,13 +354,16 @@ public class PerformanceProducer {
                 clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
             }
 
-            PulsarAdmin client = clientBuilder.build();
-            for (int i = 0; i < arguments.numTopics; i++) {
-                String topic = arguments.topics.get(i);
-                log.info("Creating partitioned topic {} with {} partitions", topic, arguments.createTopicPartitions);
-                client.topics().createPartitionedTopic(topic, arguments.createTopicPartitions);
+            try (PulsarAdmin client = clientBuilder.build();) {
+                for (String topic : arguments.topics) {
+                    log.info("Creating partitioned topic {} with {} partitions", topic, arguments.createTopicPartitions);
+                    try {
+                        client.topics().createPartitionedTopic(topic, arguments.createTopicPartitions);
+                    } catch (PulsarAdminException.ConflictException alreadyExists) {
+                        log.debug("Topic "+topic+" already exists: " + alreadyExists);
+                    }
+                }
             }
-            client.close();
         }
 
         CountDownLatch doneLatch = new CountDownLatch(arguments.numTestThreads);
