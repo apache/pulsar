@@ -177,12 +177,11 @@ public class ThreadRuntime implements Runtime {
                 String.format("%s-%s",
                         FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
                         instanceConfig.getInstanceId()));
-        this.fnThread.setContextClassLoader(functionClassLoader);
-        this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-            @Override
-            public void uncaughtException(Thread t, Throwable e) {
-                log.error("Uncaught exception in thread {}", t, e);
-            }
+        this.fnThread.setUncaughtExceptionHandler((t, e) -> {
+            ClassLoader instanceClassLoader = t.getContextClassLoader();
+            t.setContextClassLoader(functionClassLoader);
+            log.error("Uncaught exception in thread {}", t, e);
+            t.setContextClassLoader(instanceClassLoader);
         });
         this.fnThread.start();
     }
