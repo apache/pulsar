@@ -24,8 +24,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.file.FileStreamSourceConnector;
+import org.apache.kafka.connect.runtime.TaskConfig;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,13 +43,37 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 
-public class KafkaSinkWrappingProducerTest {
+public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
+
+    private String offsetTopicName =  "persistent://my-property/my-ns/kafka-connect-sink-offset";
+
+    private Path file;
+    private Properties props;
+
+    @Before
+    @Override
+    protected void setup() throws Exception {
+        super.internalSetup();
+        super.producerBaseSetup();
+
+        file = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
+
+        props = new Properties();
+        props.put("file", file.toString());
+        props.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, brokerUrl.toString());
+        props.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, offsetTopicName);
+    }
+
+    @After
+    @Override
+    protected void cleanup() throws Exception {
+        Files.delete(file);
+
+        super.internalCleanup();
+    }
 
     @Test
     public void SmokeTest() throws Exception {
-        Properties props = new Properties();
-        Path file = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-        props.put("file", file.toString());
         Producer<String, String> producer =
                 KafkaSinkWrappingProducer.create(
                     "org.apache.kafka.connect.file.FileStreamSinkConnector",
@@ -73,14 +105,10 @@ public class KafkaSinkWrappingProducerTest {
         List<String> lines = Files.readAllLines(file, StandardCharsets.US_ASCII);
         assertEquals("value", lines.get(0));
 
-        Files.delete(file);
     }
 
     @Test
     public void BytesRecordWithSchemaTest() throws Exception {
-        Properties props = new Properties();
-        Path file = Paths.get(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-        props.put("file", file.toString());
         // configure with wrong schema, schema from ProducerRecordWithSchema should be used
         Producer<String, byte[]> producer =
                 KafkaSinkWrappingProducer.create(
@@ -118,8 +146,6 @@ public class KafkaSinkWrappingProducerTest {
         assertEquals("val", result.get("value"));
         assertEquals("STRING", result.get("keySchema"));
         assertEquals("BYTES", result.get("valueSchema"));
-
-        Files.delete(file);
     }
 
 

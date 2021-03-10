@@ -19,13 +19,14 @@
 
 package org.apache.pulsar.io.kafka.connect;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.producer.*;
+import org.apache.kafka.clients.producer.Callback;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.*;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.record.TimestampType;
@@ -38,12 +39,10 @@ import org.apache.kafka.connect.sink.SinkTask;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /***
  * Adapter from a SinkTask to a KafkaProducer to use producer api to write to the sink.
@@ -70,15 +69,10 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     private volatile CompletableFuture<Void> pendingFlush = new CompletableFuture<>();
 
-    public final static String TOPIC_NAME = "fake-topic";
-
-    private final static Set<TopicPartition> partitions =
-            ImmutableSet.of(new TopicPartition(TOPIC_NAME, 0));
     private final static Node node = new Node(0, "localhost", 0);
-    private final static PartitionInfo info = new PartitionInfo(TOPIC_NAME, 0, node, new Node[]{node}, new Node[]{node});
-    private final static TopicPartition topicPartition = new TopicPartition(TOPIC_NAME, 0);
-    private final static List<PartitionInfo> partitionInfos = ImmutableList.of(info);
+    private static final Node[] replicas = new Node[]{node};
 
+    //final ConcurrentHashMap<TopicPartition, AtomicLong> offsets = new ConcurrentHashMap<>();
 
     private static long getLingerMs(Properties props) {
         long lingerMs = 2147483647L; // as in kafka
@@ -125,10 +119,9 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
             List<Map<String, String>> configs = connector.taskConfigs(1);
             SinkTask task = (SinkTask) taskClass.getConstructor().newInstance();
             PulsarKafkaSinkTaskContext taskContext =
-                    new PulsarKafkaSinkTaskContext(configs.get(0), KafkaSinkWrappingProducer.getPartitions());
+                    new PulsarKafkaSinkTaskContext(configs.get(0), task::open);
             task.initialize(taskContext);
             task.start(configs.get(0));
-            task.open(KafkaSinkWrappingProducer.getPartitions());
 
             Producer<K, V> producer = new KafkaSinkWrappingProducer<>(connector, task,
                     keySchema, valueSchema,
@@ -159,10 +152,6 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
         long lingerMs = getLingerMs(props);
         scheduledExecutor.scheduleAtFixedRate(() -> this.flushIfNeeded(true), lingerMs, lingerMs, TimeUnit.MILLISECONDS);
-    }
-
-    public static Set<TopicPartition> getPartitions() {
-        return partitions;
     }
 
     @Override
@@ -208,7 +197,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
                 producerRecord.key(),
                 valueSchema,
                 producerRecord.value(),
-                taskContext.getAndIncrementOffset(),
+                taskContext.currentOffset(producerRecord.topic(), partition).getAndIncrement(),
                 producerRecord.timestamp(),
                 TimestampType.NO_TIMESTAMP_TYPE);
         return sinkRecord;
@@ -285,17 +274,16 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
             return;
         }
 
+        Map<TopicPartition, OffsetAndMetadata> currentOffsets = taskContext.currentOffsets();
         CompletableFuture<Void> flushCf;
         synchronized (this) {
             flushCf = pendingFlush;
             pendingFlush = new CompletableFuture<>();
         }
 
-        Map<TopicPartition, OffsetAndMetadata> currentOffsets = Maps.newHashMap();
-        currentOffsets.put(topicPartition,
-                new OffsetAndMetadata(taskContext.currentOffset(), Optional.empty(), null));
         try {
             task.flush(currentOffsets);
+            taskContext.flushOffsets(currentOffsets);
             flushCf.complete(null);
         } catch (Throwable t) {
             flushCf.completeExceptionally(t);
@@ -303,9 +291,12 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     }
 
     @Override
-    public List<PartitionInfo> partitionsFor(String s) {
+    public List<PartitionInfo> partitionsFor(String topic) {
         sinkContext.throwIfNeeded();
-        return partitionInfos;
+        return taskContext.assignment().stream()
+                .filter(x -> x.topic().equals(topic))
+                .map(x -> new PartitionInfo(x.topic(), x.partition(), node, replicas, replicas))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -326,5 +317,6 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
         flush();
         task.stop();
         connector.stop();
+        taskContext.close();
     }
 }

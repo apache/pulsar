@@ -19,22 +19,53 @@
 
 package org.apache.pulsar.io.kafka.connect;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkTaskContext;
+import org.apache.kafka.connect.storage.OffsetBackingStore;
 
-import java.util.Map;
-import java.util.Set;
+import java.nio.ByteBuffer;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
+
+@Slf4j
 public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     private final Map<String, String> config;
-    private final Set<TopicPartition> partitions;
-    private final AtomicLong offset = new AtomicLong(0L);
 
-    public PulsarKafkaSinkTaskContext(Map<String, String> config, Set<TopicPartition> partitions) {
+    private final OffsetBackingStore offsetStore;
+    private final String topicNamespace;
+    private final Consumer<Collection<TopicPartition>> onPartitionChange;
+    private final AtomicBoolean runRepartition = new AtomicBoolean(false);
+
+    private final ConcurrentHashMap<TopicPartition, AtomicLong> currentOffsets = new ConcurrentHashMap<>();
+
+    public PulsarKafkaSinkTaskContext(Map<String, String> config,
+                                      Consumer<Collection<TopicPartition>> onPartitionChange) {
         this.config = config;
-        this.partitions = partitions;
+
+        offsetStore = new PulsarOffsetBackingStore();
+        PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(config);
+        offsetStore.configure(pulsarKafkaWorkerConfig);
+        offsetStore.start();
+
+        this.onPartitionChange = onPartitionChange;
+        this.topicNamespace = pulsarKafkaWorkerConfig.getString(TOPIC_NAMESPACE_CONFIG);
+    }
+
+    public void close() {
+        offsetStore.stop();
     }
 
     @Override
@@ -42,24 +73,93 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
         return config;
     }
 
-    public long getAndIncrementOffset() {
-        return offset.getAndIncrement();
+    public AtomicLong currentOffset(String topic, int partition) {
+        return currentOffset(new TopicPartition(topic, partition));
     }
 
-    public long currentOffset() {
-        return offset.get();
+    public AtomicLong currentOffset(TopicPartition topicPartition) {
+        AtomicLong offset = currentOffsets.computeIfAbsent(topicPartition, kv -> {
+            List<ByteBuffer> req = Lists.newLinkedList();
+            ByteBuffer key = topicPartitionAsKey(topicPartition);
+            req.add(key);
+            CompletableFuture<Long> offsetFuture = new CompletableFuture<>();
+            offsetStore.get(req, (Throwable ex, Map<ByteBuffer, ByteBuffer> result) -> {
+                if (ex == null) {
+                    if (result != null && result.size() != 0) {
+                        Optional<ByteBuffer> val = result.entrySet().stream()
+                                .filter(entry -> entry.getKey().equals(key))
+                                .findFirst().map(entry -> entry.getValue());
+                        if (val.isPresent()) {
+                            offsetFuture.complete(val.get().getLong());
+                            return;
+                        }
+                    }
+                    offsetFuture.complete(0L);
+                } else {
+                    offsetFuture.completeExceptionally(ex);
+                }
+            });
+
+            runRepartition.set(true);
+            try {
+                return new AtomicLong(offsetFuture.get());
+            } catch (Exception e) {
+                log.error("error getting initial state of " + topicPartition.toString(), e);
+                return new AtomicLong(0L);
+            }
+        });
+        if (runRepartition.compareAndSet(true, false)) {
+            onPartitionChange.accept(currentOffsets.keySet());
+        }
+        return offset;
     }
 
+    public Map<TopicPartition, OffsetAndMetadata> currentOffsets() {
+
+        Map<TopicPartition, OffsetAndMetadata> snapshot = Maps.newHashMapWithExpectedSize(currentOffsets.size());
+        currentOffsets.forEach((topicPartition, offset) -> {
+            snapshot.put(topicPartition,
+                    new OffsetAndMetadata(offset.get(), Optional.empty(), null));
+        });
+        return snapshot;
+    }
+
+    private ByteBuffer topicPartitionAsKey(TopicPartition topicPartition) {
+        return ByteBuffer.wrap((topicNamespace + "/" + topicPartition.toString()).getBytes(UTF_8));
+
+    }
+
+    private void fillOffsetMap(Map<ByteBuffer, ByteBuffer> offsetMap, TopicPartition topicPartition, long l) {
+        ByteBuffer key = topicPartitionAsKey(topicPartition);
+        ByteBuffer value = ByteBuffer.allocate(Long.BYTES);
+        value.putLong(l);
+        offsetMap.put(key, value);
+    }
+
+    @SneakyThrows
     @Override
     public void offset(Map<TopicPartition, Long> map) {
-        map.entrySet().stream().forEach(kv -> offset(kv.getKey(), kv.getValue()));
+
+        map.forEach((key, value) -> {
+            if (currentOffsets.containsKey(key)) {
+                currentOffsets.get(key).set(value);
+            } else {
+                if(null == currentOffsets.putIfAbsent(key, new AtomicLong(value))) {
+                    runRepartition.set(true);
+                }
+            }
+        });
+
+        if (runRepartition.compareAndSet(true, false)) {
+            onPartitionChange.accept(currentOffsets.keySet());
+        }
     }
 
     @Override
     public void offset(TopicPartition topicPartition, long l) {
-        if (partitions.contains(topicPartition)) {
-            offset.set(l);
-        }
+        Map<TopicPartition, Long> map = Maps.newHashMap();
+        map.put(topicPartition, l);
+        this.offset(map);
     }
 
     @Override
@@ -69,7 +169,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     @Override
     public Set<TopicPartition> assignment() {
-        return partitions;
+        return currentOffsets.keySet();
     }
 
     @Override
@@ -85,5 +185,20 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     @Override
     public void requestCommit() {
         // noop
+    }
+
+    public void flushOffsets(Map<TopicPartition, OffsetAndMetadata> offsets) throws Exception {
+        Map<ByteBuffer, ByteBuffer> offsetMap = Maps.newHashMapWithExpectedSize(offsets.size());
+
+        offsets.forEach((tp, om) -> fillOffsetMap(offsetMap, tp, om.offset()));
+        CompletableFuture<Void> result = new CompletableFuture();
+        offsetStore.set(offsetMap, (ex, ignore) -> {
+            if (ex == null) {
+                result.complete(null);
+            } else {
+                result.completeExceptionally(ex);
+            }
+        });
+        result.get();
     }
 }
