@@ -375,6 +375,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Allow forced deletion of tenants. Default is false."
+    )
+    private boolean forceDeleteTenantAllowed = false;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Allow forced deletion of namespaces. Default is false."
+    )
+    private boolean forceDeleteNamespaceAllowed = false;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Max pending publish requests per connection to avoid keeping large number of pending "
                 + "requests in memory. Default: 1000"

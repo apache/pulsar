@@ -1106,6 +1106,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteTenantForcefully() throws Exception {
+        // allow forced deletion of tenants
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+
         String tenant = "my-tenant";
         assertFalse(admin.tenants().getTenants().contains(tenant));
 
@@ -1134,6 +1137,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // Expected: cannot delete non-empty tenant
         }
 
+        // allow forced deletion of namespaces
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+
         // delete tenant forcefully
         admin.tenants().deleteTenant(tenant, true);
         assertFalse(admin.tenants().getTenants().contains(tenant));
@@ -1142,6 +1148,52 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
         assertTrue(admin.tenants().getTenants().contains(tenant));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
+
+        // reset back to false
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+    }
+
+    @Test
+    public void testForceDeleteTenantNotAllowed() throws Exception {
+        assertFalse(pulsar.getConfiguration().isForceDeleteTenantAllowed());
+
+        String tenant = "my-tenant";
+        assertFalse(admin.tenants().getTenants().contains(tenant));
+
+        // create tenant
+        admin.tenants().createTenant(tenant,
+                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
+
+        assertTrue(admin.tenants().getTenants().contains(tenant));
+
+        // create namespace
+        String namespace = tenant + "/my-ns";
+        admin.namespaces().createNamespace("my-tenant/my-ns", Sets.newHashSet("test"));
+
+        assertEquals(admin.namespaces().getNamespaces(tenant), Lists.newArrayList("my-tenant/my-ns"));
+
+        // create topic
+        String topic = namespace + "/my-topic";
+        admin.topics().createPartitionedTopic(topic, 10);
+
+        assertFalse(admin.topics().getList(namespace).isEmpty());
+
+        try {
+            admin.tenants().deleteTenant(tenant, false);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // Expected: cannot delete non-empty tenant
+        }
+
+        try {
+            admin.tenants().deleteTenant(tenant, true);
+            fail("should have failed");
+        } catch (PulsarAdminException e) {
+            // Expected: cannot delete due to broker is not allowed
+        }
+
+        assertTrue(admin.tenants().getTenants().contains(tenant));
     }
 
     @Test
