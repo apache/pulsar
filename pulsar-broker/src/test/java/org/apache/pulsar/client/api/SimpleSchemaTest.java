@@ -56,7 +56,6 @@ import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -75,6 +74,11 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     @DataProvider(name = "schemaValidationModes")
     public static Object[][] schemaValidationModes() {
         return new Object[][] { { true }, { false } };
+    }
+
+    @DataProvider(name = "topicDomain")
+    public static Object[] topicDomain() {
+        return new Object[] { "persistent://", "non-persistent://" };
     }
 
     private final boolean schemaValidationEnforced;
@@ -640,10 +644,10 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
     }
 
-    @Test
-    public void testAutoCreatedSchema() throws Exception {
-        final String topic1 = "persistent://my-property/my-ns/testAutoCreatedSchema-1";
-        final String topic2 = "persistent://my-property/my-ns/testAutoCreatedSchema-2";
+    @Test(dataProvider = "topicDomain")
+    public void testAutoCreatedSchema(String domain) throws Exception {
+        final String topic1 = domain + "my-property/my-ns/testAutoCreatedSchema-1";
+        final String topic2 = domain + "my-property/my-ns/testAutoCreatedSchema-2";
 
         pulsarClient.newProducer(Schema.BYTES).topic(topic1).create().close();
         try {

@@ -2511,8 +2511,8 @@ public class PersistentTopic extends AbstractTopic
         return hasSchema()
             .thenCompose((hasSchema) -> {
                 int numActiveConsumers = subscriptions.values().stream()
-                        .map(subscription -> subscription.getConsumers().size())
-                        .reduce(0, Integer::sum);
+                        .mapToInt(subscription -> subscription.getConsumers().size())
+                        .sum();
                 if (hasSchema
                         || (!producers.isEmpty())
                         || (numActiveConsumers != 0)
