@@ -16,21 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.impl;
+package org.apache.pulsar.broker.transaction.buffer.matadata;
 
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
- * A provider that provides topic implementations of {@link TransactionBuffer}.
+ * Abort txn metadata.
  */
-public class TopicTransactionBufferProvider implements TransactionBufferProvider {
-
-    @Override
-    public TransactionBuffer newTransactionBuffer(Topic originTopic, CompletableFuture<Void> transactionBufferFuture) {
-        return new TopicTransactionBuffer((PersistentTopic) originTopic, transactionBufferFuture);
-    }
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
+public class AbortTxnMetadata {
+    long txnIdMostBits;
+    long txnIdLeastBits;
+    long ledgerId;
+    long entryId;
 }

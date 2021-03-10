@@ -1081,7 +1081,7 @@ public class ClientCnx extends PulsarHandler {
         this.remoteHostName = remoteHostName;
     }
 
-    public static PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
+    private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:
             return new PulsarClientException.AuthenticationException(errorMsg);

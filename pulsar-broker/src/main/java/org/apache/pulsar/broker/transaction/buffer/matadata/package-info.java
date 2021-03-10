@@ -16,21 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.impl;
-
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
-
 /**
- * A provider that provides topic implementations of {@link TransactionBuffer}.
+ * The transaction buffer snapshot metadata.
  */
-public class TopicTransactionBufferProvider implements TransactionBufferProvider {
-
-    @Override
-    public TransactionBuffer newTransactionBuffer(Topic originTopic, CompletableFuture<Void> transactionBufferFuture) {
-        return new TopicTransactionBuffer((PersistentTopic) originTopic, transactionBufferFuture);
-    }
-}
+package org.apache.pulsar.broker.transaction.buffer.matadata;
