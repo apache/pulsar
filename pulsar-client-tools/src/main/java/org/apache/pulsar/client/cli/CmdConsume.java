@@ -440,7 +440,7 @@ public class CmdConsume {
             AtomicLong count = messagesPerKey.computeIfAbsent(key, k -> new AtomicLong());
             long newValue = count.incrementAndGet();
             if (failOnDuplicateKey && newValue == 2) {
-                String message = "Key '"+key+"' has been received more than once";
+                String message = "Key '" + key + "' has been received more than once";
                 log.error(message);
                 throw new Exception(message);
             }
