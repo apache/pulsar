@@ -85,8 +85,7 @@ public class FunctionsCLITest extends PulsarFunctionsTestBase {
         };
         output = container.execCmd(diffCommand);
         assertEquals(0, output.getExitCode());
-        assertTrue(output.getStdout().isEmpty());
-        assertTrue(output.getStderr().isEmpty());
+        output.assertNoOutput();
     }
 
 

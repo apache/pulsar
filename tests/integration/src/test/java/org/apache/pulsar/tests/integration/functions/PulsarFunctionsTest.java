@@ -569,10 +569,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             result.getStdout().contains("Deleted successfully"),
             result.getStdout()
         );
-        assertTrue(
-            result.getStderr().isEmpty(),
-            result.getStderr()
-        );
+        result.assertNoStderr();
     }
 
     protected void getSinkInfoNotFound(String tenant, String namespace, String sinkName) throws Exception {
@@ -842,10 +839,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             result.getStdout().contains("Delete source successfully"),
             result.getStdout()
         );
-        assertTrue(
-            result.getStderr().isEmpty(),
-            result.getStderr()
-        );
+        result.assertNoStderr();
     }
 
     protected void getSourceInfoNotFound(String tenant, String namespace, String sourceName) throws Exception {
@@ -2156,7 +2150,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--name", functionName
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
     @Test(groups = "function")
