@@ -23,8 +23,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.beust.jcommander.internal.Maps;
 import com.google.common.collect.Sets;
-import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -133,7 +133,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testBacklogQuotaWithReader() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
-          ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
           new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
         try (PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS).build();) {
@@ -204,7 +204,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testTriggerBacklogQuotaWithReader() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
-          ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
           new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
         try (PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS).build();) {
@@ -263,7 +263,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testConsumerBacklogEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
-                ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
@@ -295,7 +295,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testConsumerBacklogEvictionWithAck() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
-                ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).build();
@@ -327,7 +327,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testConcurrentAckAndEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
-                ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
 
@@ -400,7 +400,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testNoEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
-                ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
 
@@ -466,7 +466,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testEvictionMulti() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
-                ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(15 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
 
@@ -575,7 +575,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testAheadProducerOnHold() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
-                ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_request_hold));
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
@@ -614,7 +614,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testAheadProducerOnHoldTimeout() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
-                ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_request_hold));
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
@@ -649,7 +649,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testProducerException() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
-                ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
@@ -686,7 +686,7 @@ public class BacklogQuotaManagerTest {
     @Test
     public void testProducerExceptionAndThenUnblock() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
-                ConfigHelper.backlogQuotaMap(config));
+                Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())

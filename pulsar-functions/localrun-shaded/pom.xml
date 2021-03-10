@@ -133,6 +133,10 @@
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.grpc</shadedPattern>
                                 </relocation>
                                 <relocation>
+                                    <pattern>io.perfmark</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.perfmark</shadedPattern>
+                                </relocation>
+                                <relocation>
                                     <pattern>org.joda</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.joda</shadedPattern>
                                 </relocation>

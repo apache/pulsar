@@ -119,10 +119,14 @@ public class CmdTenants extends CmdBase {
         @Parameter(description = "tenant-name", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "Delete a tenant forcefully by deleting all namespaces under it.")
+        private boolean force = false;
+
         @Override
         void run() throws PulsarAdminException {
             String tenant = getOneArgument(params);
-            getAdmin().tenants().deleteTenant(tenant);
+            getAdmin().tenants().deleteTenant(tenant, force);
         }
     }
 

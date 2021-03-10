@@ -55,9 +55,9 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        this.conf.setClusterName("test");
         super.internalSetup();
         super.producerBaseSetup();
-        this.conf.setClusterName("test");
     }
 
     @AfterMethod(alwaysRun = true)

@@ -25,6 +25,7 @@ namespace pulsar {
 
 struct ClientConfigurationImpl {
     AuthenticationPtr authenticationPtr;
+    uint64_t memoryLimit;
     int ioThreads;
     int operationTimeoutSeconds;
     int messageListenerThreads;
@@ -41,6 +42,7 @@ struct ClientConfigurationImpl {
 
     ClientConfigurationImpl()
         : authenticationPtr(AuthFactory::Disabled()),
+          memoryLimit(0ull),
           ioThreads(1),
           operationTimeoutSeconds(30),
           messageListenerThreads(1),

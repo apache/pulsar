@@ -325,6 +325,12 @@ public abstract class NamespacesBase extends AdminResource {
         validateTenantOperation(namespaceName.getTenant(), TenantOperation.DELETE_NAMESPACE);
         validatePoliciesReadOnlyAccess();
 
+        if (!pulsar().getConfiguration().isForceDeleteNamespaceAllowed()) {
+            asyncResponse.resume(
+                    new RestException(Status.METHOD_NOT_ALLOWED, "Broker doesn't allow forced deletion of namespaces"));
+            return;
+        }
+
         // ensure that non-global namespace is directed to the correct cluster
         if (!namespaceName.isGlobal()) {
             validateClusterOwnership(namespaceName.getCluster());
@@ -1198,8 +1204,6 @@ public abstract class NamespacesBase extends AdminResource {
         validateSuperUserAccess();
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
-        Entry<Policies, Stat> policiesNode = null;
-
         try {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
@@ -1215,19 +1219,29 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalDeleteSubscriptionDispatchRate() {
+        validateSuperUserAccess();
+
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            updatePolicies(path, (policies) -> {
+                policies.subscriptionDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                return policies;
+            });
+            log.info("[{}] Successfully delete the subscriptionDispatchRate for cluster on namespace {}",
+                    clientAppId(), namespaceName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to delete the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     protected DispatchRate internalGetSubscriptionDispatchRate() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        DispatchRate dispatchRate =
-                policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
-        if (dispatchRate != null) {
-            return dispatchRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "Subscription-Dispatch-rate is not configured for cluster "
-                            + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {
@@ -1248,15 +1262,43 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalDeleteSubscribeRate() {
+        validateSuperUserAccess();
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            updatePolicies(path, (policies) -> {
+                policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
+                return policies;
+            });
+            log.info("[{}] Successfully delete the subscribeRate for cluster on namespace {}", clientAppId(),
+                    namespaceName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to delete the subscribeRate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     protected SubscribeRate internalGetSubscribeRate() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
-        SubscribeRate subscribeRate = policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
-        if (subscribeRate != null) {
-            return subscribeRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "Subscribe-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
+        return policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
+    }
+
+    protected void internalRemoveReplicatorDispatchRate() {
+        validateSuperUserAccess();
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            updatePolicies(path, (policies) -> {
+                policies.replicatorDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                return policies;
+            });
+            log.info("[{}] Successfully delete the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
+                    namespaceName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to delete the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
         }
     }
 
@@ -1282,14 +1324,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        DispatchRate dispatchRate = policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
-        if (dispatchRate != null) {
-            return dispatchRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "replicator-Dispatch-rate is not configured for cluster "
-                            + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     protected void internalSetBacklogQuota(BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
@@ -1376,11 +1411,21 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalDeletePersistence() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+        doUpdatePersistence(null);
+    }
+
     protected void internalSetPersistence(PersistencePolicies persistence) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         validatePersistencePolicies(persistence);
 
+        doUpdatePersistence(persistence);
+    }
+
+    private void doUpdatePersistence(PersistencePolicies persistence) {
         try {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies)->{
@@ -2067,15 +2112,14 @@ public abstract class NamespacesBase extends AdminResource {
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_consumer;
     }
 
-    protected void internalSetMaxUnackedMessagesPerConsumer(int maxUnackedMessagesPerConsumer) {
+    protected void internalSetMaxUnackedMessagesPerConsumer(Integer maxUnackedMessagesPerConsumer) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-
+        if (maxUnackedMessagesPerConsumer != null && maxUnackedMessagesPerConsumer < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedMessagesPerConsumer must be 0 or more");
+        }
         try {
-            if (maxUnackedMessagesPerConsumer < 0) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "maxUnackedMessagesPerConsumer must be 0 or more");
-            }
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies)->{
                 policies.max_unacked_messages_per_consumer = maxUnackedMessagesPerConsumer;
@@ -2093,7 +2137,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected int internalGetMaxUnackedMessagesPerSubscription() {
+    protected Integer internalGetMaxUnackedMessagesPerSubscription() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_unacked_messages_per_subscription;
     }
@@ -2113,15 +2157,14 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("max_subscriptions_per_topic", maxSubscriptionsPerTopic);
     }
 
-    protected void internalSetMaxUnackedMessagesPerSubscription(int maxUnackedMessagesPerSubscription) {
+    protected void internalSetMaxUnackedMessagesPerSubscription(Integer maxUnackedMessagesPerSubscription) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-
+        if (maxUnackedMessagesPerSubscription != null && maxUnackedMessagesPerSubscription < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedMessagesPerSubscription must be 0 or more");
+        }
         try {
-            if (maxUnackedMessagesPerSubscription < 0) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "maxUnackedMessagesPerSubscription must be 0 or more");
-            }
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies) -> {
                 policies.max_unacked_messages_per_subscription = maxUnackedMessagesPerSubscription;

@@ -48,11 +48,11 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
         this.conf.setClusterName("test");
         this.conf.setTopicPublisherThrottlingTickTimeMillis(1);
         this.conf.setBrokerPublisherThrottlingTickTimeMillis(1);
+        super.internalSetup();
+        super.producerBaseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
