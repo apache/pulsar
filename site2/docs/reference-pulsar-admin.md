@@ -135,6 +135,14 @@ Usage
 $ pulsar-admin brokers list cluster-name
 ```
 
+### `leader-broker`
+Get the information of the leader broker
+
+Usage
+```bash
+$ pulsar-admin brokers leader-broker
+```
+
 ### `namespaces`
 List namespaces owned by the broker
 

@@ -99,6 +99,9 @@ public class PulsarAdminToolTest {
         brokers.run(split("list use"));
         verify(mockBrokers).getActiveBrokers("use");
 
+        brokers.run(split("leader-broker"));
+        verify(mockBrokers).getLeaderBroker();
+
         brokers.run(split("namespaces use --url http://my-service.url:8080"));
         verify(mockBrokers).getOwnedNamespaces("use", "http://my-service.url:8080");
 
