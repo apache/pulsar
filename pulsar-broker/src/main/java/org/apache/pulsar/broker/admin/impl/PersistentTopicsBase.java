@@ -2733,8 +2733,24 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected Optional<PersistencePolicies> internalGetPersistence(){
-        return getTopicPolicies(topicName).map(TopicPolicies::getPersistence);
+    protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied) {
+        PersistencePolicies persistencePolicies = getTopicPolicies(topicName)
+                .map(TopicPolicies::getPersistence)
+                .orElseGet(() -> {
+                    if (applied) {
+                        PersistencePolicies namespacePolicy = getNamespacePolicies(namespaceName)
+                                .persistence;
+                        return namespacePolicy == null
+                                ? new PersistencePolicies(
+                                        pulsar().getConfiguration().getManagedLedgerDefaultEnsembleSize(),
+                                        pulsar().getConfiguration().getManagedLedgerDefaultWriteQuorum(),
+                                        pulsar().getConfiguration().getManagedLedgerDefaultAckQuorum(),
+                                        pulsar().getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit())
+                                : namespacePolicy;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(persistencePolicies);
     }
 
     protected CompletableFuture<Void> internalSetPersistence(PersistencePolicies persistencePolicies) {

@@ -1565,6 +1565,19 @@ public interface Namespaces {
     CompletableFuture<Void> removeBacklogQuotaAsync(String namespace);
 
     /**
+     * Remove the persistence configuration on a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removePersistence(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the persistence configuration on a namespace asynchronously.
+     * @param namespace
+     */
+    CompletableFuture<Void> removePersistenceAsync(String namespace);
+
+    /**
      * Set the persistence configuration for all the topics on a namespace.
      * <p/>
      * Set the persistence configuration on a namespace.

@@ -468,6 +468,39 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
     }
 
+    @Test(timeOut = 20000)
+    public void testGetPersistenceApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getPersistence(topic));
+        assertNull(admin.namespaces().getPersistence(myNamespace));
+        PersistencePolicies brokerPolicy
+                = new PersistencePolicies(pulsar.getConfiguration().getManagedLedgerDefaultEnsembleSize(),
+                pulsar.getConfiguration().getManagedLedgerDefaultWriteQuorum(),
+                pulsar.getConfiguration().getManagedLedgerDefaultAckQuorum(),
+                pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+        assertEquals(admin.topics().getPersistence(topic, true), brokerPolicy);
+        PersistencePolicies namespacePolicy
+                = new PersistencePolicies(5,4,3,2);
+
+        admin.namespaces().setPersistence(myNamespace, namespacePolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getPersistence(myNamespace)));
+        assertEquals(admin.topics().getPersistence(topic, true), namespacePolicy);
+
+        PersistencePolicies topicPolicy = new PersistencePolicies(4, 3, 2, 1);
+        admin.topics().setPersistence(topic, topicPolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getPersistence(topic)));
+        assertEquals(admin.topics().getPersistence(topic, true), topicPolicy);
+
+        admin.namespaces().removePersistence(myNamespace);
+        admin.topics().removePersistence(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getPersistence(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getPersistence(topic)));
+        assertEquals(admin.topics().getPersistence(topic, true), brokerPolicy);
+    }
+
     @Test
     public void testCheckPersistence() throws Exception {
         PersistencePolicies persistencePolicies = new PersistencePolicies(6, 2, 2, 0.0);
