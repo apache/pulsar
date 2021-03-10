@@ -631,34 +631,28 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         final String topic1 = "persistent://my-property/my-ns/testAutoCreatedSchema-1";
         final String topic2 = "persistent://my-property/my-ns/testAutoCreatedSchema-2";
 
-        try (Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic1).create()) {
-            // topic1's schema becomes BYTES now.
-        }
+        pulsarClient.newProducer(Schema.BYTES).topic(topic1).create().close();
         try {
+            // BYTES schema is treated as no schema
             admin.schemas().getSchemaInfo(topic1);
             fail("The schema of topic1 should not exist");
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 404);
         }
-        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic1).create()) {
-            // Should pass, STRING schema is compatible with BYTES schema
-        }
+        pulsarClient.newProducer(Schema.STRING).topic(topic1).create().close();
+        // topic1's schema becomes STRING now
         Assert.assertEquals(admin.schemas().getSchemaInfo(topic1).getType(), SchemaType.STRING);
 
-        try (Consumer<byte[]> consumer
-                     = pulsarClient.newConsumer(Schema.BYTES).topic(topic2).subscriptionName("sub").subscribe()) {
-            // topic2's schema becomes BYTES now.
-        }
+        pulsarClient.newConsumer(Schema.BYTES).topic(topic2).subscriptionName("sub").subscribe().close();
         try {
+            // BYTES schema is treated as no schema
             admin.schemas().getSchemaInfo(topic2);
             fail("The schema of topic2 should not exist");
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 404);
         }
-        try (Consumer<String> consumer
-                     = pulsarClient.newConsumer(Schema.STRING).topic(topic2).subscriptionName("sub").subscribe()) {
-            // topic2's schema becomes BYTES now.
-        }
+        pulsarClient.newConsumer(Schema.STRING).topic(topic2).subscriptionName("sub").subscribe().close();
+        // topic2's schema becomes STRING now.
         Assert.assertEquals(admin.schemas().getSchemaInfo(topic2).getType(), SchemaType.STRING);
     }
 }
