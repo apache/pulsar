@@ -36,12 +36,11 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.HexDump;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
@@ -74,6 +73,7 @@ import org.slf4j.LoggerFactory;
  *
  */
 @Parameters(commandDescription = "Consume messages from a specified topic")
+@Slf4j
 public class CmdConsume {
 
     private static final Logger LOG = LoggerFactory.getLogger(PulsarClientTool.class);
@@ -122,10 +122,17 @@ public class CmdConsume {
             "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
                     + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue;
-    
+
+    @Parameter(names = { "--fail-on-duplicate-key"}, description = "Fail in case of consumption of a duplicate message")
+    private boolean failOnDuplicateKey = false;
+
+    @Parameter(names = { "--dump-key-stats"}, description = "Dump statistics about received keys at the end of the execution")
+    private boolean dumpKeyStats = false;
+
     private ClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
+    private DataConsistencyChecker dataConsistencyChecker;
 
     public CmdConsume() {
         // Do nothing
@@ -232,6 +239,10 @@ public class CmdConsume {
 
             Consumer<byte[]> consumer = builder.subscribe();
 
+            if (failOnDuplicateKey || dumpKeyStats) {
+                dataConsistencyChecker = new DataConsistencyChecker(failOnDuplicateKey);
+            }
+
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
             while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
                 if (limiter != null) {
@@ -248,6 +259,9 @@ public class CmdConsume {
                     System.out.println(output);
                     consumer.acknowledge(msg);
                 }
+                if (dataConsistencyChecker != null && msg != null && msg.hasKey()) {
+                    dataConsistencyChecker.messageReceived(msg.getKey());
+                }
             }
             client.close();
         } catch (Exception e) {
@@ -257,7 +271,12 @@ public class CmdConsume {
         } finally {
             LOG.info("{} messages successfully consumed", numMessagesConsumed);
         }
-
+        if (dataConsistencyChecker != null) {
+            LOG.info("Number of distinct keys: {}", dataConsistencyChecker.getNumberOfDistinctKeys());
+            if (dumpKeyStats) {
+                dataConsistencyChecker.dump();
+            }
+        }
         return returnCode;
 
     }
@@ -402,6 +421,37 @@ public class CmdConsume {
         }
 
         private static final Logger log = LoggerFactory.getLogger(ConsumerSocket.class);
+
+    }
+
+    private static class DataConsistencyChecker {
+        private final ConcurrentHashMap<String, AtomicLong> messagesPerKey = new ConcurrentHashMap<>();
+        private final boolean failOnDuplicateKey;
+
+        public DataConsistencyChecker(boolean failOnDuplicateKey) {
+            this.failOnDuplicateKey = failOnDuplicateKey;
+        }
+
+        public void messageReceived(String key) throws Exception {
+            AtomicLong count = messagesPerKey.computeIfAbsent(key, k -> new AtomicLong());
+            long newValue = count.incrementAndGet();
+            if (failOnDuplicateKey && newValue == 2) {
+                String message = "Key '"+key+"' has been received more than once";
+                log.error(message);
+                throw new Exception(message);
+            }
+        }
+
+        public int getNumberOfDistinctKeys() {
+            return messagesPerKey.size();
+        }
+
+        public void dump() {
+            log.info("Dumping Key Statistics");
+            messagesPerKey.forEach((k,v) -> {
+                log.info("{} {}", k, v);
+            });
+        }
 
     }
 }
