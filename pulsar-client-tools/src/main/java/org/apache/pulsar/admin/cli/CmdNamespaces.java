@@ -853,6 +853,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove configured subscribe-rate per consumer for all topics of the namespace")
+    private class RemoveSubscribeRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeSubscribeRate(namespace);
+        }
+    }
+
 
     @Parameters(commandDescription = "Set subscription message-dispatch-rate for all subscription of the namespace")
     private class SetSubscriptionDispatchRate extends CliCommand {
@@ -2114,6 +2126,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
+        jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
 
         jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
         jcommander.addCommand("get-subscription-dispatch-rate", new GetSubscriptionDispatchRate());

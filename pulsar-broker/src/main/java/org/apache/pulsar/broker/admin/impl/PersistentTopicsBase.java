@@ -3850,8 +3850,18 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected Optional<SubscribeRate> internalGetSubscribeRate() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getSubscribeRate);
+    protected CompletableFuture<SubscribeRate> internalGetSubscribeRate(boolean applied) {
+        SubscribeRate subscribeRate = getTopicPolicies(topicName)
+                .map(TopicPolicies::getSubscribeRate)
+                .orElseGet(() -> {
+                    if (applied) {
+                        SubscribeRate namespacePolicy = getNamespacePolicies(namespaceName)
+                                .clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
+                        return namespacePolicy == null ? subscribeRate() : namespacePolicy;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(subscribeRate);
     }
 
     protected CompletableFuture<Void> internalSetSubscribeRate(SubscribeRate subscribeRate) {

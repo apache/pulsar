@@ -3126,6 +3126,24 @@ public interface Topics {
     CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic);
 
     /**
+     * Get applied topic-subscribe-rate (topics allow subscribe times per consumer in a period).
+     *
+     * @param topic
+     * @returns subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SubscribeRate getSubscribeRate(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied topic-subscribe-rate asynchronously.
+     *
+     * @param topic
+     * @returns subscribeRate
+     */
+    CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic, boolean applied);
+
+    /**
      * Remove topic-subscribe-rate.
      * <p/>
      * Remove topic subscribe rate

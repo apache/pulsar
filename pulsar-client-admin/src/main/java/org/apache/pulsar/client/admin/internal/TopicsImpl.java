@@ -3335,8 +3335,18 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public SubscribeRate getSubscribeRate(String topic) throws PulsarAdminException {
+        return getSubscribeRate(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic) {
+        return getSubscribeRateAsync(topic, false);
+    }
+
+    @Override
+    public SubscribeRate getSubscribeRate(String topic, boolean applied) throws PulsarAdminException {
         try {
-            return getSubscribeRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getSubscribeRateAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -3348,9 +3358,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic) {
+    public CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic, boolean applied) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscribeRate");
+        path = path.queryParam("applied", applied);
         final CompletableFuture<SubscribeRate> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<SubscribeRate>() {
