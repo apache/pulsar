@@ -139,9 +139,19 @@ public class PerformanceReader {
         }
 
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
-            System.out.println("The size of topics list should be equal to --num-topics");
-            jc.usage();
-            System.exit(-1);
+            // keep compatibility with the previous version
+            if (arguments.topic.size() == 1) {
+                String prefixTopicName = arguments.topic.get(0);
+                List<String> defaultTopics = Lists.newArrayList();
+                for (int i = 0; i < arguments.numTopics; i++) {
+                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
+                }
+                arguments.topic = defaultTopics;
+            } else {
+                System.out.println("The size of topics list should be equal to --num-topics");
+                jc.usage();
+                System.exit(-1);
+            }
         }
 
         if (arguments.confFile != null) {

@@ -83,8 +83,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
         public int numSubscriptions = 1;
 
-        @Deprecated
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
+        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
 
         @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
@@ -189,9 +188,19 @@ public class PerformanceConsumer {
         }
 
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
-            System.out.println("The size of topics list should be equal to --num-topics");
-            jc.usage();
-            System.exit(-1);
+            // keep compatibility with the previous version
+            if (arguments.topic.size() == 1) {
+                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString();
+                List<String> defaultTopics = Lists.newArrayList();
+                for (int i = 0; i < arguments.numTopics; i++) {
+                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
+                }
+                arguments.topic = defaultTopics;
+            } else {
+                System.out.println("The size of topics list should be equal to --num-topics");
+                jc.usage();
+                System.exit(-1);
+            }
         }
 
         if (arguments.subscriptionType == SubscriptionType.Exclusive && arguments.numConsumers > 1) {
@@ -203,9 +212,18 @@ public class PerformanceConsumer {
         if (arguments.subscriptionType != SubscriptionType.Exclusive &&
                 arguments.subscriptions != null &&
                 arguments.subscriptions.size() != arguments.numConsumers) {
-            System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
-            jc.usage();
-            System.exit(-1);
+            // keep compatibility with the previous version
+            if (arguments.subscriptions.size() == 1) {
+                List<String> defaultSubscriptions = Lists.newArrayList();
+                for (int i = 0; i < arguments.numSubscriptions; i++) {
+                    defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
+                }
+                arguments.subscriptions = defaultSubscriptions;
+            } else {
+                System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
+                jc.usage();
+                System.exit(-1);
+            }
         }
 
         if (arguments.confFile != null) {
