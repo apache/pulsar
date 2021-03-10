@@ -2510,9 +2510,10 @@ public class PersistentTopic extends AbstractTopic
     public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
             .thenCompose((hasSchema) -> {
-                final boolean activeOrNotEmpty =
-                        isActive(InactiveTopicDeleteMode.delete_when_no_subscriptions) || (ledger.getTotalSize() != 0);
-                if (hasSchema && activeOrNotEmpty) {
+                int numActiveConsumers = subscriptions.values().stream()
+                        .map(subscription -> subscription.getConsumers().size())
+                        .reduce(0, Integer::sum);
+                if (hasSchema || (numActiveConsumers != 0) || (ledger.getTotalSize() != 0)) {
                     return checkSchemaCompatibleForConsumer(schema);
                 } else {
                     return addSchema(schema).thenCompose(schemaVersion ->
