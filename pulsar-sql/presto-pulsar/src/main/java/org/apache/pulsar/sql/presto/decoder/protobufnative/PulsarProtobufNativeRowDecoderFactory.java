@@ -85,25 +85,21 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
             schema =
                     ((GenericProtobufNativeSchema) GenericProtobufNativeSchema.of(schemaInfo)).getProtobufNativeSchema();
         } catch (Exception ex) {
+            log.error(ex);
             throw new PrestoException(NOT_SUPPORTED, "Topic "
                     + topicName.toString() + " does not have a valid schema");
         }
 
-        try {
-            columnMetadata = schema.getFields().stream()
-                    .map(field ->
-                            new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType, field.getName()),
-                                    parseProtobufPrestoType(field), field.getType().toString(), null, false, false,
-                                    handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(field.getName(),
-                                    null, null))
+        //Protobuf have not yet supported Cyclic Objects.
+        columnMetadata = schema.getFields().stream()
+                .map(field ->
+                        new PulsarColumnMetadata(PulsarColumnMetadata.getColumnName(handleKeyValueType, field.getName()),
+                                parseProtobufPrestoType(field), field.getType().toString(), null, false, false,
+                                handleKeyValueType, new PulsarColumnMetadata.DecoderExtraInfo(field.getName(),
+                                null, null))
 
-                    ).collect(toList());
-        } catch (StackOverflowError e) {
-            log.warn(e, "Topic "
-                    + topicName.toString() + " extractColumnMetadata failed.");
-            throw new PrestoException(NOT_SUPPORTED, "Topic "
-                    + topicName.toString() + " schema may contains cyclic definitions.", e);
-        }
+                ).collect(toList());
+
         return columnMetadata;
     }
 

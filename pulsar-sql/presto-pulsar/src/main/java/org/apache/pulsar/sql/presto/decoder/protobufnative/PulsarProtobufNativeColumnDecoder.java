@@ -97,7 +97,7 @@ public class PulsarProtobufNativeColumnDecoder {
         }
     }
 
-    private boolean isSupportedType(Type type) {
+    private static boolean isSupportedType(Type type) {
         if (isSupportedPrimitive(type)) {
             return true;
         }
@@ -126,7 +126,7 @@ public class PulsarProtobufNativeColumnDecoder {
         return false;
     }
 
-    private boolean isSupportedPrimitive(Type type) {
+    private static boolean isSupportedPrimitive(Type type) {
         return type instanceof VarcharType || SUPPORTED_PRIMITIVE_TYPES.contains(type);
     }
 
