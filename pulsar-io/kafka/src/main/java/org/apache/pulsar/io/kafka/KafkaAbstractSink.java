@@ -32,6 +32,7 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.kafka.connect.KafkaSinkWrappingProducer;
 import org.apache.pulsar.io.kafka.connect.ProducerRecordWithSchema;
+import org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig;
 
 import java.io.IOException;
 import java.util.Map;
@@ -116,12 +117,18 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
             kafkaSinkConfig.getKafkaConnectorConfigProperties().entrySet().stream()
                     .forEach(kv -> props.put(kv.getKey(), kv.getValue()));
 
-            // todo: schemas from config
+            Schema keySchema = (Schema)Schema.class
+                    .getField(kafkaSinkConfig.getDefaultKeySchema()).get(null);
+            Schema valueSchema = (Schema)Schema.class
+                    .getField(kafkaSinkConfig.getDefaultValueSchema()).get(null);
+
+            props.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, kafkaSinkConfig.getOffsetStorageTopic());
+            props.put(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG, kafkaSinkConfig.getPulsarServiceUrl());
 
             producer = KafkaSinkWrappingProducer.create(kafkaConnectorName,
                             props,
-                            Schema.STRING_SCHEMA,
-                            Schema.BYTES_SCHEMA);
+                            keySchema,
+                            valueSchema);
         }
         log.info("Kafka sink started : {}.", props);
     }

@@ -94,6 +94,26 @@ public class KafkaSinkConfig implements Serializable {
             help = "Config properties to pass to the kafka connector.")
     private Map<String, String> kafkaConnectorConfigProperties;
 
+    @FieldDoc(
+            defaultValue = "STRING_SCHEMA",
+            help = "Default key Schema to use if record does not specify one.")
+    private String defaultKeySchema;
+
+    @FieldDoc(
+            defaultValue = "BYTES_SCHEMA",
+            help = "Default value Schema to use if record does not specify one.")
+    private String defaultValueSchema;
+
+    @FieldDoc(
+            defaultValue = "kafka-adaptor-sink-offsets",
+            help = "Topic to store offsets at.")
+    private String offsetStorageTopic;
+
+    @FieldDoc(
+            defaultValue = "",
+            help = "Pulsar service URL.")
+    private String pulsarServiceUrl;
+
     public static KafkaSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), KafkaSinkConfig.class);

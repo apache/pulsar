@@ -27,11 +27,9 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -50,7 +48,7 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
     private Path file;
     private Properties props;
 
-    @Before
+    @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -64,10 +62,12 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
         props.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, offsetTopicName);
     }
 
-    @After
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        Files.delete(file);
+        if (file != null) {
+            //Files.delete(file);
+        }
 
         super.internalCleanup();
     }
@@ -148,5 +148,48 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
         assertEquals("BYTES", result.get("valueSchema"));
     }
 
+    @Test
+    public void BytesRecordWithOutSchemaTest() throws Exception {
+        Schema keySchema = (Schema)Schema.class
+                .getField("STRING_SCHEMA").get(null);
+        Schema valueSchema = (Schema)Schema.class
+                .getField("BYTES_SCHEMA").get(null);
+
+        // configure with default schema
+        Producer<String, byte[]> producer =
+                KafkaSinkWrappingProducer.create(
+                        SchemaedFileStreamSinkConnector.class.getCanonicalName(),
+                        props,
+                        keySchema,
+                        valueSchema
+                );
+
+        ProducerRecord<String, byte[]> record = new ProducerRecord<>("test",
+                "key",
+                "val".getBytes(StandardCharsets.US_ASCII));
+
+        final AtomicInteger status = new AtomicInteger(0);
+
+        producer.send(record, (metadata, exception) -> {
+            if (exception == null) {
+                status.incrementAndGet();
+            } else {
+                status.decrementAndGet();
+            }
+        });
+
+        assertEquals(1, status.get());
+
+        producer.close();
+
+        List<String> lines = Files.readAllLines(file, StandardCharsets.US_ASCII);
+        ObjectMapper om = new ObjectMapper();
+        Map<String, Object> result = om.readValue(lines.get(0), new TypeReference<Map<String, Object>>(){});
+
+        assertEquals("key", result.get("key"));
+        assertEquals("val", result.get("value"));
+        assertEquals("STRING", result.get("keySchema"));
+        assertEquals("BYTES", result.get("valueSchema"));
+    }
 
 }

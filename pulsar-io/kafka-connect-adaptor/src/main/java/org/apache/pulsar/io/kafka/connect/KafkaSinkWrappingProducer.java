@@ -40,9 +40,16 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG;
+import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG;
 
 /***
  * Adapter from a SinkTask to a KafkaProducer to use producer api to write to the sink.
@@ -71,8 +78,6 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     private final static Node node = new Node(0, "localhost", 0);
     private static final Node[] replicas = new Node[]{node};
-
-    //final ConcurrentHashMap<TopicPartition, AtomicLong> offsets = new ConcurrentHashMap<>();
 
     private static long getLingerMs(Properties props) {
         long lingerMs = 2147483647L; // as in kafka
@@ -117,6 +122,10 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
             connector.start(Maps.fromProperties(props));
 
             List<Map<String, String>> configs = connector.taskConfigs(1);
+            configs.forEach(x -> {
+                x.put(OFFSET_STORAGE_TOPIC_CONFIG, props.getProperty(OFFSET_STORAGE_TOPIC_CONFIG));
+                x.put(PULSAR_SERVICE_URL_CONFIG, props.getProperty(PULSAR_SERVICE_URL_CONFIG));
+            });
             SinkTask task = (SinkTask) taskClass.getConstructor().newInstance();
             PulsarKafkaSinkTaskContext taskContext =
                     new PulsarKafkaSinkTaskContext(configs.get(0), task::open);
