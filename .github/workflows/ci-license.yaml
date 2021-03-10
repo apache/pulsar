@@ -73,7 +73,7 @@ jobs:
 
       - name: build and check license
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -q -B -ntp -DskipTests initialize license:check install
+        run: mvn -q -B -ntp -DskipTests apache-rat:check initialize license:check install
 
       - name: license check
         if: steps.docs.outputs.changed_only == 'no'
