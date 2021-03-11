@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.io.kafka.connect;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
@@ -200,13 +201,14 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
             valueSchema = rec.getValueSchema();
         }
 
+        long offset = taskContext.currentOffset(producerRecord.topic(), partition).incrementAndGet();
         SinkRecord sinkRecord = new SinkRecord(producerRecord.topic(),
                 partition,
                 keySchema,
                 producerRecord.key(),
                 valueSchema,
                 producerRecord.value(),
-                taskContext.currentOffset(producerRecord.topic(), partition).getAndIncrement(),
+                offset,
                 producerRecord.timestamp(),
                 TimestampType.NO_TIMESTAMP_TYPE);
         return sinkRecord;
@@ -248,7 +250,6 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
                     callback.onCompletion(null, new Exception(ex));
                 }
             }
-            numPendingRecords.decrementAndGet();
         });
 
         try {
@@ -277,6 +278,11 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     @Override
     public void flush() {
+        if (log.isDebugEnabled()) {
+            log.debug("flush requested, pending: {}, batchSize: {}",
+                    numPendingRecords.get(), batchSize);
+        }
+
         sinkContext.throwIfNeeded();
 
         if (numPendingRecords.getAndSet(0) == 0) {
@@ -295,6 +301,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
             taskContext.flushOffsets(currentOffsets);
             flushCf.complete(null);
         } catch (Throwable t) {
+            log.error("error flushing pending records", t);
             flushCf.completeExceptionally(t);
         }
     }
@@ -306,6 +313,11 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
                 .filter(x -> x.topic().equals(topic))
                 .map(x -> new PartitionInfo(x.topic(), x.partition(), node, replicas, replicas))
                 .collect(Collectors.toList());
+    }
+
+    @VisibleForTesting
+    long currentOffset(String topic, int partition) {
+        return taskContext.currentOffset(topic, partition).get();
     }
 
     @Override

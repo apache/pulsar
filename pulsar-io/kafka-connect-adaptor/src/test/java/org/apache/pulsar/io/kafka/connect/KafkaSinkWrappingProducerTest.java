@@ -73,14 +73,13 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
     }
 
     @Test
-    public void SmokeTest() throws Exception {
+    public void smokeTest() throws Exception {
         Producer<String, String> producer =
                 KafkaSinkWrappingProducer.create(
                     "org.apache.kafka.connect.file.FileStreamSinkConnector",
                         props,
                         Schema.STRING_SCHEMA,
-                        Schema.STRING_SCHEMA
-                );
+                        Schema.STRING_SCHEMA);
 
         ProducerRecord<String, String> record = new ProducerRecord<>("test",
                 "key", "value");
@@ -108,15 +107,14 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
     }
 
     @Test
-    public void BytesRecordWithSchemaTest() throws Exception {
+    public void bytesRecordWithSchemaTest() throws Exception {
         // configure with wrong schema, schema from ProducerRecordWithSchema should be used
         Producer<String, byte[]> producer =
                 KafkaSinkWrappingProducer.create(
                         SchemaedFileStreamSinkConnector.class.getCanonicalName(),
                         props,
                         Schema.INT8_SCHEMA,
-                        Schema.BOOLEAN_SCHEMA
-                );
+                        Schema.BOOLEAN_SCHEMA);
 
         ProducerRecord<String, byte[]> record = new ProducerRecordWithSchema<>("test",
                 "key",
@@ -149,7 +147,7 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
     }
 
     @Test
-    public void BytesRecordWithOutSchemaTest() throws Exception {
+    public void bytesRecordWithOutSchemaTest() throws Exception {
         Schema keySchema = (Schema)Schema.class
                 .getField("STRING_SCHEMA").get(null);
         Schema valueSchema = (Schema)Schema.class
@@ -161,8 +159,7 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
                         SchemaedFileStreamSinkConnector.class.getCanonicalName(),
                         props,
                         keySchema,
-                        valueSchema
-                );
+                        valueSchema);
 
         ProducerRecord<String, byte[]> record = new ProducerRecord<>("test",
                 "key",
@@ -192,4 +189,51 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
         assertEquals("BYTES", result.get("valueSchema"));
     }
 
+    @Test
+    public void offsetTest() throws Exception {
+        Producer<String, byte[]> producer =
+                KafkaSinkWrappingProducer.create(
+                        SchemaedFileStreamSinkConnector.class.getCanonicalName(),
+                        props,
+                        Schema.STRING_SCHEMA,
+                        Schema.BYTES_SCHEMA);
+        KafkaSinkWrappingProducer<String, byte[]> kswp = (KafkaSinkWrappingProducer<String, byte[]>)producer;
+        // offset is -1 before any data is written
+        assertEquals(-1L, kswp.currentOffset("test", 0));
+
+        ProducerRecord<String, byte[]> record = new ProducerRecordWithSchema<>("test",
+                "key",
+                "val".getBytes(StandardCharsets.US_ASCII),
+                Schema.STRING_SCHEMA,
+                Schema.BYTES_SCHEMA);
+
+        producer.send(record);
+        producer.flush();
+        // offset is 0 for the first written record
+        assertEquals(0L, kswp.currentOffset("test", 0));
+
+        producer.send(record);
+        producer.flush();
+        // offset is 1 for the second written record
+        assertEquals(1L, kswp.currentOffset("test", 0));
+
+        producer.close();
+
+        // close the producer, open again
+        producer = KafkaSinkWrappingProducer.create(
+                        SchemaedFileStreamSinkConnector.class.getCanonicalName(),
+                        props,
+                        Schema.STRING_SCHEMA,
+                        Schema.BYTES_SCHEMA);
+        kswp = (KafkaSinkWrappingProducer<String, byte[]>)producer;
+        // offset is 1 after reopening teh producer
+        assertEquals(1L, kswp.currentOffset("test", 0));
+
+        producer.send(record);
+        producer.flush();
+        // offset is 2 for the next written record
+        assertEquals(2L, kswp.currentOffset("test", 0));
+
+        producer.close();
+    }
 }

@@ -94,11 +94,15 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
                                 .filter(entry -> entry.getKey().equals(key))
                                 .findFirst().map(entry -> entry.getValue());
                         if (val.isPresent()) {
-                            offsetFuture.complete(val.get().getLong());
+                            long received = val.get().getLong();
+                            if (log.isDebugEnabled()) {
+                                log.debug("read initial offset for {} == {}", topicPartition, received);
+                            }
+                            offsetFuture.complete(received);
                             return;
                         }
                     }
-                    offsetFuture.complete(0L);
+                    offsetFuture.complete(-1L);
                 } else {
                     offsetFuture.completeExceptionally(ex);
                 }
@@ -109,7 +113,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
                 return new AtomicLong(offsetFuture.get());
             } catch (Exception e) {
                 log.error("error getting initial state of " + topicPartition.toString(), e);
-                return new AtomicLong(0L);
+                return new AtomicLong(-1L);
             }
         });
         if (runRepartition.compareAndSet(true, false)) {
@@ -137,21 +141,18 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
         ByteBuffer key = topicPartitionAsKey(topicPartition);
         ByteBuffer value = ByteBuffer.allocate(Long.BYTES);
         value.putLong(l);
+        value.flip();
         offsetMap.put(key, value);
     }
 
     @SneakyThrows
     @Override
     public void offset(Map<TopicPartition, Long> map) {
-
         map.forEach((key, value) -> {
-            if (currentOffsets.containsKey(key)) {
-                currentOffsets.get(key).set(value);
-            } else {
-                if(null == currentOffsets.putIfAbsent(key, new AtomicLong(value))) {
-                    runRepartition.set(true);
-                }
+            if (!currentOffsets.containsKey(key)) {
+                runRepartition.set(true);
             }
+            currentOffsets.put(key, new AtomicLong(value));
         });
 
         if (runRepartition.compareAndSet(true, false)) {
@@ -200,6 +201,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
             if (ex == null) {
                 result.complete(null);
             } else {
+                log.error("error flushing offsets", ex);
                 result.completeExceptionally(ex);
             }
         });
