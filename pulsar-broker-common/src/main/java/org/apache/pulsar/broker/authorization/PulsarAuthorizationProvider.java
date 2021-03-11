@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.core.Response;
 import com.google.common.base.Joiner;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -293,8 +294,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
         final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespaceName.toString());
         try {
-            pulsarResources.getNamespaceResources().set(policiesPath, (policies)->{
-                policies.auth_policies.namespace_auth.put(role, actions);
+            pulsarResources.getNamespaceResources().set(policiesPath, (policies) -> {
+                Set<AuthAction> authActionSet = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                authActionSet.addAll(actions);
+                policies.auth_policies.namespace_auth.put(role, authActionSet);
                 return policies;
             });
             log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
@@ -352,7 +355,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     return result;
                 }
             } else {
-                policies.auth_policies.subscription_auth_roles.put(subscriptionName, roles);
+                Set<String> roleSet = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                roleSet.addAll(roles);
+                policies.auth_policies.subscription_auth_roles.put(subscriptionName, roleSet);
             }
             pulsarResources.getNamespaceResources().set(policiesPath, (data)->policies);
 

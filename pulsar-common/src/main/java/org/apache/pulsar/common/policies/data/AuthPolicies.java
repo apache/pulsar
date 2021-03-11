@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
+
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Authentication policies.
@@ -35,9 +39,9 @@ public class AuthPolicies {
     public final Map<String, Set<String>> subscription_auth_roles;
 
     public AuthPolicies() {
-        namespace_auth = Maps.newHashMap();
-        destination_auth = Maps.newHashMap();
-        subscription_auth_roles = Maps.newHashMap();
+        namespace_auth = Maps.newConcurrentMap();
+        destination_auth = Maps.newConcurrentMap();
+        subscription_auth_roles = Maps.newConcurrentMap();
     }
 
     @Override
@@ -57,4 +61,46 @@ public class AuthPolicies {
 
         return false;
     }
+
+    /**
+     * Ensure that the deserialized Map and Set are thread-safe
+     * @param map
+     */
+    @JsonProperty("namespace_auth")
+    public void makeNamespaceAuthThreadSafe(Map<String, Set<AuthAction>> map) {
+        if (map != null) {
+            map.forEach((key, value) -> {
+                Set<AuthAction> set = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                set.addAll(value);
+                this.namespace_auth.put(key, set);
+            });
+        }
+    }
+
+    @JsonProperty("destination_auth")
+    public void makeDestinationAuthThreadSafe(Map<String, Map<String, Set<AuthAction>>> map) {
+        if (map != null) {
+            map.forEach((key, value) -> {
+                Map<String, Set<AuthAction>> subAuth = new ConcurrentHashMap<>();
+                value.forEach((subKey, subValue) -> {
+                    Set<AuthAction> set = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                    set.addAll(subValue);
+                    subAuth.put(subKey, set);
+                });
+                destination_auth.put(key, subAuth);
+            });
+        }
+    }
+
+    @JsonProperty("subscription_auth_roles")
+    public void makeSubscriptionAuthRolesThreadSafe(Map<String, Set<String>> map) {
+        if (map != null) {
+            map.forEach((key, value) -> {
+                Set<String> set = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                set.addAll(value);
+                this.subscription_auth_roles.put(key, set);
+            });
+        }
+    }
+
 }

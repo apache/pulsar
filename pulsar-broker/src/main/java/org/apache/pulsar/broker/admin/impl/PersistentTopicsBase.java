@@ -31,6 +31,7 @@ import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -323,10 +325,11 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             namespaceResources().set(path(POLICIES, namespaceName.toString()), (policies) -> {
                 if (!policies.auth_policies.destination_auth.containsKey(topicUri)) {
-                    policies.auth_policies.destination_auth.put(topicUri, new HashMap<>());
+                    policies.auth_policies.destination_auth.put(topicUri, new ConcurrentHashMap<>());
                 }
-
-                policies.auth_policies.destination_auth.get(topicUri).put(role, actions);
+                Set<AuthAction> authActionSet = Collections.newSetFromMap(new ConcurrentHashMap<>());
+                authActionSet.addAll(actions);
+                policies.auth_policies.destination_auth.get(topicUri).put(role, authActionSet);
                 return policies;
             });
             log.info("[{}] Successfully granted access for role {}: {} - topic {}", clientAppId(), role, actions,

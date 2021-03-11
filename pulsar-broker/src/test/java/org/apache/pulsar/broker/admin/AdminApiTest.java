@@ -441,6 +441,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testPoliciesDeserialize() throws Exception {
         final String namespace = "prop-xyz/ns1";
+        final String topic = "persistent://prop-xyz/ns1/topic" + UUID.randomUUID();
+
+        //Set policies
         DispatchRate dispatchRate = new DispatchRate(1, 2, 3);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         admin.namespaces().setReplicatorDispatchRate(namespace, dispatchRate);
@@ -448,19 +451,50 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setSubscribeRate(namespace, subscribeRate);
         BacklogQuota backlogQuota = new BacklogQuota(1, RetentionPolicy.producer_request_hold);
         admin.namespaces().setBacklogQuota(namespace, backlogQuota);
+        Set<AuthAction> authActionSet1 = EnumSet.of(AuthAction.consume);
+        admin.namespaces().grantPermissionOnNamespace(namespace, "test", authActionSet1);
+        Set<AuthAction> authActionSet2 = EnumSet.of(AuthAction.produce);
+        admin.namespaces().grantPermissionOnNamespace(namespace, "test2", authActionSet2);
+        Set<String> roles = Sets.newHashSet("admin");
+        admin.namespaces().grantPermissionOnSubscription(namespace, "my-sub", roles);
+        admin.topics().grantPermission(topic, "admin", authActionSet2);
+        //Make sure that the last policy is also in effect
         Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.namespaces().getReplicatorDispatchRate(namespace), dispatchRate));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.namespaces().getSubscribeRate(namespace), subscribeRate));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.namespaces().getBacklogQuotaMap(namespace).size(), 1));
+                assertEquals(admin.topics().getPermissions(topic).size(), 3));
+
         final String policyPath = AdminResource.path(POLICIES, namespace);
         Policies policies = pulsar.getPulsarResources().getNamespaceResources().get(policyPath).get();
         assertTrue(policies.topicDispatchRate instanceof ConcurrentHashMap);
         assertTrue(policies.replicatorDispatchRate instanceof ConcurrentHashMap);
         assertTrue(policies.backlog_quota_map instanceof ConcurrentHashMap);
+
+        assertTrue(policies.auth_policies.namespace_auth instanceof ConcurrentHashMap);
+        assertTrue(policies.auth_policies.destination_auth instanceof ConcurrentHashMap);
+        assertTrue(policies.auth_policies.subscription_auth_roles instanceof ConcurrentHashMap);
+
+        Set<String> set = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        ConcurrentHashMap concurrentHashMap = new ConcurrentHashMap();
+        String mapName = concurrentHashMap.getClass().getName();
+        String setName = set.getClass().getName();
+        assertEquals(mapName, "java.util.concurrent.ConcurrentHashMap");
+        assertEquals(setName, "java.util.Collections$SetFromMap");
+
+        assertEquals(policies.auth_policies.namespace_auth.getClass().getName(), mapName);
+        assertEquals(policies.auth_policies.namespace_auth.get("test").getClass().getName(), setName);
+        assertEquals(policies.auth_policies.namespace_auth.get("test2").getClass().getName(), setName);
+        assertEquals(policies.auth_policies.destination_auth.get(topic).getClass().getName(), mapName);
+        assertEquals(policies.auth_policies.destination_auth.get(topic).get("admin").getClass().getName(), setName);
+        assertEquals(policies.auth_policies.subscription_auth_roles.get("my-sub").getClass().getName(), setName);
+
+
+        assertEquals(policies.auth_policies.namespace_auth.get("test"), authActionSet1);
+        assertEquals(policies.auth_policies.namespace_auth.get("test2"), authActionSet2);
+        Map<String, Set<AuthAction>> map = new ConcurrentHashMap<>();
+        map.put("admin", authActionSet2);
+        assertEquals(policies.auth_policies.destination_auth.get(topic), map);
+        assertEquals(policies.auth_policies.destination_auth.get(topic).get("admin"), authActionSet2);
+        assertEquals(policies.auth_policies.subscription_auth_roles.get("my-sub"), roles);
+
     }
 
     @Test
