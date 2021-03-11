@@ -298,11 +298,6 @@ public class PulsarProtobufNativeColumnDecoder {
             return;
         }
 
-        if (type instanceof TimestampType) {
-            type.writeLong(blockBuilder, (Long) value);
-            return;
-        }
-
         throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
                 format("cannot decode object of '%s' as '%s' for column '%s'",
                         value.getClass(), type, columnName));
