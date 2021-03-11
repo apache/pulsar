@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.tests.integration.containers.StandaloneContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
@@ -53,7 +54,6 @@ import org.testng.annotations.Test;
 @Slf4j
 public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
 
-
     @Test(groups = {"source"})
     public void testGenericRecordSource() throws Exception {
         String outputTopicName = "test-state-source-output-" + randomName(8);
@@ -63,13 +63,13 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         submitSourceConnector(
             sourceName,
             outputTopicName,
-            "org.apache.pulsar.tests.integration.io.GenericRecordSource",  JAVAJAR);
+            "org.apache.pulsar.tests.integration.io.GenericRecordSource", JAVAJAR);
 
         // get source info
-        getSourceInfoSuccess(sourceName);
+        getSourceInfoSuccess(container, sourceName);
 
         // get source status
-        getSourceStatus(sourceName);
+        getSourceStatus(container, sourceName);
 
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
 
@@ -88,12 +88,12 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
             assertTrue(status.getInstances().get(0).getStatus().numWritten >= 10);
         }
 
-        consumeMessages(outputTopicName, numMessages);
+        consumeMessages(container, outputTopicName, numMessages);
 
         // delete source
-        deleteSource(sourceName);
+        deleteSource(container, sourceName);
 
-        getSourceInfoNotFound(sourceName);
+        getSourceInfoNotFound(container, sourceName);
 
     }
 
@@ -116,7 +116,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
             result.getStdout());
     }
 
-    private static void getSourceInfoSuccess(String sourceName) throws Exception {
+    private static void getSourceInfoSuccess(StandaloneContainer container, String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "sources",
@@ -128,7 +128,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"name\": \"" + sourceName + "\""));
     }
 
-    private static void getSourceStatus(String sourceName) throws Exception {
+    private static void getSourceStatus(StandaloneContainer container,String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "sources",
@@ -140,7 +140,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
-    private static void consumeMessages(String outputTopic,
+    private static void consumeMessages(StandaloneContainer container, String outputTopic,
                                         int numMessages) throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -203,7 +203,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         int number;
     }
 
-    private static void deleteSource(String sourceName) throws Exception {
+    private static void deleteSource(StandaloneContainer container, String sourceName) throws Exception {
         ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "sources",
@@ -216,7 +216,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStderr().isEmpty());
     }
 
-    private static void getSourceInfoNotFound(String sourceName) throws Exception {
+    private static void getSourceInfoNotFound(StandaloneContainer container, String sourceName) throws Exception {
         try {
             container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
