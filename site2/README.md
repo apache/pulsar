@@ -225,7 +225,7 @@ If you want to modify the C++ client API doc, follow the steps below.
   
   1. Install Doxygen.
    
-     Go to the directory `pulsar/pulsar-client-cpp` and run the command `brew install doxygen`. 
+     Go to the directory `pulsar/pulsar-client-cpp` and run the command `brew install doxygen` (MacOS). 
   
   2. Create a folder for the generated HTML files.
 
@@ -235,7 +235,7 @@ If you want to modify the C++ client API doc, follow the steps below.
 
   Long code lines might cause C++ API tests to fail. Consequently, before submitting doc changes, you can break long lines of code automatically using `clang-format`.
 
-  To install clang-format, go to the directory `pulsar` and run the command `brew install clang-format`.
+  To install clang-format, go to the directory `pulsar` and run the command `brew install clang-format` (MacOS).
 
 **Step**
 
@@ -251,7 +251,7 @@ If you want to modify the C++ client API doc, follow the steps below.
 
 2. Format the code file.
    
-   Go to the directory `pulsar/pulsar-client-cpp` and run the command `clang-format -i pulsar-client-cpp/include/pulsar/<your-file-name>`.
+   Go to the directory `pulsar/pulsar-client-cpp` and run the command `clang-format -i include/pulsar/<your-file-name>`.
 
    Check your file to make sure that the long lines are broken into short lines.
 
