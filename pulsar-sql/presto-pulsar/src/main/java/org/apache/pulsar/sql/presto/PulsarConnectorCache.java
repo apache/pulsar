@@ -155,8 +155,7 @@ public class PulsarConnectorCache {
                         "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
                 Offloaders offloaders = offloaderManagers.computeIfAbsent(offloadPolicies.getOffloadersDirectory(),
-                        (offloadersDirectory) ->
-                        {
+                        (offloadersDirectory) -> {
                             try {
                                 return OffloaderUtils.searchForOffloaders(offloadersDirectory,
                                         pulsarConnectorConfig.getNarExtractionDirectory());
