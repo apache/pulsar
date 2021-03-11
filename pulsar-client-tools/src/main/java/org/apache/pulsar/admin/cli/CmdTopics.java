@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.GetTopicsMode;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -258,10 +258,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = "--mode", description = "Get topics mode(persistent, non-persistent, all). Default is all.")
+        private GetTopicsMode mode = GetTopicsMode.ALL;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getTopics().getList(namespace));
+            print(getTopics().getList(namespace, mode));
         }
     }
 

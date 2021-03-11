@@ -46,6 +46,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.client.admin.GetTopicsMode;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -104,8 +105,13 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public List<String> getList(String namespace) throws PulsarAdminException {
+        return getList(namespace, GetTopicsMode.ALL);
+    }
+
+    @Override
+    public List<String> getList(String namespace, GetTopicsMode mode) throws PulsarAdminException {
         try {
-            return getListAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getListAsync(namespace, mode).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -118,35 +124,49 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<List<String>> getListAsync(String namespace) {
+        return getListAsync(namespace, GetTopicsMode.ALL);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getListAsync(String namespace, GetTopicsMode mode) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget persistentPath = namespacePath("persistent", ns);
         WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
         final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
         final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
-        asyncGetRequest(persistentPath,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> topics) {
-                        persistentList.complete(topics);
-                    }
+        if (GetTopicsMode.ALL.equals(mode) || GetTopicsMode.PERSISTENT.equals(mode)) {
+            asyncGetRequest(persistentPath,
+                    new InvocationCallback<List<String>>() {
+                        @Override
+                        public void completed(List<String> topics) {
+                            persistentList.complete(topics);
+                        }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        persistentList.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        asyncGetRequest(nonPersistentPath,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> a) {
-                        nonPersistentList.complete(a);
-                    }
+                        @Override
+                        public void failed(Throwable throwable) {
+                            persistentList.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } else {
+            persistentList.complete(Collections.emptyList());
+        }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        nonPersistentList.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+        if (GetTopicsMode.ALL.equals(mode) || GetTopicsMode.NON_PERSISTENT.equals(mode)) {
+            asyncGetRequest(nonPersistentPath,
+                    new InvocationCallback<List<String>>() {
+                        @Override
+                        public void completed(List<String> a) {
+                            nonPersistentList.complete(a);
+                        }
+
+                        @Override
+                        public void failed(Throwable throwable) {
+                            nonPersistentList.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } else {
+            nonPersistentList.complete(Collections.emptyList());
+        }
 
         return persistentList.thenCombine(nonPersistentList,
                 (l1, l2) -> new ArrayList<>(Stream.concat(l1.stream(), l2.stream()).collect(Collectors.toSet())));
