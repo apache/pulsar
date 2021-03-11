@@ -213,7 +213,7 @@ For more details about versioning, refer to [Versioning](https://docusaurus.io/d
 
 ## C++ client API doc
 
-You can use the C++ client API to connect to Pulsar and handles data. [Pulsar C++ client API doc](https://pulsar.apache.org/api/cpp/https://pulsar.apache.org/api/cpp/) provides extensive implementation details and usage conventions for the C++ client. 
+You can use the C++ client API to connect to a Pulsar cluster and handles data. [Pulsar C++ client API doc](https://pulsar.apache.org/api/cpp/https://pulsar.apache.org/api/cpp/) provides extensive implementation details and usage conventions for the C++ client. 
 
 If you want to modify the C++ client API doc, follow the steps below.
 
