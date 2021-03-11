@@ -807,6 +807,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove configured message-dispatch-rate for all topics of the namespace")
+    private class RemoveDispatchRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeDispatchRate(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)")
     private class GetDispatchRate extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -850,6 +862,18 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(getAdmin().namespaces().getSubscribeRate(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove configured subscribe-rate per consumer for all topics of the namespace")
+    private class RemoveSubscribeRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeSubscribeRate(namespace);
         }
     }
 
@@ -1067,6 +1091,18 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(getAdmin().namespaces().getPersistence(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the persistence policies for a namespace")
+    private class RemovePersistence extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removePersistence(namespace);
         }
     }
 
@@ -2057,6 +2093,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-persistence", new GetPersistence());
         jcommander.addCommand("set-persistence", new SetPersistence());
+        jcommander.addCommand("remove-persistence", new RemovePersistence());
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
@@ -2097,10 +2134,12 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("split-bundle", new SplitBundle());
 
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
+        jcommander.addCommand("remove-dispatch-rate", new RemoveDispatchRate());
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
 
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
+        jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
 
         jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
         jcommander.addCommand("get-subscription-dispatch-rate", new GetSubscriptionDispatchRate());

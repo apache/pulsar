@@ -325,6 +325,12 @@ public abstract class NamespacesBase extends AdminResource {
         validateTenantOperation(namespaceName.getTenant(), TenantOperation.DELETE_NAMESPACE);
         validatePoliciesReadOnlyAccess();
 
+        if (!pulsar().getConfiguration().isForceDeleteNamespaceAllowed()) {
+            asyncResponse.resume(
+                    new RestException(Status.METHOD_NOT_ALLOWED, "Broker doesn't allow forced deletion of namespaces"));
+            return;
+        }
+
         // ensure that non-global namespace is directed to the correct cluster
         if (!namespaceName.isGlobal()) {
             validateClusterOwnership(namespaceName.getCluster());
@@ -1180,18 +1186,30 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalDeleteTopicDispatchRate() {
+        validateSuperUserAccess();
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            updatePolicies(path, (policies) -> {
+                policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                policies.clusterDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                return policies;
+            });
+            log.info("[{}] Successfully delete the dispatchRate for cluster on namespace {}", clientAppId(),
+                    namespaceName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to delete the dispatchRate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     @SuppressWarnings("deprecation")
     protected DispatchRate internalGetTopicDispatchRate() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        DispatchRate dispatchRate = policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
-        if (dispatchRate != null) {
-            return dispatchRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "Dispatch-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     protected void internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {
@@ -1256,16 +1274,27 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalDeleteSubscribeRate() {
+        validateSuperUserAccess();
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            updatePolicies(path, (policies) -> {
+                policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
+                return policies;
+            });
+            log.info("[{}] Successfully delete the subscribeRate for cluster on namespace {}", clientAppId(),
+                    namespaceName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to delete the subscribeRate for cluster on namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     protected SubscribeRate internalGetSubscribeRate() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
-        SubscribeRate subscribeRate = policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
-        if (subscribeRate != null) {
-            return subscribeRate;
-        } else {
-            throw new RestException(Status.NOT_FOUND,
-                    "Subscribe-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
-        }
+        return policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     protected void internalRemoveReplicatorDispatchRate() {
@@ -1394,11 +1423,21 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected void internalDeletePersistence() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+        doUpdatePersistence(null);
+    }
+
     protected void internalSetPersistence(PersistencePolicies persistence) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         validatePersistencePolicies(persistence);
 
+        doUpdatePersistence(persistence);
+    }
+
+    private void doUpdatePersistence(PersistencePolicies persistence) {
         try {
             final String path = path(POLICIES, namespaceName.toString());
             updatePolicies(path, (policies)->{

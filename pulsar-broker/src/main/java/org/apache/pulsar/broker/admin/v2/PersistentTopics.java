@@ -1743,21 +1743,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getPersistence(@Suspended final AsyncResponse asyncResponse,
                                @PathParam("tenant") String tenant,
                                @PathParam("namespace") String namespace,
-                               @PathParam("topic") @Encoded String encodedTopic) {
+                               @PathParam("topic") @Encoded String encodedTopic,
+                               @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<PersistencePolicies> persistencePolicies = internalGetPersistence();
-            if (!persistencePolicies.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
+        internalGetPersistence(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get persistence policies", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get persistence policies", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(persistencePolicies.get());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST
@@ -2486,21 +2486,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getDispatchRate(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic) {
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<DispatchRate> dispatchRate = internalGetDispatchRate();
-            if (!dispatchRate.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
+        internalGetDispatchRate(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get dispatchRate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get dispatchRate", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(dispatchRate.get());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST
@@ -3029,21 +3029,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getSubscribeRate(@Suspended final AsyncResponse asyncResponse,
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace,
-                                @PathParam("topic") @Encoded String encodedTopic) {
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<SubscribeRate> subscribeRate = internalGetSubscribeRate();
-            if (!subscribeRate.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
-            } else {
-                asyncResponse.resume(subscribeRate.get());
-            }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        internalGetSubscribeRate(applied).whenComplete((res, ex) -> {
+            internalHandleResult(asyncResponse, res, ex, "Failed get subscribe rate");
+        });
     }
 
     @POST

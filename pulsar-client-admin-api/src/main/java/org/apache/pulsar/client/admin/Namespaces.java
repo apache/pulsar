@@ -1565,6 +1565,19 @@ public interface Namespaces {
     CompletableFuture<Void> removeBacklogQuotaAsync(String namespace);
 
     /**
+     * Remove the persistence configuration on a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removePersistence(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the persistence configuration on a namespace asynchronously.
+     * @param namespace
+     */
+    CompletableFuture<Void> removePersistenceAsync(String namespace);
+
+    /**
      * Set the persistence configuration for all the topics on a namespace.
      * <p/>
      * Set the persistence configuration on a namespace.
@@ -2004,6 +2017,19 @@ public interface Namespaces {
     CompletableFuture<PublishRate> getPublishRateAsync(String namespace);
 
     /**
+     * Remove message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDispatchRateAsync(String namespace);
+    /**
      * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
      *
      * @param namespace
@@ -2066,6 +2092,21 @@ public interface Namespaces {
      *            consumer subscribe limit by this subscribeRate
      */
     CompletableFuture<Void> setSubscribeRateAsync(String namespace, SubscribeRate subscribeRate);
+
+    /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscribeRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeSubscribeRateAsync(String namespace);
 
     /**
      * Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period).

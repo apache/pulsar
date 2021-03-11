@@ -154,8 +154,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         } else {
             log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(),
                     response.getError());
-            op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
-                    response.getMessage()));
+            op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
         }
         op.recycle();
     }

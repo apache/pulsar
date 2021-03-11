@@ -2140,6 +2140,22 @@ public interface Topics {
     CompletableFuture<PersistencePolicies> getPersistenceAsync(String topic);
 
     /**
+     * Get the applied configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    PersistencePolicies getPersistence(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the applied configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<PersistencePolicies> getPersistenceAsync(String topic, boolean applied);
+
+    /**
      * Remove the configuration of persistence policies for specified topic.
      *
      * @param topic Topic name
@@ -2307,6 +2323,28 @@ public interface Topics {
      *            number of messages per second
      */
     CompletableFuture<DispatchRate> getDispatchRateAsync(String topic);
+
+    /**
+     * Get applied message-dispatch-rate (topic can dispatch this many messages per second).
+     *
+     * @param topic
+     * @returns messageRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getDispatchRate(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied message-dispatch-rate asynchronously.
+     * <p/>
+     * Topic can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns messageRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getDispatchRateAsync(String topic, boolean applied);
 
     /**
      * Remove message-dispatch-rate.
@@ -3108,6 +3146,24 @@ public interface Topics {
      * @returns subscribeRate
      */
     CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic);
+
+    /**
+     * Get applied topic-subscribe-rate (topics allow subscribe times per consumer in a period).
+     *
+     * @param topic
+     * @returns subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SubscribeRate getSubscribeRate(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied topic-subscribe-rate asynchronously.
+     *
+     * @param topic
+     * @returns subscribeRate
+     */
+    CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic, boolean applied);
 
     /**
      * Remove topic-subscribe-rate.

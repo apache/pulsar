@@ -468,6 +468,39 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
     }
 
+    @Test(timeOut = 20000)
+    public void testGetPersistenceApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getPersistence(topic));
+        assertNull(admin.namespaces().getPersistence(myNamespace));
+        PersistencePolicies brokerPolicy
+                = new PersistencePolicies(pulsar.getConfiguration().getManagedLedgerDefaultEnsembleSize(),
+                pulsar.getConfiguration().getManagedLedgerDefaultWriteQuorum(),
+                pulsar.getConfiguration().getManagedLedgerDefaultAckQuorum(),
+                pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+        assertEquals(admin.topics().getPersistence(topic, true), brokerPolicy);
+        PersistencePolicies namespacePolicy
+                = new PersistencePolicies(5,4,3,2);
+
+        admin.namespaces().setPersistence(myNamespace, namespacePolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getPersistence(myNamespace)));
+        assertEquals(admin.topics().getPersistence(topic, true), namespacePolicy);
+
+        PersistencePolicies topicPolicy = new PersistencePolicies(4, 3, 2, 1);
+        admin.topics().setPersistence(topic, topicPolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getPersistence(topic)));
+        assertEquals(admin.topics().getPersistence(topic, true), topicPolicy);
+
+        admin.namespaces().removePersistence(myNamespace);
+        admin.topics().removePersistence(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getPersistence(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getPersistence(topic)));
+        assertEquals(admin.topics().getPersistence(topic, true), brokerPolicy);
+    }
+
     @Test
     public void testCheckPersistence() throws Exception {
         PersistencePolicies persistencePolicies = new PersistencePolicies(6, 2, 2, 0.0);
@@ -540,6 +573,38 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(persistenceTopic);
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
         Assert.assertEquals(getPersistencePolicies, persistencePolicies);
+    }
+
+    @Test
+    public void testGetDispatchRateApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getDispatchRate(topic));
+        assertNull(admin.namespaces().getDispatchRate(myNamespace));
+        DispatchRate brokerDispatchRate = new DispatchRate(
+                pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
+                pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte(),
+                1
+        );
+        assertEquals(admin.topics().getDispatchRate(topic, true), brokerDispatchRate);
+        DispatchRate namespaceDispatchRate = new DispatchRate(10, 11, 12);
+
+        admin.namespaces().setDispatchRate(myNamespace, namespaceDispatchRate);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getDispatchRate(myNamespace)));
+        assertEquals(admin.topics().getDispatchRate(topic, true), namespaceDispatchRate);
+
+        DispatchRate topicDispatchRate = new DispatchRate(20, 21, 22);
+        admin.topics().setDispatchRate(topic, topicDispatchRate);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getDispatchRate(topic)));
+        assertEquals(admin.topics().getDispatchRate(topic, true), topicDispatchRate);
+
+        admin.namespaces().removeDispatchRate(myNamespace);
+        admin.topics().removeDispatchRate(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getDispatchRate(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getDispatchRate(topic)));
+        assertEquals(admin.topics().getDispatchRate(topic, true), brokerDispatchRate);
     }
 
     @Test
@@ -1282,6 +1347,37 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().deletePartitionedTopic(testTopic, true);
         admin.topics().deletePartitionedTopic(persistenceTopic, true);
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetSubscribeRateApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getSubscribeRate(topic));
+        assertNull(admin.namespaces().getSubscribeRate(myNamespace));
+        SubscribeRate brokerPolicy = new SubscribeRate(
+                pulsar.getConfiguration().getSubscribeThrottlingRatePerConsumer(),
+                pulsar.getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
+        );
+        assertEquals(admin.topics().getSubscribeRate(topic, true), brokerPolicy);
+        SubscribeRate namespacePolicy = new SubscribeRate(10, 11);
+
+        admin.namespaces().setSubscribeRate(myNamespace, namespacePolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getSubscribeRate(myNamespace)));
+        assertEquals(admin.topics().getSubscribeRate(topic, true), namespacePolicy);
+
+        SubscribeRate topicPolicy = new SubscribeRate(20, 21);
+        admin.topics().setSubscribeRate(topic, topicPolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getSubscribeRate(topic)));
+        assertEquals(admin.topics().getSubscribeRate(topic, true), topicPolicy);
+
+        admin.namespaces().removeSubscribeRate(myNamespace);
+        admin.topics().removeSubscribeRate(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getSubscribeRate(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getSubscribeRate(topic)));
+        assertEquals(admin.topics().getSubscribeRate(topic, true), brokerPolicy);
     }
 
     @Test

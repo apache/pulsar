@@ -144,6 +144,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 405, message = "Broker doesn't allow forced deletion of namespaces"),
             @ApiResponse(code = 409, message = "Namespace is not empty") })
     public void deleteNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
@@ -562,6 +563,15 @@ public class Namespaces extends NamespacesBase {
         internalSetTopicDispatchRate(dispatchRate);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/dispatchRate")
+    @ApiOperation(value = "Delete dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deleteDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeleteTopicDispatchRate();
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/dispatchRate")
     @ApiOperation(value = "Get dispatch-rate configured for the namespace, -1 represents not configured yet")
@@ -605,6 +615,15 @@ public class Namespaces extends NamespacesBase {
                                                @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalDeleteSubscriptionDispatchRate();
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/subscribeRate")
+    @ApiOperation(value = "Delete subscribe-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deleteSubscribeRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeleteSubscribeRate();
     }
 
     @POST
@@ -753,6 +772,16 @@ public class Namespaces extends NamespacesBase {
                                        PersistencePolicies persistence) {
         validateNamespaceName(tenant, namespace);
         internalSetPersistence(persistence);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/persistence")
+    @ApiOperation(value = "Delete the persistence configuration for all topics on a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deletePersistence(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeletePersistence();
     }
 
     @POST
