@@ -27,6 +27,7 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
+import com.sun.xml.internal.ws.spi.db.FieldSetter;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -53,7 +54,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.mockito.internal.util.reflection.FieldSetter;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -114,8 +115,8 @@ public class PulsarClientImplTest {
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
         when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class)))
                 .thenReturn(CompletableFuture.completedFuture(cnx));
-        FieldSetter.setField(clientImpl, clientImpl.getClass().getDeclaredField("cnxPool"), pool);
-        FieldSetter.setField(clientImpl, clientImpl.getClass().getDeclaredField("lookup"), lookup);
+        Whitebox.setInternalState(clientImpl, "cnxPool", pool);
+        Whitebox.setInternalState(clientImpl, "lookup", lookup);
 
         List<ConsumerBase<byte[]>> consumers = new ArrayList<>();
         /**
