@@ -22,11 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.netty.util.HashedWheelTimer;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.feature.SettableFeatureProvider;
@@ -51,7 +47,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -444,7 +439,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         try {
             isolationPolicy
                     .newEnsemble(3, 3, 2, Collections.emptyMap(), new HashSet<>()).getResult();
-            Assert.fail("Should have thrown BKNotEnoughBookiesException");
+            fail("Should have thrown BKNotEnoughBookiesException");
         } catch (BKNotEnoughBookiesException ne) {
             // Ok..
         }

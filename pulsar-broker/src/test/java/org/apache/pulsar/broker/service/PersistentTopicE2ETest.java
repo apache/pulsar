@@ -911,9 +911,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         int topicMessageTTLSecs = 2;
         String namespaceName = "prop/expiry-check-2";
 
+        cleanup();
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
-        cleanup();
         setup();
 
         admin.namespaces().createNamespace(namespaceName);

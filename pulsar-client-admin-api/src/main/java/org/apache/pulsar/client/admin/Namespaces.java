@@ -1565,6 +1565,19 @@ public interface Namespaces {
     CompletableFuture<Void> removeBacklogQuotaAsync(String namespace);
 
     /**
+     * Remove the persistence configuration on a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removePersistence(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the persistence configuration on a namespace asynchronously.
+     * @param namespace
+     */
+    CompletableFuture<Void> removePersistenceAsync(String namespace);
+
+    /**
      * Set the persistence configuration for all the topics on a namespace.
      * <p/>
      * Set the persistence configuration on a namespace.
@@ -2081,6 +2094,21 @@ public interface Namespaces {
     CompletableFuture<Void> setSubscribeRateAsync(String namespace, SubscribeRate subscribeRate);
 
     /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscribeRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeSubscribeRateAsync(String namespace);
+
+    /**
      * Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period).
      *
      * @param namespace
@@ -2099,6 +2127,20 @@ public interface Namespaces {
      * @returns subscribeRate
      */
     CompletableFuture<SubscribeRate> getSubscribeRateAsync(String namespace);
+
+    /**
+     * Remove subscription-message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove subscription-message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String namespace);
 
     /**
      * Set subscription-message-dispatch-rate.
@@ -2171,6 +2213,22 @@ public interface Namespaces {
      *            number of messages per second
      */
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Remove replicator-message-dispatch-rate.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeReplicatorDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set replicator-message-dispatch-rate asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace);
 
     /**
      * Get replicator-message-dispatch-rate.
@@ -3009,7 +3067,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
+    Integer getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxUnackedMessagesPerSubscription for a namespace asynchronously.
@@ -3065,6 +3123,22 @@ public interface Namespaces {
      */
     CompletableFuture<Void> setMaxUnackedMessagesPerSubscriptionAsync(
             String namespace, int maxUnackedMessagesPerSubscription);
+
+    /**
+     * Remove maxUnackedMessagesPerSubscription for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesPerSubscription(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Remove maxUnackedMessagesPerSubscription for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesPerSubscriptionAsync(
+            String namespace);
 
     /**
      * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace

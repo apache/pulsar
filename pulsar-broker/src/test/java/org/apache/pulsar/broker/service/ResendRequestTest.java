@@ -55,7 +55,6 @@ public class ResendRequestTest extends BrokerTestBase {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-        ;
     }
 
     @Test(timeOut = testTimeout)

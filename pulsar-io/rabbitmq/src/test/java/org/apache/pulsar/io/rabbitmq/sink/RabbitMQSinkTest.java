@@ -66,7 +66,7 @@ public class RabbitMQSinkTest {
 
         // open should success
         // rabbitmq service may need time to initialize
-        Awaitility.await().untilAsserted(() -> sink.open(configs, null));
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> sink.open(configs, null));
 
         // write should success
         Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue", "fakeRoutingKey");

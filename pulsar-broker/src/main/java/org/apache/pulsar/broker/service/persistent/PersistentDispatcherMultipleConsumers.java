@@ -714,17 +714,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public void addUnAckedMessages(int numberOfMessages) {
         int maxUnackedMessages = topic.getMaxUnackedMessagesOnSubscription();
-        if (maxUnackedMessages == -1) {
-            maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
-                    .getMaxUnackedMessagesPerSubscription();
-        }
         // don't block dispatching if maxUnackedMessages = 0
-        if (maxUnackedMessages <= 0) {
-            return;
+        if (maxUnackedMessages <= 0 && blockedDispatcherOnUnackedMsgs == TRUE
+                && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+            log.info("[{}] Dispatcher is unblocked, since maxUnackedMessagesPerSubscription=0", name);
+            topic.getBrokerService().executor().execute(() -> readMoreEntries());
         }
 
         int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);
-        if (unAckedMessages >= maxUnackedMessages
+        if (unAckedMessages >= maxUnackedMessages && maxUnackedMessages > 0
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
             // block dispatcher if it reaches maxUnAckMsg limit
             log.info("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,
@@ -853,6 +851,21 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public void addMessageToReplay(long ledgerId, long entryId) {
         this.messagesToRedeliver.add(ledgerId, entryId);
+    }
+
+    @Override
+    public boolean checkAndUnblockIfStuck() {
+        if (cursor.checkAndUpdateReadPositionChanged()) {
+            return false;
+        }
+        // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
+        if (totalAvailablePermits > 0 && !havePendingReplayRead && !havePendingRead
+                && cursor.getNumberOfEntriesInBacklog(false) > 0) {
+            log.warn("{}-{} Dispatcher is stuck and unblocking by issuing reads", topic.getName(), name);
+            readMoreEntries();
+            return true;
+        }
+        return false;
     }
 
     public PersistentTopic getTopic() {

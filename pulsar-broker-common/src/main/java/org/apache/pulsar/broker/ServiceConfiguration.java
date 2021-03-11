@@ -218,6 +218,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Number of threads to use for pulsar broker service."
+                    + " The executor in thread pool will do transaction recover"
+    )
+    private int numTransactionExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 
@@ -366,6 +373,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         + "Topics that are inactive for longer than this value will be deleted"
     )
     private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Allow forced deletion of tenants. Default is false."
+    )
+    private boolean forceDeleteTenantAllowed = false;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Allow forced deletion of namespaces. Default is false."
+    )
+    private boolean forceDeleteNamespaceAllowed = false;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -535,6 +554,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " unacked messages than this percentage limit and subscription will not receive any new messages "
             + " until that subscription acks back `limit/2` messages")
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            dynamic = true,
+            doc = "Broker periodically checks if subscription is stuck and unblock if flag is enabled. "
+                    + "(Default is disabled)"
+        )
+    private boolean unblockStuckSubscriptionEnabled = false;
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
@@ -1841,6 +1867,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeProducerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "If true, export managed cursor metrics"
+    )
+    private boolean exposeManagedCursorMetricsInPrometheus = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 
@@ -1944,6 +1975,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String transactionBufferProviderClassName =
             "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Transaction buffer take snapshot transaction count"
+    )
+    private int transactionBufferSnapshotMaxTransactionCount = 1000;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Transaction buffer take snapshot min interval time"
+    )
+    private int transactionBufferSnapshotMinTimeInMillis = 5000;
 
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(

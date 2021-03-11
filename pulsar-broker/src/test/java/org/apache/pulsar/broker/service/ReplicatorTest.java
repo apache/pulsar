@@ -104,14 +104,14 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         super.setup();
     }
 
     @Override
     @AfterClass(alwaysRun = true, timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
+    public void cleanup() throws Exception {
+        super.cleanup();
     }
 
     @DataProvider(name = "partitionedTopic")
@@ -851,7 +851,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             }
             assertTrue(e.getCause() instanceof NamingException);
         }
-        
+
     }
 
     @Test

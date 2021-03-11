@@ -38,6 +38,7 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -108,24 +109,22 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
 
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
 
-            retryStrategically((test) -> {
-                try {
-                    SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
-                    return status.getInstances().size() > 0 && status.getInstances().get(0).getStatus().numWritten > 0;
-                } catch (PulsarAdminException e) {
-                    return false;
-                }
-            }, 10, 200);
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
+                assertEquals(status.getInstances().size(), 1);
+                assertTrue(status.getInstances().get(0).getStatus().numWritten > 0);
+            });
 
-            SourceStatus status = admin.sources().getSourceStatus("public", "default", sourceName);
-            assertEquals(status.getInstances().size(), 1);
-            assertTrue(status.getInstances().get(0).getStatus().numWritten > 0);
+            {
+                FunctionState functionState =
+                        admin.functions().getFunctionState("public", "default", sourceName, "initial");
+                assertEquals(functionState.getStringValue(), "val1");
+            }
 
-            FunctionState functionState = admin.functions().getFunctionState("public", "default", sourceName, "initial");
-            assertEquals(functionState.getStringValue(), "val1");
-
-            functionState = admin.functions().getFunctionState("public", "default", sourceName, "now");
-            assertTrue(functionState.getStringValue().matches("val1-.*"));
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                FunctionState functionState = admin.functions().getFunctionState("public", "default", sourceName, "now");
+                assertTrue(functionState.getStringValue().matches("val1-.*"));
+            });
         }
 
         // delete source
@@ -158,28 +157,26 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                     .topic(inputTopicName)
                     .create();
 
-            FunctionState functionState = admin.functions().getFunctionState("public", "default", sinkName, "initial");
-            assertEquals(functionState.getStringValue(), "val1");
+            {
+                FunctionState functionState =
+                        admin.functions().getFunctionState("public", "default", sinkName, "initial");
+                assertEquals(functionState.getStringValue(), "val1");
+            }
 
             for (int i = 0; i < numMessages; i++) {
                 producer.send("foo");
             }
 
-            retryStrategically((test) -> {
-                try {
-                    SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
-                    return status.getInstances().size() > 0 && status.getInstances().get(0).getStatus().numWrittenToSink > 0;
-                } catch (PulsarAdminException e) {
-                    return false;
-                }
-            }, 10, 200);
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
+                assertEquals(status.getInstances().size(), 1);
+                assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink > 0);
+            });
 
-            SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
-            assertEquals(status.getInstances().size(), 1);
-            assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink > 0);
-
-            functionState = admin.functions().getFunctionState("public", "default", sinkName, "now");
-            assertEquals(functionState.getStringValue(), String.format("val1-%d", numMessages - 1));
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                FunctionState functionState = admin.functions().getFunctionState("public", "default", sinkName, "now");
+                assertEquals(functionState.getStringValue(), String.format("val1-%d", numMessages - 1));
+            });
         }
 
         // delete source
@@ -430,7 +427,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
             "--name", functionName
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
     private void deleteSource(String sourceName) throws Exception {
@@ -443,7 +440,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--name", sourceName
         );
         assertTrue(result.getStdout().contains("Delete source successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
     private void deleteSink(String sinkName) throws Exception {
@@ -456,7 +453,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--name", sinkName
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
     private void getSourceInfoNotFound(String sourceName) throws Exception {
