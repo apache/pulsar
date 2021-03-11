@@ -73,6 +73,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -1449,10 +1450,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
         assertNotNull(map);
         assertEquals((long) map.get("brk_connection_created_total_count"), 1);
-        assertEquals((long) map.get("brk_connection_count"), 1);
+        assertEquals((long) map.get("brk_active_connections"), 1);
         assertEquals((long) map.get("brk_connection_closed_total_count"), 0);
-        assertEquals((double) map.get("brk_connection_close_rate"), 0.0);
-        assertTrue((double) map.get("brk_connection_create_rate") > 0.0);
+        assertEquals((long) map.get("brk_connection_create_success_count"), 1);
+        assertEquals((long) map.get("brk_connection_create_fail_count"), 0);
 
         producer.close();
         pulsarClient.close();
@@ -1469,15 +1470,43 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             }
 
             if (closeMap != null && (long) closeMap.get("brk_connection_created_total_count") == 1
-                    && (long) closeMap.get("brk_connection_count") == 0
+                    && (long) closeMap.get("brk_active_connections") == 0
                     && (long) closeMap.get("brk_connection_closed_total_count") == 1
-                    && (double) closeMap.get("brk_connection_close_rate") > 0.0
-                    && (double) closeMap.get("brk_connection_create_rate") == 0) {
+                    && (long) closeMap.get("brk_connection_create_fail_count") == 0
+                    && (long) closeMap.get("brk_connection_create_success_count") == 1) {
                 return true;
             } else {
                 return false;
             }
         });
+
+        pulsar.getConfiguration().setAuthenticationEnabled(true);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(1, TimeUnit.MILLISECONDS).build();
+
+        try {
+            pulsarClient.newProducer()
+                    .topic("persistent://" + namespace + "/topic0")
+                    .create();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.AuthenticationException);
+        }
+
+        brokerService.updateRates();
+        metrics = brokerService.getTopicMetrics();
+        for (int i = 0; i < metrics.size(); i++) {
+            if (metrics.get(i).getDimensions().containsValue("broker_connection")) {
+                map = metrics.get(i).getMetrics();
+                break;
+            }
+        }
+        assertNotNull(map);
+        assertEquals((long) map.get("brk_connection_created_total_count"), 2);
+        assertEquals((long) map.get("brk_active_connections"), 0);
+        assertEquals((long) map.get("brk_connection_closed_total_count") , 2);
+        assertEquals((long) map.get("brk_connection_create_success_count"), 1);
+        assertEquals((long) map.get("brk_connection_create_fail_count") , 1);
     }
 
     @Test

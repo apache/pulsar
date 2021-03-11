@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.stats.Rate;
 
 /**
  */
@@ -36,9 +35,11 @@ public class BrokerOperabilityMetrics {
     private final DimensionStats zkWriteLatencyStats;
     private final DimensionStats zkReadLatencyStats;
     private final String brokerName;
-    private final Rate connectionCreated;
-    private final Rate connectionClosed;
-    private final AtomicLong connectionCount;
+    private final AtomicLong connectionTotalCreatedCount;
+    private final AtomicLong connectionCreateSuccessCount;
+    private final AtomicLong connectionCreateFailCount;
+    private final AtomicLong connectionTotalClosedCount;
+    private final AtomicLong connectionActive;
 
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
@@ -47,9 +48,11 @@ public class BrokerOperabilityMetrics {
         this.zkWriteLatencyStats = new DimensionStats("zk_write_latency", 60);
         this.zkReadLatencyStats = new DimensionStats("zk_read_latency", 60);
         this.brokerName = brokerName;
-        this.connectionCreated = new Rate();
-        this.connectionClosed = new Rate();
-        this.connectionCount = new AtomicLong();
+        this.connectionTotalCreatedCount = new AtomicLong();
+        this.connectionCreateSuccessCount = new AtomicLong();
+        this.connectionCreateFailCount = new AtomicLong();
+        this.connectionTotalClosedCount = new AtomicLong();
+        this.connectionActive = new AtomicLong();
     }
 
     public List<Metrics> getMetrics() {
@@ -65,14 +68,12 @@ public class BrokerOperabilityMetrics {
     }
 
     Metrics getConnectionMetrics() {
-        connectionCreated.calculateRate();
-        connectionClosed.calculateRate();
         Metrics rMetrics = Metrics.create(getDimensionMap("broker_connection"));
-        rMetrics.put("brk_connection_created_total_count", connectionCreated.getTotalCount());
-        rMetrics.put("brk_connection_create_rate", connectionCreated.getRate());
-        rMetrics.put("brk_connection_closed_total_count", connectionClosed.getTotalCount());
-        rMetrics.put("brk_connection_close_rate", connectionClosed.getRate());
-        rMetrics.put("brk_connection_count", connectionCount.get());
+        rMetrics.put("brk_connection_created_total_count", connectionTotalCreatedCount.get());
+        rMetrics.put("brk_connection_create_success_count", connectionCreateSuccessCount.get());
+        rMetrics.put("brk_connection_create_fail_count", connectionCreateFailCount.get());
+        rMetrics.put("brk_connection_closed_total_count", connectionTotalClosedCount.get());
+        rMetrics.put("brk_active_connections", connectionActive.get());
         return rMetrics;
     }
 
@@ -131,12 +132,20 @@ public class BrokerOperabilityMetrics {
     }
 
     public void recordConnectionCreate() {
-        this.connectionCreated.recordEvent();
-        this.connectionCount.incrementAndGet();
+        this.connectionTotalCreatedCount.incrementAndGet();
+        this.connectionActive.incrementAndGet();
     }
 
     public void recordConnectionClose() {
-        this.connectionClosed.recordEvent();
-        this.connectionCount.decrementAndGet();
+        this.connectionTotalClosedCount.incrementAndGet();
+        this.connectionActive.decrementAndGet();
+    }
+
+    public void recordConnectionCreateSuccess() {
+        this.connectionCreateSuccessCount.incrementAndGet();
+    }
+
+    public void recordConnectionCreateFail() {
+        this.connectionCreateFailCount.incrementAndGet();
     }
 }
