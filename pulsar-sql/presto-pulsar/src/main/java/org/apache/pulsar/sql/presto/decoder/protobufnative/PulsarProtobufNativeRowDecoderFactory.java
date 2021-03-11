@@ -134,8 +134,10 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
                 Descriptors.Descriptor msg = field.getMessageType();
                 if (field.isMapField()) {
                     //map
-                    TypeSignature keyType = parseProtobufPrestoType(msg.findFieldByName("key")).getTypeSignature();
-                    TypeSignature valueType = parseProtobufPrestoType(msg.findFieldByName("value")).getTypeSignature();
+                    TypeSignature keyType =
+                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder.PROTOBUF_MAP_KEY_NAME)).getTypeSignature();
+                    TypeSignature valueType =
+                            parseProtobufPrestoType(msg.findFieldByName(PulsarProtobufNativeColumnDecoder.PROTOBUF_MAP_VALUE_NAME)).getTypeSignature();
                     return typeManager.getParameterizedType(StandardTypes.MAP,
                             ImmutableList.of(TypeSignatureParameter.typeParameter(keyType),
                                     TypeSignatureParameter.typeParameter(valueType)));
