@@ -41,9 +41,9 @@
         <activeByDefault>true</activeByDefault>
       </activation>
       <modules>
-        <module>server</module>
         <module>io</module>
         <module>offloaders</module>
+        <module>server</module>
       </modules>
     </profile>
 

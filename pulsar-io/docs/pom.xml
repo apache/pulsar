@@ -149,7 +149,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
+      <artifactId>pulsar-io-kafka-connect-adaptor-nar</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

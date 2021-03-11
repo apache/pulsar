@@ -19,7 +19,8 @@
     under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <packaging>pom</packaging>
   <modelVersion>4.0.0</modelVersion>
@@ -30,9 +31,26 @@
   </parent>
   <artifactId>docker-images</artifactId>
   <name>Apache Pulsar :: Tests :: Docker Images</name>
-  <modules>
-    <module>java-test-functions</module>
-    <module>latest-version-image</module>
-    <module>java-test-image</module>
-  </modules>
+  <profiles>
+    <profile>
+      <id>skipDocker</id>
+      <activation>
+        <property>
+          <name>skipDocker</name>
+        </property>
+      </activation>
+      <modules/>
+    </profile>
+    <profile>
+      <id>docker</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>java-test-functions</module>
+        <module>latest-version-image</module>
+        <module>java-test-image</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>
