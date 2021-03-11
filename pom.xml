@@ -1366,7 +1366,7 @@ flexible messaging model and an intuitive client API.</description>
                 <include>${include}</include>
             </includes>
             <excludes>
-                <exclude>${exclude}</exclude>
+                <exclude>**/*$*,${exclude}</exclude>
             </excludes>
             <groups>${groups}</groups>
             <excludedGroups>${excludedGroups}</excludedGroups>
