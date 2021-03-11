@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -87,11 +88,10 @@ public interface Topics {
      * @param namespace
      *            Namespace name
      *
-     * @param mode
-     *            Get topic mode
-     *            use {@link GetTopicsMode#PERSISTENT} to get persistent topics
-     *            use {@link GetTopicsMode#NON_PERSISTENT} to get non-persistent topics
-     *            use {@link GetTopicsMode#ALL} to get both persistent and non-persistent topics
+     * @param topicDomain
+     *            use {@link TopicDomain#persistent} to get persistent topics
+     *            use {@link TopicDomain#non_persistent} to get non-persistent topics
+     *            Use null to get both persistent and non-persistent topics
      *
      * @return a list of topics
      *
@@ -102,7 +102,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getList(String namespace, GetTopicsMode mode) throws PulsarAdminException;
+    List<String> getList(String namespace, TopicDomain topicDomain) throws PulsarAdminException;
 
     /**
      * Get both persistent and non-persistent topics under a namespace asynchronously.
@@ -133,15 +133,14 @@ public interface Topics {
      * @param namespace
      *            Namespace name
      *
-     * @param mode
-     *            Get topic mode
-     *            use {@link GetTopicsMode#PERSISTENT} to get persistent topics
-     *            use {@link GetTopicsMode#NON_PERSISTENT} to get non-persistent topics
-     *            use {@link GetTopicsMode#ALL} to get both persistent and non-persistent topics
+     * @param topicDomain
+     *            use {@link TopicDomain#persistent} to get persistent topics
+     *            use {@link TopicDomain#non_persistent} to get non-persistent topics
+     *            Use null to get both persistent and non-persistent topics
      *
      * @return a list of topics
      */
-    CompletableFuture<List<String>> getListAsync(String namespace, GetTopicsMode mode);
+    CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain);
 
     /**
      * Get the list of partitioned topics under a namespace.

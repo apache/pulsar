@@ -46,7 +46,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import org.apache.pulsar.client.admin.GetTopicsMode;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -65,6 +64,7 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -105,13 +105,13 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public List<String> getList(String namespace) throws PulsarAdminException {
-        return getList(namespace, GetTopicsMode.ALL);
+        return getList(namespace, null);
     }
 
     @Override
-    public List<String> getList(String namespace, GetTopicsMode mode) throws PulsarAdminException {
+    public List<String> getList(String namespace, TopicDomain topicDomain) throws PulsarAdminException {
         try {
-            return getListAsync(namespace, mode).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getListAsync(namespace, topicDomain).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -124,17 +124,17 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<List<String>> getListAsync(String namespace) {
-        return getListAsync(namespace, GetTopicsMode.ALL);
+        return getListAsync(namespace, null);
     }
 
     @Override
-    public CompletableFuture<List<String>> getListAsync(String namespace, GetTopicsMode mode) {
+    public CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget persistentPath = namespacePath("persistent", ns);
         WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
         final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
         final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
-        if (GetTopicsMode.ALL.equals(mode) || GetTopicsMode.PERSISTENT.equals(mode)) {
+        if (topicDomain == null || TopicDomain.persistent.equals(topicDomain)) {
             asyncGetRequest(persistentPath,
                     new InvocationCallback<List<String>>() {
                         @Override
@@ -151,7 +151,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             persistentList.complete(Collections.emptyList());
         }
 
-        if (GetTopicsMode.ALL.equals(mode) || GetTopicsMode.NON_PERSISTENT.equals(mode)) {
+        if (topicDomain == null || TopicDomain.non_persistent.equals(topicDomain)) {
             asyncGetRequest(nonPersistentPath,
                     new InvocationCallback<List<String>>() {
                         @Override

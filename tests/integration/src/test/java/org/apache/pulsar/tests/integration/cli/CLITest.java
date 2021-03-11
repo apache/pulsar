@@ -119,7 +119,7 @@ public class CLITest extends PulsarTestSuite {
                 PulsarCluster.ADMIN_SCRIPT,
                 "topics",
                 "list",
-                "--mode",
+                "--topic-domain",
                 "persistent",
                 namespace);
 
@@ -130,7 +130,7 @@ public class CLITest extends PulsarTestSuite {
                 PulsarCluster.ADMIN_SCRIPT,
                 "topics",
                 "list",
-                "--mode",
+                "--topic-domain",
                 "non-persistent",
                 namespace);
 
@@ -141,22 +141,11 @@ public class CLITest extends PulsarTestSuite {
                 PulsarCluster.ADMIN_SCRIPT,
                 "topics",
                 "list",
-                "--mode",
-                "all",
-                namespace);
-
-        assertTrue(result.getStdout().contains(persistentTopicName));
-        assertTrue(result.getStdout().contains(nonPersistentTopicName));
-
-        result = container.execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "topics",
-                "list",
-                "--mode",
+                "--topic-domain",
                 "none",
                 namespace);
 
-        assertTrue(result.getStdout().contains("Invalid get topic mode: [none]"));
+        assertTrue(result.getStdout().contains("Invalid topic domain: 'none'"));
 
         producer1.close();
         producer2.close();

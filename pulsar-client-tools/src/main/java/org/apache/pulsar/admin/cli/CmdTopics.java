@@ -43,7 +43,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.apache.pulsar.client.admin.GetTopicsMode;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -53,6 +52,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
@@ -258,13 +258,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = "--mode", description = "Get topics mode(persistent, non-persistent, all). Default is all.")
-        private GetTopicsMode mode = GetTopicsMode.ALL;
+        @Parameter(names = {"-td", "--topic-domain"}, description = "Get topics mode(persistent, non-persistent, all). Default is all.")
+        private TopicDomain topicDomain;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getTopics().getList(namespace, mode));
+            print(getTopics().getList(namespace, topicDomain));
         }
     }
 

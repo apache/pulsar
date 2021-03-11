@@ -56,7 +56,6 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.admin.GetTopicsMode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
@@ -1906,28 +1905,21 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         topics.clear();
 
-        topics.addAll(admin.topics().getList(namespace, GetTopicsMode.ALL));
-        assertEquals(topics.size(), 2);
-        assertTrue(topics.contains(persistentTopicName));
-        assertTrue(topics.contains(nonPersistentTopicName));
-
-        topics.clear();
-
-        topics.addAll(admin.topics().getList(namespace, GetTopicsMode.PERSISTENT));
+        topics.addAll(admin.topics().getList(namespace, TopicDomain.persistent));
         assertEquals(topics.size(), 1);
         assertTrue(topics.contains(persistentTopicName));
 
         topics.clear();
 
-        topics.addAll(admin.topics().getList(namespace, GetTopicsMode.NON_PERSISTENT));
+        topics.addAll(admin.topics().getList(namespace, TopicDomain.non_persistent));
         assertEquals(topics.size(), 1);
         assertTrue(topics.contains(nonPersistentTopicName));
 
         try {
-            admin.topics().getList(namespace, GetTopicsMode.of("none"));
+            admin.topics().getList(namespace, TopicDomain.getEnum("none"));
             fail("Should failed with invalid get topic mode.");
         } catch (IllegalArgumentException e) {
-            assertEquals(e.getMessage(), "Invalid get topic mode: [none]");
+            assertEquals(e.getMessage(), "Invalid topic domain: 'none'");
         }
 
         producer1.close();
