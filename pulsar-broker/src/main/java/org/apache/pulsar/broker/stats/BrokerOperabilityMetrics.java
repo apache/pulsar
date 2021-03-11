@@ -23,7 +23,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.stats.Rate;
 
 /**
  */
@@ -34,6 +36,9 @@ public class BrokerOperabilityMetrics {
     private final DimensionStats zkWriteLatencyStats;
     private final DimensionStats zkReadLatencyStats;
     private final String brokerName;
+    private final Rate connectionCreated;
+    private final Rate connectionClosed;
+    private final AtomicLong connectionCount;
 
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
@@ -42,6 +47,9 @@ public class BrokerOperabilityMetrics {
         this.zkWriteLatencyStats = new DimensionStats("zk_write_latency", 60);
         this.zkReadLatencyStats = new DimensionStats("zk_read_latency", 60);
         this.brokerName = brokerName;
+        this.connectionCreated = new Rate();
+        this.connectionClosed = new Rate();
+        this.connectionCount = new AtomicLong();
     }
 
     public List<Metrics> getMetrics() {
@@ -53,6 +61,27 @@ public class BrokerOperabilityMetrics {
         metricsList.add(getTopicLoadMetrics());
         metricsList.add(getZkWriteLatencyMetrics());
         metricsList.add(getZkReadLatencyMetrics());
+        metricsList.add(getConnectionMetrics());
+    }
+
+    Metrics getConnectionMetrics() {
+        connectionCreated.calculateRate();
+        connectionClosed.calculateRate();
+        Metrics rMetrics = Metrics.create(getDimensionMap("broker_connection"));
+        rMetrics.put("brk_connection_created_total_count", connectionCreated.getTotalCount());
+        rMetrics.put("brk_connection_create_rate", connectionCreated.getRate());
+        rMetrics.put("brk_connection_closed_total_count", connectionClosed.getTotalCount());
+        rMetrics.put("brk_connection_close_rate", connectionClosed.getRate());
+        rMetrics.put("brk_connection_count", connectionCount.get());
+        return rMetrics;
+    }
+
+    Map<String, String> getDimensionMap(String metricsName) {
+        Map<String, String> dimensionMap = Maps.newHashMap();
+        dimensionMap.put("broker", brokerName);
+        dimensionMap.put("cluster", localCluster);
+        dimensionMap.put("metric", metricsName);
+        return dimensionMap;
     }
 
     Metrics getTopicLoadMetrics() {
@@ -68,11 +97,7 @@ public class BrokerOperabilityMetrics {
     }
 
     Metrics getDimensionMetrics(String metricsName, String dimensionName, DimensionStats stats) {
-        Map<String, String> dimensionMap = Maps.newHashMap();
-        dimensionMap.put("broker", brokerName);
-        dimensionMap.put("cluster", localCluster);
-        dimensionMap.put("metric", metricsName);
-        Metrics dMetrics = Metrics.create(dimensionMap);
+        Metrics dMetrics = Metrics.create(getDimensionMap(metricsName));
 
         dMetrics.put("brk_" + dimensionName + "_time_mean_ms", stats.getMeanDimension());
         dMetrics.put("brk_" + dimensionName + "_time_median_ms", stats.getMedianDimension());
@@ -103,5 +128,15 @@ public class BrokerOperabilityMetrics {
 
     public void recordZkReadLatencyTimeValue(long topicLoadLatencyMs) {
         zkReadLatencyStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
+    }
+
+    public void recordConnectionCreate() {
+        this.connectionCreated.recordEvent();
+        this.connectionCount.incrementAndGet();
+    }
+
+    public void recordConnectionClose() {
+        this.connectionClosed.recordEvent();
+        this.connectionCount.decrementAndGet();
     }
 }

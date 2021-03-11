@@ -244,4 +244,12 @@ public class PulsarStats implements Closeable {
             log.warn("Exception while recording zk-latency {}, {}", eventType, ex.getMessage());
         }
     }
+
+    public void recordConnectionCreate() {
+        brokerOperabilityMetrics.recordConnectionCreate();
+    }
+
+    public void recordConnectionClose() {
+        brokerOperabilityMetrics.recordConnectionClose();
+    }
 }

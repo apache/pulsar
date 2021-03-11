@@ -220,6 +220,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         log.info("New connection from {}", remoteAddress);
         this.ctx = ctx;
         this.commandSender = new PulsarCommandSenderImpl(getBrokerService().getInterceptor(), this);
+        this.service.getPulsarStats().recordConnectionCreate();
     }
 
     @Override
@@ -253,6 +254,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.warn("Consumer {} was already closed: {}", consumer, e);
             }
         });
+        this.service.getPulsarStats().recordConnectionClose();
     }
 
     @Override
@@ -269,6 +271,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.warn("[{}] Got exception {}", remoteAddress,
                     ClientCnx.isKnownException(cause) ? cause : ExceptionUtils.getStackTrace(cause));
             state = State.Failed;
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Failed.name());
+            }
         } else {
             // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
             // failed
@@ -553,6 +558,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void completeConnect(int clientProtoVersion, String clientVersion) {
         ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
         state = State.Connected;
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connected.name());
+        }
         setRemoteEndpointProtocolVersion(clientProtoVersion);
         if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {
             this.clientVersion = clientVersion.intern();
@@ -618,6 +626,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Authentication in progress client by method {}.",
                 remoteAddress, authMethod);
+            log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connecting.name());
         }
         return State.Connecting;
     }

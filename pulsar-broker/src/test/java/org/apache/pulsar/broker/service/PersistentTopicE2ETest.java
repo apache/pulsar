@@ -82,6 +82,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1425,6 +1426,58 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         double msgInRate = (double) metrics.get(0).getMetrics().get("brk_in_rate");
         // rate should be calculated and no must be > 0 as we have produced 10 msgs so far
         assertTrue(msgInRate > 0);
+    }
+
+    @Test
+    public void testBrokerConnectionStats() throws Exception {
+
+        BrokerService brokerService = this.pulsar.getBrokerService();
+
+        final String namespace = "prop/ns-abc";
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://" + namespace + "/topic0")
+                .create();
+        Map<String, Object> map = null;
+
+        brokerService.updateRates();
+        List<Metrics> metrics = brokerService.getTopicMetrics();
+        for (int i = 0; i < metrics.size(); i++) {
+            if (metrics.get(i).getDimensions().containsValue("broker_connection")) {
+                map = metrics.get(i).getMetrics();
+                break;
+            }
+        }
+        assertNotNull(map);
+        assertEquals((long) map.get("brk_connection_created_total_count"), 1);
+        assertEquals((long) map.get("brk_connection_count"), 1);
+        assertEquals((long) map.get("brk_connection_closed_total_count"), 0);
+        assertEquals((double) map.get("brk_connection_close_rate"), 0.0);
+        assertTrue((double) map.get("brk_connection_create_rate") > 0.0);
+
+        producer.close();
+        pulsarClient.close();
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+            brokerService.updateRates();
+            List<Metrics> closeMetrics = brokerService.getTopicMetrics();
+            Map<String, Object> closeMap = null;
+            for (int i = 0; i < closeMetrics.size(); i++) {
+                if (closeMetrics.get(i).getDimensions().containsValue("broker_connection")) {
+                    closeMap = closeMetrics.get(i).getMetrics();
+                    break;
+                }
+            }
+
+            if (closeMap != null && (long) closeMap.get("brk_connection_created_total_count") == 1
+                    && (long) closeMap.get("brk_connection_count") == 0
+                    && (long) closeMap.get("brk_connection_closed_total_count") == 1
+                    && (double) closeMap.get("brk_connection_close_rate") > 0.0
+                    && (double) closeMap.get("brk_connection_create_rate") == 0) {
+                return true;
+            } else {
+                return false;
+            }
+        });
     }
 
     @Test
