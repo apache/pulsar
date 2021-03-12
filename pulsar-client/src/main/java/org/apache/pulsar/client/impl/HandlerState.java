@@ -39,7 +39,8 @@ abstract class HandlerState {
         Terminated, // Topic associated with this handler
                     // has been terminated
         Failed, // Handler is failed
-        RegisteringSchema // Handler is registering schema
+        RegisteringSchema, // Handler is registering schema
+        ProducerFenced, // The producer has been fenced by the broker
     };
 
     public HandlerState(PulsarClientImpl client, String topic) {

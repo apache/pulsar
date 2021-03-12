@@ -25,6 +25,12 @@ import lombok.Data;
  */
 @Data
 public class Stat {
+
+    /**
+     * The path of the value
+     */
+    final String path;
+
     /**
      * The data version.
      */

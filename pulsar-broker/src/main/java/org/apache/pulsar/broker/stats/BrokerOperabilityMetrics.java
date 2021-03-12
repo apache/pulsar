@@ -19,12 +19,10 @@
 package org.apache.pulsar.broker.stats;
 
 import com.google.common.collect.Maps;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.common.stats.Metrics;
 
 /**

@@ -366,6 +366,21 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
+     * Configure a limit on the amount of direct memory that will be allocated by this client instance.
+     * <p>
+     * <b>Note: at this moment this is only limiting the memory for producers.</b>
+     * <p>
+     * Setting this to 0 will disable the limit.
+     *
+     * @param memoryLimit
+     *            the limit
+     * @param unit
+     *            the memory limit size unit
+     * @return the client builder instance
+     */
+    ClientBuilder memoryLimit(long memoryLimit, SizeUnit unit);
+
+    /**
      * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
      * statsInterval It should be set to at least 1 second.
      *

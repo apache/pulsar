@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
-import org.apache.pulsar.common.intercept.InterceptException;
-
+import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import java.io.IOException;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.intercept.InterceptException;
 
 /**
  * A plugin interface that allows you to intercept the
@@ -40,6 +42,20 @@ import java.io.IOException;
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Evolving
 public interface BrokerInterceptor extends AutoCloseable {
+
+    /**
+     * Intercept messages before sending them to the consumers.
+     *
+     * @param subscription pulsar subscription
+     * @param entry entry
+     * @param ackSet entry ack bitset. it is either <tt>null</tt> or an array of long-based bitsets.
+     * @param msgMetadata message metadata. The message metadata will be recycled after this call.
+     */
+    default void beforeSendMessage(Subscription subscription,
+                                   Entry entry,
+                                   long[] ackSet,
+                                   MessageMetadata msgMetadata) {
+    }
 
     /**
      * Called by the broker while new command incoming.
@@ -86,12 +102,12 @@ public interface BrokerInterceptor extends AutoCloseable {
         }
 
         @Override
-        public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
+        public void onWebserviceRequest(ServletRequest request) {
             // no-op
         }
 
         @Override
-        public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+        public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
             // no-op
         }
 

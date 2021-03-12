@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ProducerBase;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.testng.annotations.AfterClass;

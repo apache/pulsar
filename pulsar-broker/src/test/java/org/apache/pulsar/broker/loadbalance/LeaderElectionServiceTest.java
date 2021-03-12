@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import com.google.common.collect.Sets;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -32,84 +35,28 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-
 @Slf4j
 public class LeaderElectionServiceTest {
 
     private LocalBookkeeperEnsemble bkEnsemble;
-    private LeaderElectionService.LeaderListener listener;
 
     @BeforeMethod
     public void setup() throws Exception {
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
         log.info("---- bk started ----");
-        listener = new LeaderElectionService.LeaderListener() {
-            @Override
-            public void brokerIsTheLeaderNow() {
-                log.info("i am a leader");
-            }
-
-            @Override
-            public void brokerIsAFollowerNow() {
-                log.info("i am a follower");
-            }
-        };
     }
 
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         bkEnsemble.stop();
         log.info("---- bk stopped ----");
-    }
-
-
-    @Test
-    public void electedShouldBeTrue() {
-        final ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
-        final String safeWebServiceAddress = "http://localhost:8080";
-        ZooKeeperCache zkCache = Mockito.mock(ZooKeeperCache.class);
-        PulsarService pulsar = Mockito.mock(PulsarService.class);
-
-        Mockito.when(pulsar.getZkClient()).thenReturn(bkEnsemble.getZkClient());
-        Mockito.when(pulsar.getExecutor()).thenReturn(ses);
-        Mockito.when(pulsar.getSafeWebServiceAddress()).thenReturn(safeWebServiceAddress);
-
-        Mockito.when(zkCache.getZooKeeper()).thenReturn(bkEnsemble.getZkClient());
-        Mockito.when(pulsar.getLocalZkCache()).thenReturn(zkCache);
-
-        LeaderElectionService leaderElectionService = new LeaderElectionService(pulsar, listener);
-        leaderElectionService.start();
-        Assert.assertTrue(leaderElectionService.isElected());
-        Assert.assertTrue(leaderElectionService.isLeader());
-        Assert.assertEquals(leaderElectionService.getCurrentLeader().getServiceUrl(), safeWebServiceAddress);
-        log.info("leader state {} {} {}",
-                leaderElectionService.isElected(),
-                leaderElectionService.isLeader(),
-                leaderElectionService.getCurrentLeader().getServiceUrl());
-
-        LeaderElectionService followerElectionService = new LeaderElectionService(pulsar, listener);
-        followerElectionService.start();
-        Assert.assertTrue(followerElectionService.isElected());
-        Assert.assertFalse(followerElectionService.isLeader());
-        Assert.assertEquals(followerElectionService.getCurrentLeader().getServiceUrl(), safeWebServiceAddress);
-        log.info("follower state {} {} {}",
-                followerElectionService.isElected(),
-                followerElectionService.isLeader(),
-                followerElectionService.getCurrentLeader().getServiceUrl());
-        ses.shutdown();
     }
 
     @Test
@@ -142,14 +89,12 @@ public class LeaderElectionServiceTest {
 
         // broker, webService and leaderElectionService is started, but elect not ready;
         LeaderElectionService leaderElectionService = Mockito.mock(LeaderElectionService.class);
-        Mockito.when(leaderElectionService.isElected()).thenReturn(false);
         Mockito.doReturn(leaderElectionService).when(pulsar).getLeaderElectionService();
         checkLookupException(tenant, namespace, client);
 
         // broker, webService and leaderElectionService is started, and elect is done;
-        Mockito.when(leaderElectionService.isElected()).thenReturn(true);
         Mockito.when(leaderElectionService.isLeader()).thenReturn(true);
-        Mockito.when(leaderElectionService.getCurrentLeader()).thenReturn(new LeaderBroker("http://localhost:8080"));
+        Mockito.when(leaderElectionService.getCurrentLeader()).thenReturn(Optional.of(new LeaderBroker("http://localhost:8080")));
 
         Producer<byte[]> producer = client.newProducer()
                 .topic("persistent://" + tenant + "/" + namespace + "/1p")

@@ -19,18 +19,17 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.io.CountingInputStream;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.DataBlockHeader;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
- * The data block header in code storage for each data block.
+ * The data block header in tiered storage for each data block.
  */
 public class DataBlockHeaderImpl implements DataBlockHeader {
     // Magic Word for data block.
@@ -110,7 +109,7 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
      */
     @Override
     public InputStream toStream() {
-        ByteBuf out = PooledByteBufAllocator.DEFAULT.buffer(HEADER_MAX_SIZE, HEADER_MAX_SIZE);
+        ByteBuf out = PulsarByteBufAllocator.DEFAULT.buffer(HEADER_MAX_SIZE, HEADER_MAX_SIZE);
         out.writeInt(MAGIC_WORD)
             .writeLong(headerLength)
             .writeLong(blockLength)
@@ -119,6 +118,12 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
 
         // true means the input stream will release the ByteBuf on close
         return new ByteBufInputStream(out, true);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("DataBlockHeader(len:%d,hlen:%d,firstEntry:%d)",
+                blockLength, headerLength, firstEntryId);
     }
 }
 

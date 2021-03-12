@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -25,14 +26,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class MessagingServiceShutdownHook extends Thread implements ShutdownService {
 

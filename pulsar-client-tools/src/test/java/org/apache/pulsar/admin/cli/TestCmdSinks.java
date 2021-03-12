@@ -108,7 +108,7 @@ public class TestCmdSinks {
         sink = mock(Sinks.class);
         when(pulsarAdmin.sinks()).thenReturn(sink);
 
-        cmdSinks = spy(new CmdSinks(pulsarAdmin));
+        cmdSinks = spy(new CmdSinks(() -> pulsarAdmin));
         createSink = spy(cmdSinks.getCreateSink());
         updateSink = spy(cmdSinks.getUpdateSink());
         localSinkRunner = spy(cmdSinks.getLocalSinkRunner());

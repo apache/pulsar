@@ -27,6 +27,11 @@ and follow the instructions for your OS.
 A few things to note about this command:
  * The data, metadata, and configuration are persisted on Docker volumes in order to not start "fresh" every 
 time the container is restarted. For details on the volumes you can use `docker volume inspect <sourcename>`
+ * The pulsar docker image runs as user 10000, by default. In order for the pulsar process to
+ access the mounted volumes, the host volumes (`pulsardata` and `pulsarconf` in this example)
+ must give user 10000 read and write permissions. Alternatively, you can specify the user to run with and then make sure
+ that the host volume gives that user read and write permissions. Otherwise, the process will fail due to insufficient
+ permissions.
  * For Docker on Windows make sure to configure it to use Linux containers
 
 If you start Pulsar successfully, you will see `INFO`-level log messages like this:

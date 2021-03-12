@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -217,6 +218,7 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     public String printResourceUsage() {
         return String.format(
+                Locale.ENGLISH,
                 "cpu: %.2f%%, memory: %.2f%%, directMemory: %.2f%%, bandwidthIn: %.2f%%, bandwidthOut: %.2f%%",
                 cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage());

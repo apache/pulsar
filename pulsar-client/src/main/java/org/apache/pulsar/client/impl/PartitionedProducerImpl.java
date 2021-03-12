@@ -20,14 +20,15 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -127,8 +128,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         AtomicInteger completed = new AtomicInteger();
         for (int partitionIndex = 0; partitionIndex < topicMetadata.numPartitions(); partitionIndex++) {
             String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
-            ProducerImpl<T> producer = new ProducerImpl<>(client, partitionName, conf, new CompletableFuture<>(),
-                    partitionIndex, schema, interceptors);
+            ProducerImpl<T> producer = client.newProducerImpl(partitionName, partitionIndex,
+                    conf, schema, interceptors, new CompletableFuture<>());
             producers.add(producer);
             producer.producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {
@@ -175,6 +176,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             case Closing:
             case Closed:
                 return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+            case ProducerFenced:
+                return FutureUtil.failedFuture(new PulsarClientException.ProducerFencedException("Producer was fenced"));
             case Terminated:
                 return FutureUtil.failedFuture(new PulsarClientException.TopicTerminatedException("Topic was terminated"));
             case Failed:
@@ -204,6 +207,16 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     public boolean isConnected() {
         // returns false if any of the partition is not connected
         return producers.stream().allMatch(ProducerImpl::isConnected);
+    }
+
+    @Override
+    public long getLastDisconnectedTimestamp() {
+        long lastDisconnectedTimestamp = 0;
+        Optional<ProducerImpl<T>> p = producers.stream().max(Comparator.comparingLong(ProducerImpl::getLastDisconnectedTimestamp));
+        if (p.isPresent()) {
+            lastDisconnectedTimestamp = p.get().getLastDisconnectedTimestamp();
+        }
+        return lastDisconnectedTimestamp;
     }
 
     @Override

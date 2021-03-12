@@ -71,6 +71,15 @@ public class TransactionCoordinatorClientException extends IOException {
     }
 
     /**
+     * Thrown when transaction not found in transaction coordinator.
+     */
+    public static class TransactionNotFoundException extends TransactionCoordinatorClientException {
+        public TransactionNotFoundException(String message) {
+            super(message);
+        }
+    }
+
+    /**
      * Thrown when transaction meta store handler not exists.
      */
     public static class MetaStoreHandlerNotExistsException extends TransactionCoordinatorClientException {

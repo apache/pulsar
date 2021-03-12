@@ -91,7 +91,7 @@ You can configure GCS offloader driver in the configuration file `broker.conf` o
     `gcsManagedLedgerOffloadReadBufferSizeInBytes`|Size of block read|1 MB
     `gcsManagedLedgerOffloadMaxBlockSizeInBytes`|Size of block write|64 MB
     `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic.|2
-    `managedLedgerMaxEntriesPerLedger`|Max number of entries to append to a ledger before triggering a rollover.|5000
+    `managedLedgerMaxEntriesPerLedger`|The max number of entries to append to a ledger before triggering a rollover.|5000
 
 #### Bucket (required)
 
@@ -223,7 +223,7 @@ For individual topics, you can trigger GCS offloader manually using one of the f
 
     > #### Tip
     >
-    > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here]((reference-pulsar-admin.md#offload). 
+    > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
 
 - This example checks the GCS offloader status using pulsar-admin with the command `pulsar-admin topics offload-status options`.
 

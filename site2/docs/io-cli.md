@@ -71,6 +71,7 @@ $ pulsar-admin sources create options
 | `--source-config-file` | The path to a YAML config file specifying the source's configuration.
 | `-t`, `--source-type` | The source's connector provider.
 | `--tenant` | The source's tenant.
+|`--producer-config`| The custom producer configuration (as a JSON string).
 
 ### `update`
 
@@ -273,6 +274,7 @@ $ pulsar-admin sources localrun options
 |`--tls-allow-insecure`|Allow insecure tls connection.<br>**Default value: false**.
 |`--tls-trust-cert-path`|The tls trust cert file path.
 |`--use-tls`|Use tls connection.<br>**Default value: false**.
+|`--producer-config`| The custom producer configuration (as a JSON string).
 
 ### `available-sources`
 

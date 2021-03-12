@@ -22,17 +22,20 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class SubscriptionStatsTest extends ProducerConsumerBase {
@@ -44,7 +47,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -90,5 +93,45 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         consumer1.close();
         consumer2.close();
         producer.close();
+    }
+
+    @Test
+    public void testNonContiguousDeletedMessagesRanges() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testNonContiguousDeletedMessagesRanges-"
+                + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        final int messages = 100;
+        for (int i = 0; i < messages; i++) {
+            producer.send(String.valueOf(i).getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            Message<byte[]> received = consumer.receive();
+            if (i != 50) {
+                consumer.acknowledge(received);
+            }
+        }
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            TopicStats stats = admin.topics().getStats(topicName);
+            Assert.assertEquals(stats.nonContiguousDeletedMessagesRanges, 1);
+            Assert.assertEquals(stats.subscriptions.size(), 1);
+            Assert.assertEquals(stats.subscriptions.get(subName).nonContiguousDeletedMessagesRanges, 1);
+            Assert.assertTrue(stats.nonContiguousDeletedMessagesRangesSerializedSize > 0);
+            Assert.assertTrue(stats.subscriptions.get(subName)
+                    .nonContiguousDeletedMessagesRangesSerializedSize > 0);
+        });
     }
 }

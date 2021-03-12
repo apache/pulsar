@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-
 import io.netty.buffer.ByteBuf;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 
 /**
  * A representation of a message in a topic in its raw form (i.e. as it is stored in a managed ledger).

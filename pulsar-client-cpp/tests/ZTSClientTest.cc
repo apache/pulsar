@@ -39,7 +39,7 @@ TEST(ZTSClientTest, testZTSClient) {
     {
         PrivateKeyUri uri = ZTSClientWrapper::parseUri("file:///path/to/private.key");
         ASSERT_EQ("file", uri.scheme);
-        ASSERT_EQ("///path/to/private.key", uri.path);
+        ASSERT_EQ("/path/to/private.key", uri.path);
     }
 
     {

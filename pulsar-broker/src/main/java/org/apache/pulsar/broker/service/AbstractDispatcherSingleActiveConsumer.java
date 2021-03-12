@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -27,18 +26,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBaseDispatcher {
 
     protected final String topicName;
-    protected static final AtomicReferenceFieldUpdater<AbstractDispatcherSingleActiveConsumer, Consumer> ACTIVE_CONSUMER_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(AbstractDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
+    protected static final AtomicReferenceFieldUpdater<AbstractDispatcherSingleActiveConsumer, Consumer>
+            ACTIVE_CONSUMER_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+            AbstractDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
     private volatile Consumer activeConsumer = null;
     protected final CopyOnWriteArrayList<Consumer> consumers;
     protected StickyKeyConsumerSelector stickyKeyConsumerSelector;
@@ -144,7 +143,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         }
 
         if (subscriptionType == SubType.Failover && isConsumersExceededOnSubscription()) {
-            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", this.topicName);
+            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit",
+                    this.topicName);
             throw new ConsumerBusyException("Subscription reached max consumers limit");
         }
 

@@ -96,7 +96,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private CryptoKeyReader cryptoKeyReader = null;
 
     @JsonIgnore
-    private MessageCrypto messageCrypto = null;
+    private transient MessageCrypto messageCrypto = null;
 
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
@@ -110,7 +110,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
-    private DeadLetterPolicy deadLetterPolicy;
+    private transient DeadLetterPolicy deadLetterPolicy;
 
     private boolean retryEnable = false;
 
@@ -125,9 +125,11 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean resetIncludeHead = false;
 
-    private KeySharedPolicy keySharedPolicy;
+    private transient KeySharedPolicy keySharedPolicy;
 
     private boolean batchIndexAckEnabled = false;
+
+    private boolean ackReceiptEnabled = false;
 
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");

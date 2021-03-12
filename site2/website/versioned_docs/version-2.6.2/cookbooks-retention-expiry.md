@@ -82,7 +82,7 @@ $ pulsar-admin namespaces set-retention my-tenant/my-ns \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -113,7 +113,7 @@ $ pulsar-admin namespaces get-retention my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -165,7 +165,7 @@ $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -196,7 +196,7 @@ $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -217,7 +217,7 @@ $ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -258,7 +258,7 @@ $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -281,7 +281,7 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -289,3 +289,35 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 
+### Remove the TTL configuration for a namespace
+
+#### pulsar-admin
+
+Use the [`remove-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-message-ttl) subcommand and specify a namespace.
+
+##### Example
+
+```shell
+$ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
+```
+
+#### REST API
+
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=[[pulsar:version_number]]}
+
+#### Java
+
+```java
+admin.namespaces().removeNamespaceMessageTTL(namespace)
+```
+
+## Delete messages from namespaces
+
+If you do not have any retention period and that you never have much of a backlog, the upper limit for retaining messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).
+
+- **Segment rollover period**: basically, the segment rollover period is how often a new segment is created. Once a new segment is created, the old segment will be deleted. By default, this happens either when you have written 50,000 entries (messages) or have waited 240 minutes. You can tune this in your broker.
+
+- **Entry log rollover period**: multiple ledgers in BookKeeper are interleaved into an [entry log](https://bookkeeper.apache.org/docs/4.11.1/getting-started/concepts/#entry-logs). In order for a ledger that has been deleted, the entry log must all be rolled over.
+The entry log rollover period is configurable, but is purely based on the entry log size. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-settings). Once the entry log is rolled over, the entry log can be garbage collected.
+
+- **Garbage collection interval**: because entry logs have interleaved ledgers, to free up space, the entry logs need to be rewritten. The garbage collection interval is how often BookKeeper performs garbage collection. which is related to minor compaction and major compaction of entry logs. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-compaction-settings).

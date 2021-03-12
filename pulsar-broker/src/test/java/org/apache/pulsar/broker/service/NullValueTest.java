@@ -21,17 +21,22 @@ package org.apache.pulsar.broker.service;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -52,13 +57,23 @@ public class NullValueTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void nullValueBytesSchemaTest() throws PulsarClientException {
-        String topic = "persistent://prop/ns-abc/null-value-bytes-test";
+    @DataProvider(name = "topics")
+    public static Object[][] topics() {
+        return new Object[][]{
+                {"persistent://prop/ns-abc/null-value-test-0", 1},
+                {"persistent://prop/ns-abc/null-value-test-1", 3},
+        };
+    }
+
+    @Test(dataProvider = "topics")
+    public void nullValueBytesSchemaTest(String topic, int partitions)
+            throws PulsarClientException, PulsarAdminException {
+        admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
         Producer producer = pulsarClient.newProducer()
                 .topic(topic)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         @Cleanup
@@ -120,13 +135,15 @@ public class NullValueTest extends BrokerTestBase {
 
     }
 
-    @Test
-    public void nullValueBooleanSchemaTest() throws PulsarClientException {
-        String topic = "persistent://prop/ns-abc/null-value-bool-test";
+    @Test(dataProvider = "topics")
+    public void nullValueBooleanSchemaTest(String topic, int partitions)
+            throws PulsarClientException, PulsarAdminException {
+        admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
         Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL)
                 .topic(topic)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         @Cleanup
@@ -148,14 +165,16 @@ public class NullValueTest extends BrokerTestBase {
 
     }
 
-    @Test
-    public void keyValueNullInlineTest() throws PulsarClientException {
-        String topic = "persistent://prop/ns-abc/kv-null-value-test";
+    @Test(dataProvider = "topics")
+    public void keyValueNullInlineTest(String topic, int partitions)
+            throws PulsarClientException, PulsarAdminException {
+        admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
         Producer<KeyValue<String, String>> producer = pulsarClient
                 .newProducer(KeyValueSchema.of(Schema.STRING, Schema.STRING))
                 .topic(topic)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         @Cleanup
@@ -193,14 +212,23 @@ public class NullValueTest extends BrokerTestBase {
 
     }
 
-    @Test
-    public void keyValueNullSeparatedTest() throws PulsarClientException {
-        String topic = "persistent://prop/ns-abc/kv-null-value-test";
+    @Test(dataProvider = "topics")
+    public void keyValueNullSeparatedTest(String topic, int partitions)
+            throws PulsarClientException, PulsarAdminException {
+        admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
         Producer<KeyValue<String, String>> producer = pulsarClient
                 .newProducer(KeyValueSchema.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED))
                 .topic(topic)
+                // The default SinglePartition routing mode will be affected by the key when the KeyValueEncodingType is
+                // SEPARATED so we need to define a message router to guarantee the message order.
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return 0;
+                    }
+                })
                 .create();
 
         @Cleanup

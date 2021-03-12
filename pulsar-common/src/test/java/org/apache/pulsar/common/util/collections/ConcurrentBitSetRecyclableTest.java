@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 
 public class ConcurrentBitSetRecyclableTest {
 
-    @Test
+    @Test(priority = 0)
     public void testRecycle() {
         ConcurrentBitSetRecyclable bitset1 = ConcurrentBitSetRecyclable.create();
         bitset1.set(3);
@@ -36,25 +36,25 @@ public class ConcurrentBitSetRecyclableTest {
         Assert.assertNotSame(bitset3, bitset1);
     }
 
-    @Test
+    @Test(priority = 1)
     public void testGenerateByBitSet() {
         BitSet bitSet = new BitSet();
         ConcurrentBitSetRecyclable bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
-        Assert.assertEquals(bitSet, bitSetRecyclable);
+        Assert.assertEquals(bitSet.toByteArray(), bitSetRecyclable.toByteArray());
 
         bitSet.set(0, 10);
         bitSetRecyclable.recycle();
         bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
-        Assert.assertEquals(bitSet, bitSetRecyclable);
+        Assert.assertEquals(bitSet.toByteArray(), bitSetRecyclable.toByteArray());
 
         bitSet.clear(5);
         bitSetRecyclable.recycle();
         bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
-        Assert.assertEquals(bitSet, bitSetRecyclable);
+        Assert.assertEquals(bitSet.toByteArray(), bitSetRecyclable.toByteArray());
 
         bitSet.clear();
         bitSetRecyclable.recycle();
         bitSetRecyclable = ConcurrentBitSetRecyclable.create(bitSet);
-        Assert.assertEquals(bitSet, bitSetRecyclable);
+        Assert.assertEquals(bitSet.toByteArray(), bitSetRecyclable.toByteArray());
     }
 }

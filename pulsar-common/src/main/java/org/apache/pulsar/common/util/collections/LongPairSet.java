@@ -20,7 +20,6 @@ package org.apache.pulsar.common.util.collections;
 
 import java.util.Set;
 import java.util.function.Function;
-
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPairConsumer;
 

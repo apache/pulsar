@@ -21,9 +21,7 @@ package org.apache.pulsar.client.admin.internal;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
 import javax.ws.rs.client.WebTarget;
-
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;

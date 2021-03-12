@@ -309,10 +309,18 @@ class PythonInstance(object):
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
 
+      batch_type = pulsar.BatchingType.Default
+      if self.instance_config.function_details.sink.producerSpec.batchBuilder != None and \
+            len(self.instance_config.function_details.sink.producerSpec.batchBuilder) > 0:
+        batch_builder = self.instance_config.function_details.sink.producerSpec.batchBuilder
+        if batch_builder == "KEY_BASED":
+          batch_type = pulsar.BatchingType.KeyBased
+
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
         batching_enabled=True,
+        batching_type=batch_type,
         batching_max_publish_delay_ms=10,
         compression_type=pulsar.CompressionType.LZ4,
         # set send timeout to be infinity to prevent potential deadlock with consumer

@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.common.naming;
 
-import org.apache.pulsar.broker.namespace.NamespaceService;
-
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 
 /**
  * This algorithm divides the bundle into two parts with the same hash range size.
@@ -29,7 +28,7 @@ public class RangeEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSp
 
     @Override
     public CompletableFuture<Long> getSplitBoundary(NamespaceService service, NamespaceBundle bundle) {
-        return CompletableFuture.completedFuture(bundle.getLowerEndpoint() +
-            (bundle.getUpperEndpoint() - bundle.getLowerEndpoint()) / 2);
+        return CompletableFuture.completedFuture(bundle.getLowerEndpoint()
+                + (bundle.getUpperEndpoint() - bundle.getLowerEndpoint()) / 2);
     }
 }

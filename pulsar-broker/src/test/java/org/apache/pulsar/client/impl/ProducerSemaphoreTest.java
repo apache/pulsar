@@ -23,7 +23,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -86,9 +86,9 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < messages / 2; i++) {
-                PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
-                builder.setNumMessagesInBatch(10);
-                MessageImpl<byte[]> msg = MessageImpl.create(builder, ByteBuffer.wrap(new byte[0]), Schema.BYTES);
+                MessageMetadata metadata = new MessageMetadata()
+                        .setNumMessagesInBatch(10);
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES);
                 futures.add(producer.sendAsync(msg));
             }
             Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize - messages/2);
@@ -144,18 +144,18 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < pendingQueueSize; i++) {
-                PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
-                builder.setNumMessagesInBatch(10);
+                MessageMetadata metadata = new MessageMetadata()
+                        .setNumMessagesInBatch(10);
 
-                MessageImpl<byte[]> msg = MessageImpl.create(builder, ByteBuffer.wrap(new byte[0]), Schema.BYTES);
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES);
                 futures.add(producer.sendAsync(msg));
             }
             Assert.assertEquals(producer.getSemaphore().availablePermits(), 0);
             try {
-                PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
-                builder.setNumMessagesInBatch(10);
+                MessageMetadata metadata = new MessageMetadata()
+                        .setNumMessagesInBatch(10);
 
-                MessageImpl<byte[]> msg = MessageImpl.create(builder, ByteBuffer.wrap(new byte[0]), Schema.BYTES);
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES);
                 producer.sendAsync(msg).get();
                 Assert.fail("Shouldn't be able to send message");
             } catch (ExecutionException ee) {

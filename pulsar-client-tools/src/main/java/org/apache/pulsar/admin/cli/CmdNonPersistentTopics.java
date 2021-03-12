@@ -25,14 +25,15 @@ import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 
+import java.util.function.Supplier;
+
 @SuppressWarnings("deprecation")
 @Parameters(commandDescription = "Operations on non-persistent topics", hidden = true)
 public class CmdNonPersistentTopics extends CmdBase {
-    private final NonPersistentTopics nonPersistentTopics;
+    private NonPersistentTopics nonPersistentTopics;
 
-    public CmdNonPersistentTopics(PulsarAdmin admin) {
+    public CmdNonPersistentTopics(Supplier<PulsarAdmin> admin) {
         super("non-persistent", admin);
-        nonPersistentTopics = admin.nonPersistentTopics();
 
         jcommander.addCommand("create-partitioned-topic", new CreatePartitionedCmd());
         jcommander.addCommand("lookup", new Lookup());
@@ -43,6 +44,13 @@ public class CmdNonPersistentTopics extends CmdBase {
         jcommander.addCommand("list-in-bundle", new GetListInBundle());
     }
 
+    private NonPersistentTopics getNonPersistentTopics() {
+        if (nonPersistentTopics == null) {
+            nonPersistentTopics = getAdmin().nonPersistentTopics();
+        }
+        return nonPersistentTopics;
+    }
+
     @Parameters(commandDescription = "Lookup a topic from the current serving broker")
     private class Lookup extends CliCommand {
         @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
@@ -51,7 +59,7 @@ public class CmdNonPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(admin.lookups().lookupTopic(topic));
+            print(getAdmin().lookups().lookupTopic(topic));
         }
     }
 
@@ -64,7 +72,7 @@ public class CmdNonPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validateNonPersistentTopic(params);
-            print(nonPersistentTopics.getStats(persistentTopic));
+            print(getNonPersistentTopics().getStats(persistentTopic));
         }
     }
 
@@ -76,7 +84,7 @@ public class CmdNonPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validateNonPersistentTopic(params);
-            print(nonPersistentTopics.getInternalStats(persistentTopic));
+            print(getNonPersistentTopics().getInternalStats(persistentTopic));
         }
     }
 
@@ -94,7 +102,7 @@ public class CmdNonPersistentTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String persistentTopic = validateNonPersistentTopic(params);
-            nonPersistentTopics.createPartitionedTopic(persistentTopic, numPartitions);
+            getNonPersistentTopics().createPartitionedTopic(persistentTopic, numPartitions);
         }
     }
 
@@ -108,7 +116,7 @@ public class CmdNonPersistentTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String persistentTopic = validateNonPersistentTopic(params);
-            print(nonPersistentTopics.getPartitionedTopicMetadata(persistentTopic));
+            print(getNonPersistentTopics().getPartitionedTopicMetadata(persistentTopic));
         }
     }
 
@@ -120,7 +128,7 @@ public class CmdNonPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(nonPersistentTopics.getList(namespace));
+            print(getNonPersistentTopics().getList(namespace));
         }
     }
 
@@ -136,7 +144,7 @@ public class CmdNonPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(nonPersistentTopics.getListInBundle(namespace, bundleRange));
+            print(getNonPersistentTopics().getListInBundle(namespace, bundleRange));
         }
     }
 }

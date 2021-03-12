@@ -19,15 +19,22 @@
 
 INCLUDE_DIRECTORIES("${Boost_INCLUDE_DIRS}" "${PYTHON_INCLUDE_DIRS}")
 
-ADD_LIBRARY(_pulsar SHARED src/pulsar.cc src/producer.cc src/consumer.cc
-                            src/config.cc src/enums.cc src/client.cc
-                            src/message.cc src/authentication.cc
-                            src/reader.cc src/schema.cc)
+ADD_LIBRARY(_pulsar SHARED src/pulsar.cc
+                           src/producer.cc
+                           src/consumer.cc
+                           src/config.cc
+                           src/enums.cc
+                           src/client.cc
+                           src/message.cc
+                           src/authentication.cc
+                           src/reader.cc
+                           src/schema.cc
+                           src/cryptoKeyReader.cc)
+
 SET(CMAKE_SHARED_LIBRARY_PREFIX )
 SET(CMAKE_SHARED_LIBRARY_SUFFIX .so)
 
-
-if (CMAKE_CXX_FLAGS_PYTHON)
+if (NOT APPLE AND NOT MSVC)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_PYTHON}")
 endif()
 
@@ -48,26 +55,27 @@ if (NOT DEFINED ${Boost_PYTHON38-MT_LIBRARY})
   set(Boost_PYTHON38-MT_LIBRARY ${Boost_PYTHON38_LIBRARY})
 endif()
 
+if (NOT DEFINED ${Boost_PYTHON39-MT_LIBRARY})
+  set(Boost_PYTHON39-MT_LIBRARY ${Boost_PYTHON39_LIBRARY})
+endif()
+
 # Try all possible boost-python variable namings
-set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY}
-                        ${Boost_PYTHON27-MT_LIBRARY} ${Boost_PYTHON37-MT_LIBRARY}
-                        ${Boost_PYTHON34_LIBRARY} ${Boost_PYTHON35_LIBRARY}
-                        ${Boost_PYTHON36_LIBRARY} ${Boost_PYTHON38_LIBRARY})
+set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY}
+                        ${Boost_PYTHON3_LIBRARY}
+                        ${Boost_PYTHON27-MT_LIBRARY}
+                        ${Boost_PYTHON37-MT_LIBRARY}
+                        ${Boost_PYTHON34_LIBRARY}
+                        ${Boost_PYTHON35_LIBRARY}
+                        ${Boost_PYTHON36_LIBRARY}
+                        ${Boost_PYTHON38_LIBRARY}
+                        ${Boost_PYTHON39_LIBRARY})
 
 if (APPLE)
     set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS}
-                         ${Boost_PYTHON27-MT_LIBRARY_RELEASE}
-                         ${Boost_PYTHON37-MT_LIBRARY_RELEASE}
-                         ${Boost_PYTHON38-MT_LIBRARY_RELEASE})
-
-    if (LINK_STATIC)
-        # When linking statically on MacOS, include also libicu since it's now required by boost::regex
-        find_library(ICU_DATA REQUIRED NAMES libicudata.a PATHS /usr/local/opt/icu4c/lib)
-        find_library(ICU_I18N REQUIRED NAMES libicui18n.a PATHS /usr/local/opt/icu4c/lib)
-        find_library(ICU_UUC REQUIRED NAMES libicuuc.a PATHS /usr/local/opt/icu4c/lib)
-
-        set(ICU_LIBS ${ICU_DATA} ${ICU_I18N} ${ICU_UUC})
-    endif ()
+                            ${Boost_PYTHON27-MT_LIBRARY_RELEASE}
+                            ${Boost_PYTHON37-MT_LIBRARY_RELEASE}
+                            ${Boost_PYTHON38-MT_LIBRARY_RELEASE}
+                            ${Boost_PYTHON39-MT_LIBRARY_RELEASE})
 endif()
 
 message(STATUS "Using Boost Python libs: ${PYTHON_WRAPPER_LIBS}")

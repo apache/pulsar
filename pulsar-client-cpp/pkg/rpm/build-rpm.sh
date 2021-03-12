@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,7 +21,7 @@
 set -e
 
 cd /pulsar
-ROOT_DIR=$(git rev-parse --show-toplevel)
+ROOT_DIR=$(pwd)
 cd $ROOT_DIR/pulsar-client-cpp/pkg/rpm
 
 POM_VERSION=`$ROOT_DIR/src/get-project-version.py`
@@ -31,7 +31,7 @@ VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`
 
 mkdir -p BUILD RPMS SOURCES SPECS SRPMS
 
-cp $ROOT_DIR/distribution/server/target/apache-pulsar-$POM_VERSION-src.tar.gz SOURCES
+cp $ROOT_DIR/target/apache-pulsar-$POM_VERSION-src.tar.gz SOURCES
 
 rpmbuild -v -bb --clean \
         --define "version $VERSION" \

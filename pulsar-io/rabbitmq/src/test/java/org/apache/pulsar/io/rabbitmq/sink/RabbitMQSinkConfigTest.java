@@ -40,7 +40,7 @@ public class RabbitMQSinkConfigTest {
         RabbitMQSinkConfig config = RabbitMQSinkConfig.load(path);
         assertNotNull(config);
         assertEquals("localhost", config.getHost());
-        assertEquals(Integer.parseInt("5672"), config.getPort());
+        assertEquals(Integer.parseInt("5673"), config.getPort());
         assertEquals("/", config.getVirtualHost());
         assertEquals("guest", config.getUsername());
         assertEquals("guest", config.getPassword());
@@ -58,7 +58,7 @@ public class RabbitMQSinkConfigTest {
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
-        map.put("port", "5672");
+        map.put("port", "5673");
         map.put("virtualHost", "/");
         map.put("username", "guest");
         map.put("password", "guest");
@@ -74,7 +74,7 @@ public class RabbitMQSinkConfigTest {
         RabbitMQSinkConfig config = RabbitMQSinkConfig.load(map);
         assertNotNull(config);
         assertEquals("localhost", config.getHost());
-        assertEquals(Integer.parseInt("5672"), config.getPort());
+        assertEquals(Integer.parseInt("5673"), config.getPort());
         assertEquals("/", config.getVirtualHost());
         assertEquals("guest", config.getUsername());
         assertEquals("guest", config.getPassword());
@@ -92,7 +92,7 @@ public class RabbitMQSinkConfigTest {
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
-        map.put("port", "5672");
+        map.put("port", "5673");
         map.put("virtualHost", "/");
         map.put("username", "guest");
         map.put("password", "guest");
@@ -114,7 +114,7 @@ public class RabbitMQSinkConfigTest {
     public final void missingExchangeValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
-        map.put("port", "5672");
+        map.put("port", "5673");
         map.put("virtualHost", "/");
         map.put("username", "guest");
         map.put("password", "guest");

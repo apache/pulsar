@@ -241,10 +241,11 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     }
 
     private ByteArrayInputStream createByteInputStream(String filePath) throws IOException {
-        InputStream inStream = new FileInputStream(filePath);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        IOUtils.copy(inStream, baos);
-        return new ByteArrayInputStream(baos.toByteArray());
+        try (InputStream inStream = new FileInputStream(filePath)) {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            IOUtils.copy(inStream, baos);
+            return new ByteArrayInputStream(baos.toByteArray());
+        }
     }
 
     private ByteArrayInputStream getStream(AtomicInteger index, ByteArrayInputStream... streams) {

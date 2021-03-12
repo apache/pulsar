@@ -18,25 +18,38 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.intercept.InterceptException;
-
+import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.intercept.InterceptException;
 
 @Slf4j
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
+    int beforeSendCount = 0;
     int count = 0;
 
     @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws InterceptException {
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata) {
+        log.info("Send message to topic {}, subscription {}",
+            subscription.getTopic(), subscription.getName());
+        beforeSendCount++;
+    }
+
+    @Override
+    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
         log.info("[{}] On [{}] Pulsar command", count, command.getType().name());
         count ++;
     }
@@ -70,5 +83,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public int getCount() {
         return count;
+    }
+
+    public int getBeforeSendCount() {
+        return beforeSendCount;
     }
 }

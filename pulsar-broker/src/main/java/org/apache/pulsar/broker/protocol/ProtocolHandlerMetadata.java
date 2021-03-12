@@ -23,7 +23,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * The metadata of protocol handler
+ * The metadata of protocol handler.
  */
 @Data
 @NoArgsConstructor

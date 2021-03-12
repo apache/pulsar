@@ -21,12 +21,12 @@ package org.apache.pulsar.tests.integration.auth.token;
 import static java.util.stream.Collectors.joining;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
@@ -46,17 +46,13 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.Network;
-import org.testng.ITest;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
-public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTestBase implements ITest {
+public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTestBase {
 
     protected String superUserAuthToken;
     protected String proxyAuthToken;
@@ -74,7 +70,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
     protected ZKContainer<?> cmdContainer;
 
-    @BeforeSuite
+    @BeforeClass
     @Override
     public void setupCluster() throws Exception {
         // Before starting the cluster, generate the secret key and the token
@@ -132,16 +128,11 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         log.info("Cluster {} is setup", spec.clusterName());
     }
 
-    @AfterSuite
+    @AfterClass(alwaysRun = true)
     @Override
     public void tearDownCluster() {
         super.tearDownCluster();
         cmdContainer.close();
-    }
-
-    @Override
-    public String getTestName() {
-        return "token-auth-test-suite";
     }
 
     @Test
@@ -288,6 +279,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
 
         String initialToken = this.createClientTokenWithExpiry(5, TimeUnit.SECONDS);
+        String refreshedToken = this.createClientTokenWithExpiry(30, TimeUnit.SECONDS);
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -295,7 +287,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .authentication(AuthenticationFactory.token(() -> {
                     if (shouldRefreshToken) {
                         try {
-                            return createClientTokenWithExpiry(5, TimeUnit.SECONDS);
+                            return refreshedToken;
                         } catch (Exception e) {
                             return null;
                         }
@@ -308,17 +300,19 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         @Cleanup
         Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topic)
-                .sendTimeout(1, TimeUnit.SECONDS)
+                .sendTimeout(3, TimeUnit.SECONDS)
                 .create();
-
         // Initially the token is valid and producer will be able to publish
         producer.send("hello-1");
+        long lastDisconnectedTimestamp = producer.getLastDisconnectedTimestamp();
 
         Thread.sleep(TimeUnit.SECONDS.toMillis(10));
 
         if (shouldRefreshToken) {
             // The token will have been refreshed, so the app won't see any error
             producer.send("hello-2");
+            long timestamp = producer.getLastDisconnectedTimestamp();
+            assertEquals(timestamp, lastDisconnectedTimestamp);
         } else {
             // The token has expired, so this next message will be rejected
             try {

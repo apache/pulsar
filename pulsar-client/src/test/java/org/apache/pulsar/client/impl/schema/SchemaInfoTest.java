@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import static org.testng.Assert.assertEquals;
-
+import com.google.common.collect.Maps;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import java.util.Map;
+
+import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test {@link org.apache.pulsar.common.schema.SchemaInfo}.
@@ -280,4 +284,38 @@ public class SchemaInfoTest {
         assertEquals(si.toString(), jsonifiedStr);
     }
 
+    public static class SchemaInfoBuilderTest {
+
+        @Test
+        public void testUnsetProperties() {
+            final SchemaInfo schemaInfo = SchemaInfo.builder()
+                    .type(SchemaType.STRING)
+                    .schema(new byte[0])
+                    .name("string")
+                    .build();
+
+            assertEquals(schemaInfo.getSchema(), new byte[0]);
+            assertEquals(schemaInfo.getType(), SchemaType.STRING);
+            assertEquals(schemaInfo.getName(), "string");
+            assertEquals(schemaInfo.getProperties(), Maps.newHashMap());
+        }
+
+        @Test
+        public void testSetProperties() {
+            final Map<String, String> map = Maps.newHashMap();
+            map.put("test", "value");
+            final SchemaInfo schemaInfo = SchemaInfo.builder()
+                    .type(SchemaType.STRING)
+                    .schema(new byte[0])
+                    .name("string")
+                    .properties(map)
+                    .build();
+
+            assertEquals(schemaInfo.getSchema(), new byte[0]);
+            assertEquals(schemaInfo.getType(), SchemaType.STRING);
+            assertEquals(schemaInfo.getName(), "string");
+            assertEquals(schemaInfo.getProperties(), Maps.newHashMap(map));
+        }
+
+    }
 }

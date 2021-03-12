@@ -57,3 +57,5 @@ disk: 0
 maxMessageRetries: 0
 deadLetterTopic: ""
 expectedHealthCheckInterval: 3
+# metrics config
+metricsPort: 50001

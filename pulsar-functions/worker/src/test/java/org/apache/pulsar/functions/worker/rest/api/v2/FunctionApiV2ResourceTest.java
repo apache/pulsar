@@ -77,7 +77,12 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.worker.*;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.LeaderService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -123,7 +128,7 @@ public class FunctionApiV2ResourceTest {
     }
     private static final int parallelism = 1;
 
-    private WorkerService mockedWorkerService;
+    private PulsarWorkerService mockedWorkerService;
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
@@ -158,7 +163,7 @@ public class FunctionApiV2ResourceTest {
         this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
 
-        this.mockedWorkerService = mock(WorkerService.class);
+        this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);

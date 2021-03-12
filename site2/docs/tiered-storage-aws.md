@@ -85,7 +85,7 @@ You can configure the AWS S3 offloader driver in the configuration file `broker.
 
     Optional | Description | Example value
     |---|---|---
-    `s3ManagedLedgerOffloadRegion` | Bucket region | eu-west-3
+    `s3ManagedLedgerOffloadRegion` | Bucket region <br><br>**Note**: before specifying a value for this parameter, you need to set the following configurations. Otherwise, you might get an error.<br><br>- Set [`s3ManagedLedgerOffloadServiceEndpoint`](https://docs.aws.amazon.com/general/latest/gr/s3.html).<br><br>Example<br>`s3ManagedLedgerOffloadServiceEndpoint=https://s3.YOUR_REGION.amazonaws.com`<br><br>- Grant `GetBucketLocation` permission to a user.<br><br>For how to grant `GetBucketLocation` permission to a user, see [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-buckets).| eu-west-3
     `s3ManagedLedgerOffloadReadBufferSizeInBytes`|Size of block read|1 MB
     `s3ManagedLedgerOffloadMaxBlockSizeInBytes`|Size of block write|64 MB
     `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|2
@@ -174,7 +174,7 @@ You can configure the size of a request sent to or read from AWS S3 in the confi
 Configuration|Description|Default value
 |---|---|---
 `s3ManagedLedgerOffloadReadBufferSizeInBytes`|Block size for each individual read when reading back data from AWS S3.|1 MB
-`s3ManagedLedgerOffloadMaxBlockSizeInBytes`|Maximum size of a "part" sent during a multipart upload to GCS. It **cannot** be smaller than 5 MB. |64 MB
+`s3ManagedLedgerOffloadMaxBlockSizeInBytes`|Maximum size of a "part" sent during a multipart upload to AWS S3. It **cannot** be smaller than 5 MB. |64 MB
 
 ### Configure AWS S3 offloader to run automatically
 

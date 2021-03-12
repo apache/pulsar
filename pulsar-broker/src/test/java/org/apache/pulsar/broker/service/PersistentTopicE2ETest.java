@@ -74,7 +74,7 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -911,9 +911,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         int topicMessageTTLSecs = 2;
         String namespaceName = "prop/expiry-check-2";
 
+        cleanup();
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
-        cleanup();
         setup();
 
         admin.namespaces().createNamespace(namespaceName);

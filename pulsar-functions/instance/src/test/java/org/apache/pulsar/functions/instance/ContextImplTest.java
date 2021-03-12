@@ -29,6 +29,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import io.prometheus.client.CollectorRegistry;
 
@@ -36,6 +38,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -61,18 +64,21 @@ public class ContextImplTest {
     private InstanceConfig config;
     private Logger logger;
     private PulsarClientImpl client;
+    private PulsarAdmin pulsarAdmin;
     private ContextImpl context;
     private Producer producer = mock(Producer.class);
 
     @BeforeMethod
     public void setup() {
         config = new InstanceConfig();
+        config.setExposePulsarAdminClientEnabled(true);
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
             .setUserConfig("")
             .build();
         config.setFunctionDetails(functionDetails);
         logger = mock(Logger.class);
         client = mock(PulsarClientImpl.class);
+        pulsarAdmin = mock(PulsarAdmin.class);
         when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
         when(client.createProducerAsync(any(ProducerConfigurationData.class), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(producer));
@@ -87,7 +93,8 @@ public class ContextImplTest {
             logger,
             client,
             new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
-                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager());
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin);
         context.setCurrentMessageContext((Record<String>) () -> null);
     }
 
@@ -156,5 +163,28 @@ public class ContextImplTest {
     @Test
     public void testPublishUsingDefaultSchema() throws Exception {
         context.newOutputMessage("sometopic", null).value("Somevalue").sendAsync();
+    }
+
+    @Test
+    public void testGetPulsarAdmin() throws Exception {
+        assertEquals(context.getPulsarAdmin(), pulsarAdmin);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testGetPulsarAdminWithNonExistClusterName() {
+        assertNull(context.getPulsarAdmin("foo"));
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testGetPulsarAdminWithExposePulsarAdminDisabled() {
+        config.setExposePulsarAdminClientEnabled(false);
+        context = new ContextImpl(
+                config,
+                logger,
+                client,
+                new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin);
+        context.getPulsarAdmin();
     }
  }

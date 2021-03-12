@@ -25,6 +25,8 @@
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
 #include <pulsar/Schema.h>
+#include <pulsar/CryptoKeyReader.h>
+#include <pulsar/ConsumerCryptoFailureAction.h>
 
 namespace pulsar {
 
@@ -104,6 +106,104 @@ class PULSAR_PUBLIC ReaderConfiguration {
 
     void setReadCompacted(bool compacted);
     bool isReadCompacted() const;
+
+    /**
+     * Set the internal subscription name.
+     * @param internal subscriptionName
+     */
+    void setInternalSubscriptionName(std::string internalSubscriptionName);
+    const std::string& getInternalSubscriptionName() const;
+
+    /**
+     * Set the timeout in milliseconds for unacknowledged messages, the timeout needs to be greater than
+     * 10 seconds. An Exception is thrown if the given value is less than 10000 (10 seconds).
+     * If a successful acknowledgement is not sent within the timeout all the unacknowledged messages are
+     * redelivered.
+     * @param timeout in milliseconds
+     */
+    void setUnAckedMessagesTimeoutMs(const uint64_t milliSeconds);
+
+    /**
+     * @return the configured timeout in milliseconds for unacked messages.
+     */
+    long getUnAckedMessagesTimeoutMs() const;
+
+    void setTickDurationInMs(const uint64_t milliSeconds);
+
+    long getTickDurationInMs() const;
+
+    /**
+     * Set time window in milliseconds for grouping message ACK requests. An ACK request is not sent
+     * to broker until the time window reaches its end, or the number of grouped messages reaches
+     * limit. Default is 100 milliseconds. If it's set to a non-positive value, ACK requests will be
+     * directly sent to broker without grouping.
+     *
+     * @param ackGroupMillis time of ACK grouping window in milliseconds.
+     */
+    void setAckGroupingTimeMs(long ackGroupingMillis);
+
+    /**
+     * Get grouping time window in milliseconds.
+     *
+     * @return grouping time window in milliseconds.
+     */
+    long getAckGroupingTimeMs() const;
+
+    /**
+     * Set max number of grouped messages within one grouping time window. If it's set to a
+     * non-positive value, number of grouped messages is not limited. Default is 1000.
+     *
+     * @param maxGroupingSize max number of grouped messages with in one grouping time window.
+     */
+    void setAckGroupingMaxSize(long maxGroupingSize);
+
+    /**
+     * Get max number of grouped messages within one grouping time window.
+     *
+     * @return max number of grouped messages within one grouping time window.
+     */
+    long getAckGroupingMaxSize() const;
+
+    bool isEncryptionEnabled() const;
+    const CryptoKeyReaderPtr getCryptoKeyReader() const;
+    ReaderConfiguration& setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
+
+    ConsumerCryptoFailureAction getCryptoFailureAction() const;
+    ReaderConfiguration& setCryptoFailureAction(ConsumerCryptoFailureAction action);
+
+    /**
+     * Check whether the message has a specific property attached.
+     *
+     * @param name the name of the property to check
+     * @return true if the message has the specified property
+     * @return false if the property is not defined
+     */
+    bool hasProperty(const std::string& name) const;
+
+    /**
+     * Get the value of a specific property
+     *
+     * @param name the name of the property
+     * @return the value of the property or null if the property was not defined
+     */
+    const std::string& getProperty(const std::string& name) const;
+
+    /**
+     * Get all the properties attached to this producer.
+     */
+    std::map<std::string, std::string>& getProperties() const;
+
+    /**
+     * Sets a new property on a message.
+     * @param name   the name of the property
+     * @param value  the associated value
+     */
+    ReaderConfiguration& setProperty(const std::string& name, const std::string& value);
+
+    /**
+     * Add all the properties in the provided map
+     */
+    ReaderConfiguration& setProperties(const std::map<std::string, std::string>& properties);
 
    private:
     std::shared_ptr<ReaderConfigurationImpl> impl_;

@@ -63,6 +63,7 @@ class PatternMultiTopicsConsumerImpl : public MultiTopicsConsumerImpl {
     typedef std::shared_ptr<boost::asio::deadline_timer> TimerPtr;
     TimerPtr autoDiscoveryTimer_;
     bool autoDiscoveryRunning_;
+    NamespaceNamePtr namespaceName_;
 
     void resetAutoDiscoveryTimer();
     void timerGetTopicsOfNamespace(const Result result, const NamespaceTopicsPtr topics);

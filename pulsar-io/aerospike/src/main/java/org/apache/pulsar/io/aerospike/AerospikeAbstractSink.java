@@ -116,7 +116,7 @@ public abstract class AerospikeAbstractSink<K, V> implements Sink<byte[]> {
         Host[] aeroSpikeHosts = new Host[hosts.length];
         for (int i = 0; i < hosts.length; ++i) {
             String[] hostPort = hosts[i].split(":");
-            aeroSpikeHosts[i] = new Host(hostPort[0], Integer.valueOf(hostPort[1]));
+            aeroSpikeHosts[i] = new Host(hostPort[0], Integer.parseInt(hostPort[1]));
         }
         ClientPolicy policy = new ClientPolicy();
         if (aerospikeSinkConfig.getUserName() != null && !aerospikeSinkConfig.getUserName().isEmpty()

@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.source;
 
 import io.netty.buffer.ByteBuf;
 import java.nio.ByteBuffer;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;

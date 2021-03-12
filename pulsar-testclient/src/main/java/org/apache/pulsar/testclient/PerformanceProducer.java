@@ -42,7 +42,6 @@ import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -57,10 +56,9 @@ import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -215,32 +213,9 @@ public class PerformanceProducer {
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
-    }
 
-    static class EncKeyReader implements CryptoKeyReader {
-
-        private static final long serialVersionUID = 7235317430835444498L;
-
-        final String encKeyName;
-        final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-
-        EncKeyReader(String encKeyName, byte[] value) {
-            this.encKeyName = encKeyName;
-            keyInfo.setKey(value);
-        }
-
-        @Override
-        public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-            if (keyName.equals(encKeyName)) {
-                return keyInfo;
-            }
-            return null;
-        }
-
-        @Override
-        public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-            return null;
-        }
+        @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
+        public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
     }
 
     public static void main(String[] args) throws Exception {
@@ -262,10 +237,20 @@ public class PerformanceProducer {
             System.exit(-1);
         }
 
-        if (arguments.topics.size() != 1) {
-            System.out.println("Only one topic name is allowed");
-            jc.usage();
-            System.exit(-1);
+        if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
+            // keep compatibility with the previous version
+            if (arguments.topics.size() == 1) {
+                String prefixTopicName = arguments.topics.get(0);
+                List<String> defaultTopics = Lists.newArrayList();
+                for (int i = 0; i < arguments.numTopics; i++) {
+                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
+                }
+                arguments.topics = defaultTopics;
+            } else {
+                System.out.println("The size of topics list should be equal to --num-topic");
+                jc.usage();
+                System.exit(-1);
+            }
         }
 
         if (arguments.confFile != null) {
@@ -306,6 +291,7 @@ public class PerformanceProducer {
         }
 
         // Dump config variables
+        PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar perf producer with config: {}", w.writeValueAsString(arguments));
@@ -424,7 +410,6 @@ public class PerformanceProducer {
         PulsarClient client = null;
         try {
             // Now processing command line arguments
-            String prefixTopicName = arguments.topics.get(0);
             List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
 
             ClientBuilder clientBuilder = PulsarClient.builder() //
@@ -452,6 +437,7 @@ public class PerformanceProducer {
                     .compressionType(arguments.compression) //
                     .maxPendingMessages(arguments.maxOutstanding) //
                     .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
+                    .accessMode(arguments.producerAccessMode)
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
@@ -471,15 +457,13 @@ public class PerformanceProducer {
             // Block if queue is full else we will start seeing errors in sendAsync
             producerBuilder.blockIfQueueFull(true);
 
-            if (arguments.encKeyName != null) {
+            if (isNotBlank(arguments.encKeyName) && isNotBlank(arguments.encKeyFile)) {
                 producerBuilder.addEncryptionKey(arguments.encKeyName);
-                byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
-                EncKeyReader keyReader = new EncKeyReader(arguments.encKeyName, pKey);
-                producerBuilder.cryptoKeyReader(keyReader);
+                producerBuilder.defaultCryptoKeyReader(arguments.encKeyFile);
             }
 
             for (int i = 0; i < arguments.numTopics; i++) {
-                String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
+                String topic = arguments.topics.get(i);
                 log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
                 for (int j = 0; j < arguments.numProducers; j++) {

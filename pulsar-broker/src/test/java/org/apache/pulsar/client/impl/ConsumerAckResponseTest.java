@@ -18,8 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.fail;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -27,21 +34,10 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 
 
 public class ConsumerAckResponseTest extends ProducerConsumerBase {
@@ -90,6 +86,12 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
             Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
         }
         Message<Integer> message = consumer.receive();
-        consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+
+        try {
+            consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+            fail();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
+        }
     }
 }

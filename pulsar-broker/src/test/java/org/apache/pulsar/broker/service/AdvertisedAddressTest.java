@@ -42,7 +42,7 @@ public class AdvertisedAddressTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(1, 0, () -> 0);
         bkEnsemble.start();
 
         ServiceConfiguration config = new ServiceConfiguration();
@@ -52,6 +52,9 @@ public class AdvertisedAddressTest {
         config.setAdvertisedAddress("localhost");
         config.setBrokerServicePort(Optional.ofNullable(0));
         config.setAdvertisedAddress(advertisedAddress);
+        config.setManagedLedgerDefaultEnsembleSize(1);
+        config.setManagedLedgerDefaultWriteQuorum(1);
+        config.setManagedLedgerDefaultAckQuorum(1);
         config.setManagedLedgerMaxEntriesPerLedger(5);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsar = new PulsarService(config);

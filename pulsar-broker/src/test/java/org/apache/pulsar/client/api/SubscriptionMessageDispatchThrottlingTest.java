@@ -21,8 +21,10 @@ package org.apache.pulsar.client.api;
 import com.google.common.collect.Sets;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -34,6 +36,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.awaitility.Awaitility.await;
 
 public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchThrottlingTest {
     private static final Logger log = LoggerFactory.getLogger(SubscriptionMessageDispatchThrottlingTest.class);
@@ -189,17 +193,13 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Assert.assertTrue(isMessageRateUpdate);
         Assert.assertEquals(admin.namespaces().getSubscriptionDispatchRate(namespace), dispatchRate);
 
-        long start = System.currentTimeMillis();
         // Asynchronously produce messages
         for (int i = 0; i < numProducedMessages; i++) {
             final String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
-        latch.await();
+        await().atMost(2500, TimeUnit.MILLISECONDS).until(() -> latch.getCount() == 0);
         Assert.assertEquals(totalReceived.get(), numProducedMessages);
-        long end = System.currentTimeMillis();
-
-        Assert.assertTrue((end - start) >= 2000);
 
         consumer.close();
         producer.close();
@@ -223,7 +223,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         log.info("-- Starting {} test --", methodName);
 
         final String namespace = "my-property/throttling_ns";
-        final String topicName = "persistent://" + namespace + "/throttlingAll-" + System.nanoTime();
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/throttlingAll");
         final String subName = "my-subscriber-name-" + subscription;
 
         final int byteRate = 100;

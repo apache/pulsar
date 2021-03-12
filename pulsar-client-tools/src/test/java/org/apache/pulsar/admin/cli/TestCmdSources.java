@@ -89,7 +89,7 @@ public class TestCmdSources {
         source = mock(Sources.class);
         when(pulsarAdmin.sources()).thenReturn(source);
 
-        CmdSources = spy(new CmdSources(pulsarAdmin));
+        CmdSources = spy(new CmdSources(() -> pulsarAdmin));
         createSource = spy(CmdSources.getCreateSource());
         updateSource = spy(CmdSources.getUpdateSource());
         localSourceRunner = spy(CmdSources.getLocalSourceRunner());

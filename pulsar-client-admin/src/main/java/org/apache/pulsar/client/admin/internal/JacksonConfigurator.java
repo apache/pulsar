@@ -19,10 +19,8 @@
 package org.apache.pulsar.client.admin.internal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.ext.Provider;
-
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**

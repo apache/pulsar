@@ -19,14 +19,11 @@
 package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.Lists;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
 /**
  * Statistics about subscription.
@@ -53,6 +50,9 @@ public class SubscriptionStats {
     /** Number of messages in the subscription backlog. */
     public long msgBacklog;
 
+    /** Size of backlog in byte. **/
+    public long backlogSize;
+
     /** Number of messages in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
 
@@ -74,6 +74,9 @@ public class SubscriptionStats {
     /** Total rate of messages expired on this subscription (msg/s). */
     public double msgRateExpired;
 
+    /** Total messages expired on this subscription. */
+    public long totalMsgExpired;
+
     /** Last message expire execution timestamp. */
     public long lastExpireTimestamp;
 
@@ -85,6 +88,9 @@ public class SubscriptionStats {
 
     /** Last acked message timestamp. */
     public long lastAckedTimestamp;
+
+    /** Last MarkDelete position advanced timesetamp. */
+    public long lastMarkDeleteAdvancedTimestamp;
 
     /** List of connected consumers on this subscription w/ their stats. */
     public List<ConsumerStats> consumers;
@@ -98,6 +104,12 @@ public class SubscriptionStats {
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     public Map<String, String> consumersAfterMarkDeletePosition;
 
+    /** The number of non-contiguous deleted messages ranges. */
+    public int nonContiguousDeletedMessagesRanges;
+
+    /** The serialized size of non-contiguous deleted messages ranges. */
+    public int nonContiguousDeletedMessagesRangesSerializedSize;
+
     public SubscriptionStats() {
         this.consumers = Lists.newArrayList();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
@@ -110,11 +122,17 @@ public class SubscriptionStats {
         msgOutCounter = 0;
         msgRateRedeliver = 0;
         msgBacklog = 0;
+        backlogSize = 0;
         msgBacklogNoDelayed = 0;
         unackedMessages = 0;
         msgRateExpired = 0;
+        totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
+        lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
+        consumersAfterMarkDeletePosition.clear();
+        nonContiguousDeletedMessagesRanges = 0;
+        nonContiguousDeletedMessagesRangesSerializedSize = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -127,9 +145,12 @@ public class SubscriptionStats {
         this.msgOutCounter += stats.msgOutCounter;
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.msgBacklog += stats.msgBacklog;
+        this.backlogSize += stats.backlogSize;
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
+        this.msgDelayed += stats.msgDelayed;
         this.unackedMessages += stats.unackedMessages;
         this.msgRateExpired += stats.msgRateExpired;
+        this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;
         this.isDurable |= stats.isDurable;
         if (this.consumers.size() != stats.consumers.size()) {
@@ -143,6 +164,8 @@ public class SubscriptionStats {
             }
         }
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
+        this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
+        this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         return this;
     }
 }

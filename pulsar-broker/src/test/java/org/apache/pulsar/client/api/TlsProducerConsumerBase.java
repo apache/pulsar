@@ -77,7 +77,6 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         if (pulsarClient != null) {
             pulsarClient.close();
         }
-
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
@@ -87,7 +86,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
             authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
             clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
         }
-        pulsarClient = clientBuilder.build();
+        replacePulsarClient(clientBuilder);
     }
 
     protected void internalSetUpForNamespace() throws Exception {

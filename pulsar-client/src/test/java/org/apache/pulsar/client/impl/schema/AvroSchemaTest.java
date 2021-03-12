@@ -32,6 +32,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import lombok.Data;
@@ -50,10 +51,15 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.avro.generated.NasaMission;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
+import org.apache.pulsar.client.impl.schema.reader.JacksonJsonReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
@@ -390,6 +396,27 @@ public class AvroSchemaTest {
 
         // Assert that the buffer position is reset to zero
         Assert.assertEquals(((BufferedBinaryEncoder)encoder).bytesBuffered(), 0);
+    }
+
+    @Test
+    public void testAvroSchemaUserDefinedReadAndWriter() {
+        SchemaReader<Foo> reader = new JacksonJsonReader<>(new ObjectMapper(), Foo.class);
+        SchemaWriter<Foo> writer = new JacksonJsonWriter<>(new ObjectMapper());
+        SchemaDefinition<Foo> schemaDefinition = SchemaDefinition.<Foo>builder()
+                .withPojo(Bar.class)
+                .withSchemaReader(reader)
+                .withSchemaWriter(writer)
+                .build();
+
+        AvroSchema<Foo> schema = AvroSchema.of(schemaDefinition);
+        Foo foo = new Foo();
+        foo.setColor(SchemaTestUtils.Color.RED);
+        String field1 = "test";
+        foo.setField1(field1);
+        schema.encode(foo);
+        foo = schema.decode(schema.encode(foo));
+        assertEquals(foo.getColor(), SchemaTestUtils.Color.RED);
+        assertEquals(field1, foo.getField1());
     }
 
 }

@@ -22,7 +22,8 @@ import java.io.IOException;
 
 import lombok.experimental.UtilityClass;
 
-import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
  * Factory class for {@link MetadataStore}.
@@ -40,7 +41,11 @@ public class MetadataStoreFactory {
      * @throws IOException
      *             if the metadata store initialization fails
      */
-    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws IOException {
-        return new ZKMetadataStore(metadataURL, metadataStoreConfig);
+    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
+        if (metadataURL.startsWith("memory://")) {
+            return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
+        } else {
+            return new ZKMetadataStore(metadataURL, metadataStoreConfig);
+        }
     }
 }

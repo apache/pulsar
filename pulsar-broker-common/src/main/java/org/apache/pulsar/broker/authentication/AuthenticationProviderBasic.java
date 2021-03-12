@@ -25,6 +25,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 import lombok.Cleanup;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 import javax.naming.AuthenticationException;
 import java.io.BufferedReader;
@@ -75,24 +76,29 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
         String password = authParams.getPassword();
         String msg = "Unknown user or invalid password";
 
-        if (users.get(userId) == null) {
-            throw new AuthenticationException(msg);
-        }
-
-        String encryptedPassword = users.get(userId);
-
-        // For md5 algorithm
-        if ((users.get(userId).startsWith("$apr1"))) {
-            List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
-            if (splitEncryptedPassword.size() != 4 || !encryptedPassword
-                    .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
+        try {
+            if (users.get(userId) == null) {
                 throw new AuthenticationException(msg);
             }
-        // For crypt algorithm
-        } else if (!encryptedPassword.equals(Crypt.crypt(password.getBytes(), encryptedPassword.substring(0, 2)))) {
-            throw new AuthenticationException(msg);
-        }
 
+            String encryptedPassword = users.get(userId);
+
+            // For md5 algorithm
+            if ((users.get(userId).startsWith("$apr1"))) {
+                List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
+                if (splitEncryptedPassword.size() != 4 || !encryptedPassword
+                        .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
+                    throw new AuthenticationException(msg);
+                }
+                // For crypt algorithm
+            } else if (!encryptedPassword.equals(Crypt.crypt(password.getBytes(), encryptedPassword.substring(0, 2)))) {
+                throw new AuthenticationException(msg);
+            }
+        } catch (AuthenticationException exception) {
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
+            throw exception;
+        }
+        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
         return userId;
     }
 

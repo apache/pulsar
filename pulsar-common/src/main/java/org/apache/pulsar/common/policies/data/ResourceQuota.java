@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import com.google.common.base.Objects;
 
 /**

@@ -38,7 +38,7 @@ public interface RawReader {
     }
 
     /**
-     * Get the topic for the reader
+     * Get the topic for the reader.
      *
      * @return topic for the reader
      */
@@ -69,13 +69,13 @@ public interface RawReader {
      * with the individual acknowledgement, so later acknowledgements will overwrite all
      * properties from previous acknowledgements.
      *
-     * @param messageId to cumulatively acknowledge to
+     * @param messageId  to cumulatively acknowledge to
      * @param properties a map of properties which will be stored with the acknowledgement
      */
-    CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String,Long> properties);
+    CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String, Long> properties);
 
     /**
-     * Get the last message id available immediately available for reading
+     * Get the last message id available immediately available for reading.
      */
     CompletableFuture<MessageId> getLastMessageIdAsync();
 

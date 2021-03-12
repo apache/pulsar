@@ -21,53 +21,38 @@ package org.apache.pulsar.sql.presto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
+import io.prestosql.spi.connector.ColumnMetadata;
+import io.prestosql.spi.connector.ConnectorContext;
 import io.prestosql.spi.predicate.TupleDomain;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.BooleanType;
-import io.prestosql.spi.type.DoubleType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.RealType;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.VarcharType;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import io.prestosql.testing.TestingConnectorContext;
+import org.apache.bookkeeper.mledger.*;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.admin.Namespaces;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.Schemas;
-import org.apache.pulsar.client.admin.Tenants;
-import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.*;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.core.Response;
-import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
 
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.core.Response;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -81,9 +66,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static io.prestosql.spi.type.DateType.DATE;
-import static io.prestosql.spi.type.TimeType.TIME;
-import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
@@ -93,6 +75,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
 
 public abstract class TestPulsarConnector {
 
@@ -110,6 +93,8 @@ public abstract class TestPulsarConnector {
 
     protected Map<TopicName, PulsarRecordCursor> pulsarRecordCursors = new HashMap<>();
 
+    protected static PulsarDispatchingRowDecoderFactory dispatchingRowDecoderFactory;
+
     protected final static PulsarConnectorId pulsarConnectorId = new PulsarConnectorId("test-connector");
 
     protected static List<TopicName> topicNames;
@@ -119,6 +104,8 @@ public abstract class TestPulsarConnector {
     protected static Map<String, Long> topicsToNumEntries;
 
     private final static ObjectMapper objectMapper = new ObjectMapper();
+
+    protected static List<String> fooFieldNames = new ArrayList<>();
 
     protected static final NamespaceName NAMESPACE_NAME_1 = NamespaceName.get("tenant-1", "ns-1");
     protected static final NamespaceName NAMESPACE_NAME_2 = NamespaceName.get("tenant-1", "ns-2");
@@ -150,10 +137,6 @@ public abstract class TestPulsarConnector {
 
 
     public static class Foo {
-        public static class Bar {
-            public int field1;
-        }
-
         public enum TestEnum {
             TEST_ENUM_1,
             TEST_ENUM_2,
@@ -179,28 +162,13 @@ public abstract class TestPulsarConnector {
     public static class Bar {
         public Integer field1;
         public String field2;
-        public Boo test;
         public float field3;
-        public Boo test2;
     }
 
-    public static class Boo {
-        public Double field4;
-        public Boolean field5;
-        public long field6;
-        // for test cyclic definitions
-        public Foo foo;
-        public Boo boo;
-        public Bar bar;
-        // different namespace with same classname should work though
-        public Foo.Bar foobar;
-    }
 
-    protected static Map<String, Type> fooTypes;
-    protected static List<PulsarColumnHandle> fooColumnHandles;
+    protected static Map<TopicName, List<PulsarColumnHandle>> topicsToColumnHandles = new HashMap<>();
+
     protected static Map<TopicName, PulsarSplit> splits;
-    protected static Map<String, String[]> fooFieldNames;
-    protected static Map<String, Integer[]> fooPositionIndices;
     protected static Map<String, Function<Integer, Object>> fooFunctions;
 
     static {
@@ -246,30 +214,6 @@ public abstract class TestPulsarConnector {
             topicsToSchemas.put(PARTITIONED_TOPIC_5.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
             topicsToSchemas.put(PARTITIONED_TOPIC_6.getSchemaName(), Schema.JSON(TestPulsarMetadata.Foo.class).getSchemaInfo());
 
-            fooTypes = new HashMap<>();
-            fooTypes.put("field1", IntegerType.INTEGER);
-            fooTypes.put("field2", VarcharType.VARCHAR);
-            fooTypes.put("field3", RealType.REAL);
-            fooTypes.put("field4", DoubleType.DOUBLE);
-            fooTypes.put("field5", BooleanType.BOOLEAN);
-            fooTypes.put("field6", BigintType.BIGINT);
-            fooTypes.put("timestamp", TIMESTAMP);
-            fooTypes.put("time", TIME);
-            fooTypes.put("date", DATE);
-            fooTypes.put("bar.field1", IntegerType.INTEGER);
-            fooTypes.put("bar.field2", VarcharType.VARCHAR);
-            fooTypes.put("bar.test.field4", DoubleType.DOUBLE);
-            fooTypes.put("bar.test.field5", BooleanType.BOOLEAN);
-            fooTypes.put("bar.test.field6", BigintType.BIGINT);
-            fooTypes.put("bar.test.foobar.field1", IntegerType.INTEGER);
-            fooTypes.put("bar.field3", RealType.REAL);
-            fooTypes.put("bar.test2.field4", DoubleType.DOUBLE);
-            fooTypes.put("bar.test2.field5", BooleanType.BOOLEAN);
-            fooTypes.put("bar.test2.field6", BigintType.BIGINT);
-            fooTypes.put("bar.test2.foobar.field1", IntegerType.INTEGER);
-            // Enums currently map to VARCHAR
-            fooTypes.put("field7", VarcharType.VARCHAR);
-
             topicsToNumEntries = new HashMap<>();
             topicsToNumEntries.put(TOPIC_1.getSchemaName(), 1233L);
             topicsToNumEntries.put(TOPIC_2.getSchemaName(), 0L);
@@ -286,273 +230,45 @@ public abstract class TestPulsarConnector {
             topicsToNumEntries.put(PARTITIONED_TOPIC_5.getSchemaName(), 800L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_6.getSchemaName(), 1L);
 
-            fooFieldNames = new HashMap<>();
-            fooPositionIndices = new HashMap<>();
-            fooColumnHandles = new LinkedList<>();
 
-            String[] fieldNames1 = {"field1"};
-            Integer[] positionIndices1 = {0};
-            fooFieldNames.put("field1", fieldNames1);
-            fooPositionIndices.put("field1", positionIndices1);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "field1",
-                    fooTypes.get("field1"),
-                    false,
-                    false,
-                    fooFieldNames.get("field1"),
-                    fooPositionIndices.get("field1"), null));
+            fooFieldNames.add("field1");
+            fooFieldNames.add("field2");
+            fooFieldNames.add("field3");
+            fooFieldNames.add("field4");
+            fooFieldNames.add("field5");
+            fooFieldNames.add("field6");
+            fooFieldNames.add("timestamp");
+            fooFieldNames.add("time");
+            fooFieldNames.add("date");
+            fooFieldNames.add("bar");
+            fooFieldNames.add("field7");
 
 
-            String[] fieldNames2 = {"field2"};
-            Integer[] positionIndices2 = {1};
-            fooFieldNames.put("field2", fieldNames2);
-            fooPositionIndices.put("field2", positionIndices2);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "field2",
-                    fooTypes.get("field2"),
-                    false,
-                    false,
-                    fieldNames2,
-                    positionIndices2, null));
+            ConnectorContext prestoConnectorContext = new TestingConnectorContext();
+            dispatchingRowDecoderFactory = new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager());
 
-            String[] fieldNames3 = {"field3"};
-            Integer[] positionIndices3 = {2};
-            fooFieldNames.put("field3", fieldNames3);
-            fooPositionIndices.put("field3", positionIndices3);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "field3",
-                    fooTypes.get("field3"),
-                    false,
-                    false,
-                    fieldNames3,
-                    positionIndices3,  null));
-
-            String[] fieldNames4 = {"field4"};
-            Integer[] positionIndices4 = {3};
-            fooFieldNames.put("field4", fieldNames4);
-            fooPositionIndices.put("field4", positionIndices4);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "field4",
-                    fooTypes.get("field4"),
-                    false,
-                    false,
-                    fieldNames4,
-                    positionIndices4, null));
+            topicsToColumnHandles.put(PARTITIONED_TOPIC_1, getColumnColumnHandles(PARTITIONED_TOPIC_1,topicsToSchemas.get(PARTITIONED_TOPIC_1.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(PARTITIONED_TOPIC_2, getColumnColumnHandles(PARTITIONED_TOPIC_2,topicsToSchemas.get(PARTITIONED_TOPIC_2.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(PARTITIONED_TOPIC_3, getColumnColumnHandles(PARTITIONED_TOPIC_3,topicsToSchemas.get(PARTITIONED_TOPIC_3.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(PARTITIONED_TOPIC_4, getColumnColumnHandles(PARTITIONED_TOPIC_4,topicsToSchemas.get(PARTITIONED_TOPIC_4.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(PARTITIONED_TOPIC_5, getColumnColumnHandles(PARTITIONED_TOPIC_5,topicsToSchemas.get(PARTITIONED_TOPIC_5.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(PARTITIONED_TOPIC_6, getColumnColumnHandles(PARTITIONED_TOPIC_6,topicsToSchemas.get(PARTITIONED_TOPIC_6.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
 
 
-            String[] fieldNames5 = {"field5"};
-            Integer[] positionIndices5 = {4};
-            fooFieldNames.put("field5", fieldNames5);
-            fooPositionIndices.put("field5", positionIndices5);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "field5",
-                    fooTypes.get("field5"),
-                    false,
-                    false,
-                    fieldNames5,
-                    positionIndices5, null));
+            topicsToColumnHandles.put(TOPIC_1, getColumnColumnHandles(TOPIC_1,topicsToSchemas.get(TOPIC_1.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(TOPIC_2, getColumnColumnHandles(TOPIC_2,topicsToSchemas.get(TOPIC_2.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(TOPIC_3, getColumnColumnHandles(TOPIC_3,topicsToSchemas.get(TOPIC_3.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(TOPIC_4, getColumnColumnHandles(TOPIC_4,topicsToSchemas.get(TOPIC_4.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(TOPIC_5, getColumnColumnHandles(TOPIC_5,topicsToSchemas.get(TOPIC_5.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
+            topicsToColumnHandles.put(TOPIC_6, getColumnColumnHandles(TOPIC_6,topicsToSchemas.get(TOPIC_6.getSchemaName()), PulsarColumnHandle.HandleKeyValueType.NONE,true));
 
-            String[] fieldNames6 = {"field6"};
-            Integer[] positionIndices6 = {5};
-            fooFieldNames.put("field6", fieldNames6);
-            fooPositionIndices.put("field6", positionIndices6);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "field6",
-                    fooTypes.get("field6"),
-                    false,
-                    false,
-                    fieldNames6,
-                    positionIndices6, null));
-
-            String[] fieldNames7 = {"timestamp"};
-            Integer[] positionIndices7 = {6};
-            fooFieldNames.put("timestamp", fieldNames7);
-            fooPositionIndices.put("timestamp", positionIndices7);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "timestamp",
-                    fooTypes.get("timestamp"),
-                    false,
-                    false,
-                    fieldNames7,
-                    positionIndices7, null));
-
-            String[] fieldNames8 = {"time"};
-            Integer[] positionIndices8 = {7};
-            fooFieldNames.put("time", fieldNames8);
-            fooPositionIndices.put("time", positionIndices8);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "time",
-                    fooTypes.get("time"),
-                    false,
-                    false,
-                    fieldNames8,
-                    positionIndices8, null));
-
-            String[] fieldNames9 = {"date"};
-            Integer[] positionIndices9 = {8};
-            fooFieldNames.put("date", fieldNames9);
-            fooPositionIndices.put("date", positionIndices9);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "date",
-                    fooTypes.get("date"),
-                    false,
-                    false,
-                    fieldNames9,
-                    positionIndices9, null));
-
-            String[] bar_fieldNames1 = {"bar", "field1"};
-            Integer[] bar_positionIndices1 = {9, 0};
-            fooFieldNames.put("bar.field1", bar_fieldNames1);
-            fooPositionIndices.put("bar.field1", bar_positionIndices1);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.field1",
-                    fooTypes.get("bar.field1"),
-                    false,
-                    false,
-                    bar_fieldNames1,
-                    bar_positionIndices1, null));
-
-            String[] bar_fieldNames2 = {"bar", "field2"};
-            Integer[] bar_positionIndices2 = {9, 1};
-            fooFieldNames.put("bar.field2", bar_fieldNames2);
-            fooPositionIndices.put("bar.field2", bar_positionIndices2);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.field2",
-                    fooTypes.get("bar.field2"),
-                    false,
-                    false,
-                    bar_fieldNames2,
-                    bar_positionIndices2, null));
-
-            String[] bar_test_fieldNames4 = {"bar", "test", "field4"};
-            Integer[] bar_test_positionIndices4 = {9, 2, 0};
-            fooFieldNames.put("bar.test.field4", bar_test_fieldNames4);
-            fooPositionIndices.put("bar.test.field4", bar_test_positionIndices4);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.test.field4",
-                    fooTypes.get("bar.test.field4"),
-                    false,
-                    false,
-                    bar_test_fieldNames4,
-                    bar_test_positionIndices4, null));
-
-            String[] bar_test_fieldNames5 = {"bar", "test", "field5"};
-            Integer[] bar_test_positionIndices5 = {9, 2, 1};
-            fooFieldNames.put("bar.test.field5", bar_test_fieldNames5);
-            fooPositionIndices.put("bar.test.field5", bar_test_positionIndices5);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.test.field5",
-                    fooTypes.get("bar.test.field5"),
-                    false,
-                    false,
-                    bar_test_fieldNames5,
-                    bar_test_positionIndices5, null));
-
-            String[] bar_test_fieldNames6 = {"bar", "test", "field6"};
-            Integer[] bar_test_positionIndices6 = {9, 2, 2};
-            fooFieldNames.put("bar.test.field6", bar_test_fieldNames6);
-            fooPositionIndices.put("bar.test.field6", bar_test_positionIndices6);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.test.field6",
-                    fooTypes.get("bar.test.field6"),
-                    false,
-                    false,
-                    bar_test_fieldNames6,
-                    bar_test_positionIndices6, null));
-
-            String[] bar_test_foobar_fieldNames1 = {"bar", "test", "foobar", "field1"};
-            Integer[] bar_test_foobar_positionIndices1 = {9, 2, 6, 0};
-            fooFieldNames.put("bar.test.foobar.field1", bar_test_foobar_fieldNames1);
-            fooPositionIndices.put("bar.test.foobar.field1", bar_test_foobar_positionIndices1);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.test.foobar.field1",
-                    fooTypes.get("bar.test.foobar.field1"),
-                    false,
-                    false,
-                    bar_test_foobar_fieldNames1,
-                    bar_test_foobar_positionIndices1, null));
-
-            String[] bar_field3 = {"bar", "field3"};
-            Integer[] bar_positionIndices3 = {9, 3};
-            fooFieldNames.put("bar.field3", bar_field3);
-            fooPositionIndices.put("bar.field3", bar_positionIndices3);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.field3",
-                    fooTypes.get("bar.field3"),
-                    false,
-                    false,
-                    bar_field3,
-                    bar_positionIndices3, null));
-
-            String[] bar_test2_fieldNames4 = {"bar", "test2", "field4"};
-            Integer[] bar_test2_positionIndices4 = {9, 4, 0};
-            fooFieldNames.put("bar.test2.field4", bar_test2_fieldNames4);
-            fooPositionIndices.put("bar.test2.field4", bar_test2_positionIndices4);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.test2.field4",
-                    fooTypes.get("bar.test2.field4"),
-                    false,
-                    false,
-                    bar_test2_fieldNames4,
-                    bar_test2_positionIndices4, null));
-
-            String[] bar_test2_fieldNames5 = {"bar", "test2", "field5"};
-            Integer[] bar_test2_positionIndices5 = {9, 4, 1};
-            fooFieldNames.put("bar.test2.field5", bar_test2_fieldNames5);
-            fooPositionIndices.put("bar.test2.field5", bar_test2_positionIndices5);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.test2.field5",
-                    fooTypes.get("bar.test2.field5"),
-                    false,
-                    false,
-                    bar_test2_fieldNames5,
-                    bar_test2_positionIndices5, null));
-
-            String[] bar_test2_fieldNames6 = {"bar", "test2", "field6"};
-            Integer[] bar_test2_positionIndices6 = {9, 4, 2};
-            fooFieldNames.put("bar.test2.field6", bar_test2_fieldNames6);
-            fooPositionIndices.put("bar.test2.field6", bar_test2_positionIndices6);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.test2.field6",
-                    fooTypes.get("bar.test2.field6"),
-                    false,
-                    false,
-                    bar_test2_fieldNames6,
-                    bar_test2_positionIndices6, null));
-
-            String[] bar_test2_foobar_fieldNames1 = {"bar", "test2", "foobar", "field1"};
-            Integer[] bar_test2_foobar_positionIndices1 = {9, 4, 6, 0};
-            fooFieldNames.put("bar.test2.foobar.field1", bar_test2_foobar_fieldNames1);
-            fooPositionIndices.put("bar.test2.foobar.field1", bar_test2_foobar_positionIndices1);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "bar.test2.foobar.field1",
-                    fooTypes.get("bar.test2.foobar.field1"),
-                    false,
-                    false,
-                    bar_test2_foobar_fieldNames1,
-                    bar_test2_foobar_positionIndices1, null));
-
-            String[] fieldNames10 = {"field7"};
-            Integer[] positionIndices10 = {10};
-            fooFieldNames.put("field7", fieldNames10);
-            fooPositionIndices.put("field7", positionIndices10);
-            fooColumnHandles.add(new PulsarColumnHandle(pulsarConnectorId.toString(),
-                    "field7",
-                    fooTypes.get("field7"),
-                    false,
-                    false,
-                    fieldNames10,
-                    positionIndices10, null));
-
-            fooColumnHandles.addAll(PulsarInternalColumn.getInternalFields().stream()
-                .map(pulsarInternalColumn -> pulsarInternalColumn.getColumnHandle(pulsarConnectorId.toString(), false))
-                .collect(Collectors.toList()));
 
             splits = new HashMap<>();
 
             List<TopicName> allTopics = new LinkedList<>();
             allTopics.addAll(topicNames);
             allTopics.addAll(partitionedTopicNames);
+
 
             for (TopicName topicName : allTopics) {
                 if (topicsToSchemas.containsKey(topicName.getSchemaName())) {
@@ -590,21 +306,59 @@ public abstract class TestPulsarConnector {
             fooFunctions.put("bar.field2", integer -> integer % 2 == 0 ? null : String.valueOf(integer + 2));
             fooFunctions.put("bar.field3", integer -> integer + 3.0f);
 
-            fooFunctions.put("bar.test.field4", integer -> integer + 1.0);
-            fooFunctions.put("bar.test.field5", integer -> (integer + 1) % 2 == 0);
-            fooFunctions.put("bar.test.field6", integer -> integer + 10L);
-            fooFunctions.put("bar.test.foobar.field1", integer -> integer % 3);
-
-            fooFunctions.put("bar.test2.field4", integer -> integer + 2.0);
-            fooFunctions.put("bar.test2.field5", integer -> (integer + 1) % 32 == 0);
-            fooFunctions.put("bar.test2.field6", integer -> integer + 15L);
-            fooFunctions.put("bar.test2.foobar.field1", integer -> integer % 3);
             fooFunctions.put("field7", integer -> Foo.TestEnum.values()[integer % Foo.TestEnum.values().length]);
 
         } catch (Throwable e) {
             System.out.println("Error: " + e);
             System.out.println("Stacktrace: " + Arrays.asList(e.getStackTrace()));
         }
+    }
+
+
+    /**
+     * Parse PulsarColumnMetadata to PulsarColumnHandle Util
+     * @param schemaInfo
+     * @param handleKeyValueType
+     * @param includeInternalColumn
+     * @param dispatchingRowDecoderFactory
+     * @return
+     */
+    protected static List<PulsarColumnHandle> getColumnColumnHandles(TopicName topicName, SchemaInfo schemaInfo,
+                                                                     PulsarColumnHandle.HandleKeyValueType handleKeyValueType, boolean includeInternalColumn) {
+        List<PulsarColumnHandle> columnHandles = new ArrayList<>();
+        List<ColumnMetadata> columnMetadata = mockColumnMetadata().getPulsarColumns(topicName, schemaInfo,
+                includeInternalColumn, handleKeyValueType);
+        columnMetadata.forEach(column -> {
+            PulsarColumnMetadata pulsarColumnMetadata = (PulsarColumnMetadata) column;
+            columnHandles.add(new PulsarColumnHandle(
+                    pulsarConnectorId.toString(),
+                    pulsarColumnMetadata.getNameWithCase(),
+                    pulsarColumnMetadata.getType(),
+                    pulsarColumnMetadata.isHidden(),
+                    pulsarColumnMetadata.isInternal(),
+                    pulsarColumnMetadata.getDecoderExtraInfo().getMapping(),
+                    pulsarColumnMetadata.getDecoderExtraInfo().getDataFormat(), pulsarColumnMetadata.getDecoderExtraInfo().getFormatHint(),
+                    pulsarColumnMetadata.getHandleKeyValueType()));
+
+        });
+        return columnHandles;
+    }
+
+    public static PulsarMetadata mockColumnMetadata() {
+        ConnectorContext prestoConnectorContext = new TestingConnectorContext();
+        PulsarConnectorConfig pulsarConnectorConfig = spy(new PulsarConnectorConfig());
+        pulsarConnectorConfig.setMaxEntryReadBatchSize(1);
+        pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
+        pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
+        PulsarDispatchingRowDecoderFactory dispatchingRowDecoderFactory =
+                new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager());
+        PulsarMetadata pulsarMetadata = new PulsarMetadata(pulsarConnectorId, pulsarConnectorConfig, dispatchingRowDecoderFactory);
+        return pulsarMetadata;
+    }
+
+    public static PulsarConnectorId getPulsarConnectorId() {
+        assertNotNull(pulsarConnectorId);
+        return pulsarConnectorId;
     }
 
     private static List<Entry> getTopicEntries(String topicSchemaName) {
@@ -629,9 +383,9 @@ public abstract class TestPulsarConnector {
             LocalDate epoch = LocalDate.ofEpochDay(0);
             foo.date = Math.toIntExact(ChronoUnit.DAYS.between(epoch, localDate));
 
-            PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
+            MessageMetadata messageMetadata = new MessageMetadata()
                     .setProducerName("test-producer").setSequenceId(i)
-                    .setPublishTime(currentTimeMs + i).build();
+                    .setPublishTime(currentTimeMs + i);
 
             Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()) : JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
@@ -765,7 +519,7 @@ public abstract class TestPulsarConnector {
         doReturn(schemas).when(pulsarAdmin).schemas();
         doReturn(pulsarAdmin).when(this.pulsarConnectorConfig).getPulsarAdmin();
 
-        this.pulsarMetadata = new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig);
+        this.pulsarMetadata = new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, dispatchingRowDecoderFactory);
         this.pulsarSplitManager = Mockito.spy(new PulsarSplitManager(pulsarConnectorId, this.pulsarConnectorConfig));
 
         ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
@@ -821,36 +575,14 @@ public abstract class TestPulsarConnector {
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
-                                List < Entry > entries = new LinkedList<>();
+                                List <Entry> entries = new LinkedList<>();
                                 for (int i = 0; i < readEntries; i++) {
-
-                                    Foo.Bar foobar = new Foo.Bar();
-                                    foobar.field1 = (int) fooFunctions.get("bar.test.foobar.field1").apply(count);
-
-                                    Boo boo1 = new Boo();
-                                    boo1.field4 = (double) fooFunctions.get("bar.test.field4").apply(count);
-                                    boo1.field5 = (boolean) fooFunctions.get("bar.test.field5").apply(count);
-                                    boo1.field6 = (long) fooFunctions.get("bar.test.field6").apply(count);
-                                    boo1.foo = new Foo();
-                                    boo1.boo = null;
-                                    boo1.bar = new Bar();
-                                    boo1.foobar = foobar;
-
-                                    Boo boo2 = new Boo();
-                                    boo2.field4 = (double) fooFunctions.get("bar.test2.field4").apply(count);
-                                    boo2.field5 = (boolean) fooFunctions.get("bar.test2.field5").apply(count);
-                                    boo2.field6 = (long) fooFunctions.get("bar.test2.field6").apply(count);
-                                    boo2.foo = new Foo();
-                                    boo2.boo = boo1;
-                                    boo2.bar = new Bar();
-                                    boo2.foobar = foobar;
 
                                     TestPulsarConnector.Bar bar = new TestPulsarConnector.Bar();
                                     bar.field1 = fooFunctions.get("bar.field1").apply(count) == null ? null : (int) fooFunctions.get("bar.field1").apply(count);
                                     bar.field2 = fooFunctions.get("bar.field2").apply(count) == null ? null : (String) fooFunctions.get("bar.field2").apply(count);
                                     bar.field3 = (float) fooFunctions.get("bar.field3").apply(count);
-                                    bar.test = boo1;
-                                    bar.test2 = count % 2 == 0 ? null : boo2;
+
 
                                     Foo foo = new Foo();
                                     foo.field1 = (int) fooFunctions.get("field1").apply(count);
@@ -865,9 +597,9 @@ public abstract class TestPulsarConnector {
                                     foo.bar = bar;
                                     foo.field7 = (Foo.TestEnum) fooFunctions.get("field7").apply(count);
 
-                                    PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
+                                    MessageMetadata messageMetadata = new MessageMetadata()
                                             .setProducerName("test-producer").setSequenceId(positions.get(topic))
-                                            .setPublishTime(System.currentTimeMillis()).build();
+                                            .setPublishTime(System.currentTimeMillis());
 
                                     Schema schema = topicsToSchemas.get(schemaName).getType() == SchemaType.AVRO ? AvroSchema.of(Foo.class) : JSONSchema.of(Foo.class);
 
@@ -890,7 +622,7 @@ public abstract class TestPulsarConnector {
 
                         return null;
                     }
-                }).when(readOnlyCursor).asyncReadEntries(anyInt(), any(), any());
+                }).when(readOnlyCursor).asyncReadEntries(anyInt(), any(), any(), any());
 
                 when(readOnlyCursor.hasMoreEntries()).thenAnswer(new Answer<Boolean>() {
                     @Override
@@ -946,16 +678,15 @@ public abstract class TestPulsarConnector {
         when(PulsarConnectorCache.instance.getManagedLedgerFactory()).thenReturn(managedLedgerFactory);
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
-
             PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
-                    fooColumnHandles, split.getValue(),
+                    topicsToColumnHandles.get(split.getKey()), split.getValue(),
                     pulsarConnectorConfig, managedLedgerFactory, new ManagedLedgerConfig(),
-                    new PulsarConnectorMetricsTracker(new NullStatsProvider())));
+                    new PulsarConnectorMetricsTracker(new NullStatsProvider()),dispatchingRowDecoderFactory));
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() {
         completedBytes = 0L;
     }

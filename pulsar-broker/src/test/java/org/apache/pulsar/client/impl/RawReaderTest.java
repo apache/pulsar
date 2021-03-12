@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -32,7 +30,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -43,7 +40,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;

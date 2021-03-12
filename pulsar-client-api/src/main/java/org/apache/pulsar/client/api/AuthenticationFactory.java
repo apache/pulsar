@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import java.util.Map;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.classification.InterfaceAudience;

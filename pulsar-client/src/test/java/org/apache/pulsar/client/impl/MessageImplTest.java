@@ -29,10 +29,9 @@ import org.apache.pulsar.client.impl.schema.BooleanSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -51,22 +50,18 @@ public class MessageImplTest {
 
     @Test
     public void testGetSequenceIdNotAssociated() {
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        MessageImpl<?> msg = MessageImpl.create(new MessageMetadata(), payload, Schema.BYTES);
 
         assertEquals(-1, msg.getSequenceId());
     }
 
     @Test
     public void testSetDuplicatePropertiesKey() {
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder();
-        builder.addProperties(org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder()
-                .setKey("key1").setValue("value1").build());
-        builder.addProperties(org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder()
-                .setKey("key1").setValue("value2").build());
-        builder.addProperties(org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder()
-                .setKey("key3").setValue("value3").build());
+        MessageMetadata builder = new MessageMetadata();
+        builder.addProperty().setKey("key1").setValue("value1");
+        builder.addProperty().setKey("key1").setValue("value2");
+        builder.addProperty().setKey("key3").setValue("value3");
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES);
         assertEquals("value2", msg.getProperty("key1"));
@@ -75,7 +70,7 @@ public class MessageImplTest {
 
     @Test
     public void testGetSequenceIdAssociated() {
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
             .setSequenceId(1234);
 
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
@@ -86,7 +81,7 @@ public class MessageImplTest {
 
     @Test
     public void testGetProducerNameNotAssigned() {
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder();
+        MessageMetadata builder = new MessageMetadata();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES);
 
@@ -95,7 +90,7 @@ public class MessageImplTest {
 
     @Test
     public void testGetProducerNameAssigned() {
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
             .setProducerName("test-producer");
 
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
@@ -121,7 +116,7 @@ public class MessageImplTest {
 
         // // Check kv.encoding.type default, not set value
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
                 builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
@@ -150,7 +145,7 @@ public class MessageImplTest {
 
         // Check kv.encoding.type INLINE
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("inline");
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
                 builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
@@ -178,7 +173,7 @@ public class MessageImplTest {
 
         // Check kv.encoding.type SPRAERATE
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
@@ -211,10 +206,9 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
-        ByteString byteString = ByteString.copyFrom(new byte[10]);
-        builder.setSchemaVersion(byteString);
+        builder.setSchemaVersion(new byte[10]);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
                 builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
@@ -248,10 +242,9 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
-        ByteString byteString = ByteString.copyFrom(new byte[10]);
-        builder.setSchemaVersion(byteString);
+        builder.setSchemaVersion(new byte[10]);
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
@@ -286,10 +279,9 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
-        ByteString byteString = ByteString.copyFrom(new byte[10]);
-        builder.setSchemaVersion(byteString);
+        builder.setSchemaVersion(new byte[10]);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
                 builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
@@ -323,10 +315,9 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
-        ByteString byteString = ByteString.copyFrom(new byte[10]);
-        builder.setSchemaVersion(byteString);
+        builder.setSchemaVersion(new byte[10]);
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
@@ -361,10 +352,9 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
-        ByteString byteString = ByteString.copyFrom(new byte[10]);
-        builder.setSchemaVersion(byteString);
+        builder.setSchemaVersion(new byte[10]);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
                 builder, ByteBuffer.wrap(encodeBytes), keyValueSchema);
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = msg.getValue();
@@ -398,10 +388,9 @@ public class MessageImplTest {
         bar.setField1(true);
 
         byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
-        ByteString byteString = ByteString.copyFrom(new byte[10]);
-        builder.setSchemaVersion(byteString);
+        builder.setSchemaVersion(new byte[10]);
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         builder.setPartitionKeyB64Encoded(true);
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
@@ -418,10 +407,9 @@ public class MessageImplTest {
     @Test
     public void testTypedSchemaGetNullValue() {
         byte[] encodeBytes = new byte[0];
-        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+        MessageMetadata builder = new MessageMetadata()
                 .setProducerName("valueNotSet");
-        ByteString byteString = ByteString.copyFrom(new byte[0]);
-        builder.setSchemaVersion(byteString);
+        builder.setSchemaVersion(new byte[0]);
         builder.setPartitionKey(Base64.getEncoder().encodeToString(encodeBytes));
         builder.setPartitionKeyB64Encoded(true);
         builder.setNullValue(true);

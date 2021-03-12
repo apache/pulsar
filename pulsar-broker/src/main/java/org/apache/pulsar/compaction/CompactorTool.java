@@ -48,7 +48,7 @@ public class CompactorTool {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";
 
-        @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required=true)
+        @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
         private String topic;
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
@@ -73,8 +73,19 @@ public class CompactorTool {
             jcommander.usage();
             throw new IllegalArgumentException("Need to specify a configuration file for broker");
         } else {
+            log.info(String.format("read configuration file %s", arguments.brokerConfigFile));
             brokerConfig = PulsarConfigurationLoader.create(
                     arguments.brokerConfigFile, ServiceConfiguration.class);
+        }
+
+
+        if (isBlank(brokerConfig.getZookeeperServers())) {
+            throw new IllegalArgumentException(
+                    String.format("Need to specify `zookeeperServers` in configuration file \n"
+                                    + "or specify configuration file path from command line.\n"
+                                    + "now configuration file path is=[%s]\n",
+                            arguments.brokerConfigFile)
+            );
         }
 
         ClientBuilder clientBuilder = PulsarClient.builder();
@@ -86,6 +97,8 @@ public class CompactorTool {
 
 
         if (brokerConfig.getBrokerServicePortTls().isPresent()) {
+            log.info("Found `brokerServicePortTls` in configuration file. \n"
+                    + "Will connect pulsar use TLS.");
             clientBuilder
                     .serviceUrl(PulsarService.brokerUrlTls(PulsarService.advertisedAddress(brokerConfig),
                             brokerConfig.getBrokerServicePortTls().get()))
@@ -104,8 +117,8 @@ public class CompactorTool {
         ZooKeeperClientFactory zkClientFactory = new ZookeeperBkClientFactoryImpl(executor);
 
         ZooKeeper zk = zkClientFactory.create(brokerConfig.getZookeeperServers(),
-                                              ZooKeeperClientFactory.SessionType.ReadWrite,
-                                              (int)brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
+                ZooKeeperClientFactory.SessionType.ReadWrite,
+                (int) brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
         BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
         BookKeeper bk = bkClientFactory.create(brokerConfig, zk, Optional.empty(), null);
         try (PulsarClient pulsar = clientBuilder.build()) {

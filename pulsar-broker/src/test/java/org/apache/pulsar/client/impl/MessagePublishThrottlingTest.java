@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.junit.Assert.assertTrue;
-
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -48,11 +47,11 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
         this.conf.setClusterName("test");
         this.conf.setTopicPublisherThrottlingTickTimeMillis(1);
         this.conf.setBrokerPublisherThrottlingTickTimeMillis(1);
+        super.internalSetup();
+        super.producerBaseSetup();
     }
 
     @AfterMethod(alwaysRun = true)

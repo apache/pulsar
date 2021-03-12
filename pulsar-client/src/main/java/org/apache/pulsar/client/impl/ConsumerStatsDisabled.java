@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Map;
 import java.util.Optional;
 
 import org.apache.pulsar.client.api.ConsumerStats;
@@ -113,6 +114,16 @@ public class ConsumerStatsDisabled implements ConsumerStatsRecorder {
     @Override
     public long getTotalAcksFailed() {
         return 0;
+    }
+
+    @Override
+    public Integer getMsgNumInReceiverQueue() {
+        return null;
+    }
+
+    @Override
+    public Map<Long, Integer> getMsgNumInSubReceiverQueue() {
+        return null;
     }
 
     @Override

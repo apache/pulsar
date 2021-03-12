@@ -63,6 +63,18 @@ typedef enum {
     initial_position_earliest
 } initial_position;
 
+typedef enum {
+    // This is the default option to fail consume until crypto succeeds
+    pulsar_ConsumerFail,
+    // Message is silently acknowledged and not delivered to the application
+    pulsar_ConsumerDiscard,
+    // Deliver the encrypted message to the application. It's the application's
+    // responsibility to decrypt the message. If message is also compressed,
+    // decompression will fail. If message contain batch messages, client will
+    // not be able to retrieve individual messages in the batch
+    pulsar_ConsumerConsume
+} pulsar_consumer_crypto_failure_action;
+
 /// Callback definition for MessageListener
 typedef void (*pulsar_message_listener)(pulsar_consumer_t *consumer, pulsar_message_t *msg, void *ctx);
 
@@ -237,6 +249,17 @@ PULSAR_PUBLIC long pulsar_configure_get_ack_grouping_max_size(
 
 PULSAR_PUBLIC int pulsar_consumer_is_encryption_enabled(
     pulsar_consumer_configuration_t *consumer_configuration);
+
+PULSAR_PUBLIC void pulsar_consumer_configuration_set_default_crypto_key_reader(
+    pulsar_consumer_configuration_t *consumer_configuration, const char *public_key_path,
+    const char *private_key_path);
+
+PULSAR_PUBLIC pulsar_consumer_crypto_failure_action pulsar_consumer_configuration_get_crypto_failure_action(
+    pulsar_consumer_configuration_t *consumer_configuration);
+
+PULSAR_PUBLIC void pulsar_consumer_configuration_set_crypto_failure_action(
+    pulsar_consumer_configuration_t *consumer_configuration,
+    pulsar_consumer_crypto_failure_action cryptoFailureAction);
 
 PULSAR_PUBLIC int pulsar_consumer_is_read_compacted(pulsar_consumer_configuration_t *consumer_configuration);
 

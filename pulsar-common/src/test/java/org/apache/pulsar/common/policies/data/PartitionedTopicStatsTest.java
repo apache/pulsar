@@ -20,10 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.testng.annotations.Test;
 
 public class PartitionedTopicStatsTest {

@@ -23,8 +23,8 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
 /**
  * The Index Entry in OffloadIndexBlock.
- * It consists of the message entry id, the code storage block part id for this message entry,
- * and the offset in code storage block for this message id.
+ * It consists of the message entry id, the tiered storage block part id for this message entry,
+ * and the offset in tiered storage block for this message id.
  */
 @Unstable
 @LimitedPrivate
@@ -36,7 +36,7 @@ public interface OffloadIndexEntry {
     long getEntryId();
 
     /**
-     * Get the block part id of code storage.
+     * Get the block part id of tiered storage.
      */
     int getPartId();
 

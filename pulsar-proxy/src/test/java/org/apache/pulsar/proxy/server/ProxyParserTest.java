@@ -45,11 +45,12 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
-import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,8 +62,6 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(ProxyParserTest.class);
 
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
-
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -73,13 +72,15 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         //enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.ofNullable(2));
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
         Optional<Integer> proxyLogLevel = Optional.of(2);
         assertEquals( proxyLogLevel , proxyService.getConfiguration().getProxyLogLevel());
@@ -87,7 +88,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
 

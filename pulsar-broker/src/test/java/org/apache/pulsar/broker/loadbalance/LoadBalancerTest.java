@@ -38,6 +38,7 @@ import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,6 +64,7 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -73,6 +75,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
@@ -85,6 +88,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -106,7 +110,7 @@ public class LoadBalancerTest {
 
     private static final Logger log = LoggerFactory.getLogger(LoadBalancerTest.class);
 
-    private static final int MAX_RETRIES = 10;
+    private static final int MAX_RETRIES = 15;
 
     private static final int BROKER_COUNT = 5;
     private int[] brokerWebServicePorts = new int[BROKER_COUNT];
@@ -132,7 +136,7 @@ public class LoadBalancerTest {
 
 
             ServiceConfiguration config = new ServiceConfiguration();
-            config.setBrokerServicePort(Optional.ofNullable(brokerNativeBrokerPorts[i]));
+            config.setBrokerServicePort(Optional.of(brokerNativeBrokerPorts[i]));
             config.setClusterName("use");
             config.setAdvertisedAddress(localhost);
             config.setAdvertisedAddress("localhost");
@@ -175,23 +179,27 @@ public class LoadBalancerTest {
         bkEnsemble.stop();
     }
 
-    private LeaderBroker loopUntilLeaderChanges(LeaderElectionService les, LeaderBroker oldLeader,
-            LeaderBroker newLeader) throws InterruptedException {
+    private void loopUntilLeaderChangesForAllBroker(List<PulsarService> activePulsars, LeaderBroker oldLeader)
+            throws InterruptedException {
         int loopCount = 0;
-
-        while (loopCount < MAX_RETRIES) {
-            Thread.sleep(1000);
-            // Check if the new leader is elected. If yes, break without incrementing the loopCount
-            newLeader = les.getCurrentLeader();
-            if (newLeader.equals(oldLeader) == false) {
-                break;
-            }
-            ++loopCount;
-        }
-
+        Awaitility.await()
+            .pollInterval(1, TimeUnit.SECONDS)
+            .atMost(MAX_RETRIES, TimeUnit.SECONDS)
+            .until(() -> {
+                boolean settled = true;
+                // Check if the all active pulsar see a new leader.
+                for (PulsarService pulsar : activePulsars) {
+                    Optional<LeaderBroker> leader = pulsar.getLeaderElectionService().readCurrentLeader().join();
+                    // Check leader a pulsar see is not empty and not the old leader.
+                    if (!leader.isPresent() || leader.get().equals(oldLeader)) {
+                        settled = false;
+                        break;
+                    }
+                }
+                return settled;
+            });
         // Check if maximum retries are already done. If yes, assert.
         Assert.assertNotEquals(loopCount, MAX_RETRIES, "Leader is not changed even after maximum retries.");
-        return newLeader;
     }
 
     /*
@@ -481,7 +489,7 @@ public class LoadBalancerTest {
             sru.setCpu(new ResourceUsage(200, 400));
             lr.setSystemResourceUsage(sru);
 
-            Map<String, NamespaceBundleStats> bundleStats = new HashMap<String, NamespaceBundleStats>();
+            Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
             for (int j = 0; j < 5; j++) {
                 String bundleName = String.format("pulsar/use/primary-ns-%d-%d/0x00000000_0xffffffff", i, j);
                 NamespaceBundleStats stats = new NamespaceBundleStats();
@@ -489,7 +497,7 @@ public class LoadBalancerTest {
                 stats.msgRateOut = 15 * (i + j);
                 stats.msgThroughputIn = 5000 * (i + j);
                 stats.msgThroughputOut = 15000 * (i + j);
-                stats.topics = 25 * (i + j);
+                stats.topics = 25L * (i + j);
                 stats.consumerCount = 50 * (i + j);
                 stats.producerCount = 50 * (i + j);
                 bundleStats.put(bundleName, stats);
@@ -605,12 +613,8 @@ public class LoadBalancerTest {
     private void createNamespace(PulsarService pulsar, String namespace, int numBundles) throws Exception {
         Policies policies = new Policies();
         policies.bundles = getBundles(numBundles);
-
-        ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        ZooKeeper globalZk = pulsar.getGlobalZkCache().getZooKeeper();
-        String zpath = AdminResource.path(POLICIES, namespace);
-        ZkUtils.createFullPathOptimistic(globalZk, zpath, jsonMapper.writeValueAsBytes(policies),
-                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        String zpath = AdminResource.path(POLICIES, namespace);        
+        pulsar.getPulsarResources().getNamespaceResources().create(zpath, policies);
 
     }
 
@@ -635,7 +639,7 @@ public class LoadBalancerTest {
 
         // fake Namespaces Admin
         NamespacesImpl namespaceAdmin = mock(NamespacesImpl.class);
-        setObjectField(PulsarAdmin.class, pulsarServices[0].getAdminClient(), "namespaces", namespaceAdmin);
+        setObjectField(PulsarAdminImpl.class, pulsarServices[0].getAdminClient(), "namespaces", namespaceAdmin);
 
         // create load report
         // namespace 01~09 need to be split
@@ -711,35 +715,36 @@ public class LoadBalancerTest {
         PulsarService[] allServices = new PulsarService[pulsarServices.length];
         System.arraycopy(pulsarServices, 0, allServices, 0, pulsarServices.length);
         for (int i = 0; i < BROKER_COUNT - 1; i++) {
-            Set<PulsarService> activePulsar = new HashSet<PulsarService>();
+            List<PulsarService> activePulsar = new ArrayList<>();
+            List<PulsarService> followerPulsar = new ArrayList<>();
             LeaderBroker oldLeader = null;
             PulsarService leaderPulsar = null;
-            PulsarService followerPulsar = null;
             for (int j = 0; j < BROKER_COUNT; j++) {
                 if (allServices[j].getState() != PulsarService.State.Closed) {
                     activePulsar.add(allServices[j]);
                     LeaderElectionService les = allServices[j].getLeaderElectionService();
                     if (les.isLeader()) {
-                        oldLeader = les.getCurrentLeader();
+                        oldLeader = les.getCurrentLeader().get();
                         leaderPulsar = allServices[j];
                         // set the refence to null in the main array,
                         // in order to prevent closing this PulsarService twice
                         pulsarServices[i] = null;
                     } else {
-                        followerPulsar = allServices[j];
+                        followerPulsar.add(allServices[j]);
                     }
                 }
             }
-            // Make sure both brokers see the same leader
+            // Make sure all brokers see the same leader
             log.info("Old leader is : {}", oldLeader.getServiceUrl());
             for (PulsarService pulsar : activePulsar) {
-                assertEquals(pulsar.getLeaderElectionService().getCurrentLeader(), oldLeader);
+                log.info("Current leader for {} is : {}", pulsar.getWebServiceAddress(), pulsar.getLeaderElectionService().getCurrentLeader());
+                assertEquals(pulsar.getLeaderElectionService().readCurrentLeader().join(), Optional.of(oldLeader));
             }
 
             // Do leader election by killing the leader broker
             leaderPulsar.close();
-            LeaderBroker newLeader = oldLeader;
-            newLeader = loopUntilLeaderChanges(followerPulsar.getLeaderElectionService(), oldLeader, newLeader);
+            loopUntilLeaderChangesForAllBroker(followerPulsar, oldLeader);
+            LeaderBroker newLeader = followerPulsar.get(0).getLeaderElectionService().readCurrentLeader().join().get();
             log.info("New leader is : {}", newLeader.getServiceUrl());
             Assert.assertNotEquals(newLeader, oldLeader);
         }
@@ -799,13 +804,15 @@ public class LoadBalancerTest {
         policyData.auto_failover_policy.parameters.put("usage_threshold", "100");
         policies.setPolicy("otherBrokerPolicy", policyData);
 
-        ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        ZooKeeper globalZk = pulsar.getGlobalZkCache().getZooKeeper();
-        ZkUtils.createFullPathOptimistic(globalZk, AdminResource.path("clusters", "use", "namespaceIsolationPolicies"),
-                new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        byte[] content = jsonMapper.writeValueAsBytes(policies.getPolicies());
-        globalZk.setData(AdminResource.path("clusters", "use", "namespaceIsolationPolicies"), content, -1);
-
+        String path = AdminResource.path("clusters", "use", "namespaceIsolationPolicies");
+        try {
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().create(path,
+                    policies.getPolicies());
+        } catch (BadVersionException e) {
+            // isolation policy already exist
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().set(path,
+                    data -> policies.getPolicies());
+        }
     }
 
     @Test(enabled = false)
@@ -934,7 +941,7 @@ public class LoadBalancerTest {
         zkCacheField.setAccessible(true);
         zkCacheField.set(pulsarServices[0], mockCache);
 
-        TreeMap<Long, Set<ResourceUnit>> sortedRankingsInstance = new TreeMap<Long, Set<ResourceUnit>>();
+        TreeMap<Long, Set<ResourceUnit>> sortedRankingsInstance = new TreeMap<>();
         for (int i = 1; i <= 3; i++) {
             PulsarResourceDescription rd = createResourceDescription(memoryMB * i, cpuPercent * i, bInMbps * i,
                     bOutMbps * 2, threads * i);
@@ -946,7 +953,7 @@ public class LoadBalancerTest {
                 // get the object set and put the rd in it
                 sortedRankingsInstance.get(rank).add(ru1);
             } else {
-                Set<ResourceUnit> rus = new HashSet<ResourceUnit>();
+                Set<ResourceUnit> rus = new HashSet<>();
                 rus.add(ru1);
                 sortedRankingsInstance.put(rank, rus);
             }
@@ -954,12 +961,12 @@ public class LoadBalancerTest {
         }
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
         sortedRankings.setAccessible(true);
-        AtomicReference<TreeMap<Long, Set<ResourceUnit>>> ar = new AtomicReference<TreeMap<Long, Set<ResourceUnit>>>();
+        AtomicReference<TreeMap<Long, Set<ResourceUnit>>> ar = new AtomicReference<>();
         ar.set(sortedRankingsInstance);
         sortedRankings.set(loadManager, ar);
 
         int totalNamespaces = 10;
-        Map<String, Integer> namespaceOwner = new HashMap<String, Integer>();
+        Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
             ResourceUnit found = loadManager
                     .getLeastLoaded(TopicName.get("persistent://pulsar/use/primary-ns/topic" + i)).get();
@@ -1006,7 +1013,7 @@ public class LoadBalancerTest {
                 // get the object set and put the rd in it
                 sortedRankingsInstance.get(rank).add(ru1);
             } else {
-                Set<ResourceUnit> rus = new HashSet<ResourceUnit>();
+                Set<ResourceUnit> rus = new HashSet<>();
                 rus.add(ru1);
                 sortedRankingsInstance.put(rank, rus);
             }
@@ -1015,12 +1022,12 @@ public class LoadBalancerTest {
 
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
         sortedRankings.setAccessible(true);
-        AtomicReference<TreeMap<Long, Set<ResourceUnit>>> ar = new AtomicReference<TreeMap<Long, Set<ResourceUnit>>>();
+        AtomicReference<TreeMap<Long, Set<ResourceUnit>>> ar = new AtomicReference<>();
         ar.set(sortedRankingsInstance);
         sortedRankings.set(loadManager, ar);
 
         int totalNamespaces = 1000;
-        Map<String, Integer> namespaceOwner = new HashMap<String, Integer>();
+        Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
             ResourceUnit found = loadManager
                     .getLeastLoaded(TopicName.get("persistent://pulsar/use/primary-ns/topic-" + i)).get();

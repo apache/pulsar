@@ -23,8 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.testng.annotations.Test;
 
 public class ReplicatedSubscriptionSnapshotCacheTest {
@@ -35,25 +34,26 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         assertNull(cache.advancedMarkDeletePosition(new PositionImpl(0, 0)));
         assertNull(cache.advancedMarkDeletePosition(new PositionImpl(100, 0)));
 
-        cache.addNewSnapshot(ReplicatedSubscriptionsSnapshot.newBuilder()
-                .setSnapshotId("snapshot-1")
-                .setLocalMessageId(newMessageId(1, 1))
-                .build());
+        ReplicatedSubscriptionsSnapshot s1 = new ReplicatedSubscriptionsSnapshot()
+                .setSnapshotId("snapshot-1");
+        s1.setLocalMessageId().setLedgerId(1).setEntryId(1);
 
-        cache.addNewSnapshot(ReplicatedSubscriptionsSnapshot.newBuilder()
-                .setSnapshotId("snapshot-2")
-                .setLocalMessageId(newMessageId(2, 2))
-                .build());
+        ReplicatedSubscriptionsSnapshot s2 = new ReplicatedSubscriptionsSnapshot()
+                .setSnapshotId("snapshot-2");
+        s2.setLocalMessageId().setLedgerId(2).setEntryId(2);
 
-        cache.addNewSnapshot(ReplicatedSubscriptionsSnapshot.newBuilder()
-                .setSnapshotId("snapshot-5")
-                .setLocalMessageId(newMessageId(5, 5))
-                .build());
+        ReplicatedSubscriptionsSnapshot s5 = new ReplicatedSubscriptionsSnapshot()
+                .setSnapshotId("snapshot-5");
+        s5.setLocalMessageId().setLedgerId(5).setEntryId(5);
 
-        cache.addNewSnapshot(ReplicatedSubscriptionsSnapshot.newBuilder()
-                .setSnapshotId("snapshot-7")
-                .setLocalMessageId(newMessageId(7, 7))
-                .build());
+        ReplicatedSubscriptionsSnapshot s7 = new ReplicatedSubscriptionsSnapshot()
+                .setSnapshotId("snapshot-7");
+        s7.setLocalMessageId().setLedgerId(7 ).setEntryId(7);
+
+        cache.addNewSnapshot(s1);
+        cache.addNewSnapshot(s2);
+        cache.addNewSnapshot(s5);
+        cache.addNewSnapshot(s7);
 
         assertNull(cache.advancedMarkDeletePosition(new PositionImpl(0, 0)));
         assertNull(cache.advancedMarkDeletePosition(new PositionImpl(1, 0)));
@@ -74,25 +74,26 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
     public void testSnashotCachePruning() {
         ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 3);
 
-        cache.addNewSnapshot(ReplicatedSubscriptionsSnapshot.newBuilder()
-                .setSnapshotId("snapshot-1")
-                .setLocalMessageId(newMessageId(1, 1))
-                .build());
+        ReplicatedSubscriptionsSnapshot s1 = new ReplicatedSubscriptionsSnapshot()
+                .setSnapshotId("snapshot-1");
+        s1.setLocalMessageId().setLedgerId(1).setEntryId(1);
 
-        cache.addNewSnapshot(ReplicatedSubscriptionsSnapshot.newBuilder()
-                .setSnapshotId("snapshot-2")
-                .setLocalMessageId(newMessageId(2, 2))
-                .build());
+        ReplicatedSubscriptionsSnapshot s2 = new ReplicatedSubscriptionsSnapshot()
+                .setSnapshotId("snapshot-2");
+        s2.setLocalMessageId().setLedgerId(2).setEntryId(2);
 
-        cache.addNewSnapshot(ReplicatedSubscriptionsSnapshot.newBuilder()
-                .setSnapshotId("snapshot-3")
-                .setLocalMessageId(newMessageId(3, 3))
-                .build());
+        ReplicatedSubscriptionsSnapshot s3 = new ReplicatedSubscriptionsSnapshot()
+                .setSnapshotId("snapshot-3");
+        s3.setLocalMessageId().setLedgerId(3).setEntryId(3);
 
-        cache.addNewSnapshot(ReplicatedSubscriptionsSnapshot.newBuilder()
-                .setSnapshotId("snapshot-4")
-                .setLocalMessageId(newMessageId(4, 4))
-                .build());
+        ReplicatedSubscriptionsSnapshot s4 = new ReplicatedSubscriptionsSnapshot()
+                .setSnapshotId("snapshot-4");
+        s4.setLocalMessageId().setLedgerId(4).setEntryId(4);
+
+        cache.addNewSnapshot(s1);
+        cache.addNewSnapshot(s2);
+        cache.addNewSnapshot(s3);
+        cache.addNewSnapshot(s4);
 
         // Snapshot-1 was already pruned
         assertNull(cache.advancedMarkDeletePosition(new PositionImpl(1, 1)));
@@ -103,12 +104,5 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         snapshot = cache.advancedMarkDeletePosition(new PositionImpl(5, 5));
         assertNotNull(snapshot);
         assertEquals(snapshot.getSnapshotId(), "snapshot-4");
-    }
-
-    private MessageIdData newMessageId(long ledgerId, long entryId) {
-        return MessageIdData.newBuilder()
-                .setLedgerId(ledgerId)
-                .setEntryId(entryId)
-                .build();
     }
 }

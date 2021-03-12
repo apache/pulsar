@@ -38,6 +38,7 @@ class PULSAR_PUBLIC Consumer {
      * Construct an uninitialized consumer object
      */
     Consumer();
+    virtual ~Consumer() = default;
 
     /**
      * @return the topic this consumer is subscribed to

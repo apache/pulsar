@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.classification.InterfaceAudience;

@@ -26,7 +26,7 @@ import org.apache.zookeeper.ZooKeeper;
 
 /**
  * Setup the transaction coordinator metadata for a cluster, the setup will create pulsar/system namespace and create
- * partitioned topic for transaction coordinator assign
+ * partitioned topic for transaction coordinator assign.
  */
 public class PulsarTransactionCoordinatorMetadataSetup {
 

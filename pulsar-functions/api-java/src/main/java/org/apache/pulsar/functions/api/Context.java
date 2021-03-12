@@ -23,6 +23,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -263,6 +265,21 @@ public interface Context {
     String getSecret(String secretName);
 
     /**
+     * Get the pulsar admin client.
+     *
+     * @return The instance of pulsar admin client
+     */
+    PulsarAdmin getPulsarAdmin();
+
+    /**
+     * Get the pulsar admin client by cluster name.
+     *
+     * @param clusterName The name of the cluster name for pulsar admin client
+     * @return The instance of pulsar admin client
+     */
+    PulsarAdmin getPulsarAdmin(String clusterName);
+
+    /**
      * Record a user defined metric.
      *
      * @param metricName The name of the metric
@@ -302,6 +319,18 @@ public interface Context {
      * @throws PulsarClientException
      */
     <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+
+    /**
+     * New output message using schema for serializing to the topic in the cluster
+     *
+     * @param clusterName the name of the cluster for topic
+     * @param topicName The name of the topic for output message
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <O>
+     * @return the message builder instance
+     * @throws PulsarClientException
+     */
+    <O> TypedMessageBuilder<O> newOutputMessage(String clusterName, String topicName, Schema<O> schema) throws PulsarClientException;
 
     /**
      * Create a ConsumerBuilder with the schema.

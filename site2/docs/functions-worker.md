@@ -35,6 +35,7 @@ Pay attention to the following required settings when configuring functions-work
 
 - `numFunctionPackageReplicas`: The number of replicas to store function packages. The default value is `1`, which is good for standalone deployment. For production deployment, to ensure high availability, set it to be larger than `2`.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
+- `initializedDlogMetadata`: Whether to initialize distributed log metadata in runtime. If it is set to `true`, you must ensure that it has been initialized by `bin/pulsarinitialize-cluster-metadata` command.
 
 If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.
 
@@ -99,6 +100,7 @@ If you want to enable security on functions workers, you *should*:
 - [Enable TLS transport encryption](#enable-tls-transport-encryption)
 - [Enable Authentication Provider](#enable-authentication-provider)
 - [Enable Authorization Provider](#enable-authorization-provider)
+- [Enable End-to-End Encryption](#enable-end-to-end-encryption)
 
 ##### Enable TLS transport encryption
 
@@ -154,6 +156,7 @@ properties:
 
 For *Token Authentication* provider, add necessary settings for `properties` if needed.
 See [Token Authentication](security-jwt.md) for more details.
+Note: key files must be DER-encoded
 ```
 properties:
   tokenSecretKey:       file://my/secret.key 
@@ -179,6 +182,29 @@ superUserRoles:
   - role2
   - role3
 ```
+
+##### Enable End-to-End Encryption
+
+You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
+
+To enable End-to-End encryption on Functions Worker, you can set it by specifying `--producer-config` in the command line terminal, for more information, please refer to [here](security-encryption.md).
+
+We include the relevant configuration information of `CryptoConfig` into `ProducerConfig`. The specific configurable field information about `CryptoConfig` is as follows:
+
+```text
+public class CryptoConfig {
+    private String cryptoKeyReaderClassName;
+    private Map<String, Object> cryptoKeyReaderConfig;
+
+    private String[] encryptionKeys;
+    private ProducerCryptoFailureAction producerCryptoFailureAction;
+
+    private ConsumerCryptoFailureAction consumerCryptoFailureAction;
+}
+```
+
+- `producerCryptoFailureAction`: define the action if producer fail to encrypt data one of `FAIL`, `SEND`.
+- `consumerCryptoFailureAction`: define the action if consumer fail to decrypt data one of `FAIL`, `DISCARD`, `CONSUME`.
 
 #### BookKeeper Authentication
 
@@ -246,16 +272,20 @@ The error message prompts when either of the cases occurs:
 
 If any of these cases happens, follow the instructions below to fix the problem:
 
-1. Get the current clusters list of `public/functions` namespace.
+1. Disable Functions Worker by setting `functionsWorkerEnabled=false`, and restart brokers.
+
+2. Get the current clusters list of `public/functions` namespace.
 
 ```bash
 bin/pulsar-admin namespaces get-clusters public/functions
 ```
 
-2. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
+3. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
 
 ```bash
-bin/pulsar-admin namespaces set-clusters --cluster=<existing-clusters>,<new-cluster> public/functions
+bin/pulsar-admin namespaces set-clusters --clusters <existing-clusters>,<new-cluster> public/functions
 ```
 
-3. Set the correct cluster name in `pulsarFunctionsCluster` in the `conf/functions_worker.yml` file. 
+4. After setting the cluster successfully, enable functions worker by setting `functionsWorkerEnabled=true`. 
+
+5. Set the correct cluster name in `pulsarFunctionsCluster` in the `conf/functions_worker.yml` file, and restart brokers. 

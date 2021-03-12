@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.source;
 
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -41,15 +40,21 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.io.core.SourceContext;
 import org.mockito.ArgumentMatcher;
+import static org.testng.Assert.assertSame;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -267,5 +272,24 @@ public class PulsarSourceTest {
             fail();
         }
 
+    }
+
+    @Test
+    public void testPreserveOriginalSchema() throws Exception {
+        PulsarSourceConfig pulsarConfig = getPulsarConfigs(false);
+        pulsarConfig.setTypeClassName(GenericRecord.class.getName());
+
+        @Cleanup
+        PulsarSource<GenericRecord> pulsarSource = new PulsarSource<>(getPulsarClient(), pulsarConfig, new HashMap<>(), Thread.currentThread().getContextClassLoader());
+
+        pulsarSource.open(new HashMap<>(), mock(SourceContext.class));
+        Consumer consumer = mock(Consumer.class);
+        MessageImpl messageImpl = mock(MessageImpl.class);
+        Schema schema = mock(Schema.class);
+        when(messageImpl.getSchema()).thenReturn(schema);
+        pulsarSource.received(consumer, (Message) messageImpl);
+        verify(messageImpl.getSchema(), times(1));
+        Record<GenericRecord> pushed = pulsarSource.read();
+        assertSame(pushed.getSchema(), schema);
     }
 }

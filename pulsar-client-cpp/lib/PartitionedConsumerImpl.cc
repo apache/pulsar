@@ -229,7 +229,8 @@ ConsumerConfiguration PartitionedConsumerImpl::getSinglePartitionConsumerConfig(
     config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
 
     const auto shared_this = const_cast<PartitionedConsumerImpl*>(this)->shared_from_this();
-    config.setMessageListener(std::bind(&PartitionedConsumerImpl::messageReceived, shared_this, _1, _2));
+    config.setMessageListener(std::bind(&PartitionedConsumerImpl::messageReceived, shared_this,
+                                        std::placeholders::_1, std::placeholders::_2));
 
     // Apply total limit of receiver queue size across partitions
     // NOTE: if it's called by handleGetPartitions(), the queue size of new internal consumers may be smaller
@@ -247,11 +248,12 @@ ConsumerImplPtr PartitionedConsumerImpl::newInternalConsumer(unsigned int partit
 
     std::string topicPartitionName = topicName_->getTopicPartitionName(partition);
     auto consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
-                                                   internalListenerExecutor_, Partitioned);
+                                                   internalListenerExecutor_, true, Partitioned);
 
     const auto shared_this = const_cast<PartitionedConsumerImpl*>(this)->shared_from_this();
-    consumer->getConsumerCreatedFuture().addListener(std::bind(
-        &PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_this, _1, _2, partition));
+    consumer->getConsumerCreatedFuture().addListener(
+        std::bind(&PartitionedConsumerImpl::handleSinglePartitionConsumerCreated, shared_this,
+                  std::placeholders::_1, std::placeholders::_2, partition));
     consumer->setPartitionIndex(partition);
 
     LOG_DEBUG("Creating Consumer for single Partition - " << topicPartitionName << "SubName - "
@@ -573,7 +575,8 @@ void PartitionedConsumerImpl::runPartitionUpdateTask() {
 void PartitionedConsumerImpl::getPartitionMetadata() {
     using namespace std::placeholders;
     lookupServicePtr_->getPartitionMetadataAsync(topicName_)
-        .addListener(std::bind(&PartitionedConsumerImpl::handleGetPartitions, shared_from_this(), _1, _2));
+        .addListener(std::bind(&PartitionedConsumerImpl::handleGetPartitions, shared_from_this(),
+                               std::placeholders::_1, std::placeholders::_2));
 }
 
 void PartitionedConsumerImpl::handleGetPartitions(Result result,

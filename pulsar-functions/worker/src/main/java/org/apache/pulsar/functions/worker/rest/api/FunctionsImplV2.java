@@ -30,7 +30,9 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.service.api.Functions;
+import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.core.Response;
@@ -43,10 +45,11 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class FunctionsImplV2 {
+public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
-    private FunctionsImpl delegate;
-    public FunctionsImplV2(Supplier<WorkerService> workerServiceSupplier) {
+    private final Functions<PulsarWorkerService> delegate;
+
+    public FunctionsImplV2(Supplier<PulsarWorkerService> workerServiceSupplier) {
         this.delegate = new FunctionsImpl(workerServiceSupplier);
     }
 
@@ -55,6 +58,7 @@ public class FunctionsImplV2 {
         this.delegate = delegate;
     }
 
+    @Override
     public Response getFunctionInfo(final String tenant, final String namespace, final String functionName, String clientRole)
             throws IOException {
 
@@ -69,6 +73,7 @@ public class FunctionsImplV2 {
         return Response.status(Response.Status.OK).entity(functionDetailsJson).build();
     }
 
+    @Override
     public Response getFunctionInstanceStatus(final String tenant, final String namespace, final String functionName,
                                               final String instanceId, URI uri, String clientRole) throws IOException {
 
@@ -79,6 +84,7 @@ public class FunctionsImplV2 {
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
     }
 
+    @Override
     public Response getFunctionStatusV2(String tenant, String namespace, String functionName, URI requestUri, String clientRole) throws
             IOException {
         FunctionStatus functionStatus = delegate.getFunctionStatus(tenant, namespace, functionName, requestUri, clientRole, null);
@@ -90,6 +96,7 @@ public class FunctionsImplV2 {
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
     }
 
+    @Override
     public Response registerFunction(String tenant, String namespace, String functionName, InputStream
             uploadedInputStream, FormDataContentDisposition fileDetail, String functionPkgUrl, String
                                              functionDetailsJson, String clientRole) {
@@ -107,6 +114,7 @@ public class FunctionsImplV2 {
         return Response.ok().build();
     }
 
+    @Override
     public Response updateFunction(String tenant, String namespace, String functionName, InputStream uploadedInputStream,
                                    FormDataContentDisposition fileDetail, String functionPkgUrl, String
                                            functionDetailsJson, String clientRole) {
@@ -124,22 +132,26 @@ public class FunctionsImplV2 {
         return Response.ok().build();
     }
 
+    @Override
     public Response deregisterFunction(String tenant, String namespace, String functionName, String clientAppId) {
         delegate.deregisterFunction(tenant, namespace, functionName, clientAppId, null);
         return Response.ok().build();
     }
 
+    @Override
     public Response listFunctions(String tenant, String namespace, String clientRole) {
         Collection<String> functionStateList = delegate.listFunctions( tenant, namespace, clientRole, null);
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
 
+    @Override
     public Response triggerFunction(String tenant, String namespace, String functionName, String triggerValue,
                                     InputStream triggerStream, String topic, String clientRole) {
         String result = delegate.triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, clientRole, null);
         return Response.status(Response.Status.OK).entity(result).build();
     }
 
+    @Override
     public Response getFunctionState(String tenant, String namespace, String functionName, String key, String clientRole) {
         FunctionState functionState = delegate.getFunctionState(
                 tenant, namespace, functionName, key, clientRole, null);
@@ -155,37 +167,44 @@ public class FunctionsImplV2 {
                 .build();
     }
 
+    @Override
     public Response restartFunctionInstance(String tenant, String namespace, String functionName, String instanceId, URI
             uri, String clientRole) {
         delegate.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri, clientRole, null);
         return Response.ok().build();
     }
 
+    @Override
     public Response restartFunctionInstances(String tenant, String namespace, String functionName, String clientRole) {
         delegate.restartFunctionInstances(tenant, namespace, functionName, clientRole, null);
         return Response.ok().build();
     }
 
+    @Override
     public Response stopFunctionInstance(String tenant, String namespace, String functionName, String instanceId, URI
             uri, String clientRole) {
         delegate.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri, clientRole ,null);
         return Response.ok().build();
     }
 
+    @Override
     public Response stopFunctionInstances(String tenant, String namespace, String functionName, String clientRole) {
         delegate.stopFunctionInstances(tenant, namespace, functionName, clientRole, null);
         return Response.ok().build();
     }
 
+    @Override
     public Response uploadFunction(InputStream uploadedInputStream, String path, String clientRole) {
         delegate.uploadFunction(uploadedInputStream, path, clientRole);
         return Response.ok().build();
     }
 
+    @Override
     public Response downloadFunction(String path, String clientRole) {
         return Response.status(Response.Status.OK).entity(delegate.downloadFunction(path, clientRole, null)).build();
     }
 
+    @Override
     public List<ConnectorDefinition> getListOfConnectors() {
         return delegate.getListOfConnectors();
     }

@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -53,7 +54,7 @@ import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ReplicatorTestBase {
+public class ReplicatorTestBase extends TestRetrySupport {
     URL url1;
     URL urlTls1;
     ServiceConfiguration config1 = new ServiceConfiguration();
@@ -98,7 +99,10 @@ public class ReplicatorTestBase {
         return false;
     }
 
-    void setup() throws Exception {
+    @Override
+    protected void setup() throws Exception {
+        incrementSetupNumber();
+
         log.info("--- Starting ReplicatorTestBase::setup ---");
         globalZkS = new ZookeeperServerTest(0);
         globalZkS.start();
@@ -110,23 +114,7 @@ public class ReplicatorTestBase {
         // NOTE: we have to instantiate a new copy of System.getProperties() to make sure pulsar1 and pulsar2 have
         // completely
         // independent config objects instead of referring to the same properties object
-        config1.setClusterName("r1");
-        config1.setAdvertisedAddress("localhost");
-        config1.setWebServicePort(Optional.of(0));
-        config1.setWebServicePortTls(Optional.of(0));
-        config1.setZookeeperServers("127.0.0.1:" + bkEnsemble1.getZookeeperPort());
-        config1.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
-        config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
-        config1.setBrokerDeleteInactiveTopicsFrequencySeconds(
-                inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
-        config1.setBrokerServicePort(Optional.of(0));
-        config1.setBrokerServicePortTls(Optional.of(0));
-        config1.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config1.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        config1.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
-        config1.setDefaultNumberOfNamespaceBundles(1);
-        config1.setAllowAutoTopicCreationType("non-partitioned");
+        setConfig1DefaultValue();
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
         ns1 = pulsar1.getBrokerService();
@@ -141,23 +129,7 @@ public class ReplicatorTestBase {
         bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble2.start();
 
-        config2.setClusterName("r2");
-        config2.setAdvertisedAddress("localhost");
-        config2.setWebServicePort(Optional.of(0));
-        config2.setWebServicePortTls(Optional.of(0));
-        config2.setZookeeperServers("127.0.0.1:" + bkEnsemble2.getZookeeperPort());
-        config2.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
-        config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
-        config2.setBrokerDeleteInactiveTopicsFrequencySeconds(
-                inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
-        config2.setBrokerServicePort(Optional.of(0));
-        config2.setBrokerServicePortTls(Optional.of(0));
-        config2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        config2.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
-        config2.setDefaultNumberOfNamespaceBundles(1);
-        config2.setAllowAutoTopicCreationType("non-partitioned");
+        setConfig2DefaultValue();
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
         ns2 = pulsar2.getBrokerService();
@@ -172,23 +144,7 @@ public class ReplicatorTestBase {
         bkEnsemble3 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble3.start();
 
-        config3.setClusterName("r3");
-        config3.setAdvertisedAddress("localhost");
-        config3.setWebServicePort(Optional.of(0));
-        config3.setWebServicePortTls(Optional.of(0));
-        config3.setZookeeperServers("127.0.0.1:" + bkEnsemble3.getZookeeperPort());
-        config3.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
-        config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
-        config3.setBrokerDeleteInactiveTopicsFrequencySeconds(
-                inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
-        config3.setBrokerServicePort(Optional.of(0));
-        config3.setBrokerServicePortTls(Optional.of(0));
-        config3.setTlsEnabled(true);
-        config3.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config3.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        config3.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config3.setDefaultNumberOfNamespaceBundles(1);
-        config3.setAllowAutoTopicCreationType("non-partitioned");
+        setConfig3DefaultValue();
         pulsar3 = new PulsarService(config3);
         pulsar3.start();
         ns3 = pulsar3.getBrokerService();
@@ -227,11 +183,88 @@ public class ReplicatorTestBase {
 
     }
 
+    private void setConfig3DefaultValue() {
+        config3.setClusterName("r3");
+        config3.setAdvertisedAddress("localhost");
+        config3.setWebServicePort(Optional.of(0));
+        config3.setWebServicePortTls(Optional.of(0));
+        config3.setZookeeperServers("127.0.0.1:" + bkEnsemble3.getZookeeperPort());
+        config3.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
+        config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
+        config3.setBrokerDeleteInactiveTopicsFrequencySeconds(
+                inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
+        config3.setBrokerServicePort(Optional.of(0));
+        config3.setBrokerServicePortTls(Optional.of(0));
+        config3.setTlsEnabled(true);
+        config3.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config3.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        config3.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config3.setDefaultNumberOfNamespaceBundles(1);
+        config3.setAllowAutoTopicCreationType("non-partitioned");
+    }
+
+    public void setConfig1DefaultValue(){
+        config1.setClusterName("r1");
+        config1.setAdvertisedAddress("localhost");
+        config1.setWebServicePort(Optional.of(0));
+        config1.setWebServicePortTls(Optional.of(0));
+        config1.setZookeeperServers("127.0.0.1:" + bkEnsemble1.getZookeeperPort());
+        config1.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
+        config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
+        config1.setBrokerDeleteInactiveTopicsFrequencySeconds(
+                inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
+        config1.setBrokerServicePort(Optional.of(0));
+        config1.setBrokerServicePortTls(Optional.of(0));
+        config1.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config1.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        config1.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
+        config1.setDefaultNumberOfNamespaceBundles(1);
+        config1.setAllowAutoTopicCreationType("non-partitioned");
+    }
+
+    public void setConfig2DefaultValue() {
+        config2.setClusterName("r2");
+        config2.setAdvertisedAddress("localhost");
+        config2.setWebServicePort(Optional.of(0));
+        config2.setWebServicePortTls(Optional.of(0));
+        config2.setZookeeperServers("127.0.0.1:" + bkEnsemble2.getZookeeperPort());
+        config2.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
+        config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
+        config2.setBrokerDeleteInactiveTopicsFrequencySeconds(
+                inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
+        config2.setBrokerServicePort(Optional.of(0));
+        config2.setBrokerServicePortTls(Optional.of(0));
+        config2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        config2.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
+        config2.setDefaultNumberOfNamespaceBundles(1);
+        config2.setAllowAutoTopicCreationType("non-partitioned");
+    }
+
+    public void resetConfig1() {
+        config1 = new ServiceConfiguration();
+        setConfig1DefaultValue();
+    }
+
+    public void resetConfig2() {
+        config2 = new ServiceConfiguration();
+        setConfig2DefaultValue();
+    }
+
+    public void resetConfig3() {
+        config3 = new ServiceConfiguration();
+        setConfig3DefaultValue();
+    }
+
     private int inSec(int time, TimeUnit unit) {
         return (int) TimeUnit.SECONDS.convert(time, unit);
     }
 
-    void shutdown() throws Exception {
+    @Override
+    protected void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
         executor.shutdown();
 
@@ -253,6 +286,10 @@ public class ReplicatorTestBase {
         bkEnsemble2.stop();
         bkEnsemble3.stop();
         globalZkS.stop();
+
+        resetConfig1();
+        resetConfig2();
+        resetConfig3();
     }
 
     static class MessageProducer implements AutoCloseable {

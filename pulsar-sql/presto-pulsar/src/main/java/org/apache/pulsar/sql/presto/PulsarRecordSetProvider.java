@@ -36,8 +36,12 @@ public class PulsarRecordSetProvider implements ConnectorRecordSetProvider {
 
     private final PulsarConnectorConfig pulsarConnectorConfig;
 
+    private final PulsarDispatchingRowDecoderFactory decoderFactory;
+
     @Inject
-    public PulsarRecordSetProvider(PulsarConnectorConfig pulsarConnectorConfig) {
+    public PulsarRecordSetProvider(PulsarConnectorConfig pulsarConnectorConfig,
+                                   PulsarDispatchingRowDecoderFactory decoderFactory) {
+        this.decoderFactory = requireNonNull(decoderFactory, "decoderFactory is null");
         this.pulsarConnectorConfig = requireNonNull(pulsarConnectorConfig, "pulsarConnectorConfig is null");
     }
 
@@ -53,6 +57,6 @@ public class PulsarRecordSetProvider implements ConnectorRecordSetProvider {
             handles.add((PulsarColumnHandle) handle);
         }
 
-        return new PulsarRecordSet(pulsarSplit, handles.build(), this.pulsarConnectorConfig);
+        return new PulsarRecordSet(pulsarSplit, handles.build(), this.pulsarConnectorConfig, decoderFactory);
     }
 }

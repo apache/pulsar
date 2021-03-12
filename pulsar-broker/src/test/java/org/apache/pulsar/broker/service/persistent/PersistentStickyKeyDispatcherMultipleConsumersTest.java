@@ -24,11 +24,13 @@ import io.netty.channel.ChannelPromise;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.*;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.mockito.ArgumentCaptor;
@@ -124,7 +126,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         ).thenReturn(false);
 
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, cursorMock, subscriptionMock, configMock, KeySharedMeta.getDefaultInstance());
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
     }
 
     @Test
@@ -166,6 +169,36 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         Assert.assertEquals(allTotalMessagesCaptor.get(0).intValue(), 5);
     }
 
+    @Test(timeOut = 10000)
+    public void testSendMessage() {
+        KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
+        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock, keySharedMeta);
+        try {
+            keySharedMeta.addHashRange()
+                    .setStart(0)
+                    .setEnd(9);
+
+            Consumer consumerMock = mock(Consumer.class);
+            doReturn(keySharedMeta).when(consumerMock).getKeySharedMeta();
+            persistentDispatcher.addConsumer(consumerMock);
+            persistentDispatcher.consumerFlow(consumerMock, 1000);
+        } catch (Exception e) {
+            fail("Failed to add mock consumer", e);
+        }
+
+        List<Entry> entries = new ArrayList<>();
+        entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
+        entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
+
+        try {
+            //Should success,see issue #8960
+            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+        } catch (Exception e) {
+            fail("Failed to readEntriesComplete.", e);
+        }
+    }
+
     @Test
     public void testSkipRedeliverTemporally() {
         final Consumer slowConsumerMock = mock(Consumer.class);
@@ -188,7 +221,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 return null;
             }).when(cursorMock).asyncReadEntriesOrWait(
                     anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal));
+                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
         } catch (Exception e) {
             fail("Failed to set to field", e);
         }
@@ -255,12 +288,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     private ByteBuf createMessage(String message, int sequenceId, String key) {
-        PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
-        messageMetadata.setSequenceId(sequenceId);
-        messageMetadata.setProducerName("testProducer");
-        messageMetadata.setPartitionKey(key);
-        messageMetadata.setPartitionKeyB64Encoded(false);
-        messageMetadata.setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata.build(), Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setSequenceId(sequenceId)
+                .setProducerName("testProducer")
+                .setPartitionKey(key)
+                .setPartitionKeyB64Encoded(false)
+                .setPublishTime(System.currentTimeMillis());
+        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 }

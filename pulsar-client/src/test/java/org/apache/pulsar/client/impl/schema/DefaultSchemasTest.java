@@ -79,7 +79,7 @@ public class DefaultSchemasTest {
         assertEquals(stringSchemaUtf16.encode(testString), bytes2);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tearDown() throws PulsarClientException {
         client.close();
     }

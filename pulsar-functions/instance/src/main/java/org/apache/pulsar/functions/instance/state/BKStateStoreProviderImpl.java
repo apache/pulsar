@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
@@ -110,6 +112,8 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                 .setStorageType(StorageType.TABLE)
                 .build();
             Stopwatch elapsedWatch = Stopwatch.createStarted();
+
+            Exception lastException = null;
             while (elapsedWatch.elapsed(TimeUnit.MINUTES) < 1) {
                 try {
                     result(storageAdminClient.getStream(tableNs, tableName));
@@ -117,12 +121,21 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                 } catch (NamespaceNotFoundException nnfe) {
                     try {
                         result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                            .setDefaultStreamConf(streamConf)
-                            .build()));
+                                .setDefaultStreamConf(streamConf)
+                                .build()));
+                    } catch (Exception e) {
+                        // there might be two clients conflicting at creating table, so let's retrieve the table again
+                        // to make sure the table is created.
+                        lastException = e;
+                        log.warn("Encountered exception when creating namespace {} for state table", tableName, e);
+                    }
+                    try {
                         result(storageAdminClient.createStream(tableNs, tableName, streamConf));
                     } catch (Exception e) {
                         // there might be two clients conflicting at creating table, so let's retrieve the table again
                         // to make sure the table is created.
+                        lastException = e;
+                        log.warn("Encountered exception when creating table {}/{}", tableNs, tableName, e);
                     }
                 } catch (StreamNotFoundException snfe) {
                     try {
@@ -130,6 +143,8 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                     } catch (Exception e) {
                         // there might be two client conflicting at creating table, so let's retrieve it to make
                         // sure the table is created.
+                        lastException = e;
+                        log.warn("Encountered exception when creating table {}/{}", tableNs, tableName, e);
                     }
                 } catch (ClientException ce) {
                     log.warn("Encountered issue {} on fetching state stable metadata, re-attempting in 100 milliseconds",
@@ -137,6 +152,7 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
             }
+            throw new IOException(String.format("Failed to setup / verify state table for function %s/%s/%s within timeout", tenant, name, name), lastException);
         }
     }
 
@@ -151,11 +167,13 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
         Stopwatch openSw = Stopwatch.createStarted();
         while (openSw.elapsed(TimeUnit.MINUTES) < 1) {
             try {
-                return result(client.openTable(name));
+                return result(client.openTable(name), 1, TimeUnit.MINUTES);
             } catch (InternalServerException ise) {
                 log.warn("Encountered internal server on opening state table '{}/{}/{}', re-attempt in 100 milliseconds : {}",
                     tenant, namespace, name, ise.getMessage());
                 TimeUnit.MILLISECONDS.sleep(100);
+            } catch (TimeoutException e) {
+                throw new RuntimeException("Failed to open state table for function " + tenant + "/" + namespace + "/" + name + " within timeout period", e);
             }
         }
         throw new IOException("Failed to open state table for function " + tenant + "/" + namespace + "/" + name);

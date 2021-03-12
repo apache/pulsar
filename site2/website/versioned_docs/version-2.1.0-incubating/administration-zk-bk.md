@@ -228,9 +228,6 @@ ledgerDirectories=data/bookkeeper/ledgers
 
 # Point to local ZK quorum
 zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
-
-# Change the ledger manager type
-ledgerManagerType=hierarchical
 ```
 
 > Consult the official [BookKeeper docs](http://bookkeeper.apache.org) for more information about BookKeeper.

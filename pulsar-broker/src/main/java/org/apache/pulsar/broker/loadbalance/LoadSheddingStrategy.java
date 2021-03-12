@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import com.google.common.collect.Multimap;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**

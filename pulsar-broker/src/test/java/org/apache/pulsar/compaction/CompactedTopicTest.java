@@ -51,7 +51,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -110,23 +110,21 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                         List<MessageIdData> idsInGap = new ArrayList<MessageIdData>();
                         if (r.nextInt(10) == 1) {
                             long delta = r.nextInt(10) + 1;
-                            idsInGap.add(MessageIdData.newBuilder()
+                            idsInGap.add(new MessageIdData()
                                          .setLedgerId(ledgerIds.get())
-                                         .setEntryId(entryIds.get() + 1)
-                                         .build());
+                                         .setEntryId(entryIds.get() + 1));
                             ledgerIds.addAndGet(delta);
                             entryIds.set(0);
                         }
                         long delta = r.nextInt(5);
                         if (delta != 0) {
-                            idsInGap.add(MessageIdData.newBuilder()
+                            idsInGap.add(new MessageIdData()
                                          .setLedgerId(ledgerIds.get())
-                                         .setEntryId(entryIds.get() + 1)
-                                         .build());
+                                         .setEntryId(entryIds.get() + 1));
                         }
-                        MessageIdData id = MessageIdData.newBuilder()
+                        MessageIdData id = new MessageIdData()
                             .setLedgerId(ledgerIds.get())
-                            .setEntryId(entryIds.addAndGet(delta + 1)).build();
+                            .setEntryId(entryIds.addAndGet(delta + 1));
 
                         @Cleanup
                         RawMessage m = new RawMessageImpl(id, Unpooled.EMPTY_BUFFER);

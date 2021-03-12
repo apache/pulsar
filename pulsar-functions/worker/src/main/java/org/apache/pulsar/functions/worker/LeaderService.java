@@ -21,10 +21,13 @@ package org.apache.pulsar.functions.worker;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+
+import java.util.function.Supplier;
 
 @Slf4j
 public class LeaderService implements AutoCloseable, ConsumerEventListener {
@@ -35,6 +38,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     private final SchedulerManager schedulerManager;
     private final FunctionRuntimeManager functionRuntimeManager;
     private final FunctionMetaDataManager functionMetaDataManager;
+    private final MembershipManager membershipManager;
     private ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private final PulsarClient pulsarClient;
@@ -50,6 +54,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                          SchedulerManager schedulerManager,
                          FunctionRuntimeManager functionRuntimeManager,
                          FunctionMetaDataManager functionMetaDataManager,
+                         MembershipManager membershipManager,
                          ErrorNotifier errorNotifier) {
         this.workerConfig = workerService.getWorkerConfig();
         this.pulsarClient = pulsarClient;
@@ -57,12 +62,13 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
         this.schedulerManager = schedulerManager;
         this.functionRuntimeManager = functionRuntimeManager;
         this.functionMetaDataManager = functionMetaDataManager;
+        this.membershipManager = membershipManager;
         this.errorNotifier = errorNotifier;
         consumerName = String.format(
                 "%s:%s:%d",
                 workerConfig.getWorkerId(),
                 workerConfig.getWorkerHostname(),
-                workerConfig.getWorkerPort()
+                workerConfig.getTlsEnabled() ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()
         );
 
     }
@@ -95,10 +101,29 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 functionMetaDataManager.getIsInitialized().get();
                 functionRuntimeManager.getIsInitialized().get();
 
+                // attempt to acquire exclusive publishers to both the metadata topic and assignments topic
+                // we should keep trying to acquire exclusive producers as long as we are still the leader
+                Supplier<Boolean> checkIsStillLeader = () -> membershipManager.getLeader().getWorkerId().equals(workerConfig.getWorkerId());
+                Producer<byte[]> scheduleManagerExclusiveProducer = null;
+                Producer<byte[]> functionMetaDataManagerExclusiveProducer = null;
+                try {
+                    scheduleManagerExclusiveProducer = schedulerManager.acquireExclusiveWrite(checkIsStillLeader);
+                    functionMetaDataManagerExclusiveProducer = functionMetaDataManager.acquireExclusiveWrite(checkIsStillLeader);
+                } catch (WorkerUtils.NotLeaderAnymore e) {
+                    log.info("Worker {} is not leader anymore. Exiting becoming leader routine.", consumer);
+                    if (scheduleManagerExclusiveProducer != null) {
+                        scheduleManagerExclusiveProducer.close();
+                    }
+                    if (functionMetaDataManagerExclusiveProducer != null) {
+                        functionMetaDataManagerExclusiveProducer.close();
+                    }
+                    return;
+                }
+
                 // make sure scheduler is initialized because this worker
                 // is the leader and may need to start computing and writing assignments
                 // also creates exclusive producer for assignment topic
-                schedulerManager.initialize();
+                schedulerManager.initialize(scheduleManagerExclusiveProducer);
 
                 // trigger read to the end of the topic and exit
                 // Since the leader can just update its in memory assignments cache directly
@@ -106,7 +131,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 functionAssignmentTailer.close();
 
                 // need to move function meta data manager into leader mode
-                functionMetaDataManager.acquireLeadership();
+                functionMetaDataManager.acquireLeadership(functionMetaDataManagerExclusiveProducer);
 
                 isLeader = true;
             } catch (Throwable th) {

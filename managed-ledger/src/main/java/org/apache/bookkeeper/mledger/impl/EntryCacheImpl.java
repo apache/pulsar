@@ -97,7 +97,7 @@ public class EntryCacheImpl implements EntryCache {
                     entry.getLength());
         }
 
-        ByteBuf cachedData = null;
+        ByteBuf cachedData;
         if (copyEntries) {
             cachedData = copyEntry(entry);
             if (cachedData == null) {

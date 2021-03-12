@@ -107,7 +107,7 @@ String | `authParams` | String represents parameters for the authentication plug
 long|`operationTimeoutMs`|Operation timeout |30000
 long|`statsIntervalSeconds`|Interval between each stats info<br/><br/>Stats is activated with positive `statsInterval`<br/><br/>Set `statsIntervalSeconds` to 1 second at least |60
 int|`numIoThreads`| The number of threads used for handling connections to brokers | 1 
-int|`numListenerThreads`|The number of threads used for handling message listeners | 1 
+int|`numListenerThreads`|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
 boolean|`useTcpNoDelay`|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
 boolean |`useTls` |Whether to use TLS encryption on the connection| false
 string | `tlsTrustCertsFilePath` |Path to the trusted TLS certificate file|None
@@ -277,7 +277,7 @@ Type | Name| <div style="width:300px">Description</div>|  Default
 Set&lt;String&gt;|	`topicNames`|	Topic name|	Sets.newTreeSet()
 Pattern|   `topicsPattern`|	Topic pattern	|None
 String|	`subscriptionName`|	Subscription name|	None
-SubscriptionType| `subscriptionType`|	Subscription type <br/><br/>Three subscription types are available:<li>Exclusive</li><li>Failover</li><li>Shared</li>|SubscriptionType.Exclusive
+SubscriptionType| `subscriptionType`|	Subscription type <br/><br/>Four subscription types are available:<li>Exclusive</li><li>Failover</li><li>Shared</li><li>Key_Shared</li>|SubscriptionType.Exclusive
 int | `receiverQueueSize` | Size of a consumer's receiver queue. <br/><br/>For example, the number of messages accumulated by a consumer before an application calls `Receive`. <br/><br/>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.| 1000
 long|`acknowledgementsGroupTimeMicros`|Group a consumer acknowledgment for a specified time.<br/><br/>By default, a consumer uses 100ms grouping time to send out acknowledgments to a broker.<br/><br/>Setting a group time of 0 sends out acknowledgments immediately. <br/><br/>A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100)
 long|`negativeAckRedeliveryDelayMicros`|Delay to wait before redelivering messages that failed to be processed.<br/><br/> When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1)

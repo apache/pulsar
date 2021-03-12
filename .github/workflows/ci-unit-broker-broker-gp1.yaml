@@ -27,7 +27,7 @@ on:
       - branch-*
 
 env:
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -36,18 +36,13 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: apachepulsar/pulsar-build:latest
-    timeout-minutes: 120
+    timeout-minutes: 45
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
-
       - name: checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 25
+          fetch-depth: 100
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check if this pull request only changes documentation
@@ -69,13 +64,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
-      - name: run flaky test '**/AdminApiOffloadTest.java'
+      - name: run unit test 'BROKER_GROUP_1'
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/AdminApiOffloadTest.java' -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run unit tests for pulsar-broker
-        if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/**/*.java' -Dexclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java,**/AdminApiOffloadTest.java'
+        run: ./build/run_unit_group.sh BROKER_GROUP_1
 
       - name: package surefire artifacts
         if: failure()

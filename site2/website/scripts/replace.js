@@ -140,6 +140,8 @@ const from = [
   /\/api\/pulsar-functions/g,
   /\/api\/client/g,
   /\/api\/admin/g,
+
+  /\[\[pulsar:version_number\]\]/g,
 ];
 
 const options = {
@@ -174,7 +176,8 @@ const options = {
     clientVersionUrl(`${latestVersion}`, "cpp"),
     clientVersionUrl(`${latestVersion}`, "pulsar-functions"),
     clientVersionUrl(`${latestVersion}`, "client"),
-    clientVersionUrl(`${latestVersion}`, "admin")
+    clientVersionUrl(`${latestVersion}`, "admin"),
+    `${latestVersion}`
   ],
   dry: false
 };
@@ -218,7 +221,8 @@ for (v of versions) {
       clientVersionUrl(`${v}`, "cpp"),
       clientVersionUrl(`${v}`, "pulsar-functions"),
       clientVersionUrl(`${v}`, "client"),
-      clientVersionUrl(`${v}`, "admin")
+      clientVersionUrl(`${v}`, "admin"),
+      `${v}`,
     ],
     dry: false
   };

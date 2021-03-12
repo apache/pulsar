@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 
 /**
@@ -52,7 +53,8 @@ public class RabbitMQSourceConfigTest {
         assertEquals(Integer.parseInt("10000"), config.getHandshakeTimeout());
         assertEquals(Integer.parseInt("60"), config.getRequestedHeartbeat());
         assertEquals(Integer.parseInt("0"), config.getPrefetchCount());
-        assertEquals(Boolean.parseBoolean("false"), config.isPrefetchGlobal());
+        assertFalse(config.isPrefetchGlobal());
+        assertFalse(config.isPassive());
     }
 
     @Test
@@ -72,6 +74,7 @@ public class RabbitMQSourceConfigTest {
         map.put("requestedHeartbeat", "60");
         map.put("prefetchCount", "0");
         map.put("prefetchGlobal", "false");
+        map.put("passive", "true");
 
         RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
         assertNotNull(config);
@@ -88,7 +91,9 @@ public class RabbitMQSourceConfigTest {
         assertEquals(Integer.parseInt("10000"), config.getHandshakeTimeout());
         assertEquals(Integer.parseInt("60"), config.getRequestedHeartbeat());
         assertEquals(Integer.parseInt("0"), config.getPrefetchCount());
-        assertEquals(Boolean.parseBoolean("false"), config.isPrefetchGlobal());
+        assertEquals(false, config.isPrefetchGlobal());
+        assertEquals(false, config.isPrefetchGlobal());
+        assertEquals(true, config.isPassive());
     }
 
     @Test
@@ -108,6 +113,7 @@ public class RabbitMQSourceConfigTest {
         map.put("requestedHeartbeat", "60");
         map.put("prefetchCount", "0");
         map.put("prefetchGlobal", "false");
+        map.put("passive", "false");
 
         RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
         config.validate();
@@ -130,6 +136,7 @@ public class RabbitMQSourceConfigTest {
         map.put("requestedHeartbeat", "60");
         map.put("prefetchCount", "0");
         map.put("prefetchGlobal", "false");
+        map.put("passive", "false");
 
         RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
         config.validate();
@@ -153,6 +160,7 @@ public class RabbitMQSourceConfigTest {
         map.put("requestedHeartbeat", "60");
         map.put("prefetchCount", "-100");
         map.put("prefetchGlobal", "false");
+        map.put("passive", "false");
 
         RabbitMQSourceConfig config = RabbitMQSourceConfig.load(map);
         config.validate();

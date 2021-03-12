@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URLConnection;
+import java.nio.charset.Charset;
 import java.security.PrivateKey;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -57,6 +58,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private String tenantDomain;
     private String tenantService;
     private String providerDomain;
+    private final Object providerDomainLock = new Object();
     private PrivateKey privateKey;
     private String keyId = "0";
     private String roleHeader = null;
@@ -66,9 +68,9 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private boolean autoPrefetchEnabled = false;
     private long cachedRoleTokenTimestamp;
     private String roleToken;
-    private final int minValidity = 2 * 60 * 60; // athenz will only give this token if it's at least valid for 2hrs
-    private final int maxValidity = 24 * 60 * 60; // token has upto 24 hours validity
-    private final int cacheDurationInHour = 1; // we will cache role token for an hour then ask athenz lib again
+    private static final int minValidity = 2 * 60 * 60; // athenz will only give this token if it's at least valid for 2hrs
+    private static final int maxValidity = 24 * 60 * 60; // token has upto 24 hours validity
+    private static final int cacheDurationInHour = 1; // we will cache role token for an hour then ask athenz lib again
 
     public AuthenticationAthenz() {
     }
@@ -87,7 +89,10 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
             // the following would set up the API call that requests tokens from the server
             // that can only be used if they are 10 minutes from expiration and last twenty
             // four hours
-            RoleToken token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
+            RoleToken token;
+            synchronized (providerDomainLock) {
+                token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
+            }
             roleToken = token.getToken();
             cachedRoleTokenTimestamp = System.nanoTime();
             return new AuthenticationDataAthenz(roleToken, isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
@@ -125,7 +130,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         setAuthParams(authParams);
     }
 
-    private void setAuthParams(Map<String, String> authParams) {
+    private synchronized void setAuthParams(Map<String, String> authParams) {
         this.tenantDomain = authParams.get("tenantDomain");
         this.tenantService = authParams.get("tenantService");
         this.providerDomain = authParams.get("providerDomain");
@@ -188,7 +193,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
                 throw new IllegalArgumentException(
                         "Unsupported media type or encoding format: " + urlConnection.getContentType());
             }
-            String keyData = CharStreams.toString(new InputStreamReader((InputStream) urlConnection.getContent()));
+            String keyData = CharStreams.toString(new InputStreamReader((InputStream) urlConnection.getContent(), Charset.defaultCharset()));
             privateKey = Crypto.loadPrivateKey(keyData);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid privateKey format", e);

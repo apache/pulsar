@@ -33,9 +33,9 @@ Assuming localhost the the following endpoint will be available
 
 [web-dashboard](http://localhost:80) pulsar admin dashboard, shows various metrics and metatdata information about the cluster
 
-[broker-admin](http://localhost:8080) access broker rest  interface
+[broker-admin](http://localhost:8080) access broker rest interface
 
-[broker-service-url](pulsar//:locahost:6650)  broker service url for use with producers and consumers
+[broker-service-url](pulsar://locahost:6650)  broker service url for use with producers and consumers
 
 
 You can shut it down with the following command in folder path

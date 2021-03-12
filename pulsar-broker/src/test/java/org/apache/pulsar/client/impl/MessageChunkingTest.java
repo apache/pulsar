@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.junit.Assert.assertNotEquals;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Random;
@@ -31,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -46,8 +48,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl.SchemaState;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -57,13 +58,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 public class MessageChunkingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageChunkingTest.class);
@@ -81,6 +77,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @DataProvider(name = "ackReceiptEnabled")
+    public Object[][] ackReceiptEnabled() {
+        return new Object[][] { { true }, { false } };
+    }
+
     @Test
     public void testInvalidConfig() throws Exception {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
@@ -94,8 +95,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testLargeMessage() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testLargeMessage(boolean ackReceiptEnabled) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(5);
@@ -103,6 +104,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
@@ -133,7 +135,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         pulsar.getBrokerService().updateRates();
 
-        PublisherStats producerStats = topic.getStats(false).publishers.get(0);
+        PublisherStats producerStats = topic.getStats(false, false).publishers.get(0);
 
         assertTrue(producerStats.chunkedMessageRate > 0);
 
@@ -158,8 +160,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     }
 
-    @Test
-    public void testLargeMessageAckTimeOut() throws Exception {
+    @Test(dataProvider = "ackReceiptEnabled")
+    public void testLargeMessageAckTimeOut(boolean ackReceiptEnabled) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(5);
@@ -168,6 +170,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscriber-name").acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .isAckReceiptEnabled(ackReceiptEnabled)
                 .ackTimeout(5, TimeUnit.SECONDS).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
@@ -301,7 +304,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     /**
      * Validate that chunking is not supported with batching and non-persistent topic
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -343,9 +346,9 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
         ByteBuf payload = Unpooled.wrappedBuffer(msg.getContent());
-        Builder metadataBuilder = ((TypedMessageBuilderImpl<byte[]>) msg).getMetadataBuilder();
-        MessageMetadata msgMetadata = metadataBuilder.setProducerName("test").setSequenceId(1).setPublishTime(10L)
-                .setUuid("123").setNumChunksFromMsg(2).setChunkId(0).setTotalChunkMsgSize(100).build();
+        MessageMetadata msgMetadata = ((TypedMessageBuilderImpl<byte[]>) msg).getMetadataBuilder();
+        msgMetadata.setProducerName("test").setSequenceId(1).setPublishTime(10L)
+                .setUuid("123").setNumChunksFromMsg(2).setChunkId(0).setTotalChunkMsgSize(100);
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         MessageImpl msgImpl = ((MessageImpl<byte[]>) msg.getMessage());
         msgImpl.setSchemaState(SchemaState.Ready);
@@ -356,17 +359,17 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             return consumer.chunkedMessagesMap.size() > 0;
         }, 5, 500);
         assertEquals(consumer.chunkedMessagesMap.size(), 1);
-        
+
         consumer.expireTimeOfIncompleteChunkedMessageMillis = 1;
         Thread.sleep(10);
         consumer.removeExpireIncompleteChunkedMessages();
         assertEquals(consumer.chunkedMessagesMap.size(), 0);
-       
+
         producer.close();
         consumer.close();
         producer = null; // clean reference of mocked producer
     }
-    
+
     private String createMessagePayload(int size) {
         StringBuilder str = new StringBuilder();
         Random rand = new Random();

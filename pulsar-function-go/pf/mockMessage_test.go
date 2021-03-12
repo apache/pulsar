@@ -76,6 +76,10 @@ func (m *MockMessage) GetReplicatedFrom() string {
 	return "mock-cluster"
 }
 
+func (m *MockMessage) GetSchemaValue(v interface{}) error {
+	return nil
+}
+
 type MockMessageID struct{}
 
 func (m *MockMessageID) Serialize() []byte {

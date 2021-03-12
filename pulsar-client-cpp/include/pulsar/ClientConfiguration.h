@@ -34,6 +34,19 @@ class PULSAR_PUBLIC ClientConfiguration {
     ClientConfiguration& operator=(const ClientConfiguration&);
 
     /**
+     * Configure a limit on the amount of memory that will be allocated by this client instance.
+     * Setting this to 0 will disable the limit. By default this is disabled.
+     *
+     * @param memoryLimitBytes the memory limit
+     */
+    ClientConfiguration& setMemoryLimit(uint64_t memoryLimitBytes);
+
+    /**
+     * @return the client memory limit in bytes
+     */
+    uint64_t getMemoryLimit() const;
+
+    /**
      * Set the authentication method to be used with the broker
      *
      * @param authentication the authentication data to use
@@ -140,6 +153,9 @@ class PULSAR_PUBLIC ClientConfiguration {
 
     ClientConfiguration& setValidateHostName(bool validateHostName);
     bool isValidateHostName() const;
+
+    ClientConfiguration& setListenerName(const std::string& listenerName);
+    const std::string& getListenerName() const;
 
     /*
      * Initialize stats interval in seconds. Stats are printed and reset after every 'statsIntervalInSeconds'.

@@ -37,6 +37,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -478,7 +480,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
                 }
 
                 @Override
-                public void addComplete(Position position, Object ctx) {
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                     lastPosition.set(position);
                     c1.asyncMarkDelete(position, new MarkDeleteCallback() {
                         @Override

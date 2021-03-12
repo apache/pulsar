@@ -23,6 +23,12 @@
 
 namespace pulsar {
 
+namespace test {
+std::mutex readerConfigTestMutex;
+std::atomic_bool readerConfigTestEnabled{false};
+ConsumerConfiguration consumerConfigOfReader;
+}  // namespace test
+
 static ResultCallback emptyCallback;
 
 ReaderImpl::ReaderImpl(const ClientImplPtr client, const std::string& topic, const ReaderConfiguration& conf,
@@ -35,6 +41,13 @@ void ReaderImpl::start(const MessageId& startMessageId) {
     consumerConf.setReceiverQueueSize(readerConf_.getReceiverQueueSize());
     consumerConf.setReadCompacted(readerConf_.isReadCompacted());
     consumerConf.setSchema(readerConf_.getSchema());
+    consumerConf.setUnAckedMessagesTimeoutMs(readerConf_.getUnAckedMessagesTimeoutMs());
+    consumerConf.setTickDurationInMs(readerConf_.getTickDurationInMs());
+    consumerConf.setAckGroupingTimeMs(readerConf_.getAckGroupingTimeMs());
+    consumerConf.setAckGroupingMaxSize(readerConf_.getAckGroupingMaxSize());
+    consumerConf.setCryptoKeyReader(readerConf_.getCryptoKeyReader());
+    consumerConf.setCryptoFailureAction(readerConf_.getCryptoFailureAction());
+    consumerConf.setProperties(readerConf_.getProperties());
 
     if (readerConf_.getReaderName().length() > 0) {
         consumerConf.setConsumerName(readerConf_.getReaderName());
@@ -47,13 +60,23 @@ void ReaderImpl::start(const MessageId& startMessageId) {
                                                   std::placeholders::_1, std::placeholders::_2));
     }
 
-    std::string subscription = "reader-" + generateRandomName();
-    if (!readerConf_.getSubscriptionRolePrefix().empty()) {
-        subscription = readerConf_.getSubscriptionRolePrefix() + "-" + subscription;
+    std::string subscription;
+    if (!readerConf_.getInternalSubscriptionName().empty()) {
+        subscription = readerConf_.getInternalSubscriptionName();
+    } else {
+        subscription = "reader-" + generateRandomName();
+        if (!readerConf_.getSubscriptionRolePrefix().empty()) {
+            subscription = readerConf_.getSubscriptionRolePrefix() + "-" + subscription;
+        }
+    }
+
+    // get the consumer's configuration before created
+    if (test::readerConfigTestEnabled) {
+        test::consumerConfigOfReader = consumerConf.clone();
     }
 
     consumer_ = std::make_shared<ConsumerImpl>(
-        client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), NonPartitioned,
+        client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), false, NonPartitioned,
         Commands::SubscriptionModeNonDurable, Optional<MessageId>::of(startMessageId));
     consumer_->setPartitionIndex(TopicName::getPartitionIndex(topic_));
     consumer_->getConsumerCreatedFuture().addListener(std::bind(&ReaderImpl::handleConsumerCreated,

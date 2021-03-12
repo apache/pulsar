@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.prestosql.spi.connector.ColumnHandle;
 import io.prestosql.spi.connector.ConnectorSession;
@@ -28,12 +31,17 @@ import io.prestosql.spi.predicate.Range;
 import io.prestosql.spi.predicate.TupleDomain;
 import io.prestosql.spi.predicate.ValueSet;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.UnsupportedEncodingException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -53,6 +61,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
 
 public class TestPulsarSplitManager extends TestPulsarConnector {
 
@@ -401,4 +410,77 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             pulsarTableLayoutHandle, null);
         assertNotNull(connectorSplitSource);
     }
+
+    @Test
+    public void pulsarSplitJsonCodecTest() throws JsonProcessingException, UnsupportedEncodingException {
+        OffloadPolicies offloadPolicies = OffloadPolicies.create(
+                "aws-s3",
+                "test-region",
+                "test-bucket",
+                "test-endpoint",
+                "test-credential-id",
+                "test-credential-secret",
+                5000,
+                2000,
+                1000L,
+                5000L,
+                OffloadPolicies.OffloadedReadPriority.BOOKKEEPER_FIRST
+        );
+
+        SchemaInfo schemaInfo = JSONSchema.of(Foo.class).getSchemaInfo();
+        final String schema = new String(schemaInfo.getSchema(),  "ISO8859-1");
+        final String originSchemaName = schemaInfo.getName();
+        final String schemaName = schemaInfo.getName();
+        final String schemaInfoProperties = new ObjectMapper().writeValueAsString(schemaInfo.getProperties());
+        final SchemaType schemaType = schemaInfo.getType();
+
+        final long splitId = 1;
+        final String connectorId = "connectorId";
+        final String tableName = "tableName";
+        final long splitSize = 5;
+        final long startPositionEntryId = 22;
+        final long endPositionEntryId = 33;
+        final long startPositionLedgerId = 10;
+        final long endPositionLedgerId = 21;
+        final TupleDomain<ColumnHandle> tupleDomain = TupleDomain.all();
+
+        byte[] pulsarSplitData;
+        JsonCodec<PulsarSplit> jsonCodec = JsonCodec.jsonCodec(PulsarSplit.class);
+        try {
+            PulsarSplit pulsarSplit = new PulsarSplit(
+                    splitId, connectorId, schemaName, originSchemaName, tableName, splitSize, schema,
+                    schemaType, startPositionEntryId, endPositionEntryId, startPositionLedgerId,
+                    endPositionLedgerId, tupleDomain, schemaInfoProperties, offloadPolicies);
+            pulsarSplitData = jsonCodec.toJsonBytes(pulsarSplit);
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.error("Failed to serialize the PulsarSplit.", e);
+            fail("Failed to serialize the PulsarSplit.");
+            return;
+        }
+
+        try {
+            PulsarSplit pulsarSplit = jsonCodec.fromJson(pulsarSplitData);
+            Assert.assertEquals(pulsarSplit.getSchema(), schema);
+            Assert.assertEquals(pulsarSplit.getOriginSchemaName(), originSchemaName);
+            Assert.assertEquals(pulsarSplit.getSchemaName(), schemaName);
+            Assert.assertEquals(pulsarSplit.getSchemaInfoProperties(), schemaInfoProperties);
+            Assert.assertEquals(pulsarSplit.getSchemaType(), schemaType);
+            Assert.assertEquals(pulsarSplit.getSplitId(), splitId);
+            Assert.assertEquals(pulsarSplit.getConnectorId(), connectorId);
+            Assert.assertEquals(pulsarSplit.getTableName(), tableName);
+            Assert.assertEquals(pulsarSplit.getSplitSize(), splitSize);
+            Assert.assertEquals(pulsarSplit.getStartPositionEntryId(), startPositionEntryId);
+            Assert.assertEquals(pulsarSplit.getEndPositionEntryId(), endPositionEntryId);
+            Assert.assertEquals(pulsarSplit.getStartPositionLedgerId(), startPositionLedgerId);
+            Assert.assertEquals(pulsarSplit.getEndPositionLedgerId(), endPositionLedgerId);
+            Assert.assertEquals(pulsarSplit.getTupleDomain(), tupleDomain);
+            Assert.assertEquals(pulsarSplit.getOffloadPolicies(), offloadPolicies);
+        } catch (Exception e) {
+            log.error("Failed to deserialize the PulsarSplit.", e);
+            fail("Failed to deserialize the PulsarSplit.");
+        }
+
+    }
+
 }

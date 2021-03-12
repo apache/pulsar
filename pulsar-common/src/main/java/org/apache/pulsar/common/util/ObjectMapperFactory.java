@@ -22,7 +22,6 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
 import io.netty.util.concurrent.FastThreadLocal;
 
 @SuppressWarnings("checkstyle:JavadocType")

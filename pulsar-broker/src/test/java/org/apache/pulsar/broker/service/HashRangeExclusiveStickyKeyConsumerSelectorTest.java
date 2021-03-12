@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,8 +30,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.apache.pulsar.common.api.proto.IntRange;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
 
@@ -40,10 +43,9 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
 
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer1 = mock(Consumer.class);
-        PulsarApi.KeySharedMeta keySharedMeta1 = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
-                .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(0).setEnd(2).build())
-                .build();
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
+        keySharedMeta1.addHashRange().setStart(0).setEnd(2);
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
         Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
         selector.addConsumer(consumer1);
@@ -57,10 +59,9 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         Assert.assertNull(selectedConsumer);
 
         Consumer consumer2 = mock(Consumer.class);
-        PulsarApi.KeySharedMeta keySharedMeta2 = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
-                .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(3).setEnd(9).build())
-                .build();
+        KeySharedMeta keySharedMeta2 = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
+        keySharedMeta2.addHashRange().setStart(3).setEnd(9);
         when(consumer2.getKeySharedMeta()).thenReturn(keySharedMeta2);
         Assert.assertEquals(consumer2.getKeySharedMeta(), keySharedMeta2);
         selector.addConsumer(consumer2);
@@ -91,9 +92,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     public void testEmptyRanges() throws BrokerServiceException.ConsumerAssignException {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer = mock(Consumer.class);
-        PulsarApi.KeySharedMeta keySharedMeta = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
-                .build();
+        KeySharedMeta keySharedMeta = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
         when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
         selector.addConsumer(consumer);
     }
@@ -118,11 +118,11 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         List<int[]> range = Arrays.asList(new int[] {0, 2}, new int[] {3, 7}, new int[] {9, 12}, new int[] {15, 20});
         for (int index = 0; index < consumerName.size(); index++) {
             Consumer consumer = mock(Consumer.class);
-            PulsarApi.KeySharedMeta keySharedMeta = PulsarApi.KeySharedMeta.newBuilder()
-                    .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
-                    .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(range.get(index)[0])
-                            .setEnd(range.get(index)[1]).build())
-                    .build();
+            KeySharedMeta keySharedMeta = new KeySharedMeta()
+                    .setKeySharedMode(KeySharedMode.STICKY);
+            keySharedMeta.addHashRange()
+                    .setStart(range.get(index)[0])
+                    .setEnd(range.get(index)[1]);
             when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
             when(consumer.consumerName()).thenReturn(consumerName.get(index));
             Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
@@ -145,32 +145,30 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     public void testSingleRangeConflict() throws BrokerServiceException.ConsumerAssignException {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer1 = mock(Consumer.class);
-        PulsarApi.KeySharedMeta keySharedMeta1 = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
-                .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(2).setEnd(5).build())
-                .build();
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
+        keySharedMeta1.addHashRange().setStart(2).setEnd(5);
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
         Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
         selector.addConsumer(consumer1);
         Assert.assertEquals(selector.getRangeConsumer().size(),2);
 
-        final List<PulsarApi.IntRange> testRanges = new ArrayList<>();
-        testRanges.add(PulsarApi.IntRange.newBuilder().setStart(4).setEnd(6).build());
-        testRanges.add(PulsarApi.IntRange.newBuilder().setStart(1).setEnd(3).build());
-        testRanges.add(PulsarApi.IntRange.newBuilder().setStart(2).setEnd(2).build());
-        testRanges.add(PulsarApi.IntRange.newBuilder().setStart(5).setEnd(5).build());
-        testRanges.add(PulsarApi.IntRange.newBuilder().setStart(1).setEnd(5).build());
-        testRanges.add(PulsarApi.IntRange.newBuilder().setStart(2).setEnd(6).build());
-        testRanges.add(PulsarApi.IntRange.newBuilder().setStart(2).setEnd(5).build());
-        testRanges.add(PulsarApi.IntRange.newBuilder().setStart(1).setEnd(6).build());
-        testRanges.add(PulsarApi.IntRange.newBuilder().setStart(8).setEnd(6).build());
+        final List<IntRange> testRanges = new ArrayList<>();
+        testRanges.add(new IntRange().setStart(4).setEnd(6));
+        testRanges.add(new IntRange().setStart(1).setEnd(3));
+        testRanges.add(new IntRange().setStart(2).setEnd(2));
+        testRanges.add(new IntRange().setStart(5).setEnd(5));
+        testRanges.add(new IntRange().setStart(1).setEnd(5));
+        testRanges.add(new IntRange().setStart(2).setEnd(6));
+        testRanges.add(new IntRange().setStart(2).setEnd(5));
+        testRanges.add(new IntRange().setStart(1).setEnd(6));
+        testRanges.add(new IntRange().setStart(8).setEnd(6));
 
-        for (PulsarApi.IntRange testRange : testRanges) {
+        for (IntRange testRange : testRanges) {
             Consumer consumer = mock(Consumer.class);
-            PulsarApi.KeySharedMeta keySharedMeta = PulsarApi.KeySharedMeta.newBuilder()
-                    .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
-                    .addHashRanges(testRange)
-                    .build();
+            KeySharedMeta keySharedMeta = new KeySharedMeta()
+                    .setKeySharedMode(KeySharedMode.STICKY);
+            keySharedMeta.addHashRange().copyFrom(testRange);
             when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
             Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
             try {
@@ -186,32 +184,30 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
     public void testMultipleRangeConflict() throws BrokerServiceException.ConsumerAssignException {
         HashRangeExclusiveStickyKeyConsumerSelector selector = new HashRangeExclusiveStickyKeyConsumerSelector(10);
         Consumer consumer1 = mock(Consumer.class);
-        PulsarApi.KeySharedMeta keySharedMeta1 = PulsarApi.KeySharedMeta.newBuilder()
-                .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
-                .addHashRanges(PulsarApi.IntRange.newBuilder().setStart(2).setEnd(5).build())
-                .build();
+        KeySharedMeta keySharedMeta1 = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
+        keySharedMeta1.addHashRange().setStart(2).setEnd(5);
         when(consumer1.getKeySharedMeta()).thenReturn(keySharedMeta1);
         Assert.assertEquals(consumer1.getKeySharedMeta(), keySharedMeta1);
         selector.addConsumer(consumer1);
         Assert.assertEquals(selector.getRangeConsumer().size(),2);
 
-        final List<List<PulsarApi.IntRange>> testRanges = new ArrayList<>();
+        final List<List<IntRange>> testRanges = new ArrayList<>();
         testRanges.add(Lists.newArrayList(
-                PulsarApi.IntRange.newBuilder().setStart(2).setEnd(2).build(),
-                PulsarApi.IntRange.newBuilder().setStart(3).setEnd(3).build(),
-                PulsarApi.IntRange.newBuilder().setStart(4).setEnd(5).build())
+                new IntRange().setStart(2).setEnd(2),
+                new IntRange().setStart(3).setEnd(3),
+                new IntRange().setStart(4).setEnd(5))
         );
         testRanges.add(Lists.newArrayList(
-                PulsarApi.IntRange.newBuilder().setStart(0).setEnd(0).build(),
-                PulsarApi.IntRange.newBuilder().setStart(1).setEnd(2).build())
+                new IntRange().setStart(0).setEnd(0),
+                new IntRange().setStart(1).setEnd(2))
         );
 
-        for (List<PulsarApi.IntRange> testRange : testRanges) {
+        for (List<IntRange> testRange : testRanges) {
             Consumer consumer = mock(Consumer.class);
-            PulsarApi.KeySharedMeta keySharedMeta = PulsarApi.KeySharedMeta.newBuilder()
-                    .setKeySharedMode(PulsarApi.KeySharedMode.STICKY)
-                    .addAllHashRanges(testRange)
-                    .build();
+            KeySharedMeta keySharedMeta = new KeySharedMeta()
+                    .setKeySharedMode(KeySharedMode.STICKY)
+                    .addAllHashRanges(testRange);
             when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
             Assert.assertEquals(consumer.getKeySharedMeta(), keySharedMeta);
             try {

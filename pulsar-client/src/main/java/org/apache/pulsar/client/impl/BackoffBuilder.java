@@ -24,8 +24,6 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.annotations.VisibleForTesting;
 
 public class BackoffBuilder {
-	private long backoffIntervalNanos;
-    private long maxBackoffIntervalNanos;
     private long initial;
     private TimeUnit unitInitial;
     private long max;
@@ -40,8 +38,6 @@ public class BackoffBuilder {
         this.max = 0;
         this.mandatoryStop = 0;
         this.clock = Clock.systemDefaultZone();
-        this.backoffIntervalNanos = 0;
-        this.maxBackoffIntervalNanos = 0;
     }
     
     public BackoffBuilder setInitialTime(long initial, TimeUnit unitInitial) {

@@ -19,15 +19,12 @@
 package org.apache.pulsar.broker.stats;
 
 import static io.prometheus.client.CollectorRegistry.defaultRegistry;
-
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.prometheus.client.Collector;
 import io.prometheus.client.Summary;
 import io.prometheus.client.Summary.Builder;
+import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  */

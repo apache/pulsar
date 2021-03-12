@@ -31,7 +31,7 @@ $ pulsar-admin persistent list \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace|operation/getList}
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -57,7 +57,7 @@ $ pulsar-admin persistent grant-permission \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic}
+{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -88,7 +88,7 @@ $ pulsar-admin persistent permissions \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic}
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -120,7 +120,7 @@ $ pulsar-admin persistent revoke-permission \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic}
+{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -145,7 +145,7 @@ $ pulsar-admin persistent delete \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic|operation/deleteTopic}
+{@inject: endpoint|DELETE|/admin/v2/persistent/:tenant/:namespace/:topic|operation/deleteTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -169,7 +169,7 @@ $ pulsar-admin persistent unload \
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/unload|operation/unloadTopic}
+{@inject: endpoint|PUT|/admin/v2/persistent/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -320,7 +320,7 @@ $ pulsar-admin persistent stats \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/stats|operation/getStats}
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -436,7 +436,7 @@ $ pulsar-admin persistent stats-internal \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats}
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -464,7 +464,7 @@ msg-payload
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage}
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -490,7 +490,7 @@ $ pulsar-admin persistent skip \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages}
+{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -516,7 +516,7 @@ $ pulsar-admin persistent skip-all \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages}
+{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages?version=[[pulsar:version_number]]}
 
 [More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:topic/subscription/:subName/skip_all)
 
@@ -543,7 +543,7 @@ $ pulsar-admin persistent reset-cursor \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor}
+{@inject: endpoint|POST|/admin/v2/persistent/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -570,7 +570,7 @@ $ pulsar-admin persistent lookup \
 
 #### REST API
 
-{@inject: endpoint|GET|/lookup/v2/topic/persistent/:tenant:namespace/:topic|/}
+{@inject: endpoint|GET|/lookup/v2/topic/persistent/:tenant:namespace/:topic|/?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -595,7 +595,7 @@ $ pulsar-admin persistent bundle-range \
 
 #### REST API
 
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -620,7 +620,7 @@ $ pulsar-admin persistent subscriptions \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions}
+{@inject: endpoint|GET|/admin/v2/persistent/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=[[pulsar:version_number]]}
 
 #### Java
 
@@ -644,7 +644,7 @@ $ pulsar-admin persistent unsubscribe \
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
 
 #### Java
 

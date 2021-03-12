@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.io;
 
 import java.util.Map;
-
 import lombok.Data;
 import lombok.NoArgsConstructor;
 

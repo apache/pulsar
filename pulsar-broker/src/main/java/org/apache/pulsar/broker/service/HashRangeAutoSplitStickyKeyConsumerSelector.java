@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -157,7 +156,9 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     private boolean is2Power(int num) {
-        if(num < 2) return false;
+        if (num < 2) {
+            return false;
+        }
         return (num & num - 1) == 0;
     }
 

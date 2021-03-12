@@ -19,11 +19,10 @@
 package org.apache.pulsar.broker.admin.v2;
 
 import io.swagger.annotations.Api;
-import org.apache.pulsar.broker.admin.impl.BrokersBase;
-
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
+import org.apache.pulsar.broker.admin.impl.BrokersBase;
 
 @Path("/brokers")
 @Api(value = "/brokers", description = "BrokersBase admin apis", tags = "brokers")

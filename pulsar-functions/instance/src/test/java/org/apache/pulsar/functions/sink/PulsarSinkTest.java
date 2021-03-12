@@ -118,6 +118,7 @@ public class PulsarSinkTest {
         Producer producer = mock(Producer.class);
         doReturn(producer).when(producerBuilder).create();
         doReturn(typedMessageBuilder).when(producer).newMessage();
+        doReturn(typedMessageBuilder).when(producer).newMessage(any(Schema.class));
 
         doReturn(producerBuilder).when(pulsarClient).newProducer();
         doReturn(producerBuilder).when(pulsarClient).newProducer(any());

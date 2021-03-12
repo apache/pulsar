@@ -29,12 +29,20 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
+import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 
 public class PulsarAdminTool {
+
+    private static boolean allowSystemExit = true;
+
+    private static int lastExitCode = Integer.MIN_VALUE;
+
     protected final Map<String, Class<?>> commandMap;
     private final JCommander jcommander;
     protected final PulsarAdminBuilder adminBuilder;
@@ -47,7 +55,7 @@ public class PulsarAdminTool {
 
     @Parameter(names = { "--request-timeout" }, description = "Request time out in seconds for "
             + "the pulsar admin client for any request")
-    int requestTimeout = PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS;
+    int requestTimeout = PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS;
 
     @Parameter(
         names = { "--auth-params" },
@@ -142,6 +150,27 @@ public class PulsarAdminTool {
         // TODO eventually remove this
         commandMap.put("source", CmdSources.class);
         commandMap.put("sink", CmdSinks.class);
+
+        commandMap.put("packages", CmdPackages.class);
+    }
+
+    private static class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
+
+        private final PulsarAdminBuilder pulsarAdminBuilder;
+        private final Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory;
+        private PulsarAdmin admin;
+        private PulsarAdminSupplier(PulsarAdminBuilder pulsarAdminBuilder, Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
+            this.pulsarAdminBuilder = pulsarAdminBuilder;
+            this.adminFactory = adminFactory;
+        }
+
+        @Override
+        public PulsarAdmin get() {
+            if (admin == null) {
+                admin = adminFactory.apply(pulsarAdminBuilder);
+            }
+            return admin;
+        }
     }
 
     private void setupCommands(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
@@ -149,7 +178,7 @@ public class PulsarAdminTool {
             adminBuilder.serviceHttpUrl(serviceUrl);
             adminBuilder.authentication(authPluginClassName, authParams);
             adminBuilder.requestTimeout(requestTimeout, TimeUnit.SECONDS);
-            PulsarAdmin admin = adminFactory.apply(adminBuilder);
+            Supplier<PulsarAdmin> admin = new PulsarAdminSupplier(adminBuilder, adminFactory);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
                 addCommand(c, admin);
             }
@@ -165,20 +194,18 @@ public class PulsarAdminTool {
         }
     }
 
-    private void addCommand(Map.Entry<String, Class<?>> c, PulsarAdmin admin) throws Exception {
+    private void addCommand(Map.Entry<String, Class<?>> c, Supplier<PulsarAdmin> admin) throws Exception {
         // To remain backwards compatibility for "source" and "sink" commands
         // TODO eventually remove this
         if (c.getKey().equals("sources") || c.getKey().equals("source")) {
-            jcommander.addCommand("sources", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "source");
+            jcommander.addCommand("sources", c.getValue().getConstructor(Supplier.class).newInstance(admin), "source");
         } else if (c.getKey().equals("sinks") || c.getKey().equals("sink")) {
-            jcommander.addCommand("sinks", c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin), "sink");
+            jcommander.addCommand("sinks", c.getValue().getConstructor(Supplier.class).newInstance(admin), "sink");
         } else if (c.getKey().equals("functions")) {
-            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
+            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
         } else {
-            if (admin != null) {
-                // Other mode, all components are initialized.
-                jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
-            }
+            // Other mode, all components are initialized.
+            jcommander.addCommand(c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
         }
     }
 
@@ -248,7 +275,12 @@ public class PulsarAdminTool {
     }
 
     public static void main(String[] args) throws Exception {
-        String configFile = args[0];
+        lastExitCode = 0;
+        String configFile = null;
+        if (args.length > 0) {
+            configFile = args[0];
+            args = Arrays.copyOfRange(args, 1, args.length);
+        }
         Properties properties = new Properties();
 
         if (configFile != null) {
@@ -279,16 +311,37 @@ public class PulsarAdminTool {
                     return adminBuilder.build();
                 } catch (Exception ex) {
                     System.err.println(ex.getClass() + ": " + ex.getMessage());
-                    System.exit(1);
+                    exit(1);
                     return null;
                 }
             };
         }
 
-        if (tool.run(Arrays.copyOfRange(args, 1, args.length), adminFactory)) {
-            System.exit(0);
+        if (tool.run(args, adminFactory)) {
+            exit(0);
         } else {
-            System.exit(1);
+            exit(1);
         }
     }
+
+    private static void exit(int code) {
+        lastExitCode = lastExitCode;
+        if (allowSystemExit) {
+            // we are using halt and not System.exit, we do not mind about shutdown hooks
+            // they are only slowing down the tool
+            Runtime.getRuntime().halt(code);
+        } else {
+            System.out.println("Exit code is " + code+" (System.exit not called, as we are in test mode)");
+        }
+    }
+
+    static void setAllowSystemExit(boolean allowSystemExit) {
+        PulsarAdminTool.allowSystemExit = allowSystemExit;
+    }
+
+    static int getLastExitCode() {
+        return lastExitCode;
+    }
+
+
 }

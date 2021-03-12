@@ -88,6 +88,7 @@ message FunctionDetails {
     bool retainOrdering = 21;
     bool retainKeyOrdering = 22;
     SubscriptionPosition subscriptionPosition = 23;
+    string externalPulsarsMap = 24;
 }
 
 message ConsumerSpec {

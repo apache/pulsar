@@ -65,9 +65,10 @@ public interface PublishRateLimiter {
     void update(PublishRate maxPublishRate);
 
     /**
-     * try to acquire permit
+     * try to acquire permit.
+     *
      * @param numbers
      * @param bytes
-     * */
+     */
     boolean tryAcquire(int numbers, long bytes);
 }

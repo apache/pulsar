@@ -25,7 +25,7 @@ import org.apache.avro.SchemaValidator;
  * A schema validator that always reports as compatible.
  */
 class AlwaysSchemaValidator implements SchemaValidator {
-    static AlwaysSchemaValidator INSTANCE = new AlwaysSchemaValidator();
+    final static AlwaysSchemaValidator INSTANCE = new AlwaysSchemaValidator();
 
     @Override
     public void validate(Schema toValidate, Iterable<Schema> existing) {
