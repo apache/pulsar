@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.io.kafka.sink;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Schema;
@@ -51,8 +52,8 @@ public class KafkaAbstractSinkTest {
         }
 
         @Override
-        public KeyValue<Schema, Schema> extractKeyValueSchemas(Record<byte[]> message) {
-            return new KeyValue<>(Schema.STRING_SCHEMA, Schema.BYTES_SCHEMA);
+        public Pair<Schema, Schema> extractKeyValueSchemas(Record<byte[]> message) {
+            return Pair.of(Schema.STRING_SCHEMA, Schema.BYTES_SCHEMA);
         }
     }
 

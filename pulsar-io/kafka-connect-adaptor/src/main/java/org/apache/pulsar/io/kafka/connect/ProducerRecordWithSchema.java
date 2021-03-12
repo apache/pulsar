@@ -30,43 +30,9 @@ public class ProducerRecordWithSchema<K, V> extends ProducerRecord<K, V> {
     final Schema keySchema;
     final Schema valueSchema;
 
-    public ProducerRecordWithSchema(String topic, Integer partition, Long timestamp, K key, V value,
-                                    Iterable<Header> headers, Schema keySchema, Schema valueSchema) {
-        super(topic, partition, timestamp, key, value, headers);
-        this.keySchema = keySchema;
-        this.valueSchema = valueSchema;
-    }
-
-    public ProducerRecordWithSchema(String topic, Integer partition, Long timestamp,
-                                    K key, V value, Schema keySchema, Schema valueSchema) {
-        super(topic, partition, timestamp, key, value);
-        this.keySchema = keySchema;
-        this.valueSchema = valueSchema;
-    }
-
-    public ProducerRecordWithSchema(String topic, Integer partition, K key, V value,
-                                    Iterable<Header> headers, Schema keySchema, Schema valueSchema) {
-        super(topic, partition, key, value, headers);
-        this.keySchema = keySchema;
-        this.valueSchema = valueSchema;
-    }
-
-    public ProducerRecordWithSchema(String topic, Integer partition,
-                                    K key, V value, Schema keySchema, Schema valueSchema) {
-        super(topic, partition, key, value);
-        this.keySchema = keySchema;
-        this.valueSchema = valueSchema;
-    }
-
     public ProducerRecordWithSchema(String topic, K key, V value, Schema keySchema, Schema valueSchema) {
         super(topic, key, value);
         this.keySchema = keySchema;
-        this.valueSchema = valueSchema;
-    }
-
-    public ProducerRecordWithSchema(String topic, V value, Schema valueSchema) {
-        super(topic, value);
-        this.keySchema = Schema.STRING_SCHEMA;
         this.valueSchema = valueSchema;
     }
 

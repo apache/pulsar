@@ -21,17 +21,15 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.file.FileStreamSourceConnector;
-import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 
+@Slf4j
 public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
 
     private String offsetTopicName =  "persistent://my-property/my-ns/kafka-connect-sink-offset";
@@ -66,7 +65,7 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
     @Override
     protected void cleanup() throws Exception {
         if (file != null) {
-            //Files.delete(file);
+            Files.delete(file);
         }
 
         super.internalCleanup();
@@ -90,9 +89,7 @@ public class KafkaSinkWrappingProducerTest extends ProducerConsumerBase  {
             if (exception == null) {
                 status.incrementAndGet();
             } else {
-                System.out.println(exception.toString());
-                exception.printStackTrace();
-
+                log.error("send failed", exception);
                 status.decrementAndGet();
             }
         });

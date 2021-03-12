@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kafka;
 
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -53,7 +54,7 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
     @Override
     public void write(Record<byte[]> sourceRecord) {
         KeyValue<K, V> keyValue = extractKeyValue(sourceRecord);
-        KeyValue<Schema, Schema> keyValueSchemas = extractKeyValueSchemas(sourceRecord);
+        Pair<Schema, Schema> keyValueSchemas = extractKeyValueSchemas(sourceRecord);
 
         ProducerRecord<K, V> record = new ProducerRecordWithSchema<K, V>(kafkaSinkConfig.getTopic(),
                 keyValue.getKey(), keyValue.getValue(),
@@ -114,7 +115,7 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
 
             producer = new KafkaProducer<>(beforeCreateProducer(props));
         } else {
-            kafkaSinkConfig.getKafkaConnectorConfigProperties().entrySet().stream()
+            kafkaSinkConfig.getKafkaConnectorConfigProperties().entrySet()
                     .forEach(kv -> props.put(kv.getKey(), kv.getValue()));
 
             Schema keySchema = (Schema)Schema.class
@@ -135,5 +136,5 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
 
     public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> message);
 
-    public abstract KeyValue<Schema, Schema> extractKeyValueSchemas(Record<byte[]> message);
+    public abstract Pair<Schema, Schema> extractKeyValueSchemas(Record<byte[]> message);
 }

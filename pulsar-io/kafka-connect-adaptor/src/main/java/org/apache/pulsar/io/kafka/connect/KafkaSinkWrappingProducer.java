@@ -22,6 +22,7 @@ package org.apache.pulsar.io.kafka.connect;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.Callback;
@@ -72,13 +73,13 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     private final PulsarKafkaSinkContext sinkContext;
     private final PulsarKafkaSinkTaskContext taskContext;
     private final int batchSize;
-    private final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService scheduledExecutor =
+            Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                    .setNameFormat("pulsar-io-kafka-adaptor-sink-flush-%d")
+                    .build());
     private final AtomicInteger numPendingRecords = new AtomicInteger(0);
 
     private volatile CompletableFuture<Void> pendingFlush = new CompletableFuture<>();
-
-    private final static Node node = new Node(0, "localhost", 0);
-    private static final Node[] replicas = new Node[]{node};
 
     private static long getLingerMs(Properties props) {
         long lingerMs = 2147483647L; // as in kafka
@@ -308,11 +309,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     @Override
     public List<PartitionInfo> partitionsFor(String topic) {
-        sinkContext.throwIfNeeded();
-        return taskContext.assignment().stream()
-                .filter(x -> x.topic().equals(topic))
-                .map(x -> new PartitionInfo(x.topic(), x.partition(), node, replicas, replicas))
-                .collect(Collectors.toList());
+        throw new UnsupportedOperationException("not implemented");
     }
 
     @VisibleForTesting
@@ -322,8 +319,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
 
     @Override
     public Map<MetricName, ? extends Metric> metrics() {
-        sinkContext.throwIfNeeded();
-        return null;
+        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -335,6 +331,7 @@ public class KafkaSinkWrappingProducer<K, V> implements Producer<K, V> {
     @Override
     public void close(Duration duration) {
         sinkContext.throwIfNeeded();
+        scheduledExecutor.shutdown();
         flush();
         task.stop();
         connector.stop();

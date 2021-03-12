@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kafka;
 
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -57,9 +58,9 @@ public class KafkaBytesSink extends KafkaAbstractSink<String, byte[]> {
     }
 
     @Override
-    public KeyValue<Schema, Schema> extractKeyValueSchemas(Record<byte[]> record) {
+    public Pair<Schema, Schema> extractKeyValueSchemas(Record<byte[]> record) {
         Schema keySchema = Schema.STRING_SCHEMA;
         Schema valueSchema = Schema.BYTES_SCHEMA;
-        return new KeyValue(keySchema, valueSchema);
+        return Pair.of(keySchema, valueSchema);
     }
 }
