@@ -1,3 +1,4 @@
+#!/bin/bash -xe
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,18 +18,11 @@
 # under the License.
 #
 
-{
-"host": "localhost",
-"port": "5673",
-"virtualHost": "/",
-"username": "guest",
-"password": "guest",
-"connectionName": "test-connection",
-"requestedChannelMax": "0",
-"requestedFrameMax": "0",
-"connectionTimeout": "60000",
-"handshakeTimeout": "10000",
-"requestedHeartbeat": "60",
-"exchangeName": "test-exchange",
-"exchangeType": "test-exchange-type"
-}
+# patches installed maven version to get fix for https://issues.apache.org/jira/browse/HTTPCORE-634
+
+MAVEN_HOME=$(mvn -v |grep 'Maven home:' | awk '{ print $3 }')
+if [ -d "$MAVEN_HOME" ]; then
+  cd "$MAVEN_HOME/lib"
+  rm wagon-http-*-shaded.jar
+  curl -O https://repo1.maven.org/maven2/org/apache/maven/wagon/wagon-http/3.4.3/wagon-http-3.4.3-shaded.jar
+fi

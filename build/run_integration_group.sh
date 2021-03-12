@@ -57,6 +57,7 @@ test_group_shade() {
 
 test_group_backwards_compat() {
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DintegrationTests
+  mvn_run_integration_test "$@" -DBackwardsCompatTests
 }
 
 test_group_cli() {
