@@ -110,8 +110,13 @@ public class MessageIdImpl implements MessageId {
 
         MessageIdImpl messageId;
         if (idData.hasBatchIndex()) {
-            messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+            if (idData.hasBatchSize()) {
+                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+                    idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
+            } else {
+                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
                     idData.getBatchIndex());
+            }
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
@@ -152,7 +157,7 @@ public class MessageIdImpl implements MessageId {
         MessageId messageId;
         if (idData.hasBatchIndex()) {
             messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                    idData.getBatchIndex());
+                idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
@@ -168,16 +173,20 @@ public class MessageIdImpl implements MessageId {
     }
 
     // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
-    protected byte[] toByteArray(int batchIndex) {
-        MessageIdData.Builder builder = MessageIdData.newBuilder();
-        builder.setLedgerId(ledgerId);
-        builder.setEntryId(entryId);
+    protected byte[] toByteArray(int batchIndex, int batchSize) {
+            MessageIdData.Builder builder = MessageIdData.newBuilder();
+            builder.setLedgerId(ledgerId);
+            builder.setEntryId(entryId);
         if (partitionIndex >= 0) {
             builder.setPartition(partitionIndex);
         }
 
         if (batchIndex != -1) {
             builder.setBatchIndex(batchIndex);
+        }
+
+        if (batchSize > -1) {
+            builder.setBatchSize(batchSize);
         }
 
         MessageIdData msgId = builder.build();
@@ -200,7 +209,7 @@ public class MessageIdImpl implements MessageId {
     @Override
     public byte[] toByteArray() {
         // there is no message batch so we pass -1
-        return toByteArray(-1);
+        return toByteArray(-1, 0);
     }
 
     @Override
