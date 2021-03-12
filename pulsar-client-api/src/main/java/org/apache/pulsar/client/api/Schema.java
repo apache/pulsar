@@ -371,6 +371,10 @@ public interface Schema<T> extends Cloneable{
         return DefaultImplementation.newAutoConsumeSchema();
     }
 
+    static Schema<Object> OBJECT() {
+        return DefaultImplementation.newObjectSchema();
+    }
+
     /**
      * Create a schema instance that accepts a serialized payload
      * and validates it against the topic schema.
