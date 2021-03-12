@@ -67,6 +67,10 @@ public class BrokerOperabilityMetrics {
         metricsList.add(getConnectionMetrics());
     }
 
+    public Metrics generateConnectionMetrics() {
+        return getConnectionMetrics();
+    }
+
     Metrics getConnectionMetrics() {
         Metrics rMetrics = Metrics.create(getDimensionMap("broker_connection"));
         rMetrics.put("brk_connection_created_total_count", connectionTotalCreatedCount.get());

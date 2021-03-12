@@ -221,6 +221,10 @@ public class PulsarStats implements Closeable {
         return metricsCollection;
     }
 
+    public BrokerOperabilityMetrics getBrokerOperabilityMetrics() {
+        return brokerOperabilityMetrics;
+    }
+
     public Map<String, NamespaceBundleStats> getBundleStats() {
         return bundleStats;
     }
