@@ -102,7 +102,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         if (obj instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl other = (BatchMessageIdImpl) obj;
             return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
-                    && batchIndex == other.batchIndex && batchSize == other.batchSize;
+                    && batchIndex == other.batchIndex;
         } else if (obj instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) obj;
             return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex
