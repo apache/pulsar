@@ -127,7 +127,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     // Serialization
     @Override
     public byte[] toByteArray() {
-        return toByteArray(batchIndex);
+        return toByteArray(batchIndex, batchSize);
     }
 
     public boolean ackIndividual() {
