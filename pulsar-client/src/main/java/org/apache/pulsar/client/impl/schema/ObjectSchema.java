@@ -163,4 +163,8 @@ public class ObjectSchema implements Schema<Object> {
         }
     }
 
+    public Schema getInternalSchema() {
+        return schema;
+    }
+
 }

@@ -253,6 +253,54 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testKeyValueSchema() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test-string-schema";
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        Producer<KeyValue<String, Integer>> producer = pulsarClient
+                .newProducer(Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.INLINE))
+                .topic(topic)
+                .create();
+
+        producer.send(new KeyValue<>("foo", 123));
+
+        Consumer<KeyValue<String, Integer>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.INLINE))
+                .subscriptionName("test-sub")
+                .topic(topic)
+                .subscribe();
+
+        Consumer<Object> consumer2 = pulsarClient.newConsumer(Schema.OBJECT())
+                .subscriptionName("test-sub2")
+                .topic(topic)
+                .subscribe();
+
+        producer.send(new KeyValue<>("foo", 123));
+
+        Message<KeyValue<String, Integer>> message = consumer.receive();
+        Message<Object> message2 = consumer2.receive();
+        log.info("KV {}", message.getValue());
+        log.info("Object {}", message2.getValue());
+        assertEquals(message.getValue(), message2.getValue());
+
+        producer.close();
+        consumer.close();
+        consumer2.close();
+    }
+
+    @Test
     public void testIsUsingAvroSchemaParser() {
         for (SchemaType value : SchemaType.values()) {
             if (value == SchemaType.AVRO || value == SchemaType.JSON || value == SchemaType.PROTOBUF) {

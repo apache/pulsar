@@ -33,6 +33,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -71,6 +72,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
+import org.apache.pulsar.client.impl.schema.ObjectSchema;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
 import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
@@ -861,9 +863,11 @@ public class PulsarClientImpl implements PulsarClient {
             schema = schema.clone();
             if (schema.requireFetchingSchemaInfo()) {
                 Schema finalSchema = schema;
+
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
                     if (null == schemaInfo) {
-                        if (!(finalSchema instanceof AutoConsumeSchema)) {
+                        if (!(finalSchema instanceof AutoConsumeSchema)
+                                && !(finalSchema instanceof ObjectSchema)) {
                             // no schema info is found
                             return FutureUtil.failedFuture(
                                     new PulsarClientException.NotFoundException(

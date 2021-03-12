@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.ObjectSchema;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -359,8 +360,16 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    private KeyValueSchema getKeyValueSchema() {
+        if (schema instanceof ObjectSchema) {
+            return (KeyValueSchema) ((ObjectSchema)schema).getInternalSchema();
+        } else {
+            return (KeyValueSchema) schema;
+        }
+    }
+
     private T getKeyValueBySchemaVersion() {
-        KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        KeyValueSchema kvSchema = getKeyValueSchema();
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             return (T) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
@@ -370,7 +379,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     private T getKeyValue() {
-        KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        KeyValueSchema kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             return (T) kvSchema.decode(getKeyBytes(), getData(), null);
         } else {
