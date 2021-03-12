@@ -1154,8 +1154,8 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.pooled=false
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
-            --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
             -XX:+IgnoreUnrecognizedVMOptions
+            --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
