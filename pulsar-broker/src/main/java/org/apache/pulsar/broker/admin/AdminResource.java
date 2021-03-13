@@ -389,10 +389,6 @@ public abstract class AdminResource extends PulsarWebResource {
         }
 
         final String cluster = config.getClusterName();
-        // attach default dispatch rate polices
-        if (policies.topicDispatchRate.isEmpty()) {
-            policies.topicDispatchRate.put(cluster, dispatchRate());
-        }
 
     }
 
