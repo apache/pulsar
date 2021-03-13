@@ -28,6 +28,8 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+
 public class BatchMessageIdImplTest {
 
     @Test
@@ -96,6 +98,16 @@ public class BatchMessageIdImplTest {
         } catch (JsonProcessingException e) {
             fail("Should be successful");
         }
+    }
+
+    @Test
+    public void SerializeAdnDeserializeTest() throws IOException {
+        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1, 1, 0,
+            1, 10, BatchMessageAcker.newAcker(10));
+        byte[] serialized = batchMessageId.toByteArray();
+        BatchMessageIdImpl deserialized = (BatchMessageIdImpl) MessageIdImpl.fromByteArray(serialized);
+        assertEquals(deserialized.getBatchSize(), batchMessageId.getBatchSize());
+        assertEquals(deserialized, batchMessageId);
     }
 
 }

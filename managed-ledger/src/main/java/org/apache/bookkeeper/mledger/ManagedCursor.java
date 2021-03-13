@@ -677,4 +677,16 @@ public interface ManagedCursor {
      * Get deleted batch indexes list for a batch message.
      */
     long[] getDeletedBatchIndexesAsLongArray(PositionImpl position);
+
+    /**
+     * @return the managed cursor stats MBean
+     */
+    ManagedCursorMXBean getStats();
+
+    /**
+     * Checks if read position changed since this method was called last time.
+     *
+     * @return if read position changed
+     */
+    boolean checkAndUpdateReadPositionChanged();
 }

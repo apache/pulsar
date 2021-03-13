@@ -40,7 +40,7 @@ public class AvroWriter<T> implements SchemaWriter<T> {
 
     public AvroWriter(Schema schema, boolean jsr310ConversionEnabled) {
         this.byteArrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, this.encoder);
+        this.encoder = EncoderFactory.get().binaryEncoder(this.byteArrayOutputStream, null);
         ReflectData reflectData = new ReflectData();
         AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
         this.writer = new ReflectDatumWriter<>(schema, reflectData);

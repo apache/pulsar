@@ -32,9 +32,12 @@ import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -47,6 +50,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -127,10 +131,11 @@ public class CmdTopics extends CmdBase {
         //deprecated commands
         jcommander.addCommand("enable-deduplication", new EnableDeduplication());
         jcommander.addCommand("disable-deduplication", new DisableDeduplication());
-        jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationEnabled());
+        jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationStatus());
 
-        jcommander.addCommand("set-deduplication", new SetDeduplication());
-        jcommander.addCommand("get-deduplication", new GetDeduplicationEnabled());
+        jcommander.addCommand("set-deduplication", new SetDeduplicationStatus());
+        jcommander.addCommand("get-deduplication", new GetDeduplicationStatus());
+        jcommander.addCommand("remove-deduplication", new RemoveDeduplicationStatus());
 
         jcommander.addCommand("get-deduplication-snapshot-interval", new GetDeduplicationSnapshotInterval());
         jcommander.addCommand("set-deduplication-snapshot-interval", new SetDeduplicationSnapshotInterval());
@@ -180,6 +185,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
 
+        jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
+        jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
+
         //deprecated commands
         jcommander.addCommand("get-maxProducers", new GetMaxProducers());
         jcommander.addCommand("set-maxProducers", new SetMaxProducers());
@@ -189,9 +197,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-max-producers", new SetMaxProducers());
         jcommander.addCommand("remove-max-producers", new RemoveMaxProducers());
 
-        jcommander.addCommand("get-max-subscriptions-per-topic", new GetMaxSubscriptionsPerTopic());
-        jcommander.addCommand("set-max-subscriptions-per-topic", new SetMaxSubscriptionsPerTopic());
-        jcommander.addCommand("remove-max-subscriptions-per-topic", new RemoveMaxSubscriptionsPerTopic());
+        jcommander.addCommand("get-max-subscriptions", new GetMaxSubscriptionsPerTopic());
+        jcommander.addCommand("set-max-subscriptions", new SetMaxSubscriptionsPerTopic());
+        jcommander.addCommand("remove-max-subscriptions", new RemoveMaxSubscriptionsPerTopic());
 
         jcommander.addCommand("get-max-message-size", new GetMaxMessageSize());
         jcommander.addCommand("set-max-message-size", new SetMaxMessageSize());
@@ -1062,10 +1070,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"-ap", "--applied"}, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getBacklogQuotaMap(persistentTopic));
+            print(getAdmin().topics().getBacklogQuotaMap(persistentTopic, applied));
         }
     }
 
@@ -1339,7 +1350,7 @@ public class CmdTopics extends CmdBase {
     }
 
     @Parameters(commandDescription = "Enable or disable deduplication for a topic")
-    private class SetDeduplication extends CliCommand {
+    private class SetDeduplicationStatus extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
@@ -1356,19 +1367,31 @@ public class CmdTopics extends CmdBase {
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
-            getAdmin().topics().enableDeduplication(persistentTopic, enable);
+            getAdmin().topics().setDeduplicationStatus(persistentTopic, enable);
         }
     }
 
     @Parameters(commandDescription = "Get the deduplication policy for a topic")
-    private class GetDeduplicationEnabled extends CliCommand {
+    private class GetDeduplicationStatus extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getDeduplicationEnabled(persistentTopic));
+            print(getAdmin().topics().getDeduplicationStatus(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the deduplication policy for a topic")
+    private class RemoveDeduplicationStatus extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getAdmin().topics().removeDeduplicationStatus(persistentTopic);
         }
     }
 
@@ -1469,7 +1492,7 @@ public class CmdTopics extends CmdBase {
 
         @Parameter(
                 names = {"--offloadedReadPriority", "-orp"},
-                description = "read priority for offloaded messages",
+                description = "Read priority for offloaded messages. By default, once messages are offloaded to long-term storage, brokers read messages from long-term storage, but messages can still exist in BookKeeper for a period depends on your configuration. For messages that exist in both long-term storage and BookKeeper, you can set where to read messages from with the option `tiered-storage-first` or `bookkeeper-first`.",
                 required = false
         )
         private String offloadReadPriorityStr;
@@ -1545,10 +1568,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getDispatchRate(persistentTopic));
+            print(getAdmin().topics().getDispatchRate(persistentTopic, applied));
         }
     }
 
@@ -1598,10 +1624,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMaxUnackedMessagesOnConsumer(persistentTopic));
+            print(getAdmin().topics().getMaxUnackedMessagesOnConsumer(persistentTopic, applied));
         }
     }
 
@@ -1637,10 +1666,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMaxUnackedMessagesOnSubscription(persistentTopic));
+            print(getAdmin().topics().getMaxUnackedMessagesOnSubscription(persistentTopic, applied));
         }
     }
 
@@ -1668,6 +1700,37 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getAdmin().topics().setMaxUnackedMessagesOnSubscription(persistentTopic, maxNum);
+        }
+    }
+
+
+    @Parameters(commandDescription = "Set subscription types enabled for a topic")
+    private class SetSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--types",
+                "-t" }, description = "Subscription types enabled list (comma separated values)", required = true)
+        private String subTypes;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            Set<SubscriptionType> types = new HashSet<>();
+            Lists.newArrayList(subTypes.split(",")).forEach(s -> types.add(SubscriptionType.valueOf(s)));
+            getAdmin().topics().setSubscriptionTypesEnabled(persistentTopic, types);
+        }
+    }
+
+    @Parameters(commandDescription = "Get subscription types enabled for a topic")
+    private class GetSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getAdmin().topics().getSubscriptionTypesEnabled(persistentTopic));
         }
     }
 
@@ -1763,10 +1826,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getSubscriptionDispatchRate(persistentTopic));
+            print(getAdmin().topics().getSubscriptionDispatchRate(persistentTopic, applied));
         }
     }
 
@@ -1816,10 +1882,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"-ap", "--applied"}, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validatePersistentTopic(params);
-            print(getAdmin().topics().getReplicatorDispatchRate(topic));
+            print(getAdmin().topics().getReplicatorDispatchRate(topic, applied));
         }
     }
 
@@ -2136,10 +2205,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getSubscribeRate(persistentTopic));
+            print(getAdmin().topics().getSubscribeRate(persistentTopic, applied));
         }
     }
 

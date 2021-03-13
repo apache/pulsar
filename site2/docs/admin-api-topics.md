@@ -358,6 +358,20 @@ You can get the detailed statistics of a topic.
       -   **size**: The size of messages written to this ledger (in bytes).
 
       -   **offloaded**: Whether this ledger is offloaded.
+      
+      -   **metadata**: The ledger metadata.
+
+  -   **schemaLedgers**: The ordered list of all ledgers for this topic schema.
+  
+      -   **ledgerId**: The ID of this ledger.
+  
+      -   **entries**: The total number of entries belong to this ledger.
+  
+      -   **size**: The size of messages written to this ledger (in bytes).
+  
+      -   **offloaded**: Whether this ledger is offloaded.
+      
+      -   **metadata**: The ledger metadata.
 
   -   **compactedLedger**: The ledgers holding un-acked messages after topic compaction.
  
@@ -395,44 +409,60 @@ The following is an example of the detailed statistics of a topic.
 
 ```json
 {
-    "entriesAddedCounter": 20449518,
-    "numberOfEntries": 3233,
-    "totalSize": 331482,
-    "currentLedgerEntries": 3233,
-    "currentLedgerSize": 331482,
-    "lastLedgerCreatedTimestamp": "2016-06-29 03:00:23.825",
-    "lastLedgerCreationFailureTimestamp": null,
-    "waitingCursorsCount": 1,
-    "pendingAddEntriesCount": 0,
-    "lastConfirmedEntry": "324711539:3232",
-    "state": "LedgerOpened",
-    "ledgers": [
+    "entriesAddedCounter":0,
+    "numberOfEntries":0,
+    "totalSize":0,
+    "currentLedgerEntries":0,
+    "currentLedgerSize":0,
+    "lastLedgerCreatedTimestamp":"2021-01-22T21:12:14.868+08:00",
+    "lastLedgerCreationFailureTimestamp":null,
+    "waitingCursorsCount":0,
+    "pendingAddEntriesCount":0,
+    "lastConfirmedEntry":"3:-1",
+    "state":"LedgerOpened",
+    "ledgers":[
         {
-            "ledgerId": 324711539,
-            "entries": 0,
-            "size": 0,
-            "offloaded": true
+            "ledgerId":3,
+            "entries":0,
+            "size":0,
+            "offloaded":false,
+            "metadata":null
         }
     ],
-    "compactedLedger": {
-        "ledgerId": 324711540,
-        "entries": 10,
-        "size": 100,
-        "offloaded": false
-    },
-    "cursors": {
-        "my-subscription": {
-            "markDeletePosition": "324711539:3133",
-            "readPosition": "324711539:3233",
-            "waitingReadOp": true,
-            "pendingReadOps": 0,
-            "messagesConsumedCounter": 20449501,
-            "cursorLedger": 324702104,
-            "cursorLedgerLastEntry": 21,
-            "individuallyDeletedMessages": "[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]",
-            "lastLedgerSwitchTimestamp": "2016-06-29 01:30:19.313",
-            "state": "Open"
+    "cursors":{
+        "test":{
+            "markDeletePosition":"3:-1",
+            "readPosition":"3:-1",
+            "waitingReadOp":false,
+            "pendingReadOps":0,
+            "messagesConsumedCounter":0,
+            "cursorLedger":4,
+            "cursorLedgerLastEntry":1,
+            "individuallyDeletedMessages":"[]",
+            "lastLedgerSwitchTimestamp":"2021-01-22T21:12:14.966+08:00",
+            "state":"Open",
+            "numberOfEntriesSinceFirstNotAckedMessage":0,
+            "totalNonContiguousDeletedMessagesRange":0,
+            "properties":{
+
+            }
         }
+    },
+    "schemaLedgers":[
+        {
+            "ledgerId":1,
+            "entries":11,
+            "size":10,
+            "offloaded":false,
+            "metadata":null
+        }
+    ],
+    "compactedLedger":{
+        "ledgerId":-1,
+        "entries":-1,
+        "size":-1,
+        "offloaded":false,
+        "metadata":null
     }
 }
 ```

@@ -17,11 +17,53 @@
 # under the License.
 #
 
-FROM apachepulsar/pulsar-all:latest
+# build go lang examples first in a separate layer
+
+FROM apachepulsar/pulsar:latest as pulsar-function-go
+
+USER root
+
+RUN rm -rf /var/lib/apt/lists/* && apt-get update
+RUN apt-get install -y procps curl git
+
+ENV GOLANG_VERSION 1.13.3
+
+RUN curl -sSL https://storage.googleapis.com/golang/go$GOLANG_VERSION.linux-amd64.tar.gz \
+		| tar -C /usr/local -xz
+
+# RUN wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz && tar -xvf go1.13.3.linux-amd64.tar.gz && mv go /usr/local
+# RUN export GOROOT=/usr/local/go && export GOPATH=$HOME/go && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+# RUN echo "export GOROOT=/usr/local/go" >> ~/.profile && echo "export GOPATH=$HOME/go" >> ~/.profile && echo "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH" >> ~/.profile
+
+ENV PATH /usr/local/go/bin:$PATH
+
+RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
+ENV GOROOT /usr/local/go
+ENV GOPATH /go
+ENV PATH /go/bin:$PATH
+
+COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
+RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
+RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
+RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
+
+# Reference pulsar-all to copy connectors from there
+FROM apachepulsar/pulsar-all:latest as pulsar-all
+
+########################################
+###### Main image build
+########################################
+FROM apachepulsar/pulsar:latest
+
+# Switch to run as the root user to simplify building container and then running
+# supervisord. Each of the pulsar components are spawned by supervisord and their
+# process configuration files specify that the process will be run as the "pulsar" user
+# However, any processes exec'ing into the containers will run as root, by default.
+USER root
 
 RUN rm -rf /var/lib/apt/lists/* && apt update
 
-RUN apt-get clean && apt-get update && apt-get install -y supervisor vim procps curl git
+RUN apt-get clean && apt-get update && apt-get install -y supervisor vim procps curl
 
 RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
 
@@ -42,25 +84,7 @@ COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      /pulsar/bin/
 
 # copy python test examples
-
 RUN mkdir -p /pulsar/instances/deps
-
-ENV GOLANG_VERSION 1.13.3
-
-RUN curl -sSL https://storage.googleapis.com/golang/go$GOLANG_VERSION.linux-amd64.tar.gz \
-		| tar -v -C /usr/local -xz
-
-# RUN wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz && tar -xvf go1.13.3.linux-amd64.tar.gz && mv go /usr/local
-# RUN export GOROOT=/usr/local/go && export GOPATH=$HOME/go && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-# RUN echo "export GOROOT=/usr/local/go" >> ~/.profile && echo "export GOPATH=$HOME/go" >> ~/.profile && echo "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH" >> ~/.profile
-
-ENV PATH /usr/local/go/bin:$PATH
-
-RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
-ENV GOROOT /usr/local/go
-ENV GOPATH /go
-ENV PATH /go/bin:$PATH
-
 COPY python-examples/exclamation_lib.py /pulsar/instances/deps/
 COPY python-examples/exclamation_with_extra_deps.py /pulsar/examples/python-examples/
 COPY python-examples/exclamation.zip /pulsar/examples/python-examples/
@@ -68,10 +92,22 @@ COPY python-examples/producer_schema.py /pulsar/examples/python-examples/
 COPY python-examples/consumer_schema.py /pulsar/examples/python-examples/
 COPY python-examples/exception_function.py /pulsar/examples/python-examples/
 
-COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
-RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
-RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
-RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
-
+# copy java test examples
 COPY target/java-test-functions.jar /pulsar/examples/
-RUN cp -a /go/bin/. /pulsar/examples/go-examples/
+
+# copy go test examples
+COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
+
+# Include all offloaders
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/offloaders /pulsar/offloaders
+
+# Include only the connectors needed by integration tests
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-cassandra-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-debezium-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-elastic-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-hdfs*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
+COPY --from=pulsar-all --chown=pulsar:0 /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
+
+CMD bash

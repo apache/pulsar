@@ -37,6 +37,7 @@ import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.List;
@@ -123,6 +124,11 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         // Initial seed
         secureRandom.nextBytes(new byte[IV_LEN]);
+
+        // Add provider only if it's not in the JVM
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
     }
 
     public MessageCryptoBc(String logCtx, boolean keyGenNeeded) {

@@ -33,5 +33,6 @@
         <Logger name="org.apache.pulsar" level="info"/>
         <Logger name="org.apache.bookkeeper" level="info"/>
         <Logger name="org.apache.kafka" level="info"/>
+        <Logger name="org.testcontainers" level="info"/>
     </Loggers>
 </Configuration>

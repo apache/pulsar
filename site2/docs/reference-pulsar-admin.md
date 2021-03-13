@@ -135,6 +135,14 @@ Usage
 $ pulsar-admin brokers list cluster-name
 ```
 
+### `leader-broker`
+Get the information of the leader broker
+
+Usage
+```bash
+$ pulsar-admin brokers leader-broker
+```
+
 ### `namespaces`
 List namespaces owned by the broker
 
@@ -895,6 +903,9 @@ Subcommands
 * `set-schema-autoupdate-strategy`
 * `set-offload-policies`
 * `get-offload-policies`
+* `set-max-subscriptions-per-topic`
+* `get-max-subscriptions-per-topic`
+* `remove-max-subscriptions-per-topic`
 
 
 ### `list`
@@ -1679,6 +1690,59 @@ Options
 |`-m`, `--msg-publish-rate`|Threshold for number of messages per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
 |`-b`, `--byte-publish-rate`|Threshold for number of bytes per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
 
+### `set-offload-policies`
+Set the offload policy for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces set-offload-policies tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-d`, `--driver`|Driver to use to offload old data to long term storage,(Possible values: S3, aws-s3, google-cloud-storage)||
+|`-r`, `--region`|The long term storage region||
+|`-b`, `--bucket`|Bucket to place offloaded ledger into||
+|`-e`, `--endpoint`|Alternative endpoint to connect to||
+|`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
+|`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
+|`-mbs`, `--maxBlockSize`|Max block size|64MB|
+|`-rbs`, `--readBufferSize`|Read buffer size|1MB|
+|`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||
+|`-oae`, `--offloadAfterElapsed`|Offload after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||
+
+### `get-offload-policies`
+Get the offload policy for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces get-offload-policies tenant/namespace
+```
+
+### `set-max-subscriptions-per-topic`
+Set the maximum subscription per topic for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces set-max-subscriptions-per-topic tenant/namespace
+```
+
+### `get-max-subscriptions-per-topic`
+Get the maximum subscription per topic for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces get-max-subscriptions-per-topic tenant/namespace
+```
+### `remove-max-subscriptions-per-topic`
+Remove the maximum subscription per topic for a namespace.
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-max-subscriptions-per-topic tenant/namespace
+```
+
 ## `ns-isolation-policy`
 Operations for managing namespace isolation policies.
 
@@ -1822,24 +1886,12 @@ Subcommands
 * `get-deduplication`
 * `set-deduplication`
 * `remove-deduplication`
-* `get-max-producers`
-* `set-max-producers`
-* `remove-max-producers`
-* `get-max-consumers`
-* `set-max-consumers`
-* `remove-max-consumers`
 * `get-retention`
 * `set-retention`
 * `remove-retention`
 * `get-dispatch-rate`
 * `set-dispatch-rate`
 * `remove-dispatch-rate`
-* `get-compaction-threshold`
-* `set-compaction-threshold`
-* `remove-compaction-threshold`
-* `get-offload-policies`
-* `set-offload-policies`
-* `remove-offload-policies`
 * `get-max-unacked-messages-per-subscription`
 * `set-max-unacked-messages-per-subscription`
 * `remove-max-unacked-messages-per-subscription`
@@ -1849,9 +1901,24 @@ Subcommands
 * `get-delayed-delivery`
 * `set-delayed-delivery`
 * `remove-delayed-delivery`
+* `get-max-producers`
+* `set-max-producers`
+* `remove-max-producers`
+* `get-max-consumers`
+* `set-max-consumers`
+* `remove-max-consumers`
+* `get-compaction-threshold`
+* `set-compaction-threshold`
+* `remove-compaction-threshold`
+* `get-offload-policies`
+* `set-offload-policies`
+* `remove-offload-policies`
 * `get-inactive-topic-policies`
 * `set-inactive-topic-policies`
 * `remove-inactive-topic-policies`
+* `set-max-subscriptions`
+* `get-max-subscriptions`
+* `remove-max-subscriptions`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -1906,7 +1973,7 @@ Options
 ### `create-partitioned-topic`
 Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
 
-> #### Note
+> **Note**
 >
 > By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
 >
@@ -1946,7 +2013,7 @@ $ pulsar-admin topics delete-partitioned-topic {persistent|non-persistent}
 ### `create`
 Creates a non-partitioned topic. A non-partitioned topic must explicitly be created by the user if allowAutoTopicCreation or createIfMissing is disabled.
 
-> #### Note
+> **Note**
 >
 > By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
 >
@@ -2007,7 +2074,7 @@ $ pulsar-admin topics terminate {persistent|non-persistent}://tenant/namespace/t
 ```
 
 ### `permissions`
-Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
+Get the permissions on a topic. Retrieve the effective permissions for a destination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
 
 Usage
 ```bash
@@ -2244,14 +2311,6 @@ Options
 |`-t`, `--time`|The time in minutes to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`.||
 |`-m`, `--messageId`| The messageId to reset back to (ledgerId:entryId). ||
 
-### `last-message-id`
-Get the last commit message id of topic.
-
-Usage
-```bash
-$ pulsar-admin topics last-message-id persistent://tenant/namespace/topic
-```
-
 ### `get-message-by-id`
 Get message by ledger id and entry id
 
@@ -2267,6 +2326,14 @@ Options
 |`-l`, `--ledgerId`|The ledger id |0|
 |`-e`, `--entryId`|The entry id |0|
 
+### `last-message-id`
+Get the last commit message ID of the topic.
+
+Usage
+```bash
+$ pulsar-admin topics last-message-id persistent://tenant/namespace/topic
+```
+
 ### `get-backlog-quotas`
 Get the backlog quota policies for a topic.
 
@@ -2281,28 +2348,7 @@ Set a backlog quota policy for a topic.
 Usage
 ```bash
 $ pulsar-admin topics set-backlog-quota tenant/namespace/topic options
-=======
-### `get-deduplication`
-Get a deduplication policy for a topic.
-
-Usage
-```bash
-$ pulsar-admin topics get-deduplication tenant/namespace/topic
 ```
-
-### `set-deduplication`
-Enable or disable message deduplication on a topic.
-
-Usage
-```bash
-$ pulsar-admin topics set-deduplication tenant/namespace/topic
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-l`, `--limit`|Size limit (eg: 10M, 16G)", required = true)||
-|`-p`, `--policy`|Retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
 
 ### `remove-backlog-quota`
 Remove a backlog quota policy from a topic.
@@ -2369,18 +2415,40 @@ Remove the message TTL for a topic.
 
 Usage
 ```bash
-$ pulsar-admin topics remove-message-ttl tenant/namespace/topic
-=======
+$ pulsar-admin topics remove-message-ttl tenant/namespace/topic 
+```
+
+Options 
+|Flag|Description|Default|
 |---|---|---|
 |`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
 |`--disable`, `-d`|Disable message deduplication on the specified topic.|false|
 
+### `get-deduplication`
+Get a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-deduplication tenant/namespace/topic
+```
+
+### `set-deduplication`
+Set a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-deduplication tenant/namespace/topic options
+```
+
 ### `remove-deduplication`
-Remove a deduplication policy from a topic.
+Remove a deduplication policy for a topic.
 
 Usage
 ```bash
 $ pulsar-admin topics remove-deduplication tenant/namespace/topic
+```
+
+
 ```
 
 ## `tenants`
@@ -2450,6 +2518,11 @@ Usage
 ```bash
 $ pulsar-admin tenants delete tenant-name
 ```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-f`, `--force`|Delete a tenant forcefully by deleting all namespaces under it.|false|
 
 
 ## `resource-quotas`
@@ -2557,7 +2630,7 @@ $ pulsar-admin schemas delete persistent://tenant/namespace/topic
 
 
 ### `get`
-Retrieve the schema definition assoicated with a topic (at a given version if version is supplied).
+Retrieve the schema definition associated with a topic (at a given version if version is supplied).
 
 Usage
 ```bash
@@ -2567,7 +2640,7 @@ $ pulsar-admin schemas get persistent://tenant/namespace/topic options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--version`|The version of the schema definition to retrive for a topic.||
+|`--version`|The version of the schema definition to retrieve for a topic.||
 
 ### `extract`
 Provide the schema definition for a topic via Java class name contained in a JAR file
@@ -2584,33 +2657,3 @@ Options
 |`-j`, `--jar`|A path to the JAR file which contains the above Java class||
 |`-t`, `--type`|The type of the schema (avro or json)||
 
-
-### `get-offload-policies`
-Get the offload policy for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces get-offload-policies tenant/namespace
-```
-
-### `set-offload-policies`
-Set the offload policy for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-offload-policies tenant/namespace
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-d`, `--driver`|Driver to use to offload old data to long term storage,(Possible values: S3, aws-s3, google-cloud-storage)||
-|`-r`, `--region`|The long term storage region||
-|`-b`, `--bucket`|Bucket to place offloaded ledger into||
-|`-e`, `--endpoint`|Alternative endpoint to connect to||
-|`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
-|`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
-|`-mbs`, `--maxBlockSize`|Max block size|64MB|
-|`-rbs`, `--readBufferSize`|Read buffer size|1MB|
-|`-oat`, `--offloadAfterThreshold`|Offload after threshold size (eg: 1M, 5M)||
-|`-oae`, `--offloadAfterElapsed`|Offload after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||

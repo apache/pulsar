@@ -21,7 +21,7 @@
 set -e
 
 cd /pulsar
-ROOT_DIR=$(git rev-parse --show-toplevel)
+ROOT_DIR=$(pwd)
 cd $ROOT_DIR/pulsar-client-cpp/pkg/rpm
 
 POM_VERSION=`$ROOT_DIR/src/get-project-version.py`

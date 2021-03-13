@@ -47,7 +47,7 @@ public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
         start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     private void cleanup() throws Exception {
         close();
     }

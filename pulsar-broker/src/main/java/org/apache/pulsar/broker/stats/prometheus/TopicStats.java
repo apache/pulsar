@@ -54,6 +54,7 @@ class TopicStats {
 
     Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
     Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
+    Map<String, AggregatedProducerStats> producerStats = new HashMap<>();
 
     // Used for tracking duplicate TYPE definitions
     static Map<String, String> metricWithTypeDefinition = new HashMap<>();
@@ -82,6 +83,7 @@ class TopicStats {
 
         replicationStats.clear();
         subscriptionStats.clear();
+        producerStats.clear();
         storageWriteLatencyBuckets.reset();
         storageLedgerWriteLatencyBuckets.reset();
         entrySizeBuckets.reset();
@@ -162,6 +164,15 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_overflow", entrySizeBuckets[8]);
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_count", stats.entrySizeBuckets.getCount());
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_sum", stats.entrySizeBuckets.getSum());
+
+        stats.producerStats.forEach((p, producerStats) -> {
+            metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_rate_in",
+                    producerStats.msgRateIn);
+            metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_throughput_in",
+                    producerStats.msgThroughputIn);
+            metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_average_Size",
+                    producerStats.averageMsgSize);
+        });
 
         stats.subscriptionStats.forEach((n, subsStats) -> {
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log",
@@ -262,6 +273,15 @@ class TopicStats {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
+        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+    }
+
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
+                               String producerName, long produceId, String name, double value) {
+        metricType(stream, name);
+        stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
+                .write("\",topic=\"").write(topic).write("\",producer_name=\"").write(producerName)
+                .write("\",producer_id=\"").write(produceId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 

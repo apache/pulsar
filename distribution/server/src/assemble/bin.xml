@@ -127,6 +127,11 @@
         <exclude>junit:junit</exclude>
 
         <exclude>org.projectlombok:lombok</exclude>
+
+        <!-- prevent adding pulsar-functions-api-examples in lib -->
+        <exclude>org.apache.pulsar:pulsar-functions-api-examples</exclude>
+        <!-- prevent adding any distribution .tar.gz files in lib -->
+        <exclude>*:tar.gz</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

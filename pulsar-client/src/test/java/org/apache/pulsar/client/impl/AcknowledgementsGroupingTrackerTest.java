@@ -72,7 +72,7 @@ public class AcknowledgementsGroupingTrackerTest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardown() {
         eventLoopGroup.shutdownGracefully();
     }

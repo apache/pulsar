@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import static org.testng.Assert.assertEquals;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import junit.framework.Assert;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import org.apache.commons.io.IOUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -31,14 +36,9 @@ import org.apache.curator.test.TestingServer;
 import org.apache.curator.utils.EnsurePath;
 import org.apache.flume.conf.FlumeConfiguration;
 import org.apache.flume.conf.FlumeConfigurationError;
-import org.junit.After;
-import org.junit.Before;
-
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 
 public abstract class TestAbstractZooKeeperConfigurationProvider {
 
@@ -52,7 +52,7 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
     protected TestingServer zkServer;
     protected CuratorFramework client;
 
-    @Before
+    @BeforeMethod
     public void setUp() throws Exception {
         // start the instance without the admin server!
         InstanceSpec serverSpec = new InstanceSpec(null, -1, -1, -1, true, -1, -1, -1, Collections.singletonMap("zookeeper.admin.enableServer", "false"));
@@ -69,7 +69,7 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
 
     protected abstract void doSetUp() throws Exception;
 
-    @After
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         doTearDown();
         zkServer.close();
@@ -117,7 +117,7 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
         }
         Collections.sort(expected);
         Collections.sort(actual);
-        Assert.assertEquals(expected, actual);
+        assertEquals(actual, expected);
 
         FlumeConfiguration.AgentConfiguration agentConfiguration = configuration
                 .getConfigurationFor("host1");
@@ -127,8 +127,8 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
         Set<String> sinks = Sets.newHashSet("sink1");
         Set<String> channels = Sets.newHashSet("channel1");
 
-        Assert.assertEquals(sources, agentConfiguration.getSourceSet());
-        Assert.assertEquals(sinks, agentConfiguration.getSinkSet());
-        Assert.assertEquals(channels, agentConfiguration.getChannelSet());
+        assertEquals(agentConfiguration.getSourceSet(), sources);
+        assertEquals(agentConfiguration.getSinkSet(), sinks);
+        assertEquals(agentConfiguration.getChannelSet(), channels);
     }
 }

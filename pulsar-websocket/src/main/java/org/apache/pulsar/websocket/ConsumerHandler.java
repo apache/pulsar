@@ -27,6 +27,7 @@ import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -34,6 +35,8 @@ import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
 
+import io.netty.util.concurrent.CompleteFuture;
+import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -50,6 +53,7 @@ import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
+import org.apache.pulsar.websocket.data.EndOfTopicResponse;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -215,12 +219,42 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 handlePermit(command);
             } else if ("unsubscribe".equals(command.type)) {
                 handleUnsubscribe(command);
+            } else if ("isEndOfTopic".equals(command.type)) {
+                handleEndOfTopic();
             } else {
                 handleAck(command);
             }
         } catch (IOException e) {
             log.warn("Failed to deserialize message id: {}", message, e);
             close(WebSocketError.FailedToDeserializeFromJSON);
+        }
+    }
+
+    // Check and notify consumer if reached end of topic.
+    private void handleEndOfTopic() {
+        try {
+            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+                    new EndOfTopicResponse(consumer.hasReachedEndOfTopic()));
+            getSession().getRemote()
+            .sendString(msg, new WriteCallback() {
+                @Override
+                public void writeFailed(Throwable th) {
+                    log.warn("[{}/{}] Failed to send end of topic msg to {} due to {}", consumer.getTopic(),
+                            subscription, getRemote().getInetSocketAddress().toString(), th.getMessage());
+                }
+
+                @Override
+                public void writeSuccess() {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}/{}] End of topic message is delivered successfully to {} ",
+                                consumer.getTopic(), subscription, getRemote().getInetSocketAddress().toString());
+                    }
+                }
+            });
+        } catch (JsonProcessingException e) {
+            log.warn("[{}] Failed to generate end of topic response: {}", consumer.getTopic(), e.getMessage());
+        } catch (Exception e) {
+            log.warn("[{}] Failed to send end of topic response: {}", consumer.getTopic(), e.getMessage());
         }
     }
 
@@ -344,14 +378,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         if (queryParams.containsKey("maxRedeliverCount") || queryParams.containsKey("deadLetterTopic")) {
             DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder();
             if (queryParams.containsKey("maxRedeliverCount")) {
-                dlpBuilder.maxRedeliverCount(Integer.parseInt(queryParams.get("maxRedeliverCount")));
-            }
-
-            // Don't provide a default DLQ to Key_Shared sub type as DLQ can't guarantee order.
-            if (!queryParams.containsKey("subscriptionType") ||
-                queryParams.containsKey("subscriptionType") &&
-                SubscriptionType.valueOf(queryParams.get("subscriptionType")) != SubscriptionType.Key_Shared) {
-                dlpBuilder.deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription));
+                dlpBuilder.maxRedeliverCount(Integer.parseInt(queryParams.get("maxRedeliverCount")))
+                        .deadLetterTopic(String.format("%s-%s-DLQ", topic, subscription));
             }
 
             if (queryParams.containsKey("deadLetterTopic")) {

@@ -41,6 +41,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
@@ -349,6 +350,11 @@ public class ManagedCursorContainerTest {
             return new long[0];
         }
 
+        @Override
+        public ManagedCursorMXBean getStats() {
+            return null;
+        }
+
         public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
                 Object ctx) {
         }
@@ -357,6 +363,11 @@ public class ManagedCursorContainerTest {
         public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
                 throws InterruptedException, ManagedLedgerException {
             return null;
+        }
+
+        @Override
+        public boolean checkAndUpdateReadPositionChanged() {
+            return false;
         }
     }
 

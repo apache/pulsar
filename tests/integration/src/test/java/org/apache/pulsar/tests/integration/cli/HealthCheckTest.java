@@ -62,7 +62,7 @@ public class HealthCheckTest {
         pulsarCluster.start();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDownCluster() {
         if (pulsarCluster != null) {
             pulsarCluster.stop();

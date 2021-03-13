@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
@@ -57,6 +58,8 @@ public class BaseDiscoveryTestSetup {
         mockZooKeeper = createMockZooKeeper();
         service = spy(new DiscoveryService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeper)).when(service).createLocalMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeper)).when(service).createConfigurationMetadataStore();
         service.start();
 
     }

@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.junit.Assert.assertEquals;
-
+import static org.testng.Assert.assertEquals;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -39,7 +38,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -95,7 +93,7 @@ public class PulsarFunctionTlsTest {
             config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
-            Set<String> superUsers = Sets.newHashSet("superUser");
+            Set<String> superUsers = Sets.newHashSet("superUser", "admin");
             config.setSuperUserRoles(superUsers);
             Set<String> providers = new HashSet<>();
             providers.add(AuthenticationProviderTls.class.getName());

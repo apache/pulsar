@@ -222,7 +222,7 @@ brokerClientTlsTrustStore=/var/private/tls/client.truststore.jks
 brokerClientTlsTrustStorePassword=clientpw
 # internal auth config
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
-brokerClientAuthenticationParameters={"keyStoreType":"JKS","keyStorePath":"/var/private/tls/client.keystore.jks","keyStorePassword":"clientpw"}
+brokerClientAuthenticationParameters=keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw
 # currently websocket not support keystore type
 webSocketServiceEnabled=false
 ```

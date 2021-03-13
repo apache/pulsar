@@ -174,7 +174,7 @@ public class KubernetesRuntimeTest {
         System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
     }
     
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (null != this.factory) {
             this.factory.close();
@@ -284,6 +284,7 @@ public class KubernetesRuntimeTest {
         config.setFunctionVersion("1.0");
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
+        config.setMaxPendingAsyncRequests(200);
         config.setClusterName("standalone");
 
         return config;
@@ -373,6 +374,10 @@ public class KubernetesRuntimeTest {
         assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), roundDecimal(resources.getCpu(), 3));
     }
 
+    private void verifyJavaInstance(InstanceConfig config, String depsDir, boolean secretsAttached) throws Exception {
+        verifyJavaInstance(config, depsDir, secretsAttached, null);
+    }
+
     private void verifyJavaInstance(InstanceConfig config, String depsDir, boolean secretsAttached, String downloadDirectory) throws Exception {
         KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
         List<String> args = container.getProcessArgs();
@@ -386,82 +391,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 37;
+            totalArgs = 39;
             portArg = 26;
             metricsPortArg = 28;
         } else {
             extraDepsEnv = "";
             portArg = 25;
             metricsPortArg = 27;
-            totalArgs = 36;
-        }
-        if (secretsAttached) {
-            totalArgs += 4;
-        }
-        if (StringUtils.isNotEmpty(downloadDirectory)){
-            jarLocation = downloadDirectory + "/" + userJarFile;
-        } else {
-            jarLocation = pulsarRootDir + "/" + userJarFile;
-        }
-
-        assertEquals(args.size(), totalArgs,
-                "Actual args : " + StringUtils.join(args, " "));
-
-        String expectedArgs = "exec java -cp " + classpath
-                + extraDepsEnv
-                + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
-                + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml "
-                + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
-                + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
-                + " -Xmx" + String.valueOf(RESOURCES.getRam())
-                + " org.apache.pulsar.functions.instance.JavaInstanceMain"
-                + " --jar " + jarLocation + " --instance_id "
-                + "$SHARD_ID" + " --function_id " + config.getFunctionId()
-                + " --function_version " + config.getFunctionVersion()
-                + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
-                + "' --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
-                + " --state_storage_serviceurl " + stateStorageServiceUrl
-                + " --expected_healthcheck_interval -1";
-        if (secretsAttached) {
-            expectedArgs += " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
-                    + " --secrets_provider_config '{\"Somevalue\":\"myvalue\"}'";
-        }
-        expectedArgs += " --cluster_name standalone --nar_extraction_directory " + narExtractionDirectory;
-
-        assertEquals(String.join(" ", args), expectedArgs);
-
-        // check padding and xmx
-        long heap = Long.parseLong(args.stream().filter(s -> s.startsWith("-Xmx")).collect(Collectors.toList()).get(0).replace("-Xmx", ""));
-        V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), RESOURCES);
-        assertEquals(heap, RESOURCES.getRam());
-        assertEquals(containerSpec.getResources().getLimits().get("memory").getNumber().longValue(), Math.round(heap + (heap * 0.1)));
-
-        // check cpu
-        assertEquals(containerSpec.getResources().getRequests().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
-        assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
-    }
-
-    private void verifyJavaInstance(InstanceConfig config, String depsDir, boolean secretsAttached) throws Exception {
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
-        List<String> args = container.getProcessArgs();
-
-        String classpath = javaInstanceJarFile;
-        String extraDepsEnv;
-        int portArg;
-        int metricsPortArg;
-        int totalArgs;
-        if (null != depsDir) {
-            extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
-            classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 37;
-            portArg = 26;
-            metricsPortArg = 28;
-        } else {
-            extraDepsEnv = "";
-            portArg = 25;
-            metricsPortArg = 27;
-            totalArgs = 36;
+            totalArgs = 38;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -471,6 +408,13 @@ public class KubernetesRuntimeTest {
             portArg += 2;
             metricsPortArg += 2;
         }
+
+        if (StringUtils.isNotEmpty(downloadDirectory)){
+            jarLocation = downloadDirectory + "/" + userJarFile;
+        } else {
+            jarLocation = pulsarRootDir + "/" + userJarFile;
+        }
+
 
         assertEquals(args.size(), totalArgs,
                 "Actual args : " + StringUtils.join(args, " "));
@@ -485,13 +429,14 @@ public class KubernetesRuntimeTest {
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
                 + " -Xmx" + String.valueOf(RESOURCES.getRam())
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
-                + " --jar " + pulsarRootDir + "/" + userJarFile + " --instance_id "
+                + " --jar " + jarLocation + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + pulsarAdminArg
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port " + args.get(metricsPortArg)
+                + " --pending_async_requests 200"
                 + " --state_storage_serviceurl " + stateStorageServiceUrl
                 + " --expected_healthcheck_interval -1";
         if (secretsAttached) {
@@ -607,6 +552,30 @@ public class KubernetesRuntimeTest {
         verifyCreateJobNameWithOverriddenK8sPodName();
         verifyCreateJobNameWithOverriddenK8sPodNameWithInvalidMarks();
         verifyCreateJobNameWithNameOverMaxCharLimit();
+    }
+
+    @Test
+    public void testCreateFunctionLabels() throws Exception {
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
+        functionDetailsBuilder.setTenant("tenant");
+        // use long namespace to make sure label is truncated to 63 max characters for k8s requirements
+        functionDetailsBuilder.setNamespace(String.format("%-100s", "namespace:$second.part:third@test_0").replace(" ", "0"));
+        functionDetailsBuilder.setName("$function_name!");
+        JsonObject configObj = new JsonObject();
+        configObj.addProperty("jobNamespace", "custom-ns");
+        configObj.addProperty("jobName", "custom-name");
+        functionDetailsBuilder.setCustomRuntimeOptions(configObj.toString());
+        final FunctionDetails functionDetails = functionDetailsBuilder.build();
+
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(functionDetails);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+
+        assertEquals(spec.getMetadata().getLabels().get("tenant"), "tenant");
+        assertEquals(spec.getMetadata().getLabels().get("namespace"), String.format("%-63s", "namespace--second.part-third-test_0").replace(" ", "0"));
+        assertEquals(spec.getMetadata().getLabels().get("name"), "0function_name0");
     }
 
     FunctionDetails createFunctionDetails(final String functionName) {
@@ -852,6 +821,7 @@ public class KubernetesRuntimeTest {
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
         config.setClusterName("standalone");
+        config.setMetricsPort(4331);
 
         return config;
     }

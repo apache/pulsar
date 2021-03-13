@@ -20,14 +20,10 @@ package org.apache.pulsar.tests.integration.upgrade;
 
 import static java.util.stream.Collectors.joining;
 import static org.testng.Assert.assertEquals;
-
 import com.google.common.collect.ImmutableMap;
-
 import java.util.stream.Stream;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -36,8 +32,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -48,7 +44,7 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
 
     protected static final int ENTRIES_PER_LEDGER = 1024;
 
-    @BeforeSuite
+    @BeforeClass
     @Override
     public void setupCluster() throws Exception {
         final String clusterName = Stream.of(this.getClass().getSimpleName(), randomName(5))
@@ -74,7 +70,7 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
         log.info("Cluster {} is setup", spec.clusterName());
     }
 
-    @AfterSuite
+    @AfterClass(alwaysRun = true)
     @Override
     public void tearDownCluster() {
         super.tearDownCluster();

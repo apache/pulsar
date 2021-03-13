@@ -1,6 +1,6 @@
 
 Apache Pulsar
-Copyright 2017-2019 The Apache Software Foundation
+Copyright 2017-2021 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -201,7 +201,6 @@ http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
     * Performance and memory usage improvement
 
 ------------------------------------------------------------------------------------
-- org.checkerframework-checker-compat-qual-2.5.2.jar
 
 A few parts of the Checker Framework have more permissive licenses.
 

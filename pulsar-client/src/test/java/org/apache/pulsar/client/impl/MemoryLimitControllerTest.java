@@ -40,7 +40,7 @@ public class MemoryLimitControllerTest {
         executor = Executors.newCachedThreadPool();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     void teardown() {
         executor.shutdownNow();
     }
