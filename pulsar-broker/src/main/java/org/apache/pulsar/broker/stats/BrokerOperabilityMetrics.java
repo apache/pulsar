@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.pulsar.common.stats.Metrics;
 
 /**
@@ -35,11 +35,11 @@ public class BrokerOperabilityMetrics {
     private final DimensionStats zkWriteLatencyStats;
     private final DimensionStats zkReadLatencyStats;
     private final String brokerName;
-    private final AtomicLong connectionTotalCreatedCount;
-    private final AtomicLong connectionCreateSuccessCount;
-    private final AtomicLong connectionCreateFailCount;
-    private final AtomicLong connectionTotalClosedCount;
-    private final AtomicLong connectionActive;
+    private final LongAdder connectionTotalCreatedCount;
+    private final LongAdder connectionCreateSuccessCount;
+    private final LongAdder connectionCreateFailCount;
+    private final LongAdder connectionTotalClosedCount;
+    private final LongAdder connectionActive;
 
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
@@ -48,11 +48,11 @@ public class BrokerOperabilityMetrics {
         this.zkWriteLatencyStats = new DimensionStats("zk_write_latency", 60);
         this.zkReadLatencyStats = new DimensionStats("zk_read_latency", 60);
         this.brokerName = brokerName;
-        this.connectionTotalCreatedCount = new AtomicLong();
-        this.connectionCreateSuccessCount = new AtomicLong();
-        this.connectionCreateFailCount = new AtomicLong();
-        this.connectionTotalClosedCount = new AtomicLong();
-        this.connectionActive = new AtomicLong();
+        this.connectionTotalCreatedCount = new LongAdder();
+        this.connectionCreateSuccessCount = new LongAdder();
+        this.connectionCreateFailCount = new LongAdder();
+        this.connectionTotalClosedCount = new LongAdder();
+        this.connectionActive = new LongAdder();
     }
 
     public List<Metrics> getMetrics() {
@@ -73,11 +73,11 @@ public class BrokerOperabilityMetrics {
 
     Metrics getConnectionMetrics() {
         Metrics rMetrics = Metrics.create(getDimensionMap("broker_connection"));
-        rMetrics.put("brk_connection_created_total_count", connectionTotalCreatedCount.get());
-        rMetrics.put("brk_connection_create_success_count", connectionCreateSuccessCount.get());
-        rMetrics.put("brk_connection_create_fail_count", connectionCreateFailCount.get());
-        rMetrics.put("brk_connection_closed_total_count", connectionTotalClosedCount.get());
-        rMetrics.put("brk_active_connections", connectionActive.get());
+        rMetrics.put("brk_connection_created_total_count", connectionTotalCreatedCount.longValue());
+        rMetrics.put("brk_connection_create_success_count", connectionCreateSuccessCount.longValue());
+        rMetrics.put("brk_connection_create_fail_count", connectionCreateFailCount.longValue());
+        rMetrics.put("brk_connection_closed_total_count", connectionTotalClosedCount.longValue());
+        rMetrics.put("brk_active_connections", connectionActive.longValue());
         return rMetrics;
     }
 
@@ -136,20 +136,20 @@ public class BrokerOperabilityMetrics {
     }
 
     public void recordConnectionCreate() {
-        this.connectionTotalCreatedCount.incrementAndGet();
-        this.connectionActive.incrementAndGet();
+        this.connectionTotalCreatedCount.increment();
+        this.connectionActive.increment();
     }
 
     public void recordConnectionClose() {
-        this.connectionTotalClosedCount.incrementAndGet();
-        this.connectionActive.decrementAndGet();
+        this.connectionTotalClosedCount.increment();
+        this.connectionActive.decrement();
     }
 
     public void recordConnectionCreateSuccess() {
-        this.connectionCreateSuccessCount.incrementAndGet();
+        this.connectionCreateSuccessCount.increment();
     }
 
     public void recordConnectionCreateFail() {
-        this.connectionCreateFailCount.incrementAndGet();
+        this.connectionCreateFailCount.increment();
     }
 }
