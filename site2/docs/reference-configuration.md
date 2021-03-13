@@ -349,7 +349,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
 |getSubscriptionTypesEnabled| Enable all subscription types, that is exclusive, shared, failover and key_shared, for a namespace or a topic. | true |
-|setSubscriptionTypesEnabled| Enable one or more subscrption types for a namespace or a topic. Multiple subscription types are available, separated by `,`. You can set this parameter by `pulsar-admin namespaces set-subscription-types-enabled options` or `pulsar-admin topics set-subscription-types-enabled options`command. | null |
+|setSubscriptionTypesEnabled| Enable one or more subscrption types for a namespace or a topic. Multiple subscription types are available, separated by `,`. You can set this parameter by `pulsar-admin namespaces set-subscription-types-enabled options` or `pulsar-admin topics set-subscription-types-enabled options` command. | null |
 
 ## Client
 
