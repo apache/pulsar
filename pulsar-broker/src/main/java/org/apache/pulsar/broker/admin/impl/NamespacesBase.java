@@ -97,6 +97,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -799,27 +800,22 @@ public abstract class NamespacesBase extends AdminResource {
                         "Number of partitions should be less than or equal to " + maxPartitions);
             }
         }
-        // Force to read the data s.t. the watch to the cache content is setup.
-        namespaceResources().setAsync(path(POLICIES, namespaceName.toString()), (policies) -> {
-            policies.autoTopicCreationOverride = autoTopicCreationOverride;
-            return policies;
-        }).thenApply(r -> {
+        try {
+            // Force to read the data s.t. the watch to the cache content is setup.
+            updatePolicies(path(POLICIES, namespaceName.toString()), (policies) -> {
+                policies.autoTopicCreationOverride = autoTopicCreationOverride;
+                return policies;
+            });
             String autoOverride = (autoTopicCreationOverride != null
                     && autoTopicCreationOverride.allowAutoTopicCreation) ? "enabled" : "disabled";
             log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(),
-                    autoOverride != null ? autoOverride : "removed", namespaceName);
+                    autoOverride, namespaceName);
             asyncResponse.resume(Response.noContent().build());
-            return null;
-        }).exceptionally(e -> {
-            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}", clientAppId(), namespaceName,
-                    e.getCause());
-            if (e.getCause() instanceof NotFoundException) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-                return null;
-            }
-            asyncResponse.resume(new RestException(e.getCause()));
-            return null;
-        });
+        } catch (Exception e) {
+            log.error("[{}] Failed to modify autoTopicCreation status on namespace {}"
+                    , clientAppId(), namespaceName, e);
+            asyncResponse.resume(e instanceof RestException ? e : new RestException(e));
+        }
     }
 
     protected void internalRemoveAutoTopicCreation(AsyncResponse asyncResponse) {
@@ -831,11 +827,12 @@ public abstract class NamespacesBase extends AdminResource {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
-        // Force to read the data s.t. the watch to the cache content is setup.
-        namespaceResources().setAsync(path(POLICIES, namespaceName.toString()), (policies) -> {
-            policies.autoSubscriptionCreationOverride = autoSubscriptionCreationOverride;
-            return policies;
-        }).thenApply(r -> {
+        try {
+            // Force to read the data s.t. the watch to the cache content is setup.
+            updatePolicies(path(POLICIES, namespaceName.toString()), policies -> {
+                policies.autoSubscriptionCreationOverride = autoSubscriptionCreationOverride;
+                return policies;
+            });
             if (autoSubscriptionCreationOverride != null) {
                 String autoOverride = autoSubscriptionCreationOverride.allowAutoSubscriptionCreation ? "enabled"
                         : "disabled";
@@ -843,17 +840,11 @@ public abstract class NamespacesBase extends AdminResource {
                         autoOverride != null ? autoOverride : "removed", namespaceName);
             }
             asyncResponse.resume(Response.noContent().build());
-            return null;
-        }).exceptionally(e -> {
+        } catch (Exception e) {
             log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(),
                     namespaceName, e.getCause());
-            if (e.getCause() instanceof NotFoundException) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-                return null;
-            }
-            asyncResponse.resume(new RestException(e.getCause()));
-            return null;
-        });
+            asyncResponse.resume(e instanceof RestException ? e : new RestException(e));
+        }
     }
 
     protected void internalRemoveAutoSubscriptionCreation(AsyncResponse asyncResponse) {
@@ -2424,7 +2415,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             final String path = path(POLICIES, namespaceName.toString());
-            namespaceResources().setAsync(path, (policies) -> {
+            updatePolicies(path, policies -> {
                 if (Objects.equals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
                         OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
                     offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
@@ -2439,22 +2430,13 @@ public abstract class NamespacesBase extends AdminResource {
                 }
                 policies.offload_policies = offloadPolicies;
                 return policies;
-            }).thenApply(r -> {
-                log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
-                        namespaceName, offloadPolicies);
-                asyncResponse.resume(Response.noContent().build());
-                return null;
-            }).exceptionally(e -> {
-                log.error("[{}] Failed to update offload configuration for namespace {}", clientAppId(), namespaceName,
-                        e);
-                asyncResponse.resume(new RestException(e));
-                return null;
             });
+            log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
+                    namespaceName, offloadPolicies);
+            asyncResponse.resume(Response.noContent().build());
         } catch (Exception e) {
             log.error("[{}] Failed to update offload configuration for namespace {}", clientAppId(), namespaceName, e);
-            asyncResponse.resume(e.getCause() instanceof NotFoundException
-                    ? new RestException(Status.CONFLICT, "Concurrent modification")
-                    : new RestException(e));
+            asyncResponse.resume(e instanceof RestException ? e : new RestException(e));
         }
     }
 
@@ -2463,24 +2445,15 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
         try {
             final String path = path(POLICIES, namespaceName.toString());
-            namespaceResources().setAsync(path, (policies) -> {
+            updatePolicies(path, (policies) -> {
                 policies.offload_policies = null;
                 return policies;
-            }).thenApply(r -> {
-                log.info("[{}] Successfully remove offload configuration: namespace={}", clientAppId(), namespaceName);
-                asyncResponse.resume(Response.noContent().build());
-                return null;
-            }).exceptionally(e -> {
-                log.error("[{}] Failed to remove offload configuration for namespace {}", clientAppId(), namespaceName,
-                        e);
-                asyncResponse.resume(e.getCause() instanceof NotFoundException
-                        ? new RestException(Status.CONFLICT, "Concurrent modification")
-                        : new RestException(e));
-                return null;
             });
+            log.info("[{}] Successfully remove offload configuration: namespace={}", clientAppId(), namespaceName);
+            asyncResponse.resume(Response.noContent().build());
         } catch (Exception e) {
             log.error("[{}] Failed to remove offload configuration for namespace {}", clientAppId(), namespaceName, e);
-            asyncResponse.resume(new RestException(e));
+            asyncResponse.resume(e instanceof RestException ? e : new RestException(e));
         }
     }
 
@@ -2537,8 +2510,8 @@ public abstract class NamespacesBase extends AdminResource {
    private void updatePolicies(String path, Function<Policies, Policies> updateFunction) {
        try {
            // Force to read the data s.t. the watch to the cache content is setup.
-           namespaceResources().set(path(POLICIES, namespaceName.toString()), updateFunction);
-           log.info("[{}] Successfully updated the on namespace {}", clientAppId(), path, namespaceName);
+           namespaceResources().set(path, pulsar().getOrderedExecutor(), updateFunction);
+           log.info("[{}] Successfully updated the {} on namespace {}", clientAppId(), path, namespaceName);
        } catch (NotFoundException e) {
            log.warn("[{}] Namespace {}: does not exist", clientAppId(), namespaceName);
            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");

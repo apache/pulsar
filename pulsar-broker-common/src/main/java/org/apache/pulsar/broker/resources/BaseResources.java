@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.Getter;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -89,6 +90,28 @@ public class BaseResources<T> {
     public void set(String path, Function<T, T> modifyFunction) throws MetadataStoreException {
         try {
             setAsync(path, modifyFunction).get(operationTimeoutSec, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
+        } catch (Exception e) {
+            throw new MetadataStoreException("Failed to set data for " + path, e);
+        }
+    }
+
+    public void set(String path, OrderedExecutor executor, Function<T, T> modifyFunction) throws MetadataStoreException {
+        CompletableFuture<Void> callback = new CompletableFuture<>();
+        // Use orderedExecutor to ensure that
+        // concurrent updates in each path are handled by a single thread
+        executor.executeOrdered(path, () ->
+                setAsync(path, modifyFunction).whenComplete((result, ex) -> {
+            if (ex != null) {
+                callback.completeExceptionally(ex);
+            } else {
+                callback.complete(result);
+            }
+        }));
+        try {
+            callback.get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
