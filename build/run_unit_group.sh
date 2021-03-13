@@ -94,36 +94,7 @@ function broker_client_other() {
 }
 
 function proxy() {
-  $MVN_TEST_COMMAND -pl pulsar-proxy -DtestForkCount=1 \
-                                     -DtestReuseFork=true \
-                                     -Dinclude="**/ProxyRolesEnforcementTest.java" \
-                                     -DtestForkCount=1 \
-                                     -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-proxy -DtestForkCount=1 \
-                                     -DtestReuseFork=true \
-                                     -Dinclude="**/ProxyAuthenticationTest.java" \
-                                     -DtestForkCount=1 \
-                                     -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-proxy -DtestForkCount=1 \
-                                     -DtestReuseFork=true \
-                                     -Dinclude="**/ProxyTest.java" \
-                                     -DtestForkCount=1 \
-                                     -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-proxy -DtestForkCount=1 \
-                                     -DtestReuseFork=true \
-                                     -Dinclude="**/MessagePublishBufferThrottleTest.java" \
-                                     -DtestForkCount=1 \
-                                     -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-proxy -DtestForkCount=1 \
-                                     -Dexclude='**/ProxyRolesEnforcementTest.java,
-                                                **/ProxyAuthenticationTest.java,
-                                                **/ProxyTest.java,
-                                                **/MessagePublishBufferThrottleTest.java' \
-                                     -DtestReuseFork=true
+  $MVN_TEST_COMMAND -pl pulsar-proxy
 }
 
 function other() {
