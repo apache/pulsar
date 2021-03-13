@@ -46,7 +46,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializat
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Stat;
-import org.checkerframework.checker.nullness.Opt;
 
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
 
@@ -151,8 +150,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 }), path);
     }
 
-    @Override
-    public CompletableFuture<Void> readModifyUpdate(String path, Function<T, T> modifyFunction) {
+    private CompletableFuture<Void> tryReadCloneModifyUpdate(String path
+            , Function<T, T> modifyFunction, boolean needClone) {
         return executeWithRetry(() -> objCache.get(path)
                 .thenCompose(optEntry -> {
                     if (!optEntry.isPresent()) {
@@ -166,6 +165,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     T newValueObj;
                     byte[] newValue;
                     try {
+                        currentValue = needClone ? serde.deserialize(serde.serialize(currentValue)) : currentValue;
                         newValueObj = modifyFunction.apply(currentValue);
                         newValue = serde.serialize(newValueObj);
                     } catch (Throwable t) {
@@ -178,6 +178,16 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                                 FutureUtils.value(Optional.of(new SimpleImmutableEntry<T, Stat>(newValueObj, stat))));
                     });
                 }), path);
+    }
+
+    @Override
+    public CompletableFuture<Void> readModifyUpdate(String path, Function<T, T> modifyFunction) {
+        return tryReadCloneModifyUpdate(path, modifyFunction, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> readCloneModifyUpdate(String path, Function<T, T> modifyFunction) {
+        return tryReadCloneModifyUpdate(path, modifyFunction, true);
     }
 
     @Override

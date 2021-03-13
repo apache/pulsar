@@ -19,6 +19,9 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -27,10 +30,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
+
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -187,6 +193,57 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
             assertEquals(e.getCause().getClass(), ContentDeserializationException.class);
         }
         assertEquals(objCache.getIfCached(key1), Optional.empty());
+    }
+
+    @Test(dataProvider = "impl")
+    public void testReadClonedModifyUpdate(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        MetadataCache<Policies> objCache = store.getMetadataCache(Policies.class);
+        String path = "/policies";
+        // init cache
+        Policies policies = new Policies();
+        policies.max_unacked_messages_per_consumer = 100;
+        policies.replication_clusters.add("1");
+        objCache.create(path, policies).get();
+
+        Policies tempPolicies = objCache.get(path).get().get();
+        assertSame(tempPolicies, objCache.get(path).get().get());
+        AtomicReference<Policies> reference = new AtomicReference<>(new Policies());
+        AtomicReference<Policies> reference2 = new AtomicReference<>(new Policies());
+        AtomicReference<Policies> reference3 = new AtomicReference<>(new Policies());
+
+        objCache.readModifyUpdate(path, (policies1) -> {
+            assertSame(policies1, tempPolicies);
+            reference.set(policies1);
+            policies1.max_unacked_messages_per_consumer = 200;
+            return policies1;
+        }).get();
+        objCache.readModifyUpdate(path, (policies1) -> {
+            assertSame(policies1, tempPolicies);
+            reference2.set(policies1);
+            policies1.max_unacked_messages_per_consumer = 300;
+            return policies1;
+        }).get();
+        //The original object has been modified
+        assertEquals(tempPolicies.max_unacked_messages_per_consumer.intValue(), 300);
+        assertSame(reference.get(), reference2.get());
+        assertEquals(reference.get().max_unacked_messages_per_consumer
+                , reference2.get().max_unacked_messages_per_consumer);
+
+        //Use readCloneModifyUpdate, the original reference will not be modified
+        objCache.readCloneModifyUpdate(path, (policies1) -> {
+            assertNotSame(policies1, tempPolicies);
+            reference3.set(policies1);
+            policies1.max_unacked_messages_per_consumer = 500;
+            return policies1;
+        }).get();
+        assertEquals(tempPolicies.max_unacked_messages_per_consumer.intValue(), 300);
+        assertNotSame(reference.get(), reference3.get());
+        assertNotEquals(reference.get().max_unacked_messages_per_consumer
+                , reference3.get().max_unacked_messages_per_consumer);
+        assertEquals(reference3.get().max_unacked_messages_per_consumer.intValue(), 500);
     }
 
     @Test(dataProvider = "impl")

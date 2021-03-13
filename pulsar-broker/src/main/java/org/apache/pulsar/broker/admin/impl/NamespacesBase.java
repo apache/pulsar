@@ -97,7 +97,6 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -2522,7 +2521,7 @@ public abstract class NamespacesBase extends AdminResource {
    private void updatePolicies(String path, Function<Policies, Policies> updateFunction) {
        try {
            // Force to read the data s.t. the watch to the cache content is setup.
-           namespaceResources().set(path, pulsar().getOrderedExecutor(), updateFunction);
+           namespaceResources().set(path, updateFunction);
            log.info("[{}] Successfully updated the {} on namespace {}", clientAppId(), path, namespaceName);
        } catch (NotFoundException e) {
            log.warn("[{}] Namespace {}: does not exist", clientAppId(), namespaceName);

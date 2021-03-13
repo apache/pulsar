@@ -104,6 +104,18 @@ public interface MetadataCache<T> {
     CompletableFuture<Void> readModifyUpdate(String path, Function<T, T> modifyFunction);
 
     /**
+     * Perform an atomic read-modify-update of the value.
+     * <p>
+     * And the read value will be cloned to avoid directly modifying the reference.
+     * <p>
+     * The modify function can potentially be called multiple times if there are concurrent updates happening.
+     * @param path
+     * @param modifyFunction
+     * @return
+     */
+    CompletableFuture<Void> readCloneModifyUpdate(String path, Function<T, T> modifyFunction);
+
+    /**
      * Create a new object in the metadata store.
      * <p>
      * This operation will make sure to keep the cache consistent.
