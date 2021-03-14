@@ -71,22 +71,28 @@
               </exclusion>
             </exclusions>
         </dependency>
+
+        <dependency>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-codec-http</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-server</artifactId>
-            <version>${org.eclipse.jetty-hdfs-offload}</version>
+            <version>${jetty.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-servlet</artifactId>
-            <version>${org.eclipse.jetty-hdfs-offload}</version>
+            <version>${jetty.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-util</artifactId>
-            <version>${org.eclipse.jetty-hdfs-offload}</version>
+            <version>${jetty.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
