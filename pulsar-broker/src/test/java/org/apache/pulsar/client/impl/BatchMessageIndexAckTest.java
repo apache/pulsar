@@ -51,6 +51,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 
 @Slf4j
+@Test(groups = "broker-impl")
 public class BatchMessageIndexAckTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -245,7 +246,8 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
-    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled) throws
+            PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";
 
         @Cleanup

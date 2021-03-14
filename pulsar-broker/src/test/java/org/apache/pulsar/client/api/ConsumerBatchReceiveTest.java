@@ -32,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "flaky")
 public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -325,39 +326,57 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize, boolean isEnableAckReceipt) throws Exception {
+    public void testBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy,
+                                                    boolean batchProduce,
+                                                    int receiverQueueSize,
+                                                    boolean isEnableAckReceipt) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-non-partition-" + UUID.randomUUID();
         testBatchReceive(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize, boolean isEnableAckReceipt) throws Exception {
+    public void testBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy,
+                                                 boolean batchProduce,
+                                                 int receiverQueueSize,
+                                                 boolean isEnableAckReceipt) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         testBatchReceive(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testAsyncBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize, boolean isEnableAckReceipt) throws Exception {
+    public void testAsyncBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy,
+                                                         boolean batchProduce,
+                                                         int receiverQueueSize,
+                                                         boolean isEnableAckReceipt) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-non-partition-async-" + UUID.randomUUID();
         testBatchReceiveAsync(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testAsyncBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize, boolean isEnableAckReceipt) throws Exception {
+    public void testAsyncBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy,
+                                                      boolean batchProduce,
+                                                      int receiverQueueSize,
+                                                      boolean isEnableAckReceipt) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-async-" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         testBatchReceiveAsync(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testBatchReceiveAndRedeliveryNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize, boolean isEnableAckReceipt) throws Exception {
+    public void testBatchReceiveAndRedeliveryNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy,
+                                                                 boolean batchProduce,
+                                                                 int receiverQueueSize,
+                                                                 boolean isEnableAckReceipt) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-and-redelivery-non-partition-" + UUID.randomUUID();
         testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testBatchReceiveAndRedeliveryPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize, boolean isEnableAckReceipt) throws Exception {
+    public void testBatchReceiveAndRedeliveryPartitionedTopic(BatchReceivePolicy batchReceivePolicy,
+                                                              boolean batchProduce,
+                                                              int receiverQueueSize,
+                                                              boolean isEnableAckReceipt) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-and-redelivery-" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
@@ -385,7 +404,9 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
     }
 
 
-    private void receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(Consumer<String> consumer, BatchReceivePolicy batchReceivePolicy, int numOfExpectedBatches) throws PulsarClientException {
+    private void receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(Consumer<String> consumer,
+                                                                            BatchReceivePolicy batchReceivePolicy,
+                                                                            int numOfExpectedBatches) throws PulsarClientException {
         Messages<String> messages;
         for (int i = 0; i < numOfExpectedBatches; i++) {
             messages = consumer.batchReceive();
@@ -415,7 +436,11 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         batchReceiveAndCheck(consumer, 100);
     }
 
-    private void testBatchReceiveAsync(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize, boolean isEnableAckReceipt) throws Exception {
+    private void testBatchReceiveAsync(String topic,
+                                       BatchReceivePolicy batchReceivePolicy,
+                                       boolean batchProduce,
+                                       int receiverQueueSize,
+                                       boolean isEnableAckReceipt) throws Exception {
         if (batchReceivePolicy.getTimeoutMs() <= 0) {
             return;
         }
@@ -444,7 +469,11 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         latch.await();
     }
 
-    private void testBatchReceiveAndRedelivery(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize, boolean isEnableAckReceipt) throws Exception {
+    private void testBatchReceiveAndRedelivery(String topic,
+                                               BatchReceivePolicy batchReceivePolicy,
+                                               boolean batchProduce,
+                                               int receiverQueueSize,
+                                               boolean isEnableAckReceipt) throws Exception {
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
         if (!batchProduce) {
             producerBuilder.enableBatching(false);
