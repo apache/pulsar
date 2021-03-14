@@ -37,6 +37,8 @@ import io.prestosql.spi.type.VarcharType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+
+import org.apache.pulsar.client.impl.schema.AbstractAutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -60,7 +62,7 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
     public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo,
                                              Set<DecoderColumnHandle> columns) {
         if (columns.size() == 1) {
-            return new PulsarPrimitiveRowDecoder((AbstractSchema<?>) AutoConsumeSchema.getSchema(schemaInfo),
+            return new PulsarPrimitiveRowDecoder((AbstractSchema<?>) AbstractAutoConsumeSchema.getSchema(schemaInfo),
                     columns.iterator().next());
         } else {
             throw new RuntimeException("Primitive type must has only one ColumnHandle.");

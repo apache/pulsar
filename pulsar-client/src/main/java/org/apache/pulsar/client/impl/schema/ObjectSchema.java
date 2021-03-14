@@ -20,119 +20,12 @@ package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
-import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
-import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.SchemaInfo;
-
-import java.util.concurrent.ExecutionException;
-
-import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Auto detect schema.
  */
 @Slf4j
-public class ObjectSchema implements Schema<Object> {
-
-    private Schema<Object> schema;
-
-    private String topicName;
-
-    private String componentName;
-
-    private SchemaInfoProvider schemaInfoProvider;
-
-    public void setSchema(Schema<Object> schema) {
-        this.schema = schema;
-    }
-
-    private void ensureSchemaInitialized() {
-        checkState(null != schema, "Schema is not initialized before used");
-    }
-
-    @Override
-    public void validate(byte[] message) {
-        ensureSchemaInitialized();
-
-        schema.validate(message);
-    }
-
-    @Override
-    public boolean supportSchemaVersioning() {
-        return true;
-    }
-
-    @Override
-    public byte[] encode(Object message) {
-        ensureSchemaInitialized();
-
-        return schema.encode(message);
-    }
-
-    @Override
-    public Object decode(byte[] bytes, byte[] schemaVersion) {
-        if (schema == null) {
-            SchemaInfo schemaInfo = null;
-            try {
-                schemaInfo = schemaInfoProvider.getLatestSchema().get();
-            } catch (InterruptedException | ExecutionException e ) {
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-                log.error("Con't get last schema for topic {} use AutoConsumeSchema", topicName);
-                throw new SchemaSerializationException(e.getCause());
-            }
-            schema = generateSchema(schemaInfo);
-            schema.setSchemaInfoProvider(schemaInfoProvider);
-            log.info("Configure {} schema for topic {} : {}",
-                    componentName, topicName, schemaInfo.getSchemaDefinition());
-        }
-        ensureSchemaInitialized();
-        return schema.decode(bytes, schemaVersion);
-    }
-
-    @Override
-    public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
-        if (schema == null) {
-            this.schemaInfoProvider = schemaInfoProvider;
-        } else {
-            schema.setSchemaInfoProvider(schemaInfoProvider);
-        }
-    }
-
-    @Override
-    public SchemaInfo getSchemaInfo() {
-        if (schema == null) {
-            return null;
-        }
-        return schema.getSchemaInfo();
-    }
-
-    @Override
-    public boolean requireFetchingSchemaInfo() {
-        return true;
-    }
-
-    @Override
-    public void configureSchemaInfo(String topicName,
-                                    String componentName,
-                                    SchemaInfo schemaInfo) {
-        this.topicName = topicName;
-        this.componentName = componentName;
-        if (schemaInfo != null) {
-            Schema<Object> genericSchema = generateSchema(schemaInfo);
-            setSchema(genericSchema);
-            log.info("Configure {} schema for topic {} : {}",
-                    componentName, topicName, schemaInfo.getSchemaDefinition());
-        }
-    }
+public class ObjectSchema extends AbstractAutoConsumeSchema<Object> {
 
     @Override
     public Schema<Object> clone() {
@@ -146,21 +39,6 @@ public class ObjectSchema implements Schema<Object> {
             schema.setSchemaInfoProvider(schemaInfoProvider);
         }
         return schema;
-    }
-
-    private Schema<Object> generateSchema(SchemaInfo schemaInfo) {
-        // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
-        // to decode the messages.
-        final boolean useProvidedSchemaAsReaderSchema = false;
-        switch (schemaInfo.getType()) {
-            case JSON:
-            case AVRO:
-                return (Schema) GenericSchemaImpl.of(schemaInfo, useProvidedSchemaAsReaderSchema);
-            case PROTOBUF_NATIVE:
-                return (Schema)GenericProtobufNativeSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
-            default:
-                return (Schema) AutoConsumeSchema.getSchema(schemaInfo);
-        }
     }
 
 }
