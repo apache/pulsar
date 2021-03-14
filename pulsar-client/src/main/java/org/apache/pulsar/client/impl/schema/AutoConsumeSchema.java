@@ -42,4 +42,9 @@ public class AutoConsumeSchema extends AbstractAutoConsumeSchema<GenericRecord> 
         return schema;
     }
 
+    @Override
+    public boolean requireFetchingSchemaInfo() {
+        return true;
+    }
+
 }
