@@ -140,6 +140,7 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-cassandra</artifactId>
       <version>${project.version}</version>
+      <type>pom</type>
       <scope>test</scope>
     </dependency>
 
@@ -147,6 +148,15 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-twitter</artifactId>
       <version>${project.version}</version>
+      <type>pom</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-api-examples</artifactId>
+      <version>${project.version}</version>
+      <type>pom</type>
       <scope>test</scope>
     </dependency>
 
@@ -154,7 +164,75 @@
 
   <build>
     <plugins>
-      <!-- this task will copy nar files and config files to resources for the test to work -->
+      <plugin>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-pulsar-io-connectors</id>
+            <phase>generate-test-resources</phase>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>pulsar-io-cassandra</artifactId>
+                  <version>${project.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${project.build.directory}</outputDirectory>
+                  <destFileName>pulsar-io-cassandra.nar</destFileName>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>pulsar-io-twitter</artifactId>
+                  <version>${project.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${project.build.directory}</outputDirectory>
+                  <destFileName>pulsar-io-twitter.nar</destFileName>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>pulsar-functions-api-examples</artifactId>
+                  <version>${project.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${project.build.directory}</outputDirectory>
+                  <destFileName>pulsar-functions-api-examples.jar</destFileName>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <pulsar-io-data-generator.nar.path>${project.build.directory}/pulsar-io-data-generator.nar</pulsar-io-data-generator.nar.path>
+            <pulsar-functions-api-examples.jar.path>${project.build.directory}/pulsar-functions-api-examples.jar</pulsar-functions-api-examples.jar.path>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <pulsar-io-cassandra.nar.path>${project.build.directory}/pulsar-io-cassandra.nar</pulsar-io-cassandra.nar.path>
+            <pulsar-io-twitter.nar.path>${project.build.directory}/pulsar-io-twitter.nar</pulsar-io-twitter.nar.path>
+            <!-- valid jar file that is not a valid nar file -->
+            <pulsar-io-invalid.nar.path>${project.build.directory}/pulsar-functions-api-examples.jar</pulsar-io-invalid.nar.path>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <!-- this task will copy config files to resources for the test to work -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
@@ -166,14 +244,6 @@
             </goals>
             <configuration>
               <target>
-                <echo>copy test sink package</echo>
-                <mkdir dir="${basedir}/src/test/resources"/>
-                <copy file="${basedir}/../../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar"
-                      tofile="${basedir}/src/test/resources/pulsar-io-cassandra.nar"/>
-                <echo>copy test source package</echo>
-                <mkdir dir="${basedir}/src/test/resources"/>
-                <copy file="${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar"
-                      tofile="${basedir}/src/test/resources/pulsar-io-twitter.nar"/>
                 <echo>copy test config files</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
                 <copy todir="${basedir}/src/test/resources/">

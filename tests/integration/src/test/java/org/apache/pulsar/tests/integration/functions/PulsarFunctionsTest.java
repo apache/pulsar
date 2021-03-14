@@ -24,7 +24,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.gson.Gson;
-
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -35,7 +34,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.failsafe.Failsafe;
@@ -93,6 +91,7 @@ import org.apache.pulsar.tests.integration.io.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.assertj.core.api.Assertions;
+import org.awaitility.Awaitility;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.shaded.com.google.common.collect.Sets;
 import org.testng.annotations.Test;
@@ -570,10 +569,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             result.getStdout().contains("Deleted successfully"),
             result.getStdout()
         );
-        assertTrue(
-            result.getStderr().isEmpty(),
-            result.getStderr()
-        );
+        result.assertNoStderr();
     }
 
     protected void getSinkInfoNotFound(String tenant, String namespace, String sinkName) throws Exception {
@@ -843,10 +839,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             result.getStdout().contains("Delete source successfully"),
             result.getStdout()
         );
-        assertTrue(
-            result.getStderr().isEmpty(),
-            result.getStderr()
-        );
+        result.assertNoStderr();
     }
 
     protected void getSourceInfoNotFound(String tenant, String namespace, String sourceName) throws Exception {
@@ -1647,8 +1640,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // update parallelism
         updateFunctionParallelism(functionName, 2);
 
-        //get function status
-        getFunctionStatus(functionName, 0, true, 2);
+        Awaitility.await()
+                .pollInterval(Duration.ofMillis(500L))
+                .ignoreExceptions()
+                .untilAsserted(() ->
+                //get function status
+                getFunctionStatus(functionName, 0, true, 2)
+        );
 
         // delete function
         deleteFunction(functionName);
@@ -2152,7 +2150,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             "--name", functionName
         );
         assertTrue(result.getStdout().contains("Deleted successfully"));
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoStderr();
     }
 
     @Test(groups = "function")

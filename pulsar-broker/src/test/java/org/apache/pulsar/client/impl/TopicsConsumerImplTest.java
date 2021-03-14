@@ -1172,6 +1172,34 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = testTimeout)
+    public void testAutoDiscoverMultiTopicsPartitions() throws Exception {
+        final String topicName = "persistent://public/default/issue-9585";
+        admin.topics().createPartitionedTopic(topicName, 3);
+        PatternMultiTopicsConsumerImpl<String> consumer = (PatternMultiTopicsConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern(topicName)
+                .subscriptionName("sub-issue-9585")
+                .subscribe();
+
+        Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 3);
+        Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 3);
+
+        admin.topics().deletePartitionedTopic(topicName, true);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 0);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 0);
+        });
+
+        admin.topics().createPartitionedTopic(topicName, 7);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 7);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 7);
+        });
+    }
+
+
+    @Test(timeOut = testTimeout)
     public void testPartitionsUpdatesForMultipleTopics() throws Exception {
         final String topicName0 = "persistent://public/default/testPartitionsUpdatesForMultipleTopics-0";
         final String subName = "my-sub";

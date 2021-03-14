@@ -18,8 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
+import static org.testng.Assert.assertEquals;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -37,9 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class BufferedOffloadStreamTest {
     final Random random = new Random();
@@ -74,8 +71,8 @@ public class BufferedOffloadStreamTest {
         ByteStreams.readFully(inputStream, headerB);
         StreamingDataBlockHeaderImpl headerRead = StreamingDataBlockHeaderImpl
                 .fromStream(new ByteArrayInputStream(headerB));
-        Assert.assertEquals(headerRead.getBlockLength(), blockSize);
-        Assert.assertEquals(headerRead.getFirstEntryId(), 0);
+        assertEquals(headerRead.getBlockLength(), blockSize);
+        assertEquals(headerRead.getFirstEntryId(), 0);
 
         int left = blockSize - DataBlockHeaderImpl.getDataStartOffset();
         for (int i = 0; i < entryCount; i++) {
@@ -87,9 +84,9 @@ public class BufferedOffloadStreamTest {
             inputStream.read(lengthBuf);
             inputStream.read(entryIdBuf);
             inputStream.read(content);
-            Assert.assertEquals(entries.get(i).getLength(), Ints.fromByteArray(lengthBuf));
-            Assert.assertEquals(i, Longs.fromByteArray(entryIdBuf));
-            assertArrayEquals(entries.get(i).getData(), content);
+            assertEquals(entries.get(i).getLength(), Ints.fromByteArray(lengthBuf));
+            assertEquals(i, Longs.fromByteArray(entryIdBuf));
+            assertEquals(entries.get(i).getData(), content);
         }
         assertEquals(left, paddingLen);
         byte padding[] = new byte[left];
@@ -97,13 +94,13 @@ public class BufferedOffloadStreamTest {
 
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
         for (int i = 0; i < paddingBuf.capacity() / 4; i++) {
-            Assert.assertEquals(Integer.toHexString(paddingBuf.readInt()),
+            assertEquals(Integer.toHexString(paddingBuf.readInt()),
                     Integer.toHexString(0xFEDCDEAD));
         }
 
         // 4. reach end.
-        Assert.assertEquals(inputStream.read(), -1);
-        Assert.assertEquals(inputStream.read(), -1);
+        assertEquals(inputStream.read(), -1);
+        assertEquals(inputStream.read(), -1);
         inputStream.close();
 
     }
@@ -118,7 +115,7 @@ public class BufferedOffloadStreamTest {
         testWithPadding(0);
     }
 
-    @Ignore("Disable because let offloader to ensure there is no another ledger id")
+    @Test(enabled = false, description = "Disable because let offloader to ensure there is no another ledger id")
     public void shouldEndWhenSegmentChanged() throws IOException {
         int blockSize = StreamingDataBlockHeaderImpl.getDataStartOffset();
         int paddingLen = 10;
@@ -159,8 +156,8 @@ public class BufferedOffloadStreamTest {
         ByteStreams.readFully(inputStream, headerB);
         StreamingDataBlockHeaderImpl headerRead = StreamingDataBlockHeaderImpl
                 .fromStream(new ByteArrayInputStream(headerB));
-        Assert.assertEquals(headerRead.getBlockLength(), blockSize);
-        Assert.assertEquals(headerRead.getFirstEntryId(), 0);
+        assertEquals(headerRead.getBlockLength(), blockSize);
+        assertEquals(headerRead.getFirstEntryId(), 0);
 
         int left = blockSize - DataBlockHeaderImpl.getDataStartOffset();
         for (int i = 0; i < entryCount; i++) {
@@ -172,9 +169,9 @@ public class BufferedOffloadStreamTest {
             inputStream.read(lengthBuf);
             inputStream.read(entryIdBuf);
             inputStream.read(content);
-            Assert.assertEquals(entries.get(i).getLength(), Ints.fromByteArray(lengthBuf));
-            Assert.assertEquals(i, Longs.fromByteArray(entryIdBuf));
-            assertArrayEquals(entries.get(i).getData(), content);
+            assertEquals(entries.get(i).getLength(), Ints.fromByteArray(lengthBuf));
+            assertEquals(i, Longs.fromByteArray(entryIdBuf));
+            assertEquals(entries.get(i).getData(), content);
         }
         assertEquals(left, paddingLen);
         byte padding[] = new byte[left];
@@ -182,13 +179,13 @@ public class BufferedOffloadStreamTest {
 
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
         for (int i = 0; i < paddingBuf.capacity() / 4; i++) {
-            Assert.assertEquals(Integer.toHexString(paddingBuf.readInt()),
+            assertEquals(Integer.toHexString(paddingBuf.readInt()),
                     Integer.toHexString(0xFEDCDEAD));
         }
 
         // 4. reach end.
-        Assert.assertEquals(inputStream.read(), -1);
-        Assert.assertEquals(inputStream.read(), -1);
+        assertEquals(inputStream.read(), -1);
+        assertEquals(inputStream.read(), -1);
         inputStream.close();
 
         assertEquals(entryBuffer.size(), 1);

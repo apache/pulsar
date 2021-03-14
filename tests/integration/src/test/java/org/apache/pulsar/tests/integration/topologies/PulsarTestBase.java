@@ -34,7 +34,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.junit.Assert;
+import org.testng.Assert;
 
 public class PulsarTestBase {
 

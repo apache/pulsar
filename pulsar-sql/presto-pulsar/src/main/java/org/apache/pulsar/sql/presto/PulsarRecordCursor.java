@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
@@ -441,9 +442,11 @@ public class PulsarRecordCursor implements RecordCursor {
         //start time for deseralizing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
-        SchemaInfo schemaInfo;
+        SchemaInfo schemaInfo = getBytesSchemaInfo(pulsarSplit.getSchemaType(), pulsarSplit.getSchemaName());
         try {
-            schemaInfo =  schemaInfoProvider.getSchemaByVersion(this.currentMessage.getSchemaVersion()).get();
+            if (schemaInfo == null) {
+                schemaInfo =  schemaInfoProvider.getSchemaByVersion(this.currentMessage.getSchemaVersion()).get();
+            }
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
@@ -560,6 +563,18 @@ public class PulsarRecordCursor implements RecordCursor {
         return true;
     }
 
+    private SchemaInfo getBytesSchemaInfo(SchemaType schemaType, String schemaName) {
+        if (!schemaType.equals(SchemaType.BYTES) && !schemaType.equals(SchemaType.NONE)) {
+            return null;
+        }
+        if (schemaName.equals(Schema.BYTES.getSchemaInfo().getName())) {
+            return Schema.BYTES.getSchemaInfo();
+        } else if (schemaName.equals(Schema.BYTEBUFFER.getSchemaInfo().getName())) {
+            return Schema.BYTEBUFFER.getSchemaInfo();
+        } else {
+            return Schema.BYTES.getSchemaInfo();
+        }
+    }
 
     @Override
     public boolean getBoolean(int field) {

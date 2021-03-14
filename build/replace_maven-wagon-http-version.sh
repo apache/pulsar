@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash -xe
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,7 +18,11 @@
 # under the License.
 #
 
-set -x
+# patches installed maven version to get fix for https://issues.apache.org/jira/browse/HTTPCORE-634
 
-WHEEL_FILE=$(ls /pulsar/pulsar-client | grep cp27)
-pip2 install /pulsar/pulsar-client/${WHEEL_FILE}
+MAVEN_HOME=$(mvn -v |grep 'Maven home:' | awk '{ print $3 }')
+if [ -d "$MAVEN_HOME" ]; then
+  cd "$MAVEN_HOME/lib"
+  rm wagon-http-*-shaded.jar
+  curl -O https://repo1.maven.org/maven2/org/apache/maven/wagon/wagon-http/3.4.3/wagon-http-3.4.3-shaded.jar
+fi

@@ -70,20 +70,35 @@ class my_build_ext(build_ext.build_ext):
                 raise
         shutil.copyfile('_pulsar.so', self.get_ext_fullpath(ext.name))
 
-
+# Core Client dependencies
 dependencies = [
-    'fastavro==0.24.0',
-    'grpcio<1.28,>=1.8.2',
-    'protobuf>=3.6.1',
     'six',
     'certifi',
-    'enum34>=1.1.9; python_version < "3.4"',
-
-    # functions dependencies
-    "apache-bookkeeper-client>=4.9.2",
-    "prometheus_client",
-    "ratelimit"
+    'enum34>=1.1.9; python_version < "3.4"'
 ]
+
+extras_require = {}
+
+# functions dependencies
+extras_require["functions"] = sorted(
+    {
+      "protobuf>=3.6.1",
+      "grpcio<1.28,>=1.8.2",
+      "apache-bookkeeper-client>=4.9.2",
+      "prometheus_client",
+      "ratelimit"
+    }
+)
+
+# avro dependencies
+extras_require["avro"] = sorted(
+    {
+      "fastavro==0.24.0"
+    }
+)
+
+# all dependencies
+extras_require["all"] = sorted(set(sum(extras_require.values(), [])))
 
 setup(
     name=NAME,
@@ -98,4 +113,5 @@ setup(
     license="Apache License v2.0",
     url="https://pulsar.apache.org/",
     install_requires=dependencies,
+    extras_require=extras_require,
 )
