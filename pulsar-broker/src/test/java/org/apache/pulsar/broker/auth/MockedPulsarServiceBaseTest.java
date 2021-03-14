@@ -308,7 +308,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
     }
 
-    public TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
+    protected TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
         // create local cluster if not exist
         if (!admin.clusters().getClusters().contains(configClusterName)) {
             admin.clusters().createCluster(configClusterName, new ClusterData());
