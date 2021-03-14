@@ -85,7 +85,17 @@ class PULSAR_PUBLIC ProducerConfiguration {
     ProducerConfiguration(const ProducerConfiguration&);
     ProducerConfiguration& operator=(const ProducerConfiguration&);
 
+    /**
+     * Set the producer name which could be assigned by the system or specified by the client.
+     *
+     * @param producerName producer name.
+     * @return
+     */
     ProducerConfiguration& setProducerName(const std::string& producerName);
+
+    /**
+     * The getter associated with setProducerName().
+     */
     const std::string& getProducerName() const;
 
     /**
@@ -124,7 +134,20 @@ class PULSAR_PUBLIC ProducerConfiguration {
      */
     int getSendTimeout() const;
 
+    /**
+     * Set the baseline of the sequence ID for messages published by the producer.
+     * <p>
+     * The first message uses (initialSequenceId + 1) as its sequence ID and subsequent messages are assigned
+     * incremental sequence IDs.
+     *
+     * @param initialSequenceId the initial sequence ID for the producer.
+     * @return
+     */
     ProducerConfiguration& setInitialSequenceId(int64_t initialSequenceId);
+
+    /**
+     * The getter associated with setInitialSequenceId().
+     */
     int64_t getInitialSequenceId() const;
 
     /**
@@ -143,9 +166,26 @@ class PULSAR_PUBLIC ProducerConfiguration {
      * </ul>
      */
     ProducerConfiguration& setCompressionType(CompressionType compressionType);
+
+    /**
+     * The getter associated with setCompressionType().
+     */
     CompressionType getCompressionType() const;
 
+    /**
+     * Set the max size of the queue holding the messages pending to receive an acknowledgment from the
+     * broker. <p> When the queue is full, by default, all calls to Producer::send and Producer::sendAsync
+     * would fail unless blockIfQueueFull is set to true. Use {@link #setBlockIfQueueFull} to change the
+     * blocking behavior.
+     *
+     * @param maxPendingMessages max number of pending messages.
+     * @return
+     */
     ProducerConfiguration& setMaxPendingMessages(int maxPendingMessages);
+
+    /**
+     * The getter associated with setMaxPendingMessages().
+     */
     int getMaxPendingMessages() const;
 
     /**
@@ -159,18 +199,57 @@ class PULSAR_PUBLIC ProducerConfiguration {
     ProducerConfiguration& setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
 
     /**
-     *
      * @return the maximum number of pending messages allowed across all the partitions
      */
     int getMaxPendingMessagesAcrossPartitions() const;
 
+    /**
+     * Set the message routing modes for partitioned topics.
+     *
+     * @param PartitionsRoutingMode partition routing mode.
+     * @return
+     */
     ProducerConfiguration& setPartitionsRoutingMode(const PartitionsRoutingMode& mode);
+
+    /**
+     * The getter associated with setPartitionsRoutingMode().
+     */
     PartitionsRoutingMode getPartitionsRoutingMode() const;
 
+    /**
+     * Set a custom message routing policy by passing an implementation of MessageRouter.
+     *
+     * @param messageRouter message router.
+     * @return
+     */
     ProducerConfiguration& setMessageRouter(const MessageRoutingPolicyPtr& router);
+
+    /**
+     * The getter associated with setMessageRouter().
+     */
     const MessageRoutingPolicyPtr& getMessageRouterPtr() const;
 
+    /**
+     * Set the hashing scheme, which is a standard hashing function available when choosing the partition
+     * used for a particular message.
+     *
+     * <p>Standard hashing functions available are:
+     * <ul>
+     * <li>{@link HashingScheme::JavaStringHash}: Java {@code String.hashCode()} (Default).
+     * <li>{@link HashingScheme::BoostHash}: Use [Boost hashing
+     * function](https://www.boost.org/doc/libs/1_72_0/doc/html/boost/hash.html).
+     * <li>{@link HashingScheme::Murmur3_32Hash}: Use [Murmur3 hashing
+     * function](https://en.wikipedia.org/wiki/MurmurHash").
+     * </ul>
+     *
+     * @param scheme hashing scheme.
+     * @return
+     */
     ProducerConfiguration& setHashingScheme(const HashingScheme& scheme);
+
+    /**
+     * The getter associated with setHashingScheme().
+     */
     HashingScheme getHashingScheme() const;
 
     /**
@@ -185,29 +264,120 @@ class PULSAR_PUBLIC ProducerConfiguration {
     bool getBlockIfQueueFull() const;
 
     // Zero queue size feature will not be supported on consumer end if batching is enabled
+
+    /**
+     * Control whether automatic batching of messages is enabled or not for the producer. <i>Default value:
+     * false (no automatic batching).</i>
+     *
+     * When automatic batching is enabled, multiple calls to Producer::sendAsync can result in a single batch
+     * to be sent to the broker, leading to better throughput, especially when publishing small messages. If
+     * compression is enabled, messages are compressed at the batch level, leading to a much better
+     * compression ratio for similar headers or contents.
+     *
+     * When the default batch delay is set to 10 ms and the default batch size is 1000 messages.
+     *
+     * @see ProducerConfiguration::setBatchingMaxPublishDelayMs
+     *
+     */
     ProducerConfiguration& setBatchingEnabled(const bool& batchingEnabled);
+
+    /**
+     * Return the flag whether automatic message batching is enabled or not for the producer.
+     *
+     * @return true if automatic message batching is enabled. Otherwise it returns false.
+     * @since 2.0.0 <br>
+     *        It is enabled by default.
+     */
     const bool& getBatchingEnabled() const;
 
+    /**
+     * Set the max number of messages permitted in a batch. <i>Default value: 1000.</i> If you set this option
+     * to a value greater than 1, messages are queued until this threshold is reached or batch interval has
+     * elapsed.
+     *
+     * All messages in a batch are published as
+     *      a single batch message. The consumer is delivered individual messages in the batch in the same
+     * order they are enqueued.
+     * @param batchMessagesMaxMessagesPerBatch max number of messages permitted in a batch
+     * @return
+     */
     ProducerConfiguration& setBatchingMaxMessages(const unsigned int& batchingMaxMessages);
+
+    /**
+     * The getter associated with setBatchingMaxMessages().
+     */
     const unsigned int& getBatchingMaxMessages() const;
 
+    /**
+     * Set the max size of messages permitted in a batch.
+     * <i>Default value: 128 KB.</i> If you set this option to a value greater than 1,
+     * messages are queued until this threshold is reached or
+     * batch interval has elapsed.
+     *
+     * <p>All messages in a batch are published as a single batch message.
+     * The consumer is delivered individual
+     * messages in the batch in the same order they are enqueued.
+     *
+     * @param batchingMaxAllowedSizeInBytes
+     */
     ProducerConfiguration& setBatchingMaxAllowedSizeInBytes(
         const unsigned long& batchingMaxAllowedSizeInBytes);
+
+    /**
+     * The getter associated with setBatchingMaxAllowedSizeInBytes().
+     */
     const unsigned long& getBatchingMaxAllowedSizeInBytes() const;
 
+    /**
+     * Set the max time for message publish delay permitted in a batch.
+     * <i>Default value: 10 ms.</i>
+     *
+     * @param batchingMaxPublishDelayMs max time for message publish delay permitted in a batch.
+     * @return
+     */
     ProducerConfiguration& setBatchingMaxPublishDelayMs(const unsigned long& batchingMaxPublishDelayMs);
+
+    /**
+     * The getter associated with setBatchingMaxPublishDelayMs().
+     */
     const unsigned long& getBatchingMaxPublishDelayMs() const;
 
     /**
      * @see BatchingType
      */
     ProducerConfiguration& setBatchingType(BatchingType batchingType);
+
+    /**
+     * @return batching type.
+     * @see BatchingType.
+     */
     BatchingType getBatchingType() const;
 
+    /**
+     * The getter associated with setCryptoKeyReader().
+     */
     const CryptoKeyReaderPtr getCryptoKeyReader() const;
+
+    /**
+     * Set the shared pointer to CryptoKeyReader.
+     *
+     * @param shared pointer to CryptoKeyReader.
+     * @return
+     */
     ProducerConfiguration& setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
 
+    /**
+     * The getter associated with setCryptoFailureAction().
+     */
     ProducerCryptoFailureAction getCryptoFailureAction() const;
+
+    /**
+     * Sets the ProducerCryptoFailureAction to the value specified.
+     *
+     * @param action
+     *            the action taken by the producer in case of encryption failures.
+     * @return
+     */
     ProducerConfiguration& setCryptoFailureAction(ProducerCryptoFailureAction action);
 
     /**

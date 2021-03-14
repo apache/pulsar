@@ -563,6 +563,15 @@ public class Namespaces extends NamespacesBase {
         internalSetTopicDispatchRate(dispatchRate);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/dispatchRate")
+    @ApiOperation(value = "Delete dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deleteDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeleteTopicDispatchRate();
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/dispatchRate")
     @ApiOperation(value = "Get dispatch-rate configured for the namespace, -1 represents not configured yet")

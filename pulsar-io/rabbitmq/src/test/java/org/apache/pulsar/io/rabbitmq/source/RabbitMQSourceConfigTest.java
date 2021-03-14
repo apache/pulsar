@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 
 /**
@@ -52,8 +53,8 @@ public class RabbitMQSourceConfigTest {
         assertEquals(Integer.parseInt("10000"), config.getHandshakeTimeout());
         assertEquals(Integer.parseInt("60"), config.getRequestedHeartbeat());
         assertEquals(Integer.parseInt("0"), config.getPrefetchCount());
-        assertEquals(Boolean.parseBoolean("false"), config.isPrefetchGlobal());
-        assertEquals(Boolean.parseBoolean("false"), config.isPassive());
+        assertFalse(config.isPrefetchGlobal());
+        assertFalse(config.isPassive());
     }
 
     @Test
@@ -90,9 +91,9 @@ public class RabbitMQSourceConfigTest {
         assertEquals(Integer.parseInt("10000"), config.getHandshakeTimeout());
         assertEquals(Integer.parseInt("60"), config.getRequestedHeartbeat());
         assertEquals(Integer.parseInt("0"), config.getPrefetchCount());
-        assertEquals(Boolean.parseBoolean("false"), config.isPrefetchGlobal());
-        assertEquals(Boolean.parseBoolean("false"), config.isPrefetchGlobal());
-        assertEquals(Boolean.parseBoolean("true"), config.isPassive());
+        assertEquals(false, config.isPrefetchGlobal());
+        assertEquals(false, config.isPrefetchGlobal());
+        assertEquals(true, config.isPassive());
     }
 
     @Test

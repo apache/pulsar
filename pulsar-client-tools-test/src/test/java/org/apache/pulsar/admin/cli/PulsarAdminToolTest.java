@@ -560,6 +560,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-dispatch-rate myprop/clust/ns1"));
         verify(mockNamespaces).getDispatchRate("myprop/clust/ns1");
 
+        namespaces.run(split("remove-dispatch-rate myprop/clust/ns1"));
+        verify(mockNamespaces).removeDispatchRate("myprop/clust/ns1");
+
         namespaces.run(split("set-publish-rate myprop/clust/ns1 -m 10 -b 20"));
         verify(mockNamespaces).setPublishRate("myprop/clust/ns1", new PublishRate(10, 20));
 
@@ -940,6 +943,13 @@ public class PulsarAdminToolTest {
                 new RetentionPolicies(10, 20));
         cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeRetention("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-dispatch-rate persistent://myprop/clust/ns1/ds1 -ap"));
+        verify(mockTopics).getDispatchRate("persistent://myprop/clust/ns1/ds1", true);
+        cmdTopics.run(split("remove-dispatch-rate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeRetention("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2"));
+        verify(mockTopics).setDispatchRate("persistent://myprop/clust/ns1/ds1", new DispatchRate(-1, -1, 2));
 
         cmdTopics.run(split("get-max-producers persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getMaxProducers("persistent://myprop/clust/ns1/ds1", false);

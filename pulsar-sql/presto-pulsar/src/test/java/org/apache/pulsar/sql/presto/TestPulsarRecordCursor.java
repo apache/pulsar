@@ -55,6 +55,7 @@ import java.util.Map;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -311,8 +312,8 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                     public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                         Object[] args = invocationOnMock.getArguments();
                         Integer readEntries = (Integer) args[0];
-                        AsyncCallbacks.ReadEntriesCallback callback = (AsyncCallbacks.ReadEntriesCallback) args[1];
-                        Object ctx = args[2];
+                        AsyncCallbacks.ReadEntriesCallback callback = (AsyncCallbacks.ReadEntriesCallback) args[2];
+                        Object ctx = args[3];
 
                         new Thread(new Runnable() {
                             @Override
@@ -349,7 +350,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
                         return null;
                     }
-                }).when(readOnlyCursor).asyncReadEntries(anyInt(), any(), any(), any());
+                }).when(readOnlyCursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
 
                 when(readOnlyCursor.hasMoreEntries()).thenAnswer(new Answer<Boolean>() {
                     @Override
