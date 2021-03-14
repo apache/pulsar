@@ -41,12 +41,11 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker-api")
 public class ClientErrorsTest {
 
     MockBrokerService mockBrokerService;
-    private static int ASYNC_EVENT_COMPLETION_WAIT = 100;
+    private static final int ASYNC_EVENT_COMPLETION_WAIT = 100;
 
     private final String ASSERTION_ERROR = "AssertionError";
 
@@ -56,13 +55,13 @@ public class ClientErrorsTest {
         mockBrokerService.start();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterClass(alwaysRun = true, groups = "broker-api")
     public void teardown() {
         mockBrokerService.stop();
     }
 
     @Test
-    public void testMockBrokerService() throws Exception {
+    public void testMockBrokerService() {
         // test default actions of mock broker service
         try {
             PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
@@ -563,7 +562,7 @@ public class ClientErrorsTest {
     }
 
     // Run this test multiple times to reproduce race conditions on reconnection logic
-    @Test(invocationCount = 10)
+    @Test(invocationCount = 10, groups = "broker-api")
     public void testProducerReconnect() throws Exception {
         AtomicInteger numOfConnections = new AtomicInteger();
         AtomicReference<ChannelHandlerContext> channelCtx = new AtomicReference<>();

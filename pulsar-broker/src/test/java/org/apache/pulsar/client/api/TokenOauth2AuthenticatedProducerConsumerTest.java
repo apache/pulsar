@@ -40,6 +40,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -50,6 +51,7 @@ import org.testng.annotations.Test;
  *    client: org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2
  *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
  */
+@Test(groups = "broker-api")
 public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenOauth2AuthenticatedProducerConsumerTest.class);
 
@@ -107,7 +109,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
                 .authentication(authentication));
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterMethod(alwaysRun = true, groups = "broker-api")
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -118,7 +120,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         return new Object[][] { { 0 }, { 1000 } };
     }
 
-    public void testSyncProducerAndConsumer() throws Exception {
+    private void testSyncProducerAndConsumer() throws Exception {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 

@@ -39,6 +39,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 
+@Test(groups = "broker-naming")
 public class NamespaceBundleTest {
     private final NamespaceBundleFactory factory = getNamespaceBundleFactory();
 
@@ -127,7 +128,7 @@ public class NamespaceBundleTest {
     }
 
     @Test
-    public void testGetBundle() throws Exception {
+    public void testGetBundle() {
         NamespaceBundle bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0L, BoundType.CLOSED, 0xffffffffL, BoundType.CLOSED));
         assertNotNull(bundle);
@@ -139,7 +140,7 @@ public class NamespaceBundleTest {
     }
 
     @Test
-    public void testCompareTo() throws Exception {
+    public void testCompareTo() {
         NamespaceBundle bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
         NamespaceBundle bundle2 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
@@ -186,7 +187,7 @@ public class NamespaceBundleTest {
     }
 
     @Test
-    public void testIncludes() throws Exception {
+    public void testIncludes() {
         TopicName topicName = TopicName.get("persistent://pulsar/use/ns1/topic-1");
         Long hashKey = factory.getLongHashCode(topicName.toString());
         Long upper = Math.max(hashKey + 1, NamespaceBundles.FULL_UPPER_BOUND);
@@ -204,7 +205,7 @@ public class NamespaceBundleTest {
     }
 
     @Test
-    public void testToString() throws Exception {
+    public void testToString() {
         NamespaceBundle bundle0 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x10000000L, BoundType.OPEN));
         assertEquals(bundle0.toString(), "pulsar/use/ns1/0x00000000_0x10000000");

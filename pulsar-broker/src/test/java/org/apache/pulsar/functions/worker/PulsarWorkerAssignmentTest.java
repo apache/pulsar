@@ -64,6 +64,7 @@ import org.testng.annotations.Test;
  *
  */
 @Slf4j
+@Test(groups = "functions-worker")
 public class PulsarWorkerAssignmentTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -291,7 +292,9 @@ public class PulsarWorkerAssignmentTest {
         functionsWorkerService.stop();
         functionsWorkerService = new PulsarWorkerService();
         functionsWorkerService.init(workerConfig, dlUri, false);
-        functionsWorkerService.start(new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)), null, ErrorNotifier.getDefaultImpl());
+        functionsWorkerService.start(new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig)),
+                null,
+                ErrorNotifier.getDefaultImpl());
         final FunctionRuntimeManager runtimeManager2 = functionsWorkerService.getFunctionRuntimeManager();
         retryStrategically((test) -> {
             try {
@@ -313,8 +316,12 @@ public class PulsarWorkerAssignmentTest {
         }
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace,
-                                                         String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         final String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 

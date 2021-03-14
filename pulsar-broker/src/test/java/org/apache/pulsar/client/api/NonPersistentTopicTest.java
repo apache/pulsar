@@ -73,6 +73,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-api")
 public class NonPersistentTopicTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopicTest.class);
     private final String configClusterName = "r1";
@@ -879,7 +880,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         } finally {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
         }
-
     }
 
     class ReplicationClusterManager {
@@ -1052,7 +1052,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             bkEnsemble3.stop();
             globalZkS.stop();
         }
-
     }
 
     private void rolloverPerIntervalStats(PulsarService pulsar) {
