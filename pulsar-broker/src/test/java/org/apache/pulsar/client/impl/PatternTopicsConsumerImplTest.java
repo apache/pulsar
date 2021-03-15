@@ -52,6 +52,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImplTest.class);
@@ -71,6 +72,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     public void cleanup() throws Exception {
         super.internalCleanup();
     }
+
     @Test(timeOut = testTimeout)
     public void testPatternTopicsSubscribeWithBuilderFail() throws Exception {
         String key = "PatternTopicsSubscribeWithBuilderFail";
@@ -419,7 +421,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = testTimeout)
-    public void testTopicsPatternFilter() throws Exception {
+    public void testTopicsPatternFilter() {
         String topicName1 = "persistent://my-property/my-ns/pattern-topic-1";
         String topicName2 = "persistent://my-property/my-ns/pattern-topic-2";
         String topicName3 = "persistent://my-property/my-ns/hello-3";
@@ -438,7 +440,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = testTimeout)
-    public void testTopicsListMinus() throws Exception {
+    public void testTopicsListMinus() {
         String topicName1 = "persistent://my-property/my-ns/pattern-topic-1";
         String topicName2 = "persistent://my-property/my-ns/pattern-topic-2";
         String topicName3 = "persistent://my-property/my-ns/pattern-topic-3";
@@ -677,7 +679,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = testTimeout)
-    public void testAutoUnbubscribePatternConsumer() throws Exception {
+    public void testAutoUnsubscribePatternConsumer() throws Exception {
         String key = "AutoUnsubscribePatternConsumer";
         String subscriptionName = "my-ex-subscription-" + key;
         String topicName1 = "persistent://my-property/my-ns/pattern-topic-1-" + key;
@@ -782,7 +784,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-    @Test()
+    @Test
     public void testTopicDeletion() throws Exception {
         String baseTopicName = "persistent://my-property/my-ns/pattern-topic-" + System.currentTimeMillis();
         Pattern pattern = Pattern.compile(baseTopicName + ".*");

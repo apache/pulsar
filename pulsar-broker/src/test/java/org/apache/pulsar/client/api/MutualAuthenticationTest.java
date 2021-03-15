@@ -45,17 +45,18 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Test Mutual Authentication.
  * Test connect set success, and producer consumer works well.
  */
+@Test(groups = "broker-api")
 public class MutualAuthenticationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MutualAuthenticationTest.class);
 
     private MutualAuthentication mutualAuth;
 
-    private static String[] clientAuthStrings = {
+    private static final String[] clientAuthStrings = {
         "MutualClientAuthInit", // step 0
         "MutualClientStep1"     // step 1
     };
 
-    private static String[] serverAuthStrings = {
+    private static final String[] serverAuthStrings = {
         "ResponseMutualClientAuthInit", // step 0
     };
 
@@ -181,11 +182,11 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         }
     }
 
-    @BeforeMethod
+    @BeforeMethod(groups = "broker-api")
     @Override
     protected void setup() throws Exception {
         mutualAuth = new MutualAuthentication();
-        Set<String> superUserRoles = new HashSet<String>();
+        Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("admin");
         conf.setSuperUserRoles(superUserRoles);
 

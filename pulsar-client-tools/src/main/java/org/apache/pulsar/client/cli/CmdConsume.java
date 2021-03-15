@@ -41,20 +41,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.HexDump;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionMode;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -101,6 +94,9 @@ public class CmdConsume {
     @Parameter(names = { "--hex" }, description = "Display binary messages in hex.")
     private boolean displayHex = false;
 
+    @Parameter(names = { "--hide-content" }, description = "Do not write the message to console.")
+    private boolean hideContent = false;
+
     @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to consume, "
             + "value 0 means to consume messages as fast as possible.")
     private double consumeRate = 0;
@@ -122,6 +118,10 @@ public class CmdConsume {
             "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
                     + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
     private String encKeyValue;
+
+    @Parameter(names = { "-st", "--schema-type"}, description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
+    private String schematype = "bytes";
+
     
     private ClientBuilder clientBuilder;
     private Authentication authentication;
@@ -150,19 +150,29 @@ public class CmdConsume {
      *            Whether to display BytesMessages in hexdump style, ignored for simple text messages
      * @return String representation of the message
      */
-    private String interpretMessage(Message<byte[]> message, boolean displayHex) throws IOException {
+    private String interpretMessage(Message<?> message, boolean displayHex) throws IOException {
         StringBuilder sb = new StringBuilder();
 
         String properties = Arrays.toString(message.getProperties().entrySet().toArray());
 
         String data;
-        byte[] msgData = message.getData();
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        if (!displayHex) {
-            data = new String(msgData);
+        Object value = message.getValue();
+        if (value == null) {
+            data = "null";
+        } else if (value instanceof byte[]) {
+            byte[] msgData = (byte[]) value;
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            if (!displayHex) {
+                data = new String(msgData);
+            } else {
+                HexDump.dump(msgData, 0, out, 0);
+                data = new String(out.toByteArray());
+            }
+        } else if (value instanceof GenericRecord) {
+            Map<String, Object> asMap = genericRecordToMap((GenericRecord) value);
+            data = asMap.toString();
         } else {
-            HexDump.dump(msgData, 0, out, 0);
-            data = new String(out.toByteArray());
+            data = value.toString();
         }
 
         String key = null;
@@ -171,10 +181,27 @@ public class CmdConsume {
         }
 
         sb.append("key:[").append(key).append("], ");
-        sb.append("properties:").append(properties).append(", ");
+        if (!properties.isEmpty()) {
+            sb.append("properties:").append(properties).append(", ");
+        }
         sb.append("content:").append(data);
 
         return sb.toString();
+    }
+
+    private static Map<String, Object> genericRecordToMap(GenericRecord value) {
+        return value.getFields()
+                .stream()
+                .collect(Collectors.toMap(Field::getName, f -> {
+                    Object fieldValue = value.getField(f);
+                    if (fieldValue instanceof GenericRecord) {
+                        return genericRecordToMap((GenericRecord) fieldValue);
+                    } else if (fieldValue == null) {
+                        return "null";
+                    } else {
+                        return fieldValue;
+                    }
+                }));
     }
 
     /**
@@ -204,8 +231,15 @@ public class CmdConsume {
         int returnCode = 0;
 
         try {
+            ConsumerBuilder<?> builder;
             PulsarClient client = clientBuilder.build();
-            ConsumerBuilder<byte[]> builder = client.newConsumer()
+            Schema<?> schema = Schema.BYTES;
+            if ("auto_consume".equals(schematype)) {
+                schema = Schema.AUTO_CONSUME();
+            } else if (!"bytes".equals(schematype)) {
+                throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume");
+            }
+            builder = client.newConsumer(schema)
                     .subscriptionName(this.subscriptionName)
                     .subscriptionType(subscriptionType)
                     .subscriptionMode(subscriptionMode)
@@ -230,22 +264,25 @@ public class CmdConsume {
                 builder.defaultCryptoKeyReader(this.encKeyValue);
             }
 
-            Consumer<byte[]> consumer = builder.subscribe();
-
+            Consumer<?> consumer = builder.subscribe();
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
             while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
                 if (limiter != null) {
                     limiter.acquire();
                 }
 
-                Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+                Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
                 if (msg == null) {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
                     numMessagesConsumed += 1;
-                    System.out.println(MESSAGE_BOUNDARY);
-                    String output = this.interpretMessage(msg, displayHex);
-                    System.out.println(output);
+                    if (!hideContent) {
+                        System.out.println(MESSAGE_BOUNDARY);
+                        String output = this.interpretMessage(msg, displayHex);
+                        System.out.println(output);
+                    } else if (numMessagesConsumed % 1000 == 0) {
+                        System.out.println("Received " + numMessagesConsumed + " messages");
+                    }
                     consumer.acknowledge(msg);
                 }
             }
