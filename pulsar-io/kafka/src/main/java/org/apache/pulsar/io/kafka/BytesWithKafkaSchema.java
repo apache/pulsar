@@ -16,26 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka;
 
-import org.apache.pulsar.client.api.Schema;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import java.nio.charset.StandardCharsets;
+import lombok.Value;
+
+import java.nio.ByteBuffer;
 
 /**
- * Simple Kafka Source that just transfers the value part of the kafka records
- * as Strings
+ * This is a wrapper around a Byte array (the Avro encoded record) and a schema id in the Kafka Schema Registry.
  */
-public class KafkaStringSource extends KafkaAbstractSource<String> {
-
-    @Override
-    public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
-        return new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8);
-    }
-
-    @Override
-    public Schema<String> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
-        return Schema.STRING;
-    }
+@Value
+public class BytesWithKafkaSchema {
+    private final ByteBuffer value;
+    private final int schemaId;
 }
