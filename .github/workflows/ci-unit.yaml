@@ -27,7 +27,7 @@ on:
       - branch-*
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -50,6 +50,9 @@ jobs:
         uses: apache/pulsar-test-infra/diff-only@master
         with:
           args: site2 deployment .asf.yaml .ci ct.yaml
+
+      - name: Replace maven's wagon-http version
+        run: ./build/replace_maven-wagon-http-version.sh
 
       - name: run unit test 'OTHER'
         if: steps.docs.outputs.changed_only == 'no'

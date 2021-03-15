@@ -86,6 +86,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+    <test.additional.args></test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
@@ -143,8 +144,7 @@ flexible messaging model and an intuitive client API.</description>
     <postgresql-jdbc.version>42.2.12</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
-    <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
-    <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
+    <hdfs-offload-version3>3.3.0</hdfs-offload-version3>
     <elasticsearch.version>7.9.1</elasticsearch.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.11</scala.binary.version>
@@ -192,7 +192,7 @@ flexible messaging model and an intuitive client API.</description>
     <testcontainers.version>1.15.1</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
-    <mockito.version>3.0.0</mockito.version>
+    <mockito.version>3.8.0</mockito.version>
     <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
@@ -1154,6 +1154,7 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.pooled=false
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
+            ${test.additional.args}
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
@@ -1627,6 +1628,15 @@ flexible messaging model and an intuitive client API.</description>
 
   <profiles>
     <profile>
+      <id>jdk11-tests</id>
+      <activation>
+        <jdk>[11,)</jdk>
+      </activation>
+      <properties>
+        <test.additional.args> --add-opens java.base/jdk.internal.loader=ALL-UNNAMED </test.additional.args>
+      </properties>
+    </profile>
+    <profile>
       <id>coverage</id>
       <build>
         <plugins>
@@ -1689,6 +1699,10 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
     <profile>
       <id>docker</id>
+      <modules>
+        <module>docker</module>
+        <module>tests</module>
+      </modules>
     </profile>
 
     <profile>
@@ -1753,6 +1767,7 @@ flexible messaging model and an intuitive client API.</description>
       <id>main</id>
       <activation>
         <activeByDefault>true</activeByDefault>
+        <jdk>[8,)</jdk>
       </activation>
       <modules>
         <module>buildtools</module>
@@ -1804,16 +1819,17 @@ flexible messaging model and an intuitive client API.</description>
 
         <module>pulsar-client-messagecrypto-bc</module>
 
-        <!-- all these 3 modules should be put at the end in this exact sequence -->
-        <module>distribution</module>
-        <module>docker</module>
-        <module>tests</module>
         <module>pulsar-metadata</module>
         <module>jclouds-shaded</module>
 
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
         <!-- package management releated modules (end) -->
+
+        <!-- all these 3 modules should be put at the end in this exact sequence -->
+        <module>distribution</module>
+        <module>docker</module>
+        <module>tests</module>
       </modules>
     </profile>
 
