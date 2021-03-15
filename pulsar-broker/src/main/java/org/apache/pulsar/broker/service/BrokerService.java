@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -55,6 +56,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -160,6 +162,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
@@ -640,8 +643,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    @Override
     public void close() throws IOException {
+        try {
+            closeAsync().get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IOException) {
+                throw (IOException) e.getCause();
+            }
+            throw new PulsarServerException(e.getCause());
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new PulsarServerException(e);
+        }
+    }
+
+    public CompletableFuture<Void> closeAsync() throws IOException {
         log.info("Shutting down Pulsar Broker service");
 
         if (pulsar.getConfigurationCache() != null) {
@@ -669,12 +686,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         });
 
+        List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
+
         if (listenChannel != null) {
-            listenChannel.close();
+            asyncCloseFutures.add(closeChannel(listenChannel));
         }
 
         if (listenChannelTls != null) {
-            listenChannelTls.close();
+            asyncCloseFutures.add(closeChannel(listenChannelTls));
         }
 
         acceptorGroup.shutdownGracefully();
@@ -708,7 +727,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             deduplicationSnapshotMonitor.shutdown();
         }
 
-        log.info("Broker service completely shut down");
+        CompletableFuture<Void> shutdownFuture =
+                CompletableFuture.allOf(asyncCloseFutures.toArray(new CompletableFuture[0]))
+                        .thenAccept(__ -> log.info("Broker service completely shut down"));
+        return shutdownFuture;
+    }
+
+    private CompletableFuture<Void> closeChannel(Channel channel) {
+        return ChannelFutures.toCompletableFuture(channel.close())
+                // convert to CompletableFuture<Void>
+                .thenAccept(__ -> {});
     }
 
     /**
