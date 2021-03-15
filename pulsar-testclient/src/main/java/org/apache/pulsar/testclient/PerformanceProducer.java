@@ -149,7 +149,7 @@ public class PerformanceProducer {
         public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
         @Parameter(names = { "-np", "--partitions" }, description = "Create partitioned topics with the given number of partitions, set 0 to not try to create the topic")
-        public int createTopicPartitions = 0;
+        public Integer partitions = null;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -343,7 +343,7 @@ public class PerformanceProducer {
             printAggregatedStats();
         }));
 
-        if (arguments.createTopicPartitions > 0) {
+        if (arguments.partitions  != null) {
             PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
                     .serviceHttpUrl(arguments.adminURL)
                     .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
@@ -358,15 +358,17 @@ public class PerformanceProducer {
 
             try (PulsarAdmin client = clientBuilder.build();) {
                 for (String topic : arguments.topics) {
-                    log.info("Creating partitioned topic {} with {} partitions", topic, arguments.createTopicPartitions);
+                    log.info("Creating partitioned topic {} with {} partitions", topic, arguments.partitions);
                     try {
-                        client.topics().createPartitionedTopic(topic, arguments.createTopicPartitions);
+                        client.topics().createPartitionedTopic(topic, arguments.partitions);
                     } catch (PulsarAdminException.ConflictException alreadyExists) {
-                        log.debug("Topic "+topic+" already exists: " + alreadyExists);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Topic {} already exists: {}", topic, alreadyExists);
+                        }
                         PartitionedTopicMetadata partitionedTopicMetadata = client.topics().getPartitionedTopicMetadata(topic);
-                        if (partitionedTopicMetadata.partitions != arguments.createTopicPartitions) {
+                        if (partitionedTopicMetadata.partitions != arguments.partitions) {
                             log.error("Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
-                                    topic, partitionedTopicMetadata.partitions, arguments.createTopicPartitions);
+                                    topic, partitionedTopicMetadata.partitions, arguments.partitions);
                             System.exit(-1);
                         }
                     }
