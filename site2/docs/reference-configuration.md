@@ -340,7 +340,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |replicatedSubscriptionsSnapshotFrequencyMillis|The frequency of snapshots for replicated subscriptions tracking.|1000|
 |replicatedSubscriptionsSnapshotTimeoutSeconds|The timeout for building a consistent snapshot for tracking replicated subscriptions state.|30|
 |replicatedSubscriptionsSnapshotMaxCachedPerSubscription|The maximum number of snapshot to be cached per subscription.|10|
-|maxMessagePublishBufferSizeInMB|The maximum memory size for a broker to handle messages that are sent by producers. If the processing message size exceeds this value, the broker stops reading data from the connection. The processing messages refer to the messages that are sent to the broker but the broker has not sent response to the client. Usually the messages are waiting to be written to bookies. It's shared across all the topics running in the same broker. The value `-1` disables the memory limitation. By default, it is 50% of direct memory.|N/A|
+|maxMessagePublishBufferSizeInMB|The maximum memory size for a broker to handle messages that are sent by producers. If the processing message size exceeds this value, the broker stops reading data from the connection. The processing messages refer to the messages that are sent to the broker but the broker has not sent response to the client. Usually the messages are waiting to be written to bookies. It is shared across all the topics running in the same broker. The value `-1` disables the memory limitation. By default, it is 50% of direct memory.|N/A|
 |messagePublishBufferCheckIntervalInMillis|Interval between checks to see if message publish buffer size exceeds the maximum. Use `0` or negative number to disable the max publish buffer limiting.|100|
 |retentionCheckIntervalInSeconds|Check between intervals to see if consumed ledgers need to be trimmed. Use 0 or negative number to disable the check.|120|
 | maxMessageSize | Set the maximum size of a message. | 5242880 |
@@ -348,7 +348,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 | lazyCursorRecovery | Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.| false |  
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
-|subscriptionTypesEnabled| Enable all subscription types, that is exclusive, shared, failover and key_shared, for a namespace. | true |
+|subscriptionTypesEnabled| Enable all subscription types. Available subscription types are exclusive, shared, failover, and key_shared.  | true |
 
 ## Client
 
