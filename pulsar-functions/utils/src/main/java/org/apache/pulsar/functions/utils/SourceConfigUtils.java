@@ -150,6 +150,8 @@ public class SourceConfigUtils {
 
         if (sourceConfig.getForwardSourceMessageProperty() == Boolean.TRUE) {
             sinkSpecBuilder.setForwardSourceMessageProperty(sourceConfig.getForwardSourceMessageProperty());
+        } else {
+            sinkSpecBuilder.setForwardSourceMessageProperty(false);
         }
 
         functionDetailsBuilder.setSink(sinkSpecBuilder);
