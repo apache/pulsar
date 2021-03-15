@@ -756,7 +756,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).unload("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("list myprop/clust/ns1"));
-        verify(mockTopics).getList("myprop/clust/ns1");
+        verify(mockTopics).getList("myprop/clust/ns1", null);
 
         cmdTopics.run(split("subscriptions persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getSubscriptions("persistent://myprop/clust/ns1/ds1");
