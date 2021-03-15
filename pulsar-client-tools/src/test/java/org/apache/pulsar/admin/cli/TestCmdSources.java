@@ -73,6 +73,7 @@ public class TestCmdSources {
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\"}";
+    private static final boolean FORWARD_PROPERTIES = true;
 
     private PulsarAdmin pulsarAdmin;
     private Sources source;
@@ -114,6 +115,7 @@ public class TestCmdSources {
         sourceConfig.setArchive(JAR_FILE_PATH);
         sourceConfig.setResources(new Resources(CPU, RAM, DISK));
         sourceConfig.setConfigs(createSource.parseConfigs(SINK_CONFIG_STRING));
+        sourceConfig.setForwardSourceMessageProperty(FORWARD_PROPERTIES);
         return sourceConfig;
     }
 
