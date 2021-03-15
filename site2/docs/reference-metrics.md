@@ -378,7 +378,7 @@ All the connection metrics are labelled with the following labels:
 | Name | Type | Description |
 |---|---|---|
 | pulsar_active_connections| Gauge | The number of active connections. |
-| pulsar_connection_created_total_count | Gauge | The total number of create connections. |
+| pulsar_connection_created_total_count | Gauge | The total number of connections. |
 | pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
 | pulsar_connection_create_fail_count | Gauge | The number of failed connections created. |
 | pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
