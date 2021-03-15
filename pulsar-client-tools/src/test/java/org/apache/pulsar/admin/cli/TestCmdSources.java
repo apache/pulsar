@@ -577,15 +577,19 @@ public class TestCmdSources {
 
         updateSource.archive = "new-archive";
 
+        updateSource.forwardSourceMessageProperty = true;
+
         updateSource.processArguments();
 
         updateSource.runCmd();
+
 
         verify(source).updateSource(eq(SourceConfig.builder()
                 .tenant(PUBLIC_TENANT)
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .archive(updateSource.archive)
+                .forwardSourceMessageProperty(true)
                 .build()), eq(updateSource.archive), eq(new UpdateOptions()));
 
 
@@ -593,9 +597,11 @@ public class TestCmdSources {
 
         updateSource.parallelism = 2;
 
-        updateSource.processArguments();
-
         updateSource.updateAuthData = true;
+
+        updateSource.forwardSourceMessageProperty = false;
+
+        updateSource.processArguments();
 
         UpdateOptions updateOptions = new UpdateOptions();
         updateOptions.setUpdateAuthData(true);
@@ -607,6 +613,7 @@ public class TestCmdSources {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .parallelism(2)
+                .forwardSourceMessageProperty(false)
                 .build()), eq(null), eq(updateOptions));
 
 
