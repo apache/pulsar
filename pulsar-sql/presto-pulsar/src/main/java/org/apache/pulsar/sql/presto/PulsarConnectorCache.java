@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
+import org.apache.bookkeeper.mledger.offload.OffloadersCache;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
@@ -57,7 +58,7 @@ public class PulsarConnectorCache {
 
     private final StatsProvider statsProvider;
     private OrderedScheduler offloaderScheduler;
-    private Map<String, Offloaders> offloaderManagers = new ConcurrentHashMap<>();
+    private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
     private Map<NamespaceName, LedgerOffloader> offloaderMap = new ConcurrentHashMap<>();
 
@@ -154,15 +155,8 @@ public class PulsarConnectorCache {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                         "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                Offloaders offloaders = offloaderManagers.computeIfAbsent(offloadPolicies.getOffloadersDirectory(),
-                        (offloadersDirectory) -> {
-                            try {
-                                return OffloaderUtils.searchForOffloaders(offloadersDirectory,
-                                        pulsarConnectorConfig.getNarExtractionDirectory());
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        });
+                Offloaders offloaders = offloadersCache.getOrLoadOffloaders(offloadPolicies.getOffloadersDirectory(),
+                        pulsarConnectorConfig.getNarExtractionDirectory());
                 LedgerOffloaderFactory offloaderFactory = offloaders.getOffloaderFactory(
                         offloadPolicies.getManagedLedgerOffloadDriver());
 
@@ -201,15 +195,7 @@ public class PulsarConnectorCache {
                 instance.statsProvider.stop();
                 instance.managedLedgerFactory.shutdown();
                 instance.offloaderScheduler.shutdown();
-                instance.offloaderManagers.values().forEach(offloaders -> {
-                    try {
-                        offloaders.close();
-                    } catch (Exception e) {
-                        log.error("Error while closing offloader.", e);
-                        // Even if the offloader fails to close, the graceful shutdown process continues
-                    }
-                });
-                instance = null;
+                instance.offloadersCache.close();
             }
         }
     }

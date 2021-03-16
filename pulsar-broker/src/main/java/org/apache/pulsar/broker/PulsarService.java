@@ -63,6 +63,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
+import org.apache.bookkeeper.mledger.offload.OffloadersCache;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -182,7 +183,7 @@ public class PulsarService implements AutoCloseable {
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
-    private Map<String, Offloaders> offloaderManagers = new ConcurrentHashMap<>();
+    private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
@@ -404,15 +405,7 @@ public class PulsarService implements AutoCloseable {
                 schemaRegistryService.close();
             }
 
-            offloaderManagers.values().forEach(offloaders -> {
-                try {
-                    offloaders.close();
-                } catch (Exception e) {
-                    LOG.error("Error while closing offloader.", e);
-                    // Even if the offloader fails to close, the graceful shutdown process continues
-                }
-            });
-            offloaderManagers.clear();
+            offloadersCache.close();
 
             if (protocolHandlers != null) {
                 protocolHandlers.close();
@@ -1054,15 +1047,8 @@ public class PulsarService implements AutoCloseable {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                Offloaders offloaders = this.offloaderManagers.computeIfAbsent(config.getOffloadersDirectory(),
-                        (offloadersDirectory) -> {
-                            try {
-                                return OffloaderUtils.searchForOffloaders(offloadersDirectory,
-                                        config.getNarExtractionDirectory());
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        });
+                Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
+                        offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
 
                 LedgerOffloaderFactory offloaderFactory = offloaders.getOffloaderFactory(
                         offloadPolicies.getManagedLedgerOffloadDriver());
