@@ -140,7 +140,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         try {
-            if (!namespaceResources().exists(path(POLICIES, namespaceName.toString()))) {
+            if (!namespaceResources().exists(namespaceName.toString())) {
                 throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
             }
         } catch (RestException re) {
@@ -174,7 +174,7 @@ public class PersistentTopicsBase extends AdminResource {
         validateAdminAccessForTenant(namespaceName.getTenant());
         // Validate that namespace exists, throws 404 if it doesn't exist
         try {
-            if (!namespaceResources().exists(path(POLICIES, namespaceName.toString()))) {
+            if (!namespaceResources().exists(namespaceName.toString())) {
                 log.warn("[{}] Failed to get partitioned topic list {}: Namespace does not exist", clientAppId(),
                         namespaceName);
                 throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
@@ -195,7 +195,7 @@ public class PersistentTopicsBase extends AdminResource {
         String topicUri = topicName.toString();
 
         try {
-            Policies policies = namespaceResources().get(path(POLICIES, namespaceName.toString()))
+            Policies policies = namespaceResources().get(namespaceName.toString())
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
 
             Map<String, Set<AuthAction>> permissions = Maps.newHashMap();
@@ -321,7 +321,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void grantPermissions(String topicUri, String role, Set<AuthAction> actions) {
         try {
-            namespaceResources().set(path(POLICIES, namespaceName.toString()), (policies) -> {
+            namespaceResources().set(namespaceName.toString(), (policies) -> {
                 if (!policies.auth_policies.destination_auth.containsKey(topicUri)) {
                     policies.auth_policies.destination_auth.put(topicUri, new HashMap<>());
                 }
@@ -374,7 +374,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void revokePermissions(String topicUri, String role) {
         Policies policies;
         try {
-            policies = namespaceResources().get(path(POLICIES, namespaceName.toString()))
+            policies = namespaceResources().get(namespaceName.toString())
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicUri, e);
@@ -2497,7 +2497,7 @@ public class PersistentTopicsBase extends AdminResource {
         // Validate that namespace exists, throw 404 if it doesn't exist
         // note that we do not want to load the topic and hence skip validateAdminOperationOnTopic()
         try {
-            namespaceResources().get(path(POLICIES, namespaceName.toString()));
+            namespaceResources().get(namespaceName.toString());
         } catch (org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException e) {
             log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");

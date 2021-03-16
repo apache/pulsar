@@ -943,7 +943,7 @@ public abstract class PulsarWebResource {
                             // created
                             // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to
                             // add it to the list
-                            namespaceResources().getAsync(path(POLICIES, namespace)).thenApply(data -> {
+                            namespaceResources().getAsync(namespace).thenApply(data -> {
                                 if (data.isPresent()) {
                                     checkNs.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
                                             "Tenant has active namespace"));
@@ -1058,7 +1058,7 @@ public abstract class PulsarWebResource {
                 // if the length is 0 then this is probably a leftover cluster from namespace created
                 // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
                 try {
-                    if (namespaceResources().get(path(POLICIES, namespace)).isPresent()) {
+                    if (namespaceResources().get(namespace).isPresent()) {
                         namespaces.add(namespace);
                     }
                 } catch (MetadataStoreException.ContentDeserializationException e) {

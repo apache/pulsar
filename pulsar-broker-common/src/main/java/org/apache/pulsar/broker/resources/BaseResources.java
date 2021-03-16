@@ -56,6 +56,16 @@ public class BaseResources<T> {
         this.operationTimeoutSec = operationTimeoutSec;
     }
 
+    /**
+     * Creates internal path based on resource location.
+     *
+     * @param path
+     * @return
+     */
+    public String internalPath(String path) {
+        return path;
+    }
+
     public List<String> getChildren(String path) throws MetadataStoreException {
         try {
             return getChildrenAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
@@ -68,7 +78,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<List<String>> getChildrenAsync(String path) {
-        return cache.getChildren(path);
+        return cache.getChildren(internalPath(path));
     }
 
     public Optional<T> get(String path) throws MetadataStoreException {
@@ -83,7 +93,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Optional<T>> getAsync(String path) {
-        return cache.get(path);
+        return cache.get(internalPath(path));
     }
 
     public void set(String path, Function<T, T> modifyFunction) throws MetadataStoreException {
@@ -98,7 +108,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> setAsync(String path, Function<T, T> modifyFunction) {
-        return cache.readModifyUpdate(path, modifyFunction);
+        return cache.readModifyUpdate(internalPath(path), modifyFunction);
     }
 
     public void setWithCreate(String path, Function<Optional<T>, T> createFunction) throws MetadataStoreException {
@@ -113,7 +123,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> setWithCreateAsync(String path, Function<Optional<T>, T> createFunction) {
-        return cache.readModifyUpdateOrCreate(path, createFunction);
+        return cache.readModifyUpdateOrCreate(internalPath(path), createFunction);
     }
 
     public void create(String path, T data) throws MetadataStoreException {
@@ -128,7 +138,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> createAsync(String path, T data) {
-        return cache.create(path, data);
+        return cache.create(internalPath(path), data);
     }
 
     public void delete(String path) throws MetadataStoreException {
@@ -143,7 +153,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> deleteAsync(String path) {
-        return cache.delete(path);
+        return cache.delete(internalPath(path));
     }
 
     public boolean exists(String path) throws MetadataStoreException {
@@ -158,6 +168,6 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Boolean> existsAsync(String path) {
-        return cache.exists(path);
+        return cache.exists(internalPath(path));
     }
 }

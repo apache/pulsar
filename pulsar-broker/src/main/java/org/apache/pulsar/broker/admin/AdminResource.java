@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.util.Codec.decode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -330,8 +329,7 @@ public abstract class AdminResource extends PulsarWebResource {
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
             final String namespace = namespaceName.toString();
-            final String policyPath = AdminResource.path(POLICIES, namespace);
-            Policies policies = namespaceResources().get(policyPath)
+            Policies policies = namespaceResources().get(namespace)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
@@ -340,7 +338,7 @@ public abstract class AdminResource extends PulsarWebResource {
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
 
             // hydrate the namespace polices
-            mergeNamespaceWithDefaults(policies, namespace, policyPath);
+            mergeNamespaceWithDefaults(policies, namespace);
 
             return policies;
         } catch (RestException re) {
@@ -354,9 +352,8 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected CompletableFuture<Policies> getNamespacePoliciesAsync(NamespaceName namespaceName) {
         final String namespace = namespaceName.toString();
-        final String policyPath = AdminResource.path(POLICIES, namespace);
 
-        return namespaceResources().getAsync(policyPath).thenCompose(policies -> {
+        return namespaceResources().getAsync(namespace).thenCompose(policies -> {
             if (policies.isPresent()) {
                 return pulsar()
                         .getNamespaceService()
@@ -372,7 +369,7 @@ public abstract class AdminResource extends PulsarWebResource {
                     }
                     policies.get().bundles = bundleData != null ? bundleData : policies.get().bundles;
                     // hydrate the namespace polices
-                    mergeNamespaceWithDefaults(policies.get(), namespace, policyPath);
+                    mergeNamespaceWithDefaults(policies.get(), namespace);
                     return CompletableFuture.completedFuture(policies.get());
                 });
             } else {
@@ -381,7 +378,7 @@ public abstract class AdminResource extends PulsarWebResource {
         });
     }
 
-    protected void mergeNamespaceWithDefaults(Policies policies, String namespace, String namespacePath) {
+    protected void mergeNamespaceWithDefaults(Policies policies, String namespace) {
         final ServiceConfiguration config = pulsar().getConfiguration();
 
         if (policies.max_consumers_per_subscription < 1) {
@@ -585,7 +582,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Policies getNamespacePolicies(String property, String cluster, String namespace) {
         try {
-            Policies policies = namespaceResources().get(AdminResource.path(POLICIES, property, cluster, namespace))
+            Policies policies = namespaceResources().get(NamespaceName.get(property, cluster, namespace).toString())
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
@@ -607,7 +604,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Set<String> getNamespaceReplicatedClusters(NamespaceName namespaceName) {
         try {
-            final Policies policies = namespaceResources().get(ZkAdminPaths.namespacePoliciesPath(namespaceName))
+            final Policies policies = namespaceResources().get(namespaceName.toString())
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             return policies.replication_clusters;
         } catch (RestException re) {
@@ -624,16 +621,18 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             String partitionedTopicPath = path(PARTITIONED_TOPIC_PATH_ZNODE,
                     namespaceName.toString(), topicDomain.value());
-            List<String> topics = namespaceResources().getChildren(partitionedTopicPath);
+            List<String> topics = namespaceResources().getStore().getChildren(partitionedTopicPath).get();
             partitionedTopics = topics.stream()
                     .map(s -> String.format("%s://%s/%s", topicDomain.value(), namespaceName.toString(), decode(s)))
                     .collect(Collectors.toList());
-        } catch (NotFoundException e) {
-            // NoNode means there are no partitioned topics in this domain for this namespace
         } catch (Exception e) {
-            log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(),
-                    namespaceName.toString(), e);
-            throw new RestException(e);
+            if (e instanceof ExecutionException && e.getCause() instanceof NotFoundException) {
+                // NoNode means there are no partitioned topics in this domain for this namespace
+            } else {
+                log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(),
+                        namespaceName.toString(), e);
+                throw new RestException(e);
+            }
         }
 
         partitionedTopics.sort(null);

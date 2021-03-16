@@ -18,15 +18,16 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Getter;
-
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
+import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
@@ -35,6 +36,11 @@ public class NamespaceResources extends BaseResources<Policies> {
     private IsolationPolicyResources isolationPolicies;
     private PartitionedTopicResources partitionedTopicResources;
     private MetadataStoreExtended configurationStore;
+
+    @Override
+    public String internalPath(String namespace) {
+        return PolicyPath.path(POLICIES, namespace);
+    }
 
     public NamespaceResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
