@@ -55,7 +55,9 @@ public class ChannelFuturesTest {
 
     @AfterTest(alwaysRun = true)
     public void shutdownEventLoop() throws InterruptedException {
-        eventLoop.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).await(100);
+        if (eventLoop != null) {
+            eventLoop.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).await(100);
+        }
     }
 
     @BeforeMethod
