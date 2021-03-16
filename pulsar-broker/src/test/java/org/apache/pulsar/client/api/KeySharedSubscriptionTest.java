@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -130,12 +131,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000);
     }
 
     @Test(dataProvider = "data")
     public void testSendAndReceiveWithBatching(String topicType, boolean enableBatch)
-            throws PulsarClientException {
+            throws Exception {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
@@ -151,23 +152,33 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
 
+        CompletableFuture<MessageId> future;
+
         for (int i = 0; i < 1000; i++) {
             // Send the same key twice so that we'll have a batch message
             String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
-            producer.newMessage()
+            future = producer.newMessage()
                     .key(key)
                     .value(i)
                     .sendAsync();
 
-            producer.newMessage()
+            // If not batching, need to wait for message to be persisted
+            if (!enableBatch) {
+                future.get();
+            }
+
+            future = producer.newMessage()
                     .key(key)
                     .value(i)
                     .sendAsync();
+            if (!enableBatch) {
+                future.get();
+            }
         }
-
+        // If batching, flush buffered messages
         producer.flush();
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000 * 2);
     }
 
     @Test(dataProvider = "batch")
@@ -247,7 +258,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000);
 
         // wait for consumer grouping acking send.
         Thread.sleep(1000);
@@ -262,7 +273,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer3), 10);
     }
 
     @Test(dataProvider = "data")
@@ -354,7 +365,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000);
     }
 
     @Test(dataProvider = "batch")
@@ -783,7 +794,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000);
     }
 
     @Test
@@ -940,11 +951,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             producer = pulsarClient.newProducer(Schema.INT32)
                     .topic(topic)
                     .enableBatching(true)
+                    .maxPendingMessages(2001)
                     .batcherBuilder(BatcherBuilder.KEY_BASED)
                     .create();
         } else {
             producer = pulsarClient.newProducer(Schema.INT32)
                     .topic(topic)
+                    .maxPendingMessages(2001)
                     .enableBatching(false)
                     .create();
         }
@@ -998,7 +1011,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     /**
      * Check that every consumer receives a fair number of messages and that same key is delivered to only 1 consumer
      */
-    private void receiveAndCheckDistribution(List<Consumer<?>> consumers) throws PulsarClientException {
+    private void receiveAndCheckDistribution(List<Consumer<?>> consumers, int expectedTotalMessage) throws PulsarClientException {
         // Add a key so that we know this key was already assigned to one consumer
         Map<String, Consumer<?>> keyToConsumer = new HashMap<>();
         Map<Consumer<?>, Integer> messagesPerConsumer = new HashMap<>();
@@ -1036,8 +1049,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         final double PERCENT_ERROR = 0.40; // 40 %
 
         double expectedMessagesPerConsumer = totalMessages / consumers.size();
-
-        System.err.println(messagesPerConsumer);
+        Assert.assertEquals(expectedTotalMessage, totalMessages);
         for (int count : messagesPerConsumer.values()) {
             Assert.assertEquals(count, expectedMessagesPerConsumer, expectedMessagesPerConsumer * PERCENT_ERROR);
         }
