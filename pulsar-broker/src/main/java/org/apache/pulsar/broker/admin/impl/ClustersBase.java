@@ -178,7 +178,7 @@ public class ClustersBase extends PulsarWebResource {
             throw new RestException(Status.PRECONDITION_FAILED, "Cluster name is not valid");
         } catch (Exception e) {
             log.error("[{}] Failed to create cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
+            throw new RestException(e);
         }
     }
 
@@ -391,7 +391,7 @@ public class ClustersBase extends PulsarWebResource {
             }
         } catch (Exception e) {
             log.error("[{}] Failed to get cluster usage {}", clientAppId(), cluster, e);
-            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
+            throw new RestException(e);
         }
 
         if (isClusterUsed) {
@@ -425,7 +425,7 @@ public class ClustersBase extends PulsarWebResource {
             clusterResources().delete(failureDomain);
         } catch (Exception e) {
             log.warn("Failed to delete failure-domain under cluster {}", clusterPath);
-            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
+            throw new RestException(e);
         }
     }
 

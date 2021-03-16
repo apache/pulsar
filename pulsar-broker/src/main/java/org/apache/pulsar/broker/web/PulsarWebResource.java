@@ -911,7 +911,7 @@ public abstract class PulsarWebResource {
             }
         } catch (Exception e) {
             log.warn("Unable to fetch read-only policy config {}", POLICIES_READONLY_FLAG_PATH, e);
-            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
+            throw new RestException(e);
         }
     }
 
