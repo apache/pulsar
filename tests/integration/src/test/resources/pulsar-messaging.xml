@@ -24,6 +24,7 @@
         <classes>
             <class name="org.apache.pulsar.tests.integration.messaging.PersistentTopicMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.NonPersistentTopicMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.io.AvroKafkaSourceTest" />
         </classes>
     </test>
 </suite>

@@ -109,6 +109,7 @@ The following metrics are available for broker:
 * [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
 * [Token metrics](#token-metrics)
 * [Authentication metrics](#authentication-metrics) 
+* [Connection metrics](#connection-metrics)
 
 ### Namespace metrics
 
@@ -365,6 +366,22 @@ All the authentication metrics are labelled with the following labels:
 |---|---|---|
 | pulsar_authentication_success_count| Counter | The number of successful authentication operations. |
 | pulsar_authentication_failures_count | Counter | The number of failing authentication operations. |
+
+### Connection metrics
+
+All the connection metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+- *broker*: `broker=${advertised_address}`. `${advertised_address}` is the advertised address of the broker.
+- *metric*: `metric=${metric}`. `${metric}` is the connection metric collective name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_active_connections| Gauge | The number of active connections. |
+| pulsar_connection_created_total_count | Gauge | The total number of connections. |
+| pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
+| pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
+| pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
 
 ## Pulsar Functions
 

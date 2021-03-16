@@ -38,6 +38,7 @@ import org.testng.annotations.Test;
 
 import lombok.Cleanup;
 
+@Test(groups = "broker-api")
 public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TlsProducerConsumerTest.class);
 
@@ -52,7 +53,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
 
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
@@ -86,7 +87,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
@@ -114,7 +115,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on https without sending certs - expect failure
@@ -232,7 +233,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         } catch (PulsarClientException e) {
             // Ok..
         }
-        
+
         trustStoreIndex.set(0);
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();

@@ -61,6 +61,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -997,6 +999,82 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         producer.close();
         consumer.close();
     }
+
+    @Test
+    public void testBrokerConnection() throws Exception {
+        final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
+        compareBrokerConnectionStateCount(cm, 0.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_active_connections");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        pulsarClient.close();
+        statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        metricsStr = new String(statsOut.toByteArray());
+
+        metrics = parseMetrics(metricsStr);
+        cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        pulsar.getConfiguration().setAuthenticationEnabled(true);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(1, TimeUnit.MILLISECONDS).build();
+
+        try {
+            pulsarClient.newProducer()
+                    .topic(topicName)
+                    .create();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.AuthenticationException);
+        }
+
+        pulsarClient.close();
+        statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        metricsStr = new String(statsOut.toByteArray());
+
+        metrics = parseMetrics(metricsStr);
+        cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
+        compareBrokerConnectionStateCount(cm, 2.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_create_fail_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_active_connections");
+        compareBrokerConnectionStateCount(cm, 0.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
+        compareBrokerConnectionStateCount(cm, 2.0);
+    }
+
+    private void compareBrokerConnectionStateCount(List<Metric> cm, double count) {
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.get(0).tags.get("broker"), "localhost");
+        assertEquals(cm.get(0).value, count);
+    }
+
 
     /**
      * Hacky parsing of Prometheus text format. Sould be good enough for unit tests

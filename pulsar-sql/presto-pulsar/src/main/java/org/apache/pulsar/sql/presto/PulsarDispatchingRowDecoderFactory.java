@@ -37,6 +37,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.sql.presto.decoder.avro.PulsarAvroRowDecoderFactory;
 import org.apache.pulsar.sql.presto.decoder.json.PulsarJsonRowDecoderFactory;
 import org.apache.pulsar.sql.presto.decoder.primitive.PulsarPrimitiveRowDecoderFactory;
+import org.apache.pulsar.sql.presto.decoder.protobufnative.PulsarProtobufNativeRowDecoderFactory;
 
 /**
  * dispatcher RowDecoderFactory for {@link org.apache.pulsar.common.schema.SchemaType}.
@@ -69,6 +70,8 @@ public class PulsarDispatchingRowDecoderFactory {
             return new PulsarAvroRowDecoderFactory(typeManager);
         } else if (SchemaType.JSON.equals(schemaInfo.getType())) {
             return new PulsarJsonRowDecoderFactory(typeManager);
+        }else if (SchemaType.PROTOBUF_NATIVE.equals(schemaInfo.getType())) {
+            return new PulsarProtobufNativeRowDecoderFactory(typeManager);
         } else if (schemaInfo.getType().isPrimitive()) {
             return new PulsarPrimitiveRowDecoderFactory();
         } else {
