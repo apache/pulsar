@@ -160,7 +160,7 @@ public abstract class AdminResource extends PulsarWebResource {
                     .exists(POLICIES_READONLY_FLAG_PATH).get();
         } catch (Exception e) {
             log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e);
-            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
+            throw new RestException(e);
         }
 
         if (arePoliciesReadOnly) {

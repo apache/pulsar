@@ -464,7 +464,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             } catch (Exception e) {
                 log.error("[{}] Failed to remove owned namespace {} from ZK", clientAppId(), namespaceName, e);
-                asyncResponse.resume(new RestException(e instanceof ExecutionException ? e.getCause() : e));
+                asyncResponse.resume(new RestException(e));
                 return null;
             }
 
