@@ -36,11 +36,16 @@ void MessageAndCallbackBatch::add(const Message& msg, const SendCallback& callba
                                                                      ClientConnection::getMaxMessageSize());
     LOG_DEBUG(" After serialization payload size in bytes = " << msgImpl_->payload.readableBytes());
     callbacks_.emplace_back(callback);
+
+    ++messagesCount_;
+    messagesSize_ += msg.getLength();
 }
 
 void MessageAndCallbackBatch::clear() {
     msgImpl_.reset();
     callbacks_.clear();
+    messagesCount_ = 0;
+    messagesSize_ = 0;
 }
 
 static void completeSendCallbacks(const std::vector<SendCallback>& callbacks, Result result,

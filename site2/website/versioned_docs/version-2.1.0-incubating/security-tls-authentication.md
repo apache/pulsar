@@ -61,7 +61,7 @@ superUserRoles=admin
 # Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
 brokerClientTlsEnabled=true
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
-brokerClientAuthenticationParameters={"tlsCertFile":"/path/my-ca/admin.cert.pem","tlsKeyFile":"/path/my-ca/admin.key-pk8.pem"}
+brokerClientAuthenticationParameters=tlsCertFile:/path/my-ca/admin.cert.pem,tlsKeyFile:/path/my-ca/admin.key-pk8.pem
 brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 ```
 
@@ -78,7 +78,7 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 
 # For the proxy to connect to brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
-brokerClientAuthenticationParameters={"tlsCertFile":"/path/to/proxy.cert.pem","tlsKeyFile":"/path/to/proxy.key-pk8.pem"}
+brokerClientAuthenticationParameters=tlsCertFile:/path/to/proxy.cert.pem,tlsKeyFile:/path/to/proxy.key-pk8.pem
 ```
 
 ## Client configuration

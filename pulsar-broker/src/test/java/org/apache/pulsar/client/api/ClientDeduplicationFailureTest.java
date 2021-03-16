@@ -20,9 +20,8 @@ package org.apache.pulsar.client.api;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.*;
+
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -57,6 +56,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-api")
 public class ClientDeduplicationFailureTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -131,7 +131,7 @@ public class ClientDeduplicationFailureTest {
         private Thread thread;
         private Producer<String> producer;
         private long i = 1;
-        private AtomicLong atomicLong = new AtomicLong(0);
+        private final AtomicLong atomicLong = new AtomicLong(0);
         private CompletableFuture<MessageId> lastMessageFuture;
 
         public ProducerThread(Producer<String> producer) {
@@ -256,7 +256,7 @@ public class ClientDeduplicationFailureTest {
 
         log.info("# of messages read: {}", count);
 
-        assertTrue(prevMessage != null);
+        assertNotNull(prevMessage);
         assertEquals(prevMessage.getSequenceId(), producerThread.getLastSeqId());
     }
 
@@ -314,13 +314,13 @@ public class ClientDeduplicationFailureTest {
         }, 5, 200);
 
         TopicStats topicStats1 = admin.topics().getStats(sourceTopic);
-        assertTrue(topicStats1!= null);
-        assertTrue(topicStats1.subscriptions.get(subscriptionName1) != null);
+        assertNotNull(topicStats1);
+        assertNotNull(topicStats1.subscriptions.get(subscriptionName1));
         assertEquals(topicStats1.subscriptions.get(subscriptionName1).consumers.size(), 1);
         assertEquals(topicStats1.subscriptions.get(subscriptionName1).consumers.get(0).consumerName, consumerName1);
         TopicStats topicStats2 = admin.topics().getStats(sourceTopic);
-        assertTrue(topicStats2!= null);
-        assertTrue(topicStats2.subscriptions.get(subscriptionName2) != null);
+        assertNotNull(topicStats2);
+        assertNotNull(topicStats2.subscriptions.get(subscriptionName2));
         assertEquals(topicStats2.subscriptions.get(subscriptionName2).consumers.size(), 1);
         assertEquals(topicStats2.subscriptions.get(subscriptionName2).consumers.get(0).consumerName, consumerName2);
 
@@ -395,11 +395,11 @@ public class ClientDeduplicationFailureTest {
         retryStrategically((test) -> msgRecvd.size() >= 20, 5, 200);
 
         assertEquals(msgRecvd.size(), 20);
-        for (int i=0; i<10; i++) {
+        for (int i = 0; i < 10; i++) {
             assertEquals(msgRecvd.get(i).getValue(), "foo-" + i);
             assertEquals(msgRecvd.get(i).getSequenceId(), i);
         }
-        for (int i=10; i<20; i++) {
+        for (int i = 10; i <20; i++) {
             assertEquals(msgRecvd.get(i).getValue(), "foo-" + (i + 10));
             assertEquals(msgRecvd.get(i).getSequenceId(), i + 10);
         }

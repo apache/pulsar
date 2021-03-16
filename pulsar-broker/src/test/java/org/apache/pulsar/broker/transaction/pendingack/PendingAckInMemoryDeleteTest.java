@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -158,8 +159,8 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                         PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
-                        HashMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
-                                (HashMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field.get(pendingAckHandle);
+                        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
+                                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field.get(pendingAckHandle);
                         assertTrue(individualAckOfTransaction.isEmpty());
                         if (retryCnt == 0) {
                             //one message are not ack
@@ -202,7 +203,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         PersistentSubscription persistentSubscription = null;
         PendingAckHandleImpl pendingAckHandle = null;
 
-        HashMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction = null;
+        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction = null;
         ManagedCursorImpl managedCursor = null;
 
         ConcurrentSkipListMap<PositionImpl, BitSetRecyclable> batchDeletedIndexes = null;
@@ -251,7 +252,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
                         individualAckOfTransaction =
-                                (HashMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field.get(pendingAckHandle);
+                                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field.get(pendingAckHandle);
                         assertTrue(individualAckOfTransaction.isEmpty());
                         managedCursor = (ManagedCursorImpl) persistentSubscription.getCursor();
                         field = ManagedCursorImpl.class.getDeclaredField("batchDeletedIndexes");
@@ -298,7 +299,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     private Transaction getTxn() throws Exception {
         return pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
                 .build()
                 .get();
     }

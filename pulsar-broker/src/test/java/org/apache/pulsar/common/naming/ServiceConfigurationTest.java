@@ -35,10 +35,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.testng.annotations.Test;
 
-/**
- *
- *
- */
+@Test(groups = "broker-naming")
 public class ServiceConfigurationTest {
 
     final String fileName = "configurations/pulsar_broker_test.conf"; // test-resource file
@@ -89,7 +86,7 @@ public class ServiceConfigurationTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testInitFailure() throws Exception {
         final String zookeeperServer = "localhost:2184";
-        InputStream newStream = updateProp(zookeeperServer, String.valueOf("invalid-string"), null);
+        InputStream newStream = updateProp(zookeeperServer, "invalid-string", null);
         PulsarConfigurationLoader.create(newStream, ServiceConfiguration.class);
     }
 

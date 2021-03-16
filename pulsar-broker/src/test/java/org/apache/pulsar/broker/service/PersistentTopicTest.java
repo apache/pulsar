@@ -1629,6 +1629,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         verify(compactor, times(0)).compact(anyString());
 
+        doReturn(10L).when(ledgerMock).getTotalSize();
         doReturn(10L).when(ledgerMock).getEstimatedBacklogSize();
 
         topic.checkCompaction();

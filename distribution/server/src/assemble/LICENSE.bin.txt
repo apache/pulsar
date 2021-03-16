@@ -320,18 +320,16 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.11.1.jar
      - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.11.1.jar
      - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.11.1.jar
+     - org.codehaus.jackson-jackson-core-asl-1.9.11.jar
+     - org.codehaus.jackson-jackson-mapper-asl-1.9.11.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
- * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
+ * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.1.jar
+ * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.17.0.jar
  * Joda -- org.joda-joda-convert-2.2.1.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.2.jar
  * Gson
     - com.google.code.gson-gson-2.8.6.jar
     - io.gsonfire-gson-fire-1.8.4.jar
- * Sundrio
-    - io.sundr-builder-annotations-0.21.0.jar
-    - io.sundr-resourcecify-annotations-0.21.0.jar
-    - io.sundr-sundr-codegen-0.21.0.jar
-    - io.sundr-sundr-core-0.21.0.jar
  * Guava
     - com.google.guava-guava-30.1-jre.jar
     - com.google.guava-failureaccess-1.0.1.jar
@@ -355,7 +353,7 @@ The Apache Software License, Version 2.0
     - commons-logging-commons-logging-1.1.1.jar
     - org.apache.commons-commons-collections4-4.1.jar
     - org.apache.commons-commons-compress-1.19.jar
-    - org.apache.commons-commons-lang3-3.6.jar
+    - org.apache.commons-commons-lang3-3.11.jar
  * Netty
     - io.netty-netty-buffer-4.1.51.Final.jar
     - io.netty-netty-codec-4.1.51.Final.jar
@@ -395,32 +393,32 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-1.2-api-2.14.0.jar
  * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.12.1.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.12.1.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.12.1.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.12.1.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.12.1.jar
-    - org.apache.bookkeeper-circe-checksum-4.12.1.jar
-    - org.apache.bookkeeper-cpu-affinity-4.12.1.jar
-    - org.apache.bookkeeper-statelib-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-api-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-common-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-server-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.12.1.jar
-    - org.apache.bookkeeper.http-http-server-4.12.1.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.12.1.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.12.1.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.12.1.jar
-    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.12.1.jar
-    - org.apache.distributedlog-distributedlog-common-4.12.1.jar
-    - org.apache.distributedlog-distributedlog-core-4.12.1-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.12.1.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.12.1.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.12.1.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.13.0.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.13.0.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.13.0.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.13.0.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.13.0.jar
+    - org.apache.bookkeeper-circe-checksum-4.13.0.jar
+    - org.apache.bookkeeper-cpu-affinity-4.13.0.jar
+    - org.apache.bookkeeper-statelib-4.13.0.jar
+    - org.apache.bookkeeper-stream-storage-api-4.13.0.jar
+    - org.apache.bookkeeper-stream-storage-common-4.13.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.13.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.13.0.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.13.0.jar
+    - org.apache.bookkeeper-stream-storage-server-4.13.0.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.13.0.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.13.0.jar
+    - org.apache.bookkeeper.http-http-server-4.13.0.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.13.0.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.13.0.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.13.0.jar
+    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.13.0.jar
+    - org.apache.distributedlog-distributedlog-common-4.13.0.jar
+    - org.apache.distributedlog-distributedlog-core-4.13.0-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.13.0.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.13.0.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.13.0.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.5.jar
     - org.apache.httpcomponents-httpcore-4.4.9.jar
@@ -451,25 +449,35 @@ The Apache Software License, Version 2.0
  * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.3.4.jar
  * Apache Thrifth - org.apache.thrift-libthrift-0.12.0.jar
- * OkHttp
-    - com.squareup.okhttp-okhttp-2.5.0.jar
+ * OkHttp and OkHttp3
+     - com.squareup.okhttp-okhttp-2.7.4.jar
+     - com.squareup.okhttp3-logging-interceptor-3.14.9.jar
+     - com.squareup.okhttp3-okhttp-3.14.9.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
-  * gRPC
-    - io.grpc-grpc-all-1.18.0.jar
-    - io.grpc-grpc-auth-1.18.0.jar
-    - io.grpc-grpc-context-1.18.0.jar
-    - io.grpc-grpc-core-1.18.0.jar
-    - io.grpc-grpc-netty-1.18.0.jar
-    - io.grpc-grpc-okhttp-1.18.0.jar
-    - io.grpc-grpc-protobuf-1.18.0.jar
-    - io.grpc-grpc-protobuf-lite-1.18.0.jar
-    - io.grpc-grpc-stub-1.18.0.jar
-    - io.grpc-grpc-protobuf-nano-1.18.0.jar
-    - io.grpc-grpc-testing-1.18.0.jar
+ * gRPC
+    - io.grpc-grpc-all-1.33.0.jar
+    - io.grpc-grpc-auth-1.33.0.jar
+    - io.grpc-grpc-context-1.33.0.jar
+    - io.grpc-grpc-core-1.33.0.jar
+    - io.grpc-grpc-netty-1.33.0.jar
+    - io.grpc-grpc-okhttp-1.33.0.jar
+    - io.grpc-grpc-protobuf-1.33.0.jar
+    - io.grpc-grpc-protobuf-lite-1.33.0.jar
+    - io.grpc-grpc-stub-1.33.0.jar
+    - io.grpc-grpc-testing-1.33.0.jar
+    - io.grpc-grpc-alts-1.33.0.jar
+    - io.grpc-grpc-api-1.33.0.jar
+    - io.grpc-grpc-grpclb-1.33.0.jar
+    - io.grpc-grpc-netty-shaded-1.33.0.jar
+    - io.grpc-grpc-services-1.33.0.jar
+    - io.grpc-grpc-xds-1.33.0.jar
+  * Perfmark 
+    - io.perfmark-perfmark-api-0.19.0.jar
   * OpenCensus
     - io.opencensus-opencensus-api-0.18.0.jar
-    - io.opencensus-opencensus-contrib-grpc-metrics-0.18.0.jar
+    - io.opencensus-opencensus-contrib-http-util-0.24.0.jar
+    - io.opencensus-opencensus-proto-0.2.0.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
   * Apache Avro
@@ -483,13 +491,10 @@ The Apache Software License, Version 2.0
     - org.apache.yetus-audience-annotations-0.5.0.jar
   * @FreeBuilder
     - org.inferred-freebuilder-1.14.9.jar
-  * Squareup
-    - com.squareup.okhttp3-logging-interceptor-3.14.3.jar
-    - com.squareup.okhttp3-okhttp-3.14.3.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-9.0.2.jar
-    - io.kubernetes-client-java-api-9.0.2.jar
-    - io.kubernetes-client-java-proto-9.0.2.jar
+    - io.kubernetes-client-java-10.0.0.jar
+    - io.kubernetes-client-java-api-10.0.0.jar
+    - io.kubernetes-client-java-proto-10.0.0.jar
   * Joda Time
     - joda-time-2.10.1.jar
     - joda-time-joda-time-2.10.1.jar
@@ -514,10 +519,16 @@ The Apache Software License, Version 2.0
     - org.apache.zookeeper-zookeeper-jute-3.6.2.jar
   * Snappy Java  
     - org.xerial.snappy-snappy-java-1.1.7.jar
+  * Google HTTP Client
+    - com.google.http-client-google-http-client-jackson2-1.34.0.jar
+    - com.google.http-client-google-http-client-1.34.0.jar
+    - com.google.auto.value-auto-value-annotations-1.7.jar
+    - com.google.re2j-re2j-1.2.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
-    - com.google.auth-google-auth-library-credentials-0.9.0.jar -- licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-credentials-0.20.0.jar -- licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-oauth2-http-0.20.0.jar -- licenses/LICENSE-google-auth-library.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- licenses/LICENSE-JSR305.txt
  * JavaHamcrest -- org.hamcrest-hamcrest-core-1.3.jar -- licenses/LICENSE-Hamcrest.txt
@@ -531,17 +542,13 @@ MIT License
     - org.slf4j-jul-to-slf4j-1.7.25.jar
     - org.slf4j-slf4j-api-1.7.25.jar
     - org.slf4j-jcl-over-slf4j-1.7.25.jar
- * Animal Sniffer Annotations
-    - org.codehaus.mojo-animal-sniffer-annotations-1.17.jar
  * The Checker Framework
- 	- org.checkerframework-checker-compat-qual-2.5.2.jar
     - org.checkerframework-checker-qual-3.5.0.jar
 
 Protocol Buffers License
  * Protocol Buffers
    - com.google.protobuf-protobuf-java-3.11.4.jar -- licenses/LICENSE-protobuf.txt
    - com.google.protobuf-protobuf-java-util-3.11.4.jar -- licenses/LICENSE-protobuf.txt
-   - com.google.protobuf.nano-protobuf-javanano-3.0.0-alpha-5.jar -- licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
@@ -571,7 +578,8 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.13.jar
 
 Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
- * Jakarta Activation -- jakarta.activation-jakarta.activation-api-1.2.1.jar
+ * Jakarta Activation 
+   - jakarta.activation-jakarta.activation-api-1.2.1.jar
  * Jakarta XML Binding -- jakarta.xml.bind-jakarta.xml.bind-api-2.3.2.jar
 
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt

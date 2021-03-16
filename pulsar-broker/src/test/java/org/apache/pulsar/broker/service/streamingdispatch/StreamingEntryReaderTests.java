@@ -179,7 +179,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
         // Only 2 entries should be read with this request.
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
         assertEquals(entries.size(), 2);
         // Assert cursor's read position has been properly updated to the third entry, since we should only read
         // 2 retries with previous request
@@ -187,13 +187,13 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         reset(ledger);
         readComplete.set(false);
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
         readComplete.set(false);
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
         readComplete.set(false);
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         assertEquals(entries.size(), 8);
         for (int i = 0; i < entries.size(); i++) {
@@ -226,11 +226,11 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         ).when(mockDispatcher).readEntryComplete(any(Entry.class), any(PendingReadEntryRequest.class));
 
         streamingEntryReader.asyncReadEntries(5,  100, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 5);
+        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 5);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         streamingEntryReader.asyncReadEntries(5, 100, null);
         // We only write 7 entries initially so only 7 entries can be read.
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 7);
+        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 7);
         // Add new entry and await for it to be send to reader.
         entryProcessed.set(false);
         ledger.addEntry("message-7".getBytes(Encoding));

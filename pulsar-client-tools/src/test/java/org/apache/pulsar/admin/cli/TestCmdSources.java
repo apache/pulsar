@@ -73,6 +73,7 @@ public class TestCmdSources {
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\"}";
+    private static final boolean FORWARD_PROPERTIES = true;
 
     private PulsarAdmin pulsarAdmin;
     private Sources source;
@@ -114,6 +115,7 @@ public class TestCmdSources {
         sourceConfig.setArchive(JAR_FILE_PATH);
         sourceConfig.setResources(new Resources(CPU, RAM, DISK));
         sourceConfig.setConfigs(createSource.parseConfigs(SINK_CONFIG_STRING));
+        sourceConfig.setForwardSourceMessageProperty(FORWARD_PROPERTIES);
         return sourceConfig;
     }
 
@@ -575,15 +577,19 @@ public class TestCmdSources {
 
         updateSource.archive = "new-archive";
 
+        updateSource.forwardSourceMessageProperty = true;
+
         updateSource.processArguments();
 
         updateSource.runCmd();
+
 
         verify(source).updateSource(eq(SourceConfig.builder()
                 .tenant(PUBLIC_TENANT)
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .archive(updateSource.archive)
+                .forwardSourceMessageProperty(true)
                 .build()), eq(updateSource.archive), eq(new UpdateOptions()));
 
 
@@ -591,9 +597,11 @@ public class TestCmdSources {
 
         updateSource.parallelism = 2;
 
-        updateSource.processArguments();
-
         updateSource.updateAuthData = true;
+
+        updateSource.forwardSourceMessageProperty = false;
+
+        updateSource.processArguments();
 
         UpdateOptions updateOptions = new UpdateOptions();
         updateOptions.setUpdateAuthData(true);
@@ -605,6 +613,7 @@ public class TestCmdSources {
                 .namespace(DEFAULT_NAMESPACE)
                 .name(updateSource.name)
                 .parallelism(2)
+                .forwardSourceMessageProperty(false)
                 .build()), eq(null), eq(updateOptions));
 
 

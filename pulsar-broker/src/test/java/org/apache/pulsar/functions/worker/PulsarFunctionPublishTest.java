@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
+import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesJar;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -82,9 +83,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Test Pulsar function state
- *
  */
 @Slf4j
+@Test(groups = "functions-worker")
 public class PulsarFunctionPublishTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -302,7 +303,7 @@ public class PulsarFunctionPublishTest {
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, publishTopic, subscriptionName);
 
-        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
@@ -400,10 +401,9 @@ public class PulsarFunctionPublishTest {
                 .allowTlsInsecureConnection(true).authentication(authTls)
                 .build();
 
-        String jarFilePath = getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
-        File jarFile = new File(jarFilePath);
+        File jarFile = getPulsarApiExamplesJar();
         Assert.assertTrue(jarFile.exists() && jarFile.isFile());
-        pulsarAdmin.functions().createFunction(functionConfig, jarFilePath);
+        pulsarAdmin.functions().createFunction(functionConfig, jarFile.getAbsolutePath());
         retryStrategically((test) -> {
             try {
                 return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
@@ -443,10 +443,9 @@ public class PulsarFunctionPublishTest {
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
           sourceTopic, publishTopic, subscriptionName);
 
-        String jarFilePath = getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
-        File jarFile = new File(jarFilePath);
+        File jarFile = getPulsarApiExamplesJar();
         Assert.assertTrue(jarFile.exists() && jarFile.isFile());
-        admin.functions().createFunction(functionConfig, jarFilePath);
+        admin.functions().createFunction(functionConfig, jarFile.getAbsolutePath());
 
         retryStrategically((test) -> {
             try {

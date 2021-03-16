@@ -140,6 +140,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                                               SchemaCompatibilityStrategy strategy) {
         return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
                 getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
+            if (strategy != SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE && schemaAndMetadataList.size() > 0) {
+                for (SchemaAndMetadata metadata : schemaAndMetadataList) {
+                    if (schema.getType() != metadata.schema.getType()) {
+                        return FutureUtil.failedFuture(new IncompatibleSchemaException(
+                                String.format("Incompatible schema: exists schema type %s, new schema type %s",
+                                metadata.schema.getType(), schema.getType())));
+                    }
+                }
+            }
             if (schemaVersion != null) {
                 return CompletableFuture.completedFuture(schemaVersion);
             }
@@ -242,17 +251,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         SchemaHash existingHash = SchemaHash.of(existingSchema.schema);
         SchemaHash newHash = SchemaHash.of(newSchema);
         SchemaData existingSchemaData = existingSchema.schema;
-        if (existingSchemaData.getType().isPrimitive()) {
-            if (newSchema.getType() != existingSchemaData.getType()) {
-                throw new IncompatibleSchemaException(String.format("Incompatible primitive schema: "
-                                + "exists schema type %s, new schema type %s",
-                        existingSchemaData.getType(), newSchema.getType()));
-            }
-        } else {
-            if (!newHash.equals(existingHash)) {
-                compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                        .checkCompatible(existingSchemaData, newSchema, strategy);
-            }
+        if (newSchema.getType() != existingSchemaData.getType()) {
+            throw new IncompatibleSchemaException(String.format("Incompatible schema: "
+                            + "exists schema type %s, new schema type %s",
+                    existingSchemaData.getType(), newSchema.getType()));
+        }
+        if (!newHash.equals(existingHash)) {
+            compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
+                    .checkCompatible(existingSchemaData, newSchema, strategy);
         }
     }
 

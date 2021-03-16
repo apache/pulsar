@@ -173,6 +173,27 @@ public interface Tenants {
     void deleteTenant(String tenant) throws PulsarAdminException;
 
     /**
+     * Delete an existing tenant.
+     * <p/>
+     * Force flag delete a tenant forcefully and all namespaces and topics under it.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param force
+     *            Delete tenant forcefully
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             The tenant does not exist
+     * @throws ConflictException
+     *             The tenant still has active namespaces
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteTenant(String tenant, boolean force) throws PulsarAdminException;
+
+    /**
      * Delete an existing tenant asynchronously.
      * <p/>
      * Delete a tenant and all namespaces and topics under it.
@@ -181,4 +202,16 @@ public interface Tenants {
      *            Tenant name
      */
     CompletableFuture<Void> deleteTenantAsync(String tenant);
+
+    /**
+     * Delete an existing tenant asynchronously.
+     * <p/>
+     * Force flag delete a tenant forcefully and all namespaces and topics under it.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param force
+     *            Delete tenant forcefully
+     */
+    CompletableFuture<Void> deleteTenantAsync(String tenant, boolean force);
 }

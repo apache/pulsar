@@ -382,33 +382,14 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void mergeNamespaceWithDefaults(Policies policies, String namespace, String namespacePath) {
-        if (policies.backlog_quota_map.isEmpty()) {
-            Policies.setStorageQuota(policies, namespaceBacklogQuota(namespace, namespacePath));
-        }
-
         final ServiceConfiguration config = pulsar().getConfiguration();
 
         if (policies.max_consumers_per_subscription < 1) {
             policies.max_consumers_per_subscription = config.getMaxConsumersPerSubscription();
         }
 
-        if (policies.max_unacked_messages_per_subscription == -1) {
-            policies.max_unacked_messages_per_subscription = config.getMaxUnackedMessagesPerSubscription();
-        }
-
         final String cluster = config.getClusterName();
-        // attach default dispatch rate polices
-        if (policies.topicDispatchRate.isEmpty()) {
-            policies.topicDispatchRate.put(cluster, dispatchRate());
-        }
 
-        if (policies.subscriptionDispatchRate.isEmpty()) {
-            policies.subscriptionDispatchRate.put(cluster, subscriptionDispatchRate());
-        }
-
-        if (policies.clusterSubscribeRate.isEmpty()) {
-            policies.clusterSubscribeRate.put(cluster, subscribeRate());
-        }
     }
 
     protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
@@ -463,6 +444,14 @@ public abstract class AdminResource extends PulsarWebResource {
         return new DispatchRate(
                 pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(),
                 pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInByte(),
+                1
+        );
+    }
+
+    protected DispatchRate replicatorDispatchRate() {
+        return new DispatchRate(
+                pulsar().getConfiguration().getDispatchThrottlingRatePerReplicatorInMsg(),
+                pulsar().getConfiguration().getDispatchThrottlingRatePerReplicatorInByte(),
                 1
         );
     }

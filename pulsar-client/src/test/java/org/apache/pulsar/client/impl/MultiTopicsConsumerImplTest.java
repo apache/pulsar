@@ -65,7 +65,7 @@ public class MultiTopicsConsumerImplTest {
 
         ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
-        ExecutorProvider executorProvider = new ExecutorProvider(1, threadFactory);
+        ExecutorProvider executorProvider = new ExecutorProvider(1, "client-test-stats");
 
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
@@ -160,8 +160,8 @@ public class MultiTopicsConsumerImplTest {
         // indicating that closeAsync was called
         assertEquals(impl.getState(), HandlerState.State.Uninitialized);
         try {
-            completeFuture.get(15, TimeUnit.MILLISECONDS);
-        } catch (Throwable ex) {
+            completeFuture.get(2, TimeUnit.SECONDS);
+        } catch (Throwable ignore) {
             // just ignore the exception
         }
         assertTrue(completeFuture.isCompletedExceptionally());

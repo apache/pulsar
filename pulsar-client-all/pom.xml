@@ -57,11 +57,10 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.1.1</version>
         <executions>
           <execution>
             <id>unpack</id>
-            <phase>generate-sources</phase>
+            <phase>prepare-package</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
@@ -134,6 +133,7 @@
                   <include>org.glassfish.hk2*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.grpc:*</include>
+                  <include>io.perfmark:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>io.netty:*</include>
                   <include>com.squareup.*:*</include>
