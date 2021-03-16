@@ -196,7 +196,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void testReadClonedModifyUpdate(String provider, String url) throws Exception {
+    public void testReadCloned(String provider, String url) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
@@ -212,38 +212,25 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertSame(tempPolicies, objCache.get(path).get().get());
         AtomicReference<Policies> reference = new AtomicReference<>(new Policies());
         AtomicReference<Policies> reference2 = new AtomicReference<>(new Policies());
-        AtomicReference<Policies> reference3 = new AtomicReference<>(new Policies());
 
         objCache.readModifyUpdate(path, (policies1) -> {
-            assertSame(policies1, tempPolicies);
+            assertNotSame(policies1, tempPolicies);
             reference.set(policies1);
             policies1.max_unacked_messages_per_consumer = 200;
             return policies1;
         }).get();
         objCache.readModifyUpdate(path, (policies1) -> {
-            assertSame(policies1, tempPolicies);
+            assertNotSame(policies1, tempPolicies);
             reference2.set(policies1);
             policies1.max_unacked_messages_per_consumer = 300;
             return policies1;
         }).get();
-        //The original object has been modified
-        assertEquals(tempPolicies.max_unacked_messages_per_consumer.intValue(), 300);
-        assertSame(reference.get(), reference2.get());
-        assertEquals(reference.get().max_unacked_messages_per_consumer
+        //The original object should not be modified
+        assertEquals(tempPolicies.max_unacked_messages_per_consumer.intValue(), 100);
+        assertNotSame(reference.get(), reference2.get());
+        assertNotEquals(reference.get().max_unacked_messages_per_consumer
                 , reference2.get().max_unacked_messages_per_consumer);
 
-        //Use readCloneModifyUpdate, the original reference will not be modified
-        objCache.readCloneModifyUpdate(path, (policies1) -> {
-            assertNotSame(policies1, tempPolicies);
-            reference3.set(policies1);
-            policies1.max_unacked_messages_per_consumer = 500;
-            return policies1;
-        }).get();
-        assertEquals(tempPolicies.max_unacked_messages_per_consumer.intValue(), 300);
-        assertNotSame(reference.get(), reference3.get());
-        assertNotEquals(reference.get().max_unacked_messages_per_consumer
-                , reference3.get().max_unacked_messages_per_consumer);
-        assertEquals(reference3.get().max_unacked_messages_per_consumer.intValue(), 500);
     }
 
     @Test(dataProvider = "impl")

@@ -150,8 +150,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 }), path);
     }
 
-    private CompletableFuture<Void> tryReadCloneModifyUpdate(String path
-            , Function<T, T> modifyFunction, boolean needClone) {
+    @Override
+    public CompletableFuture<Void> readModifyUpdate(String path, Function<T, T> modifyFunction) {
         return executeWithRetry(() -> objCache.get(path)
                 .thenCompose(optEntry -> {
                     if (!optEntry.isPresent()) {
@@ -165,7 +165,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     T newValueObj;
                     byte[] newValue;
                     try {
-                        currentValue = needClone ? serde.deserialize(serde.serialize(currentValue)) : currentValue;
+                        // Use clone and CAS zk to ensure thread safety
+                        currentValue = serde.deserialize(serde.serialize(currentValue));
                         newValueObj = modifyFunction.apply(currentValue);
                         newValue = serde.serialize(newValueObj);
                     } catch (Throwable t) {
@@ -178,16 +179,6 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                                 FutureUtils.value(Optional.of(new SimpleImmutableEntry<T, Stat>(newValueObj, stat))));
                     });
                 }), path);
-    }
-
-    @Override
-    public CompletableFuture<Void> readModifyUpdate(String path, Function<T, T> modifyFunction) {
-        return tryReadCloneModifyUpdate(path, modifyFunction, false);
-    }
-
-    @Override
-    public CompletableFuture<Void> readCloneModifyUpdate(String path, Function<T, T> modifyFunction) {
-        return tryReadCloneModifyUpdate(path, modifyFunction, true);
     }
 
     @Override
