@@ -24,6 +24,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.transaction.pendingack.impl.AppendPendingAckLogCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -52,34 +53,38 @@ public interface PendingAckStore {
      *
      * @param txnID {@link TxnID} transaction id.
      * @param positions {@link List} the list of position and batch size.
-     * @return a future represents the result of this operation
+     * @param callBack {@link AppendPendingAckLogCallBack} the call back of append pending ack log.
      */
-    CompletableFuture<Void> appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions);
+    void appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
+                             AppendPendingAckLogCallBack callBack);
 
     /**
      * Append the cumulative pending ack operation to the ack persistent store.
      *
      * @param txnID {@link TxnID} transaction id.
      * @param position {@link PositionImpl} the pending ack position.
-     * @return a future represents the result of this operation
+     * @param callBack {@link AppendPendingAckLogCallBack} the call back of append pending ack log.
      */
-    CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position);
+    void appendCumulativeAck(TxnID txnID, PositionImpl position,
+                             AppendPendingAckLogCallBack callBack);
 
     /**
      * Append the pending ack commit mark to the ack persistent store.
      *
      * @param txnID {@link TxnID} the transaction id for add commit mark.
      * @param ackType {@link AckType} the ack type of the commit.
-     * @return a future represents the result of this operation
+     * @param callBack {@link AppendPendingAckLogCallBack} the call back of append pending ack log.
      */
-    CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType);
+    void appendCommitMark(TxnID txnID, AckType ackType,
+                          AppendPendingAckLogCallBack callBack);
 
     /**
      * Append the pending ack abort mark to the ack persistent store.
      *
      * @param txnID {@link Position} the txnID
      * @param ackType {@link AckType} the ack type of the abort.
-     * @return a future represents the result of this operation
+     * @param callBack {@link AppendPendingAckLogCallBack} the call back of append pending ack log.
      */
-    CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType);
+    void appendAbortMark(TxnID txnID, AckType ackType,
+                         AppendPendingAckLogCallBack callBack);
 }

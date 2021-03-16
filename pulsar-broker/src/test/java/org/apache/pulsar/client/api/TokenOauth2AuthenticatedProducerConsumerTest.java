@@ -19,7 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import static org.mockito.Mockito.spy;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import com.google.common.collect.Sets;
 import java.net.URI;
 import java.net.URL;
@@ -37,7 +38,6 @@ import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.awaitility.Awaitility;
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -207,12 +207,12 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
             .pollInterval(Duration.ofSeconds(1))
             .untilAsserted(() -> {
                 String accessTokenNew = producerImpl.getClientCnx().getAuthenticationDataProvider().getCommandData();
-                Assert.assertNotEquals(accessTokenOld, accessTokenNew);
+                assertNotEquals(accessTokenNew, accessTokenOld);
             });
 
         // get the lastDisconnectTime, it should be same with the before, because the connection shouldn't disconnect
         long lastDisconnectTimeAfterTokenExpired = producer.getLastDisconnectedTimestamp();
-        Assert.assertEquals(lastDisconnectTime, lastDisconnectTimeAfterTokenExpired);
+        assertEquals(lastDisconnectTimeAfterTokenExpired, lastDisconnectTime);
 
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;

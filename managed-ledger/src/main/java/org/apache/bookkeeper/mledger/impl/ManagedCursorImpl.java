@@ -116,9 +116,14 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     protected volatile PositionImpl markDeletePosition;
 
+    // this position is have persistent mark delete position
+    protected volatile PositionImpl persistentMarkDeletePosition;
+
     protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, PositionImpl> READ_POSITION_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, PositionImpl.class, "readPosition");
     protected volatile PositionImpl readPosition;
+    // keeps sample of last read-position for validation and monitoring if read-position is not moving forward.
+    protected volatile PositionImpl statsLastReadPosition;
 
     protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, MarkDeleteEntry> LAST_MARK_DELETE_ENTRY_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, MarkDeleteEntry.class, "lastMarkDeleteEntry");
@@ -1729,6 +1734,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                         subMap.values().forEach(BitSetRecyclable::recycle);
                         subMap.clear();
                     }
+                    if (persistentMarkDeletePosition == null
+                            || mdEntry.newPosition.compareTo(persistentMarkDeletePosition) > 0) {
+                        persistentMarkDeletePosition = mdEntry.newPosition;
+                    }
+
                 } finally {
                     lock.writeLock().unlock();
                 }
@@ -2063,6 +2073,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public Position getMarkDeletedPosition() {
         return markDeletePosition;
+    }
+
+    @Override
+    public Position getPersistentMarkDeletedPosition() {
+        return this.persistentMarkDeletePosition;
     }
 
     @Override
@@ -2973,6 +2988,16 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         return Math.min(maxEntriesBasedOnSize, maxEntries);
+    }
+
+    @Override
+    public boolean checkAndUpdateReadPositionChanged() {
+        PositionImpl lastEntry = ledger.lastConfirmedEntry;
+        boolean isReadPositionOnTail = lastEntry == null || readPosition == null
+                || !(lastEntry.compareTo(readPosition) > 0);
+        boolean isReadPositionChanged = readPosition != null && !readPosition.equals(statsLastReadPosition);
+        statsLastReadPosition = readPosition;
+        return isReadPositionOnTail || isReadPositionChanged;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

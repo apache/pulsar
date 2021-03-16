@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import com.google.common.collect.ComparisonChain;
 import io.netty.buffer.ByteBuf;
-import io.netty.util.Timer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -59,7 +60,7 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private final ManagedCursor cursor;
 
-    private static final String PENDING_ACK_STORE_SUFFIX = "_transaction_pendingack";
+    private static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pendingack";
 
     private static final String PENDING_ACK_STORE_CURSOR_NAME = "pendingack";
 
@@ -70,29 +71,39 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private PositionImpl currentLoadPosition;
 
-    private final Timer timer;
+    /**
+     * The map is for pending ack store clear useless data.
+     * <p>
+     *     When ack message append to pending ack store, it will store the position which is persistent as key.
+     * <p>
+     *     When ack message append to pending ack store, it will store the position which is the max position of this
+     *     ack by the original topic as value.
+     * <p>
+     *     It will judge the position with the max sub cursor position whether smaller than the subCursor mark
+     *     delete position.
+     *     <p>
+     *         If the max position is smaller than the subCursor mark delete position, the log cursor will mark delete
+     *         the position.
+     */
+    private final ConcurrentSkipListMap<PositionImpl, PositionImpl> metadataPositions;
 
-    private final MLPendingAckStoreTimerTask mlPendingAckStoreTimerTask;
-
-    private final int intervalTime;
+    private final ManagedCursor subManagedCursor;
 
     public MLPendingAckStore(ManagedLedger managedLedger, ManagedCursor cursor,
-                             Timer timer, ManagedCursor subManagedCursor, int maxIntervalTime, int minIntervalTime) {
+                             ManagedCursor subManagedCursor) {
         this.managedLedger = managedLedger;
         this.cursor = cursor;
         this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();
         this.entryQueue = new SpscArrayQueue<>(2000);
         this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
-        this.timer = timer;
-        this.intervalTime = minIntervalTime;
-        this.mlPendingAckStoreTimerTask = new MLPendingAckStoreTimerTask(cursor, managedLedger,
-                minIntervalTime, maxIntervalTime, subManagedCursor, this.timer);
+        this.metadataPositions = new ConcurrentSkipListMap<>();
+        this.subManagedCursor = subManagedCursor;
     }
 
     @Override
     public void replayAsync(PendingAckHandleImpl pendingAckHandle, ScheduledExecutorService transactionReplayExecutor) {
         transactionReplayExecutor
-                .execute(new PendingAckReplay(new MLPendingAckReplyCallBack(this, pendingAckHandle)));
+                .execute(new PendingAckReplay(new MLPendingAckReplyCallBack(pendingAckHandle)));
     }
 
     //TODO can control the number of entry to read
@@ -124,8 +135,8 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     @Override
-    public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
-                                                       List<MutablePair<PositionImpl, Integer>> positions) {
+    public void appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
+                                    AppendPendingAckLogCallBack callBack) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ACK);
         pendingAckMetadataEntry.setAckType(AckType.Individual);
@@ -145,11 +156,11 @@ public class MLPendingAckStore implements PendingAckStore {
             pendingAckMetadataList.add(pendingAckMetadata);
         });
         pendingAckMetadataEntry.addAllPendingAckMetadatas(pendingAckMetadataList);
-        return appendCommon(pendingAckMetadataEntry, txnID);
+        appendCommon(pendingAckMetadataEntry, txnID, callBack);
     }
 
     @Override
-    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
+    public void appendCumulativeAck(TxnID txnID, PositionImpl position, AppendPendingAckLogCallBack callBack) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ACK);
         pendingAckMetadataEntry.setAckType(AckType.Cumulative);
@@ -162,60 +173,108 @@ public class MLPendingAckStore implements PendingAckStore {
         pendingAckMetadata.setLedgerId(position.getLedgerId());
         pendingAckMetadata.setEntryId(position.getEntryId());
         pendingAckMetadataEntry.addAllPendingAckMetadatas(Collections.singleton(pendingAckMetadata));
-        return appendCommon(pendingAckMetadataEntry, txnID);
+        appendCommon(pendingAckMetadataEntry, txnID, callBack);
     }
 
     @Override
-    public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
+    public void appendCommitMark(TxnID txnID, AckType ackType,
+                                                    AppendPendingAckLogCallBack callBack) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.COMMIT);
         pendingAckMetadataEntry.setAckType(ackType);
-        return appendCommon(pendingAckMetadataEntry, txnID);
+        appendCommon(pendingAckMetadataEntry, txnID, callBack);
     }
 
     @Override
-    public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
+    public void appendAbortMark(TxnID txnID, AckType ackType, AppendPendingAckLogCallBack callBack) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ABORT);
         pendingAckMetadataEntry.setAckType(ackType);
-        return appendCommon(pendingAckMetadataEntry, txnID);
+        appendCommon(pendingAckMetadataEntry, txnID, callBack);
     }
 
-    private CompletableFuture<Void> appendCommon(PendingAckMetadataEntry pendingAckMetadataEntry, TxnID txnID) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+    private void appendCommon(PendingAckMetadataEntry pendingAckMetadataEntry, TxnID txnID,
+                              AppendPendingAckLogCallBack callBack) {
         pendingAckMetadataEntry.setTxnidLeastBits(txnID.getLeastSigBits());
         pendingAckMetadataEntry.setTxnidMostBits(txnID.getMostSigBits());
         int transactionMetadataEntrySize = pendingAckMetadataEntry.getSerializedSize();
         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(transactionMetadataEntrySize, transactionMetadataEntrySize);
         pendingAckMetadataEntry.writeTo(buf);
-        try {
-            managedLedger.asyncAddEntry(buf, new AsyncCallbacks.AddEntryCallback() {
+        managedLedger.asyncAddEntry(buf, new AsyncCallbacks.AddEntryCallback() {
 
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] MLPendingAckStore message append success at {}, operation : {}",
-                                managedLedger.getName(), ctx, position, pendingAckMetadataEntry.getPendingAckOp());
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] MLPendingAckStore message append success at {}, operation : {}",
+                            managedLedger.getName(), ctx, position, pendingAckMetadataEntry.getPendingAckOp());
+                }
+                // store the persistent position in to memory
+                if (pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.ABORT
+                        && pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.COMMIT) {
+                    Optional<PendingAckMetadata> optional = pendingAckMetadataEntry.getPendingAckMetadatasList()
+                            .stream().max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
+                                    o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
+                    optional.ifPresent(pendingAckMetadata ->
+                            metadataPositions.compute((PositionImpl) position, (thisPosition, otherPosition) -> {
+                                PositionImpl nowPosition = PositionImpl.get(pendingAckMetadata.getLedgerId(),
+                                        pendingAckMetadata.getEntryId());
+                                if (otherPosition == null) {
+                                    return nowPosition;
+                                } else {
+                                    return nowPosition.compareTo(otherPosition) > 0 ? nowPosition : otherPosition;
+                                }
+                    }));
+                }
+
+                buf.release();
+                callBack.addComplete();
+
+                if (!metadataPositions.isEmpty()) {
+                    PositionImpl firstPosition = metadataPositions.firstEntry().getKey();
+                    PositionImpl deletePosition = metadataPositions.firstEntry().getKey();
+                    while (!metadataPositions.isEmpty()
+                            && metadataPositions.firstKey() != null
+                            && subManagedCursor.getPersistentMarkDeletedPosition() != null
+                            && metadataPositions.firstEntry().getValue()
+                            .compareTo((PositionImpl) subManagedCursor.getPersistentMarkDeletedPosition()) <= 0) {
+                        deletePosition = metadataPositions.firstKey();
+                        metadataPositions.remove(metadataPositions.firstKey());
                     }
-                    buf.release();
-                    completableFuture.complete(null);
-                }
 
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
-                            managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
-                    buf.release();
-                    completableFuture.completeExceptionally(exception);
+                    if (firstPosition != deletePosition) {
+                        PositionImpl finalDeletePosition = deletePosition;
+                        cursor.asyncMarkDelete(deletePosition,
+                                new AsyncCallbacks.MarkDeleteCallback() {
+                                    @Override
+                                    public void markDeleteComplete(Object ctx) {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] Transaction pending ack store mark delete position : "
+                                                            + "[{}] success", managedLedger.getName(),
+                                                    finalDeletePosition);
+                                        }
+                                    }
+
+                                    @Override
+                                    public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                                        if (log.isDebugEnabled()) {
+                                            log.error("[{}] Transaction pending ack store mark delete position : "
+                                                            + "[{}] fail!", managedLedger.getName(),
+                                                    finalDeletePosition, exception);
+                                        }
+                                    }
+                                }, null);
+                    }
                 }
-            } , null);
-        } catch (Exception e) {
-            log.error("[{}] MLPendingAckStore message append fail exception : {}",
-                    managedLedger.getName(), e);
-            buf.release();
-            completableFuture.completeExceptionally(e);
-        }
-        return completableFuture;
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
+                        managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
+                buf.release();
+                callBack.addFailed(exception);
+            }
+        } , null);
     }
 
     class PendingAckReplay implements Runnable {
@@ -242,6 +301,26 @@ public class MLPendingAckStore implements PendingAckStore {
                     PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
                     pendingAckMetadataEntry.parseFrom(buffer, buffer.readableBytes());
                     pendingAckReplyCallBack.handleMetadataEntry(pendingAckMetadataEntry);
+                    // store the persistent position in to memory
+                    if (pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.ABORT
+                            && pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.COMMIT) {
+                        Optional<PendingAckMetadata> optional = pendingAckMetadataEntry.getPendingAckMetadatasList()
+                                .stream().max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
+                                        o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
+                        optional.ifPresent(pendingAckMetadata ->
+                                metadataPositions.compute(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()),
+                                        (thisPosition, otherPosition) -> {
+                                            PositionImpl nowPosition = PositionImpl
+                                                    .get(pendingAckMetadata.getLedgerId(),
+                                                            pendingAckMetadata.getEntryId());
+                                            if (otherPosition == null) {
+                                                return nowPosition;
+                                            } else {
+                                                return nowPosition.compareTo(otherPosition) > 0 ? nowPosition
+                                                        : otherPosition;
+                                            }
+                                }));
+                    }
                     entry.release();
                 } else {
                     if (exceptionNumber.get() > MAX_EXCEPTION_NUMBER) {
@@ -302,11 +381,6 @@ public class MLPendingAckStore implements PendingAckStore {
             exceptionNumber.getAndIncrement();
         }
 
-    }
-
-    //this task is for delete the pending ack store
-    protected void startTimerTask() {
-        this.timer.newTimeout(this.mlPendingAckStoreTimerTask, intervalTime, TimeUnit.MILLISECONDS);
     }
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {

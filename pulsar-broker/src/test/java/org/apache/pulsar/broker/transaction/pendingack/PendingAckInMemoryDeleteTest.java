@@ -274,7 +274,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                         } else {
                             //two message are not ack
                             Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
-                                System.out.println(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size());
                                 return testPersistentSubscription.getConsumers().get(0).getPendingAcks().size() == 2;
                             });
 
@@ -310,7 +309,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     private Transaction getTxn() throws Exception {
         return pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
                 .build()
                 .get();
     }

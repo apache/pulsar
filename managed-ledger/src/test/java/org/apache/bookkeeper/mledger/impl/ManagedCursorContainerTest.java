@@ -131,6 +131,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public Position getPersistentMarkDeletedPosition() {
+            return position;
+        }
+
+        @Override
         public String getName() {
             return name;
         }
@@ -363,6 +368,11 @@ public class ManagedCursorContainerTest {
         public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
                 throws InterruptedException, ManagedLedgerException {
             return null;
+        }
+
+        @Override
+        public boolean checkAndUpdateReadPositionChanged() {
+            return false;
         }
     }
 

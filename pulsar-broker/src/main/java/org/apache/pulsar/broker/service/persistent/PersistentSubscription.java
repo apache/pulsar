@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.util.Collections;
@@ -130,7 +131,9 @@ public class PersistentSubscription implements Subscription {
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
-        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && !checkTopicIsEventsNames(topic.getName())
+                && !topic.getName().contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
@@ -1094,6 +1097,10 @@ public class PersistentSubscription implements Subscription {
 
     public boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
         return this.pendingAckHandle.checkIsCanDeleteConsumerPendingAck(position);
+    }
+
+    public boolean checkAndUnblockIfStuck() {
+        return dispatcher.checkAndUnblockIfStuck();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

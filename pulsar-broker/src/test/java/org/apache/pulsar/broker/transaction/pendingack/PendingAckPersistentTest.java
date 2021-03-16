@@ -115,7 +115,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .subscribe();
 
         Transaction abortTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
         List<MessageId> pendingAckMessageIds = new ArrayList<>();
         List<MessageId> normalAckMessageIds = new ArrayList<>();
@@ -134,10 +134,10 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
         Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
         Transaction commitTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
         Transaction txn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
         // this messageIds are ack by transaction
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
@@ -164,10 +164,10 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Awaitility.await().atMost(4000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
 
         abortTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
         commitTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
         // normalAckMessageIds are ack and then commit, so ack fail
         for (int i = 0; i < normalAckMessageIds.size(); i++) {
             try {
@@ -207,7 +207,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Awaitility.await()
                 .atMost(15000, TimeUnit.MILLISECONDS)
                 .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
-                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == 0);
+                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
     }
 
     @Test
@@ -231,7 +231,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .subscribe();
 
         Transaction abortTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
         List<MessageId> pendingAckMessageIds = new ArrayList<>();
         for (int i = 0; i < messageCount; i++) {
@@ -246,9 +246,9 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
         Transaction txn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
 
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
             try {
@@ -259,7 +259,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
             }
         }
         Transaction commitTxn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.MILLISECONDS).build().get();
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
         abortTxn.abort().get();
 
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
@@ -268,7 +268,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         commitTxn.commit().get();
 
         admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
-        Awaitility.await().atMost(4000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
+        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(consumer::isConnected);
 
         for (int i = 0; i < pendingAckMessageIds.size(); i++) {
             try {
@@ -300,6 +300,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Awaitility.await()
                 .atMost(15000, TimeUnit.MILLISECONDS)
                 .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
-                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == 0);
+                        .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
     }
 }

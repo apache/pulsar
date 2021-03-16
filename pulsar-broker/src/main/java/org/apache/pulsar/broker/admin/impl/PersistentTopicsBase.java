@@ -31,11 +31,11 @@ import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -198,7 +198,7 @@ public class PersistentTopicsBase extends AdminResource {
             Policies policies = namespaceResources().get(path(POLICIES, namespaceName.toString()))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
 
-            Map<String, Set<AuthAction>> permissions = Maps.newTreeMap();
+            Map<String, Set<AuthAction>> permissions = Maps.newHashMap();
             AuthPolicies auth = policies.auth_policies;
 
             // First add namespace level permissions
@@ -323,7 +323,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             namespaceResources().set(path(POLICIES, namespaceName.toString()), (policies) -> {
                 if (!policies.auth_policies.destination_auth.containsKey(topicUri)) {
-                    policies.auth_policies.destination_auth.put(topicUri, new TreeMap<String, Set<AuthAction>>());
+                    policies.auth_policies.destination_auth.put(topicUri, new HashMap<>());
                 }
 
                 policies.auth_policies.destination_auth.get(topicUri).put(role, actions);
@@ -923,6 +923,20 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnSubscription(boolean applied) {
+        Integer maxNum = getTopicPolicies(topicName)
+                .map(TopicPolicies::getMaxUnackedMessagesOnSubscription)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer maxUnackedNum = getNamespacePolicies(namespaceName)
+                                .max_unacked_messages_per_subscription;
+                        return maxUnackedNum == null ? config().getMaxUnackedMessagesPerSubscription() : maxUnackedNum;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(maxNum);
+    }
+
     protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnSubscription(Integer maxUnackedNum) {
         if (maxUnackedNum != null && maxUnackedNum < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
@@ -941,6 +955,19 @@ public class PersistentTopicsBase extends AdminResource {
         }
         topicPolicies.setMaxUnackedMessagesOnSubscription(maxUnackedNum);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+    }
+
+    protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnConsumer(boolean applied) {
+        Integer maxNum = getTopicPolicies(topicName)
+                .map(TopicPolicies::getMaxUnackedMessagesOnConsumer)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer maxUnacked = getNamespacePolicies(namespaceName).max_unacked_messages_per_consumer;
+                        return maxUnacked == null ? config().getMaxUnackedMessagesPerConsumer() : maxUnacked;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(maxNum);
     }
 
     protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnConsumer(Integer maxUnackedNum) {
@@ -2503,17 +2530,33 @@ public class PersistentTopicsBase extends AdminResource {
         return offlineTopicStats;
     }
 
+    protected Map<BacklogQuota.BacklogQuotaType, BacklogQuota> internalGetBacklogQuota(boolean applied) {
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> quotaMap = getTopicPolicies(topicName)
+                .map(TopicPolicies::getBackLogQuotaMap)
+                .map(map -> {
+                    HashMap<BacklogQuota.BacklogQuotaType, BacklogQuota> hashMap = Maps.newHashMap();
+                    map.forEach((key, value) -> hashMap.put(BacklogQuota.BacklogQuotaType.valueOf(key), value));
+                    return hashMap;
+                }).orElse(Maps.newHashMap());
+        if (applied && quotaMap.isEmpty()) {
+            quotaMap = getNamespacePolicies(namespaceName).backlog_quota_map;
+            if (quotaMap.isEmpty()) {
+                String namespace = namespaceName.toString();
+                quotaMap.put(
+                        BacklogQuota.BacklogQuotaType.destination_storage,
+                        namespaceBacklogQuota(namespace, AdminResource.path(POLICIES, namespace))
+                );
+
+            }
+        }
+        return quotaMap;
+    }
+
     protected void internalSetBacklogQuota(AsyncResponse asyncResponse,
                                            BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
-        validateAdminAccessForTenant(namespaceName.getTenant());
-        validatePoliciesReadOnlyAccess();
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
         if (backlogQuotaType == null) {
             backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage;
         }
-        checkTopicLevelPolicyEnable();
         TopicPolicies topicPolicies;
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
@@ -2594,7 +2637,6 @@ public class PersistentTopicsBase extends AdminResource {
         if (ttlInSecond != null && ttlInSecond < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
         }
-        preValidation();
         TopicPolicies topicPolicies;
         //Update existing topic policy or create a new one if not exist.
         try {
@@ -2645,7 +2687,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalGetRetention(AsyncResponse asyncResponse, boolean applied){
-        preValidation();
         RetentionPolicies retentionPolicies = getTopicPolicies(topicName)
                 .map(TopicPolicies::getRetentionPolicies).orElseGet(() -> {
                     if (applied) {
@@ -2660,7 +2701,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention) {
-        preValidation();
         if (retention == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -2685,7 +2725,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveRetention() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -2694,13 +2733,27 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected Optional<PersistencePolicies> internalGetPersistence(){
-        preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getPersistence);
+    protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied) {
+        PersistencePolicies persistencePolicies = getTopicPolicies(topicName)
+                .map(TopicPolicies::getPersistence)
+                .orElseGet(() -> {
+                    if (applied) {
+                        PersistencePolicies namespacePolicy = getNamespacePolicies(namespaceName)
+                                .persistence;
+                        return namespacePolicy == null
+                                ? new PersistencePolicies(
+                                        pulsar().getConfiguration().getManagedLedgerDefaultEnsembleSize(),
+                                        pulsar().getConfiguration().getManagedLedgerDefaultWriteQuorum(),
+                                        pulsar().getConfiguration().getManagedLedgerDefaultAckQuorum(),
+                                        pulsar().getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit())
+                                : namespacePolicy;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(persistencePolicies);
     }
 
     protected CompletableFuture<Void> internalSetPersistence(PersistencePolicies persistencePolicies) {
-        preValidation();
         validatePersistencePolicies(persistencePolicies);
 
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
@@ -2709,7 +2762,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemovePersistence() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -2725,20 +2777,16 @@ public class PersistentTopicsBase extends AdminResource {
                     + "and must be smaller than that in the broker-level");
         }
 
-        preValidation();
-
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         topicPolicies.setMaxMessageSize(maxMessageSize);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
     protected Optional<Integer> internalGetMaxMessageSize() {
-        preValidation();
         return getTopicPolicies(topicName).map(TopicPolicies::getMaxMessageSize);
     }
 
     protected CompletableFuture<Integer> internalGetMaxProducers(boolean applied) {
-        preValidation();
         Integer maxNum = getTopicPolicies(topicName)
                 .map(TopicPolicies::getMaxProducerPerTopic)
                 .orElseGet(() -> {
@@ -2756,16 +2804,12 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxProducers must be 0 or more");
         }
-
-        preValidation();
-
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         topicPolicies.setMaxProducerPerTopic(maxProducers);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
     protected Optional<Integer> internalGetMaxSubscriptionsPerTopic() {
-        preValidation();
         return getTopicPolicies(topicName).map(TopicPolicies::getMaxSubscriptionsPerTopic);
     }
 
@@ -2774,36 +2818,41 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxSubscriptionsPerTopic must be 0 or more");
         }
-        preValidation();
 
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         topicPolicies.setMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
-    protected Optional<DispatchRate> internalGetReplicatorDispatchRate() {
-        preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getReplicatorDispatchRate);
+    protected CompletableFuture<DispatchRate> internalGetReplicatorDispatchRate(boolean applied) {
+        DispatchRate dispatchRate = getTopicPolicies(topicName)
+                .map(TopicPolicies::getReplicatorDispatchRate)
+                .orElseGet(() -> {
+                    if (applied) {
+                        DispatchRate namespacePolicy = getNamespacePolicies(namespaceName)
+                                .replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
+                        return namespacePolicy == null ? replicatorDispatchRate() : namespacePolicy;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(dispatchRate);
     }
 
     protected CompletableFuture<Void> internalSetReplicatorDispatchRate(DispatchRate dispatchRate) {
-        preValidation();
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         topicPolicies.setReplicatorDispatchRate(dispatchRate);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
-    private void preValidation() {
-        validateAdminAccessForTenant(namespaceName.getTenant());
-        validatePoliciesReadOnlyAccess();
+    protected void preValidation() {
+        checkTopicLevelPolicyEnable();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        checkTopicLevelPolicyEnable();
+        validateTopicOwnership(topicName, false);
     }
 
     protected CompletableFuture<Void> internalRemoveMaxProducers() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -2813,7 +2862,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Integer> internalGetMaxConsumers(boolean applied) {
-        preValidation();
         Integer maxNum = getTopicPolicies(topicName)
                 .map(TopicPolicies::getMaxConsumerPerTopic)
                 .orElseGet(() -> {
@@ -2831,7 +2879,6 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxConsumers must be 0 or more");
         }
-        preValidation();
 
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
         topicPolicies.setMaxConsumerPerTopic(maxConsumers);
@@ -2839,7 +2886,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveMaxConsumers() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -3660,13 +3706,21 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
-    protected Optional<DispatchRate> internalGetDispatchRate() {
-        preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getDispatchRate);
+    protected CompletableFuture<DispatchRate> internalGetDispatchRate(boolean applied) {
+        DispatchRate dispatchRate = getTopicPolicies(topicName)
+                .map(TopicPolicies::getDispatchRate)
+                .orElseGet(() -> {
+                    if (applied) {
+                        DispatchRate namespacePolicy = getNamespacePolicies(namespaceName)
+                                .topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
+                        return namespacePolicy == null ? dispatchRate() : namespacePolicy;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(dispatchRate);
     }
 
     protected CompletableFuture<Void> internalSetDispatchRate(DispatchRate dispatchRate) {
-        preValidation();
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -3677,7 +3731,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveDispatchRate() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -3687,13 +3740,21 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
-    protected Optional<DispatchRate> internalGetSubscriptionDispatchRate() {
-        preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getSubscriptionDispatchRate);
+    protected CompletableFuture<DispatchRate> internalGetSubscriptionDispatchRate(boolean applied) {
+        DispatchRate dispatchRate = getTopicPolicies(topicName)
+                .map(TopicPolicies::getSubscriptionDispatchRate)
+                .orElseGet(() -> {
+                    if (applied) {
+                        DispatchRate namespacePolicy = getNamespacePolicies(namespaceName)
+                                .subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
+                        return namespacePolicy == null ? subscriptionDispatchRate() : namespacePolicy;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(dispatchRate);
     }
 
     protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {
-        preValidation();
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -3704,7 +3765,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveSubscriptionDispatchRate() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -3715,7 +3775,6 @@ public class PersistentTopicsBase extends AdminResource {
 
 
     protected Optional<Integer> internalGetMaxConsumersPerSubscription() {
-        preValidation();
         return getTopicPolicies(topicName).map(TopicPolicies::getMaxConsumersPerSubscription);
     }
 
@@ -3723,7 +3782,6 @@ public class PersistentTopicsBase extends AdminResource {
         if (maxConsumersPerSubscription != null && maxConsumersPerSubscription < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for maxConsumersPerSubscription");
         }
-        preValidation();
 
         TopicPolicies topicPolicies = getTopicPolicies(topicName)
                 .orElseGet(TopicPolicies::new);
@@ -3732,7 +3790,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveMaxConsumersPerSubscription() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -3742,7 +3799,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected Optional<Long> internalGetCompactionThreshold() {
-        preValidation();
         return getTopicPolicies(topicName).map(TopicPolicies::getCompactionThreshold);
     }
 
@@ -3750,7 +3806,6 @@ public class PersistentTopicsBase extends AdminResource {
         if (compactionThreshold != null && compactionThreshold < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for compactionThreshold");
         }
-        preValidation();
 
         TopicPolicies topicPolicies = getTopicPolicies(topicName)
             .orElseGet(TopicPolicies::new);
@@ -3759,7 +3814,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveCompactionThreshold() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
           return CompletableFuture.completedFuture(null);
@@ -3769,13 +3823,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected Optional<PublishRate> internalGetPublishRate() {
-        preValidation();
         return getTopicPolicies(topicName).map(TopicPolicies::getPublishRate);
 
     }
 
     protected CompletableFuture<Void> internalSetPublishRate(PublishRate publishRate) {
-        preValidation();
         if (publishRate == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -3786,16 +3838,13 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected Optional<List<SubType>> internalGetSubscriptionTypesEnabled() {
-        preValidation();
         return getTopicPolicies(topicName).map(TopicPolicies::getSubscriptionTypesEnabled);
-
     }
 
     protected CompletableFuture<Void> internalSetSubscriptionTypesEnabled(
             Set<SubscriptionType> subscriptionTypesEnabled) {
         List<SubType> subTypes = Lists.newArrayList();
         subscriptionTypesEnabled.forEach(subscriptionType -> subTypes.add(SubType.valueOf(subscriptionType.name())));
-        preValidation();
         TopicPolicies topicPolicies = getTopicPolicies(topicName)
                 .orElseGet(TopicPolicies::new);
         topicPolicies.setSubscriptionTypesEnabled(subTypes);
@@ -3803,7 +3852,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemovePublishRate() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -3812,13 +3860,21 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected Optional<SubscribeRate> internalGetSubscribeRate() {
-        preValidation();
-        return getTopicPolicies(topicName).map(TopicPolicies::getSubscribeRate);
+    protected CompletableFuture<SubscribeRate> internalGetSubscribeRate(boolean applied) {
+        SubscribeRate subscribeRate = getTopicPolicies(topicName)
+                .map(TopicPolicies::getSubscribeRate)
+                .orElseGet(() -> {
+                    if (applied) {
+                        SubscribeRate namespacePolicy = getNamespacePolicies(namespaceName)
+                                .clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
+                        return namespacePolicy == null ? subscribeRate() : namespacePolicy;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(subscribeRate);
     }
 
     protected CompletableFuture<Void> internalSetSubscribeRate(SubscribeRate subscribeRate) {
-        preValidation();
         if (subscribeRate == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -3829,7 +3885,6 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveSubscribeRate() {
-        preValidation();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -3838,4 +3893,22 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
+    protected void internalHandleResult(AsyncResponse asyncResponse,
+                                        Object res,
+                                        Throwable ex,
+                                        String errorMsg) {
+        if (ex instanceof RestException) {
+            log.error(errorMsg, ex);
+            asyncResponse.resume(ex);
+        } else if (ex != null) {
+            log.error(errorMsg, ex);
+            asyncResponse.resume(new RestException(ex));
+        } else {
+            if (res == null) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(res);
+            }
+        }
+    }
 }

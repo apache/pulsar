@@ -62,19 +62,9 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                         InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {
                                             @Override
                                             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                                                int maxIntervalTime =
-                                                        originPersistentTopic.getBrokerService().getPulsar()
-                                                                .getConfig().getMaxPendingAckTimerTaskIntervalTime();
-                                                int minIntervalTime =
-                                                        originPersistentTopic.getBrokerService().getPulsar()
-                                                                .getConfig().getMaxPendingAckTimerTaskIntervalTime();
                                                 pendingAckStoreFuture
                                                         .complete(new MLPendingAckStore(ledger, cursor,
-                                                                ((PersistentTopic) subscription.getTopic())
-                                                                        .getBrokerService().getPulsar()
-                                                                        .getTransactionTimer(),
-                                                                subscription.getCursor(),
-                                                                maxIntervalTime, minIntervalTime));
+                                                                subscription.getCursor()));
                                             }
 
                                             @Override

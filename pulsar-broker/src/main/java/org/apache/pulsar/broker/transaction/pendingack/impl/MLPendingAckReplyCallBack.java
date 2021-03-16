@@ -36,13 +36,9 @@ import org.slf4j.LoggerFactory;
  */
 public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
-    private final MLPendingAckStore mlPendingAckStore;
-
     private final PendingAckHandleImpl pendingAckHandle;
 
-    public MLPendingAckReplyCallBack(MLPendingAckStore mlPendingAckStore,
-                                     PendingAckHandleImpl pendingAckHandle) {
-        this.mlPendingAckStore = mlPendingAckStore;
+    public MLPendingAckReplyCallBack(PendingAckHandleImpl pendingAckHandle) {
         this.pendingAckHandle = pendingAckHandle;
     }
 
@@ -54,7 +50,6 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
         if (pendingAckHandle.changeToReadyState()) {
             log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
                     pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
-            mlPendingAckStore.startTimerTask();
         } else {
             log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail!",
                     pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
@@ -77,7 +72,7 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                 if (ackType == AckType.Cumulative) {
                     PendingAckMetadata pendingAckMetadata =
                             pendingAckMetadataEntry.getPendingAckMetadatasList().get(0);
-                    pendingAckHandle.handleCumulativeAck(txnID,
+                    pendingAckHandle.handleCumulativeAckRecover(txnID,
                             PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId()));
                 } else {
                     List<MutablePair<PositionImpl, Integer>> positions = new ArrayList<>();
@@ -98,7 +93,7 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                             positions.add(new MutablePair<>(position, pendingAckMetadata.getBatchSize()));
                         }
                     });
-                    pendingAckHandle.handleIndividualAck(txnID, positions);
+                    pendingAckHandle.handleIndividualAckRecover(txnID, positions);
                 }
                 break;
             default:

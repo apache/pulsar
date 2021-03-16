@@ -196,6 +196,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 405, message = "Broker doesn't allow forced deletion of namespaces"),
             @ApiResponse(code = 409, message = "Namespace is not empty") })
     public void deleteNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,

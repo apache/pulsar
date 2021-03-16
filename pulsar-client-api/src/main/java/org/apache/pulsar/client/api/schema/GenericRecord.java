@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api.schema;
 import java.util.List;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * An interface represents a message with schema.
@@ -32,7 +33,7 @@ public interface GenericRecord {
     /**
      * Return schema version.
      *
-     * @return schema version.
+     * @return schema version, or null if the information is not available.
      */
     byte[] getSchemaVersion();
 
@@ -60,5 +61,29 @@ public interface GenericRecord {
      * @return the value object
      */
     Object getField(String fieldName);
+
+    /**
+     * Return the schema tyoe.
+     *
+     * @return the schema type
+     * @throws UnsupportedOperationException if this feature is not implemented
+     * @see SchemaType#AVRO
+     * @see SchemaType#PROTOBUF_NATIVE
+     * @see SchemaType#JSON
+     */
+    default SchemaType getSchemaType() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Return the internal native representation of the Record,
+     * like a AVRO GenericRecord.
+     *
+     * @return the internal representation of the record
+     * @throws UnsupportedOperationException if the operation is not supported
+     */
+    default Object getNativeRecord() {
+        throw new UnsupportedOperationException();
+    }
 
 }

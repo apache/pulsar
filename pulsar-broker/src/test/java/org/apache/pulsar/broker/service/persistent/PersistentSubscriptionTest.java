@@ -43,7 +43,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -62,9 +61,11 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
+import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.broker.transaction.pendingack.impl.AppendPendingAckLogCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleState;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -118,7 +119,7 @@ public class PersistentSubscriptionTest {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setTransactionCoordinatorEnabled(true);
         pulsarMock = spy(new PulsarService(svcConfig));
-        doReturn(new TopicTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
+        doReturn(new InMemTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
         doReturn(new TransactionPendingAckStoreProvider() {
             @Override
             public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
@@ -140,23 +141,27 @@ public class PersistentSubscriptionTest {
                     }
 
                     @Override
-                    public CompletableFuture<Void> appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
-                        return CompletableFuture.completedFuture(null);
+                    public void appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
+                                                    AppendPendingAckLogCallBack callBack) {
+                        callBack.addComplete();
                     }
 
                     @Override
-                    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
-                        return CompletableFuture.completedFuture(null);
+                    public void appendCumulativeAck(TxnID txnID, PositionImpl position,
+                                                    AppendPendingAckLogCallBack callBack) {
+                        callBack.addComplete();
                     }
 
                     @Override
-                    public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
-                        return CompletableFuture.completedFuture(null);
+                    public void appendCommitMark(TxnID txnID, AckType ackType,
+                                                 AppendPendingAckLogCallBack callBack) {
+                        callBack.addComplete();
                     }
 
                     @Override
-                    public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
-                        return CompletableFuture.completedFuture(null);
+                    public void appendAbortMark(TxnID txnID, AckType ackType,
+                                                AppendPendingAckLogCallBack callBack) {
+                        callBack.addComplete();
                     }
                 });
             }

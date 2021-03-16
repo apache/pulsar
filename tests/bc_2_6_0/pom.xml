@@ -86,10 +86,10 @@
 
     <profiles>
         <profile>
-            <id>integrationTests</id>
+            <id>BackwardsCompatTests</id>
             <activation>
                 <property>
-                    <name>integrationTests</name>
+                    <name>BackwardsCompatTests</name>
                 </property>
             </activation>
             <build>
