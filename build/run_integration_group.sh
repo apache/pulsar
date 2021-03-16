@@ -67,8 +67,8 @@ test_group_cli() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-auth.xml -DintegrationTests
 }
 
-test_group_function_state() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-function-state.xml -DintegrationTests
+test_group_function() {
+  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-function.xml -DintegrationTests
 }
 
 test_group_messaging() {

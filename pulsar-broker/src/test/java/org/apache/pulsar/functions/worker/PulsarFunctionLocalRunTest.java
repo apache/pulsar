@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
 import static org.mockito.Mockito.spy;
+
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -29,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -94,8 +96,8 @@ import org.testng.annotations.Test;
 
 /**
  * Test Pulsar sink on function
- *
  */
+@Test(groups = { "flaky" })
 public class PulsarFunctionLocalRunTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -343,7 +345,12 @@ public class PulsarFunctionLocalRunTest {
         return workerConfig;
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -361,7 +368,10 @@ public class PulsarFunctionLocalRunTest {
         return functionConfig;
     }
 
-    private static SourceConfig createSourceConfig(String tenant, String namespace, String functionName, String sinkTopic) {
+    private static SourceConfig createSourceConfig(String tenant,
+                                                   String namespace,
+                                                   String functionName,
+                                                   String sinkTopic) {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -372,7 +382,11 @@ public class PulsarFunctionLocalRunTest {
         return sourceConfig;
     }
 
-    private static SinkConfig createSinkConfig(String tenant, String namespace, String functionName, String sourceTopic, String subName) {
+    private static SinkConfig createSinkConfig(String tenant,
+                                               String namespace,
+                                               String functionName,
+                                               String sourceTopic,
+                                               String subName) {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant(tenant);
         sinkConfig.setNamespace(namespace);
@@ -501,7 +515,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    public void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
+    private void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -615,7 +629,7 @@ public class PulsarFunctionLocalRunTest {
 
         producer.newMessage().property(propertyKey, propertyValue).value(avroTestObjectClass.newInstance()).send();
         Message<GenericRecord> msg = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(msg, null);
+        Assert.assertNull(msg);
 
         producer.close();
         consumer.close();
@@ -746,7 +760,6 @@ public class PulsarFunctionLocalRunTest {
     public void testPulsarSourceLocalRunWithUrl() throws Exception {
         testPulsarSourceLocalRun(fileServer.getUrl("/pulsar-io-data-generator.nar"));
     }
-
 
     private void testPulsarSinkLocalRun(String jarFilePathUrl) throws Exception {
         final String namespacePortion = "io";
