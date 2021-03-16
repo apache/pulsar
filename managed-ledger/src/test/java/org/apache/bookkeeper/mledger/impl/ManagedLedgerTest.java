@@ -63,6 +63,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -1932,6 +1933,132 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertFalse(ml.getLedgersInfo().containsKey(ml.lastConfirmedEntry.ledgerId),
                 "the ledger at lastConfirmedEntry has not been trimmed!");
         ml.close();
+    }
+
+    @Test
+    public void testTrimLedgerAfterRetention() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(0);
+        config.setMaxEntriesPerLedger(2);
+        config.setRetentionTime(1, TimeUnit.SECONDS);
+        List<Position> positions = new ArrayList<>();
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("trim_after_retention_test_ledger", config);
+        // Retain entries
+        ml.openCursor("cursor");
+        for (int t = 0; t < 10; t++) {
+            positions.add(ml.addEntry("iamaverylongmessagethatshouldnotberetained".getBytes()));
+        }
+        ml.close();
+
+        // reopen ml
+        ml = (ManagedLedgerImpl) factory.open("trim_after_retention_test_ledger", config);
+        // 6 ledgers should be created.
+        positions.add(ml.addEntry("shortmessage".getBytes()));
+        // let retention expire
+        Thread.sleep(1100);
+        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
+        ml.trimConsumedLedgerForPosition((PositionImpl) positions.get(4), future);
+        List<LedgerInfo> list = future.get();
+        // Only 2 ledgers should be deleted
+        assertEquals(2, list.size());
+
+        future = new CompletableFuture<>();
+        ml.trimConsumedLedgerForPosition((PositionImpl) positions.get(positions.size() - 1), future);
+        list = future.get();
+        // remaining 3 ledgers should be deleted (exclude current ledger)
+        assertEquals(3, list.size());
+
+        future = new CompletableFuture<>();
+        ml.trimConsumedLedgerForPosition((PositionImpl) positions.get(positions.size() - 1), future);
+        list = future.get();
+        // No ledger should be deleted as it's only the current ledger left.
+        assertEquals(0, list.size());
+
+        // Wait for creation of meta data ledger to complete before closing managed ledger, else will get BadVersion exception.
+        Thread.sleep(500);
+
+        ml.close();
+    }
+
+    @Test
+    public void testTrimLedgerInvalidPosition() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(0);
+        config.setMaxEntriesPerLedger(2);
+        config.setRetentionTime(1, TimeUnit.SECONDS);
+        List<Position> positions = new ArrayList<>();
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("trim_invalid_position_test_ledger", config);
+        // Retain entries
+        ml.openCursor("cursor");
+        for (int t = 0; t < 10; t++) {
+            positions.add(ml.addEntry("iamaverylongmessagethatshouldnotberetained".getBytes()));
+        }
+        ml.close();
+
+        // reopen ml
+        ml = (ManagedLedgerImpl) factory.open("trim_invalid_position_test_ledger", config);
+        // 6 ledgers should be created.
+        positions.add(ml.addEntry("shortmessage".getBytes()));
+        // let retention expire
+        Thread.sleep(1100);
+        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
+        ml.trimConsumedLedgerForPosition(PositionImpl.get(ml.lastConfirmedEntry.ledgerId,
+                ml.lastConfirmedEntry.entryId + 1), future);
+        try {
+            List<LedgerInfo> list = future.get();
+            fail("Should error out");
+        } catch (Exception e) {
+            assertEquals("java.lang.IllegalArgumentException: Trying to trim ledger beyond last confirmed position.", e.getMessage());
+        } finally {
+            ml.close();
+        }
+    }
+
+    @Test
+    public void testTrimLedgerConcurrentOperation() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(0);
+        config.setMaxEntriesPerLedger(2);
+        config.setRetentionTime(1, TimeUnit.SECONDS);
+        List<Position> positions = new ArrayList<>();
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("trim_concurrent_operation_test_ledger", config);
+        MetaStore mockStore = spy(ml.getStore());
+        doAnswer(invocation -> {
+            Thread.sleep(2000);
+            return null;
+        }).when(mockStore).asyncUpdateLedgerIds(any(String.class), any(ManagedLedgerInfo.class), any(Stat.class), any(MetaStoreCallback.class));
+
+        // Retain entries
+        ml.openCursor("cursor");
+        for (int t = 0; t < 3; t++) {
+            positions.add(ml.addEntry("iamaverylongmessagethatshouldnotberetained".getBytes()));
+        }
+
+        // let retention expire
+        Thread.sleep(1100);
+        // Inject mock metastore.
+        Field store = ManagedLedgerImpl.class.getDeclaredField("store");
+        store.setAccessible(true);
+        store.set(ml, mockStore);
+        CompletableFuture<List<LedgerInfo>> future1 = new CompletableFuture<>();
+        CompletableFuture<List<LedgerInfo>> future2 = new CompletableFuture<>();
+        ml.trimConsumedLedgerForPosition((PositionImpl) positions.get(2), future1);
+        ml.trimConsumedLedgerForPosition((PositionImpl) positions.get(2), future2);
+        try {
+            // first trim operation is blocked by operation of mock metastore
+            List<LedgerInfo> list = future2.getNow(null);
+            fail("Should error out");
+        } catch (Exception e) {
+            assertEquals("org.apache.bookkeeper.mledger.ManagedLedgerException: There's an ongoing ledger trimming operation, please try again later.", e.getMessage());
+        } finally {
+            ml.close();
+        }
     }
 
     @Test

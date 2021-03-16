@@ -24,7 +24,6 @@ import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
@@ -77,7 +76,6 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
-import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
@@ -2299,40 +2297,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Slowest consumer ledger id: {}", name, slowestReaderLedgerId);
             }
-            // skip ledger if retention constraint met
-            for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
-                boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
-                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
 
-                if (log.isDebugEnabled()) {
-                    log.debug(
-                            "[{}] Checking ledger {} -- time-old: {} sec -- "
-                                    + "expired: {} -- over-quota: {} -- current-ledger: {}",
-                            name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
-                            overRetentionQuota, currentLedger.getId());
-                }
-                if (ls.getLedgerId() == currentLedger.getId()) {
-                    log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
-                            ls.getLedgerId());
-                    break;
-                } else if (expired) {
-                    log.debug("[{}] Ledger {} has expired, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
-                    ledgersToDelete.add(ls);
-                } else if (overRetentionQuota) {
-                    log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
-                    ledgersToDelete.add(ls);
-                } else {
-                    log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
-                    break;
-                }
-            }
-            for (LedgerInfo ls : ledgers.values()) {
-                if (isOffloadedNeedsDelete(ls.getOffloadContext()) && !ledgersToDelete.contains(ls)) {
-                    log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted", name,
-                            ls.getLedgerId());
-                    offloadedLedgersToDelete.add(ls);
-                }
-            }
+            searchForConsumedLedgersForDeletion(slowestReaderLedgerId, ledgersToDelete, offloadedLedgersToDelete);
 
             if (ledgersToDelete.isEmpty() && offloadedLedgersToDelete.isEmpty()) {
                 trimmerMutex.unlock();
@@ -2349,66 +2315,171 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             advanceNonDurableCursors(ledgersToDelete);
 
-            PositionImpl currentLastConfirmedEntry = lastConfirmedEntry;
-            // Update metadata
-            for (LedgerInfo ls : ledgersToDelete) {
-                if (currentLastConfirmedEntry != null && ls.getLedgerId() == currentLastConfirmedEntry.getLedgerId()) {
-                    // this info is relevant because the lastMessageId won't be available anymore
-                    log.info("[{}] Ledger {} contains the current last confirmed entry {}, and it is going to be deleted", name,
-                            ls.getLedgerId(), currentLastConfirmedEntry);
-                }
-                ledgerCache.remove(ls.getLedgerId());
+            deleteConsumedLedgers(promise, ledgersToDelete, offloadedLedgersToDelete);
+        }
+    }
 
-                ledgers.remove(ls.getLedgerId());
-                NUMBER_OF_ENTRIES_UPDATER.addAndGet(this, -ls.getEntries());
-                TOTAL_SIZE_UPDATER.addAndGet(this, -ls.getSize());
-
-                entryCache.invalidateAllEntries(ls.getLedgerId());
-            }
-            for (LedgerInfo ls : offloadedLedgersToDelete) {
-                LedgerInfo.Builder newInfoBuilder = ls.toBuilder();
-                newInfoBuilder.getOffloadContextBuilder().setBookkeeperDeleted(true);
-                String driverName = OffloadUtils.getOffloadDriverName(ls,
-                        config.getLedgerOffloader().getOffloadDriverName());
-                Map<String, String> driverMetadata = OffloadUtils.getOffloadDriverMetadata(ls,
-                        config.getLedgerOffloader().getOffloadDriverMetadata());
-                OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
-                ledgers.put(ls.getLedgerId(), newInfoBuilder.build());
-            }
+    private void searchForConsumedLedgersForDeletion(long lastLedgerId,
+                                                     List<LedgerInfo> ledgersToDelete,
+                                                     List<LedgerInfo> offloadedLedgersToDelete) {
+        // skip ledger if retention constraint met
+        for (LedgerInfo ls : ledgers.headMap(lastLedgerId, false).values()) {
+            boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
+            boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Updating of ledgers list after trimming", name);
+                log.debug(
+                        "[{}] Checking ledger {} -- time-old: {} sec -- "
+                                + "expired: {} -- over-quota: {} -- current-ledger: {}",
+                        name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
+                        overRetentionQuota, currentLedger.getId());
+            }
+            if (ls.getLedgerId() == currentLedger.getId()) {
+                log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
+                        ls.getLedgerId());
+                break;
+            } else if (expired) {
+                log.debug("[{}] Ledger {} has expired, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                ledgersToDelete.add(ls);
+            } else if (overRetentionQuota) {
+                log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
+                ledgersToDelete.add(ls);
+            } else {
+                log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
+                break;
+            }
+        }
+        for (LedgerInfo ls : ledgers.values()) {
+            if (isOffloadedNeedsDelete(ls.getOffloadContext()) && !ledgersToDelete.contains(ls)) {
+                log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted", name,
+                        ls.getLedgerId());
+                offloadedLedgersToDelete.add(ls);
+            }
+        }
+    }
+
+    // Need to acquire metadataMutex before calling this method.
+    private void deleteConsumedLedgers(CompletableFuture<?> promise,
+                                       List<LedgerInfo> ledgersToDelete,
+                                       List<LedgerInfo> offloadedLedgersToDelete) {
+
+        PositionImpl currentLastConfirmedEntry = lastConfirmedEntry;
+        // Update metadata
+        for (LedgerInfo ls : ledgersToDelete) {
+            if (currentLastConfirmedEntry != null && ls.getLedgerId() == currentLastConfirmedEntry.getLedgerId()) {
+                // this info is relevant because the lastMessageId won't be available anymore
+                log.info("[{}] Ledger {} contains the current last confirmed entry {}, and it is going to be deleted", name,
+                        ls.getLedgerId(), currentLastConfirmedEntry);
+            }
+            ledgerCache.remove(ls.getLedgerId());
+
+            ledgers.remove(ls.getLedgerId());
+            NUMBER_OF_ENTRIES_UPDATER.addAndGet(this, -ls.getEntries());
+            TOTAL_SIZE_UPDATER.addAndGet(this, -ls.getSize());
+
+            entryCache.invalidateAllEntries(ls.getLedgerId());
+        }
+        for (LedgerInfo ls : offloadedLedgersToDelete) {
+            LedgerInfo.Builder newInfoBuilder = ls.toBuilder();
+            newInfoBuilder.getOffloadContextBuilder().setBookkeeperDeleted(true);
+            String driverName = OffloadUtils.getOffloadDriverName(ls,
+                    config.getLedgerOffloader().getOffloadDriverName());
+            Map<String, String> driverMetadata = OffloadUtils.getOffloadDriverMetadata(ls,
+                    config.getLedgerOffloader().getOffloadDriverMetadata());
+            OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
+            ledgers.put(ls.getLedgerId(), newInfoBuilder.build());
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Updating of ledgers list after trimming", name);
+        }
+
+        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Stat stat) {
+                log.info("[{}] End TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.size(),
+                        TOTAL_SIZE_UPDATER.get(ManagedLedgerImpl.this));
+                ledgersStat = stat;
+                metadataMutex.unlock();
+                trimmerMutex.unlock();
+
+                for (LedgerInfo ls : ledgersToDelete) {
+                    log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
+                    asyncDeleteLedger(ls.getLedgerId(), ls);
+                }
+                for (LedgerInfo ls : offloadedLedgersToDelete) {
+                    log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
+                            ls.getSize());
+                    asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
+                }
+                promise.complete(null);
             }
 
-            store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
-                @Override
-                public void operationComplete(Void result, Stat stat) {
-                    log.info("[{}] End TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.size(),
-                            TOTAL_SIZE_UPDATER.get(ManagedLedgerImpl.this));
-                    ledgersStat = stat;
-                    metadataMutex.unlock();
-                    trimmerMutex.unlock();
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                log.warn("[{}] Failed to update the list of ledgers after trimming", name, e);
+                metadataMutex.unlock();
+                trimmerMutex.unlock();
 
-                    for (LedgerInfo ls : ledgersToDelete) {
-                        log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
-                        asyncDeleteLedger(ls.getLedgerId(), ls);
-                    }
-                    for (LedgerInfo ls : offloadedLedgersToDelete) {
-                        log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
-                                ls.getSize());
-                        asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
-                    }
-                    promise.complete(null);
-                }
+                promise.completeExceptionally(e);
+            }
+        });
+    }
 
-                @Override
-                public void operationFailed(MetaStoreException e) {
-                    log.warn("[{}] Failed to update the list of ledgers after trimming", name, e);
-                    metadataMutex.unlock();
-                    trimmerMutex.unlock();
+    public void trimConsumedLedgerForPosition(PositionImpl position, CompletableFuture<List<LedgerInfo>> future) {
+        if (lastConfirmedEntry.compareTo(position) < 0) {
+            future.completeExceptionally(new
+                    IllegalArgumentException("Trying to trim ledger beyond last confirmed position."));
+            return;
+        }
 
-                    promise.completeExceptionally(e);
-                }
+        // Ensure only one trimming operation is active
+        if (!trimmerMutex.tryLock()) {
+            future.completeExceptionally(new
+                    ManagedLedgerException("There's an ongoing ledger trimming operation, please try again later."));
+            return;
+        }
+
+        CompletableFuture<Void> trimFuture = new CompletableFuture<>();
+
+        List<LedgerInfo> ledgersToDelete = Lists.newArrayList();
+        List<LedgerInfo> offloadedLedgersToDelete = Lists.newArrayList();
+        synchronized (this) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Start TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.keySet(),
+                        TOTAL_SIZE_UPDATER.get(this));
+            }
+            if (STATE_UPDATER.get(this) == State.Closed) {
+                trimmerMutex.unlock();
+                future.completeExceptionally(new ManagedLedgerAlreadyClosedException("Can't trim closed ledger"));
+                return;
+            }
+
+            searchForConsumedLedgersForDeletion(position.ledgerId, ledgersToDelete, offloadedLedgersToDelete);
+
+            if (ledgersToDelete.isEmpty()) {
+                trimmerMutex.unlock();
+                future.complete(ledgersToDelete);
+                return;
+            }
+
+            // Avoid deadlocks with other operations updating the ledgers list
+            if (STATE_UPDATER.get(this) == State.CreatingLedger || !metadataMutex.tryLock()) {
+                trimmerMutex.unlock();
+                future.completeExceptionally(new
+                        ManagedLedgerException("Other operation is updating ledger metadata, please try again later."));
+                return;
+            }
+
+            advanceNonDurableCursors(ledgersToDelete);
+
+            deleteConsumedLedgers(trimFuture, ledgersToDelete, offloadedLedgersToDelete);
+
+            trimFuture.thenRun(() -> {
+                future.complete(ledgersToDelete);
+            }).exceptionally((e) -> {
+                future.completeExceptionally(e);
+                return null;
             });
         }
     }

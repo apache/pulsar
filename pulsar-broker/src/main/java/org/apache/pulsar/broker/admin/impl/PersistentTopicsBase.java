@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -61,6 +62,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -3299,6 +3301,36 @@ public class PersistentTopicsBase extends AdminResource {
         validateReadOperationOnTopic(authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         return topic.offloadStatus();
+    }
+
+    protected void internalTruncateTopic(AsyncResponse asyncResponse, MessageIdImpl messageId, boolean authoritative) {
+        if (topicName.isGlobal()) {
+            try {
+                validateGlobalNamespaceOwnership(namespaceName);
+            } catch (Exception e) {
+                log.warn("[{}][{}] Failed to truncate topic with position {}: {}", clientAppId(),
+                        topicName, messageId, e.getMessage());
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
+        }
+
+        log.info("[{}][{}] received truncate topic with position {}", clientAppId(), topicName, messageId);
+        validateAdminOperationOnTopic(authoritative);
+
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        CompletableFuture<List<MLDataFormats.ManagedLedgerInfo.LedgerInfo>> future = new CompletableFuture<>();
+        ((ManagedLedgerImpl)topic.getManagedLedger()).trimConsumedLedgerForPosition(
+                PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()), future);
+        future.thenAccept((list) -> {
+            asyncResponse.resume("Deleted ledgers with ledgerId" + list.stream()
+                    .map(ledgerInfo -> String.valueOf(ledgerInfo.getLedgerId()))
+                    .collect(Collectors.joining( ", " )));
+        })
+        .exceptionally((e) -> {
+            asyncResponse.resume(e);
+            return null;
+        });
     }
 
     public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
