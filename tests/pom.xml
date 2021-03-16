@@ -31,16 +31,6 @@
   <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>tests-parent</artifactId>
   <name>Apache Pulsar :: Tests</name>
-  <modules>
-    <module>docker-images</module>
-    <module>integration</module>
-    <module>bc_2_0_0</module>
-    <module>bc_2_0_1</module>
-    <module>bc_2_6_0</module>
-    <module>pulsar-client-all-shade-test</module>
-    <module>pulsar-client-shade-test</module>
-    <module>pulsar-client-admin-shade-test</module>
-  </modules>
   <build>
     <plugins>
       <plugin>
@@ -52,4 +42,74 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>skipIntegrationTests</id>
+      <activation>
+        <property>
+          <name>skipIntegrationTests</name>
+        </property>
+      </activation>
+      <modules />
+    </profile>
+    <profile>
+      <id>integrationTests</id>
+      <activation>
+        <property>
+          <name>integrationTests</name>
+        </property>
+      </activation>
+      <modules>
+        <module>integration</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>ShadeTests</id>
+      <activation>
+        <property>
+          <name>ShadeTests</name>
+        </property>
+      </activation>
+      <modules>
+        <module>pulsar-client-all-shade-test</module>
+        <module>pulsar-client-shade-test</module>
+        <module>pulsar-client-admin-shade-test</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>BackwardsCompatTests</id>
+      <activation>
+        <property>
+          <name>BackwardsCompatTests</name>
+        </property>
+      </activation>
+      <modules>
+        <module>bc_2_0_0</module>
+        <module>bc_2_0_1</module>
+        <module>bc_2_6_0</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>main</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>docker-images</module>
+        <module>integration</module>
+        <module>bc_2_0_0</module>
+        <module>bc_2_0_1</module>
+        <module>bc_2_6_0</module>
+        <module>pulsar-client-all-shade-test</module>
+        <module>pulsar-client-shade-test</module>
+        <module>pulsar-client-admin-shade-test</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>docker</id>
+      <modules>
+        <module>docker-images</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>

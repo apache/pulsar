@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -68,6 +69,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 { Schema.STRING},
                 { AvroSchema.of(Stock.class)},
                 { JSONSchema.of(Stock.class)},
+                { ProtobufNativeSchema.of(StockProtoMessage.Stock.class)},
                 { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.INLINE) },
                 { Schema.KeyValue(Schema.AVRO(Stock.class), Schema.AVRO(Stock.class), KeyValueEncodingType.SEPARATED) }
         };
@@ -120,6 +122,8 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.JSON)
                 || schema.getSchemaInfo().getType().equals(SchemaType.AVRO)) {
             prepareDataForStructSchema(pulsarClient, topicName, isBatch, schema);
+        } else if (schema.getSchemaInfo().getType().equals(SchemaType.PROTOBUF_NATIVE)) {
+            prepareDataForProtobufNativeSchema(pulsarClient, topicName, isBatch, schema);
         } else if (schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
             prepareDataForKeyValueSchema(pulsarClient, topicName, schema);
         }
@@ -189,6 +193,24 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         producer.flush();
     }
 
+    private void prepareDataForProtobufNativeSchema(PulsarClient pulsarClient,
+                                            TopicName topicName,
+                                            boolean isBatch,
+                                            Schema<StockProtoMessage.Stock> schema) throws Exception {
+        @Cleanup
+        Producer<StockProtoMessage.Stock> producer = pulsarClient.newProducer(schema)
+                .topic(topicName.toString())
+                .enableBatching(isBatch)
+                .create();
+
+        for (int i = 0 ; i < NUM_OF_STOCKS; ++i) {
+            final StockProtoMessage.Stock stock = StockProtoMessage.Stock.newBuilder().
+                    setEntryId(i).setSymbol("STOCK_" + i).setSharePrice(100.0 + i * 10).build();
+            producer.send(stock);
+        }
+        producer.flush();
+    }
+
     private void prepareDataForKeyValueSchema(PulsarClient pulsarClient,
                                               TopicName topicName,
                                               Schema<KeyValue<Stock, Stock>> schema) throws Exception {
@@ -217,6 +239,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 break;
             case JSON:
             case AVRO:
+            case PROTOBUF_NATIVE:
                 validateContentForStructSchema(messageNum, contentArr);
                 log.info("finish validate content for {} schema type.", schema.getSchemaInfo().getType());
                 break;

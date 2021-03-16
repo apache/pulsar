@@ -33,6 +33,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-api")
 public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -133,11 +134,11 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         client.close();
     }
 
-    class TestServiceUrlProvider implements ServiceUrlProvider {
+    static class TestServiceUrlProvider implements ServiceUrlProvider {
 
         private PulsarClient pulsarClient;
 
-        private String serviceUrl;
+        private final String serviceUrl;
 
         public TestServiceUrlProvider(String serviceUrl) {
             this.serviceUrl = serviceUrl;
@@ -158,7 +159,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         }
     }
 
-    class AutoChangedServiceUrlProvider extends TestServiceUrlProvider {
+    static class AutoChangedServiceUrlProvider extends TestServiceUrlProvider {
 
         public AutoChangedServiceUrlProvider(String serviceUrl) {
             super(serviceUrl);

@@ -27,10 +27,18 @@
 # all error fatal
 set -e
 
+# skip checks for Presto licenses if 1. argument is "--no-presto"/"no-pulsar-sql"
+# this is to allow building the server distribution without Pulsar SQL
+NO_PRESTO=0
+if [[ "$1" == "--no-presto" || "$1" == "--no-pulsar-sql" ]]; then
+  NO_PRESTO=1
+  shift
+fi
+
 TARBALL="$1"
 if [ -z $TARBALL ]; then
     echo "Usage: $0 <binary-tarball>"
-    exit -1
+    exit 1
 fi
 
 JARS=$(tar -tf $TARBALL | grep '\.jar' | grep -v 'lib/presto/' | grep -v '/examples/' | grep -v '/instances/' | sed 's!.*/!!' | sort)
@@ -86,34 +94,36 @@ for J in $NOTICEJARS; do
     fi
 done
 
-# check pulsar sql jars
-JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'lib/presto/' | grep -v pulsar-client | grep -v bouncy-castle-bc | grep -v pulsar-metadata | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | grep -v 'pulsar-transaction-common' | grep -v 'pulsar-package-core' | sed 's!.*/!!' | sort)
-LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/lib\/presto\/LICENSE/')
-LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
-LICENSEJARS=$(echo "$LICENSE" | sed -nE 's!.* (.*\.jar).*!\1!gp')
+if [ "$NO_PRESTO" -ne 1 ]; then
+  # check pulsar sql jars
+  JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'lib/presto/' | grep -v pulsar-client | grep -v bouncy-castle-bc | grep -v pulsar-metadata | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | grep -v 'pulsar-transaction-common' | grep -v 'pulsar-package-core' | sed 's!.*/!!' | sort)
+  LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/lib\/presto\/LICENSE/')
+  LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
+  LICENSEJARS=$(echo "$LICENSE" | sed -nE 's!.* (.*\.jar).*!\1!gp')
 
 
-for J in $JARS; do
-    echo $J | grep -q "org.apache.pulsar"
-    if [ $? == 0 ]; then
-        continue
-    fi
+  for J in $JARS; do
+      echo $J | grep -q "org.apache.pulsar"
+      if [ $? == 0 ]; then
+          continue
+      fi
 
-    echo "$LICENSE" | grep -q $J
-    if [ $? != 0 ]; then
-        echo $J unaccounted for in lib/presto/LICENSE
-        EXIT=1
-    fi
-done
+      echo "$LICENSE" | grep -q $J
+      if [ $? != 0 ]; then
+          echo $J unaccounted for in lib/presto/LICENSE
+          EXIT=1
+      fi
+  done
 
-# Check all jars mentioned in LICENSE are bundled
-for J in $LICENSEJARS; do
-    echo "$JARS" | grep -q $J
-    if [ $? != 0 ]; then
-        echo $J mentioned in lib/presto/LICENSE, but not bundled
-        EXIT=2
-    fi
-done
+  # Check all jars mentioned in LICENSE are bundled
+  for J in $LICENSEJARS; do
+      echo "$JARS" | grep -q $J
+      if [ $? != 0 ]; then
+          echo $J mentioned in lib/presto/LICENSE, but not bundled
+          EXIT=2
+      fi
+  done
+fi
 
 if [ $EXIT != 0 ]; then
     echo

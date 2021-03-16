@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.testng.Assert.assertEquals;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -51,7 +50,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
+
 @Slf4j
+@Test(groups = "functions-worker")
 public class PulsarFunctionTlsTest {
 
     protected static final int BROKER_COUNT = 2;

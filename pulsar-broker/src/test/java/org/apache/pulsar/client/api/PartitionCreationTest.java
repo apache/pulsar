@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
@@ -27,9 +25,6 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -38,8 +33,7 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
-
+@Test(groups = "broker-api")
 public class PartitionCreationTest extends ProducerConsumerBase {
 
     @DataProvider(name = "topicDomainProvider")
@@ -125,7 +119,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 60000, dataProvider = "restCreateMissedPartitions")
-    public void testCreateMissedPartitions(boolean useRestApi) throws JsonProcessingException, KeeperException, InterruptedException, PulsarAdminException, PulsarClientException, MetadataStoreException {
+    public void testCreateMissedPartitions(boolean useRestApi) throws PulsarAdminException, PulsarClientException, MetadataStoreException {
         conf.setAllowAutoTopicCreation(false);
         final String topic = "testCreateMissedPartitions-useRestApi-" + useRestApi;
         String path = ZkAdminPaths.partitionedTopicPath(TopicName.get(topic));
