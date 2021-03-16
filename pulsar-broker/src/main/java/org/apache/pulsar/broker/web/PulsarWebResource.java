@@ -905,13 +905,13 @@ public abstract class PulsarWebResource {
 
     public void validatePoliciesReadOnlyAccess() {
         try {
-            if (clusterResources().existsAsync(AdminResource.POLICIES_READONLY_FLAG_PATH).get()) {
+            if (clusterResources().getStore().exists(AdminResource.POLICIES_READONLY_FLAG_PATH).get()) {
                 log.debug("Policies are read-only. Broker cannot do read-write operations");
                 throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
             }
         } catch (Exception e) {
             log.warn("Unable to fetch read-only policy config {}", POLICIES_READONLY_FLAG_PATH, e);
-            throw new RestException(e);
+            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
         }
     }
 
@@ -978,7 +978,7 @@ public abstract class PulsarWebResource {
 
     protected void validateClusterExists(String cluster) {
         try {
-            if (!clusterResources().get(path("clusters", cluster)).isPresent()) {
+            if (!clusterResources().get(cluster).isPresent()) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
             }
         } catch (Exception e) {

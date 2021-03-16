@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.admin.v1;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.policies.data.Policies.getBundles;
+import static org.hamcrest.CoreMatchers.instanceOf;
+
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -29,6 +31,8 @@ import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -104,14 +108,16 @@ public class Namespaces extends NamespacesBase {
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         }
         try {
-            for (String namespace : clusterResources().getChildren(path(POLICIES, property, cluster))) {
+            for (String namespace : clusterResources().getStore().getChildren(path(POLICIES, property, cluster)).get()) {
                 namespaces.add(String.format("%s/%s/%s", property, cluster, namespace));
             }
-        } catch (NotFoundException e) {
-            // NoNode means there are no namespaces for this property on the specified cluster, returning empty list
         } catch (Exception e) {
-            log.error("[{}] Failed to get namespaces list: {}", clientAppId(), e);
-            throw new RestException(e);
+            if (e instanceof ExecutionException && e.getCause() instanceof NotFoundException) {
+                // NoNode means there are no namespaces for this property on the specified cluster, returning empty list
+            } else {
+                log.error("[{}] Failed to get namespaces list: {}", clientAppId(), e);
+                throw new RestException(e);
+            }
         }
 
         namespaces.sort(null);

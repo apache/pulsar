@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
@@ -114,7 +115,7 @@ public class ClustersBase extends PulsarWebResource {
         validateSuperUserAccess();
 
         try {
-            return clusterResources().get(path("clusters", cluster))
+            return clusterResources().get(cluster)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
@@ -166,18 +167,18 @@ public class ClustersBase extends PulsarWebResource {
 
         try {
             NamedEntity.checkName(cluster);
-            if (clusterResources().get(path("clusters", cluster)).isPresent()) {
+            if (clusterResources().get(cluster).isPresent()) {
                 log.warn("[{}] Failed to create already existing cluster {}", clientAppId(), cluster);
                 throw new RestException(Status.CONFLICT, "Cluster already exists");
             }
-            clusterResources().create(path("clusters", cluster), clusterData);
+            clusterResources().create(cluster, clusterData);
             log.info("[{}] Created cluster {}", clientAppId(), cluster);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to create cluster with invalid name {}", clientAppId(), cluster, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Cluster name is not valid");
         } catch (Exception e) {
             log.error("[{}] Failed to create cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
+            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
         }
     }
 
@@ -218,7 +219,7 @@ public class ClustersBase extends PulsarWebResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            clusterResources().set(path("clusters", cluster), old -> {
+            clusterResources().set(cluster, old -> {
                 old.update(clusterData);
                 return old;
             });
@@ -277,7 +278,7 @@ public class ClustersBase extends PulsarWebResource {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 cluster + " itself can't be part of peer-list");
                     }
-                    clusterResources().get(path("clusters", peerCluster))
+                    clusterResources().get(peerCluster)
                             .orElseThrow(() -> new RestException(Status.PRECONDITION_FAILED,
                                     "Peer cluster " + peerCluster + " does not exist"));
                 } catch (RestException e) {
@@ -293,7 +294,7 @@ public class ClustersBase extends PulsarWebResource {
         }
 
         try {
-            clusterResources().set(path("clusters", cluster), old -> {
+            clusterResources().set(cluster, old -> {
                 old.setPeerClusterNames(peerClusterNames);
                 return old;
             });
@@ -329,7 +330,7 @@ public class ClustersBase extends PulsarWebResource {
     ) {
         validateSuperUserAccess();
         try {
-            ClusterData clusterData = clusterResources().get(path("clusters", cluster))
+            ClusterData clusterData = clusterResources().get(cluster)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
             return clusterData.getPeerClusterNames();
         } catch (Exception e) {
@@ -365,11 +366,11 @@ public class ClustersBase extends PulsarWebResource {
         boolean isClusterUsed = false;
         try {
             for (String property : tenantResources().getChildren(path(POLICIES))) {
-                if (!clusterResources().exists(path(POLICIES, property, cluster))) {
+                if (!clusterResources().getStore().exists(path(POLICIES, property, cluster)).get()) {
                     continue;
                 }
 
-                if (!clusterResources().getChildren(path(POLICIES, property, cluster)).isEmpty()) {
+                if (!clusterResources().getStore().getChildren(path(POLICIES, property, cluster)).get().isEmpty()) {
                     // We found a property that has at least a namespace in this cluster
                     isClusterUsed = true;
                     break;
@@ -390,7 +391,7 @@ public class ClustersBase extends PulsarWebResource {
             }
         } catch (Exception e) {
             log.error("[{}] Failed to get cluster usage {}", clientAppId(), cluster, e);
-            throw new RestException(e);
+            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
         }
 
         if (isClusterUsed) {
@@ -399,9 +400,8 @@ public class ClustersBase extends PulsarWebResource {
         }
 
         try {
-            String clusterPath = path("clusters", cluster);
-            deleteFailureDomain(clusterPath);
-            clusterResources().delete(clusterPath);
+            deleteFailureDomain(path("clusters", cluster));
+            clusterResources().delete(cluster);
             log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
         } catch (NotFoundException e) {
             log.warn("[{}] Failed to delete cluster {} - Does not exist", clientAppId(), cluster);
@@ -415,17 +415,17 @@ public class ClustersBase extends PulsarWebResource {
     private void deleteFailureDomain(String clusterPath) {
         try {
             String failureDomain = joinPath(clusterPath, ConfigurationCacheService.FAILURE_DOMAIN);
-            if (!clusterResources().exists(failureDomain)) {
+            if (!clusterResources().getFailureDomainResources().exists(failureDomain)) {
                 return;
             }
-            for (String domain : clusterResources().getChildren(failureDomain)) {
+            for (String domain : clusterResources().getFailureDomainResources().getChildren(failureDomain)) {
                 String domainPath = joinPath(failureDomain, domain);
-                clusterResources().delete(domainPath);
+                clusterResources().getFailureDomainResources().delete(domainPath);
             }
             clusterResources().delete(failureDomain);
         } catch (Exception e) {
             log.warn("Failed to delete failure-domain under cluster {}", clusterPath);
-            throw new RestException(e);
+            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
         }
     }
 
@@ -450,7 +450,7 @@ public class ClustersBase extends PulsarWebResource {
         @PathParam("cluster") String cluster
     ) throws Exception {
         validateSuperUserAccess();
-        if (!clusterResources().exists(path("clusters", cluster))) {
+        if (!clusterResources().exists(cluster)) {
             throw new RestException(Status.NOT_FOUND, "Cluster " + cluster + " does not exist.");
         }
 

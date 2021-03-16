@@ -18,24 +18,32 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.CLUSTERS;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.CLUSTERS_ROOT;
+
 import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
 
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public class ClusterResources extends BaseResources<ClusterData> {
 
-    public static final String CLUSTERS_ROOT = "/admin/clusters";
     @Getter
     private FailureDomainResources failureDomainResources;
 
     public ClusterResources(MetadataStoreExtended store, int operationTimeoutSec) {
         super(store, ClusterData.class, operationTimeoutSec);
         this.failureDomainResources = new FailureDomainResources(store, FailureDomain.class, operationTimeoutSec);
+    }
+
+    @Override
+    public String internalPath(String clusterName) {
+        return PolicyPath.path(CLUSTERS, clusterName);
     }
 
     public Set<String> list() throws MetadataStoreException {

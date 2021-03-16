@@ -65,10 +65,11 @@ public class ConfigurationCacheService {
     private PulsarResources pulsarResources;
 
     public static final String POLICIES = "policies";
+    public static final String CLUSTERS = "clusters";
     public static final String FAILURE_DOMAIN = "failureDomain";
     public final String CLUSTER_FAILURE_DOMAIN_ROOT;
-    public static final String POLICIES_ROOT = "/admin/policies";
-    private static final String CLUSTERS_ROOT = "/admin/clusters";
+    public static final String POLICIES_ROOT = "/admin/" + POLICIES;
+    public static final String CLUSTERS_ROOT = "/admin/" + CLUSTERS;
 
     public static final String PARTITIONED_TOPICS_ROOT = "/admin/partitioned-topics";
 
