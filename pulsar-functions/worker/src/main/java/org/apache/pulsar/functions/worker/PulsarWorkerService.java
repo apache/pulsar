@@ -345,7 +345,7 @@ public class PulsarWorkerService implements WorkerService {
             policies.bundles = getBundles(defaultNumberOfBundles);
 
             configurationCacheService.policiesCache().invalidate(PolicyPath.path(POLICIES, namespace));
-            pulsarResources.getNamespaceResources().create(PolicyPath.path(POLICIES, namespace), policies);
+            pulsarResources.getNamespaceResources().create(namespace, policies);
             LOG.info("Created namespace {} for function worker service", namespace);
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing namespace {} for function worker service", namespace);

@@ -778,8 +778,7 @@ public class PulsarService implements AutoCloseable {
         try {
             // Namespace not created hence no need to unload it
             String nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
-            if (!this.pulsarResources.getNamespaceResources().exists(
-                    AdminResource.path(POLICIES) + "/" + nsName)) {
+            if (!this.pulsarResources.getNamespaceResources().exists(nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
             }

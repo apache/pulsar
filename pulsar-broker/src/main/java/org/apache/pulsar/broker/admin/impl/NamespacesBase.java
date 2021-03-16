@@ -177,7 +177,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         // ensure the local cluster is the only cluster for the global namespace configuration
         try {
-            policies = namespaceResources().get(path(POLICIES, namespaceName.toString())).orElseThrow(
+            policies = namespaceResources().get(namespaceName.toString()).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist."));
             if (namespaceName.isGlobal()) {
                 if (policies.replication_clusters.size() > 1) {
@@ -250,7 +250,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         // set the policies to deleted so that somebody else cannot acquire this namespace
         try {
-            namespaceResources().set(path(POLICIES, namespaceName.toString()), (old) -> {
+            namespaceResources().set(namespaceName.toString(), (old) -> {
                 old.deleted = true;
                 return old;
             });
@@ -340,7 +340,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         // ensure the local cluster is the only cluster for the global namespace configuration
         try {
-            policies = namespaceResources().get(path(POLICIES, namespaceName.toString())).orElseThrow(
+            policies = namespaceResources().get(namespaceName.toString()).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist."));
             if (namespaceName.isGlobal()) {
                 if (policies.replication_clusters.size() > 1) {
@@ -391,7 +391,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         // set the policies to deleted so that somebody else cannot acquire this namespace
         try {
-            namespaceResources().set(path(POLICIES, namespaceName.toString()), (old) -> {
+            namespaceResources().set(namespaceName.toString(), (old) -> {
                 old.deleted = true;
                 return old;
             });

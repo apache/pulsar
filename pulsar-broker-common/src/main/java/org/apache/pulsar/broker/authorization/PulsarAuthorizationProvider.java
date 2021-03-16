@@ -109,7 +109,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             AuthenticationDataSource authenticationData, String subscription) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            pulsarResources.getNamespaceResources().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
+            pulsarResources.getNamespaceResources().getAsync(topicName.getNamespace()).thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
@@ -236,7 +236,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                        AuthAction authAction) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            pulsarResources.getNamespaceResources().getAsync(POLICY_ROOT + namespaceName.toString()).thenAccept(policies -> {
+            pulsarResources.getNamespaceResources().getAsync(namespaceName.toString()).thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for namespace : {}", namespaceName);
@@ -293,7 +293,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
         final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespaceName.toString());
         try {
-            pulsarResources.getNamespaceResources().set(policiesPath, (policies)->{
+            pulsarResources.getNamespaceResources().set(namespaceName.toString(), (policies)->{
                 policies.auth_policies.namespace_auth.put(role, actions);
                 return policies;
             });
@@ -341,7 +341,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespace.toString());
 
         try {
-            Policies policies = pulsarResources.getNamespaceResources().get(policiesPath)
+            Policies policies = pulsarResources.getNamespaceResources().get(namespace.toString())
                     .orElseThrow(() -> new NotFoundException(policiesPath + " not found"));
             if (remove) {
                 if (policies.auth_policies.subscription_auth_roles.get(subscriptionName) != null) {
@@ -354,7 +354,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             } else {
                 policies.auth_policies.subscription_auth_roles.put(subscriptionName, roles);
             }
-            pulsarResources.getNamespaceResources().set(policiesPath, (data)->policies);
+            pulsarResources.getNamespaceResources().set(namespace.toString(), (data)->policies);
 
             log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName, roles);
             result.complete(null);
@@ -394,7 +394,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     public CompletableFuture<Boolean> checkPermission(TopicName topicName, String role, AuthAction action) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            pulsarResources.getNamespaceResources().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
+            pulsarResources.getNamespaceResources().getAsync(topicName.getNamespace()).thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
@@ -484,9 +484,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         boolean arePoliciesReadOnly = true;
 
         try {
-            arePoliciesReadOnly = pulsarResources.getNamespaceResources().exists(POLICIES_READONLY_FLAG_PATH);
+            arePoliciesReadOnly = pulsarResources.getNamespaceResources().getStore().exists(POLICIES_READONLY_FLAG_PATH)
+                    .get();
         } catch (Exception e) {
-            log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e);
+            log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e.getCause());
             throw new IllegalStateException("Unable to fetch content from global zk");
         }
 

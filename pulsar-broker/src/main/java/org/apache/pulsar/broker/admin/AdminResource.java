@@ -156,11 +156,11 @@ public abstract class AdminResource extends PulsarWebResource {
         boolean arePoliciesReadOnly = true;
 
         try {
-            arePoliciesReadOnly = pulsar().getPulsarResources().getNamespaceResources()
-                    .exists(POLICIES_READONLY_FLAG_PATH);
+            arePoliciesReadOnly = pulsar().getPulsarResources().getNamespaceResources().getStore()
+                    .exists(POLICIES_READONLY_FLAG_PATH).get();
         } catch (Exception e) {
             log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e);
-            throw new RestException(e);
+            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
         }
 
         if (arePoliciesReadOnly) {
