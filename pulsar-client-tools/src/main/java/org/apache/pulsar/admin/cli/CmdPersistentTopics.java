@@ -82,6 +82,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
+        jcommander.addCommand("trim-topic", new TrimTopic());
         jcommander.addCommand("compaction-status", new CompactionStatusCmd());
     }
 
@@ -523,6 +524,32 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Trim topic to delete as much ledger as possible upon given position.")
+    private class TrimTopic extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--messageId",
+                "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = true)
+        private String messageIdStr;
+
+        @Parameter(names = { "--dryrun",
+                "-d" }, description = "is it a dryrun(default it true)", required = false)
+        private boolean dryrun = true;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            if (isNotBlank(messageIdStr)) {
+                MessageId messageId = validateMessageIdString(messageIdStr);
+                System.out.println(getPersistentTopics().trimTopic(persistentTopic, messageId, dryrun));
+            } else {
+                throw new PulsarAdminException(
+                        "A Position (--messageId) has to be provided to trim topic");
+            }
+        }
+    }
+
     @Parameters(commandDescription = "Terminate a topic and don't allow any more messages to be published")
     private class Terminate extends CliCommand {
         @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
@@ -534,7 +561,7 @@ public class CmdPersistentTopics extends CmdBase {
 
             try {
                 MessageId lastMessageId = getPersistentTopics().terminateTopicAsync(persistentTopic).get();
-                System.out.println("Topic succesfully terminated at " + lastMessageId);
+                System.out.println("Topic successfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
             }

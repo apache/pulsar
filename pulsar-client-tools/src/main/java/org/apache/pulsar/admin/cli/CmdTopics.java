@@ -43,7 +43,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -115,6 +114,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
+        jcommander.addCommand("trim-topic", new TrimTopic());
         jcommander.addCommand("compaction-status", new CompactionStatusCmd());
         jcommander.addCommand("offload", new Offload());
         jcommander.addCommand("offload-status", new OffloadStatusCmd());
@@ -784,6 +784,32 @@ public class CmdTopics extends CmdBase {
             } else {
                 throw new PulsarAdminException(
                         "Either Timestamp (--time) or Position (--position) has to be provided to reset cursor");
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Trim topic to delete as much ledger as possible upon given position.")
+    private class TrimTopic extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--messageId",
+                "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = true)
+        private String messageIdStr;
+
+        @Parameter(names = { "--dryrun",
+                "-d" }, description = "is it a dryrun(default it true)", required = false)
+        private boolean dryrun = true;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            if (isNotBlank(messageIdStr)) {
+                MessageId messageId = validateMessageIdString(messageIdStr);
+                System.out.println(getTopics().trimTopic(persistentTopic, messageId, dryrun));
+            } else {
+                throw new PulsarAdminException(
+                        "A Position (--messageId) has to be provided to trim topic");
             }
         }
     }

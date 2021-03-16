@@ -46,6 +46,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
+
 /**
  * Admin interface for Topics management.
  */
@@ -1423,6 +1424,37 @@ public interface Topics {
      *            reset subscription to messageId (or previous nearest messageId if given messageId is not valid)
      */
     CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId);
+
+    /**
+     * Trim topic upon given position.
+     * @param topic
+     *          topic name
+     * @param messageId
+     *          trim topic upon position represent by the messageId.
+     * @param dryrun
+     *          is it a dryrun
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws NotAllowedException
+     *             Command disallowed for requested resource
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    String trimTopic(String topic, MessageId messageId, boolean dryrun) throws PulsarAdminException;
+
+    /**
+     * Trim topic upon given position.
+     * @param topic
+     *          topic name
+     * @param messageId
+     *          trim topic upon position represent by the messageId.
+     * @param dryrun
+     *          is it a dryrun
+     */
+    CompletableFuture<String> asyncTrimTopic(String topic, MessageId messageId, boolean dryrun);
 
     /**
      * Trigger compaction to run for a topic. A single topic can only have one instance of compaction

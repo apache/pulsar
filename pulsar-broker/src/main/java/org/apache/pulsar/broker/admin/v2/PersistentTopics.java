@@ -45,6 +45,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -53,6 +54,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
+import org.apache.pulsar.client.impl.TrimTopicData;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -1257,7 +1259,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/resetcursor/{timestamp}")
     @ApiOperation(value = "Reset subscription to message position closest to absolute timestamp (in ms).",
-            notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
+            notes = "It fence cursor and disconnects all active consumers before resetting cursor.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -1297,7 +1299,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/resetcursor")
     @ApiOperation(value = "Reset subscription to message position closest to given position.",
-            notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
+            notes = "It fence cursor and disconnects all active consumers before resetting cursor.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -1328,6 +1330,42 @@ public class PersistentTopics extends PersistentTopicsBase {
                     , new MessageIdImpl(resetCursorData.getLedgerId(),
                             resetCursorData.getEntryId(), resetCursorData.getPartitionIndex())
                     , resetCursorData.isExcluded(), resetCursorData.getBatchIndex());
+        } catch (Exception e) {
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/trim")
+    @ApiOperation(value = "Trim topic to delete as much ledger as we can up to given position.",
+            notes = "This command will cause ledger being deleted from bookkeeper, no matter if there's sill "
+                    + "consumer reading the topic.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
+                    + "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Not supported for partitioned topics"),
+            @ApiResponse(code = 412, message = "Unable to find position for position specified"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
+    public void trimTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(name = "trimTopicData", value = "position to reset back to")
+                    TrimTopicData trimTopicData) {
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalTrimTopic(asyncResponse, new PositionImpl(trimTopicData.getLedgerId(),
+                    trimTopicData.getEntryId()),
+                    authoritative, trimTopicData.isDryrun());
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }

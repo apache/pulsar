@@ -37,6 +37,7 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -2297,8 +2298,40 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Slowest consumer ledger id: {}", name, slowestReaderLedgerId);
             }
+            // skip ledger if retention constraint met
+            for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
+                boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
+                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
 
-            searchForConsumedLedgersForDeletion(slowestReaderLedgerId, ledgersToDelete, offloadedLedgersToDelete);
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "[{}] Checking ledger {} -- time-old: {} sec -- "
+                                    + "expired: {} -- over-quota: {} -- current-ledger: {}",
+                            name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
+                            overRetentionQuota, currentLedger.getId());
+                }
+                if (ls.getLedgerId() == currentLedger.getId()) {
+                    log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
+                            ls.getLedgerId());
+                    break;
+                } else if (expired) {
+                    log.debug("[{}] Ledger {} has expired, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                    ledgersToDelete.add(ls);
+                } else if (overRetentionQuota) {
+                    log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
+                    ledgersToDelete.add(ls);
+                } else {
+                    log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
+                    break;
+                }
+            }
+            for (LedgerInfo ls : ledgers.values()) {
+                if (isOffloadedNeedsDelete(ls.getOffloadContext()) && !ledgersToDelete.contains(ls)) {
+                    log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted", name,
+                            ls.getLedgerId());
+                    offloadedLedgersToDelete.add(ls);
+                }
+            }
 
             if (ledgersToDelete.isEmpty() && offloadedLedgersToDelete.isEmpty()) {
                 trimmerMutex.unlock();
@@ -2319,50 +2352,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void searchForConsumedLedgersForDeletion(long lastLedgerId,
-                                                     List<LedgerInfo> ledgersToDelete,
-                                                     List<LedgerInfo> offloadedLedgersToDelete) {
-        // skip ledger if retention constraint met
-        for (LedgerInfo ls : ledgers.headMap(lastLedgerId, false).values()) {
-            boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
-            boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
-
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "[{}] Checking ledger {} -- time-old: {} sec -- "
-                                + "expired: {} -- over-quota: {} -- current-ledger: {}",
-                        name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
-                        overRetentionQuota, currentLedger.getId());
-            }
-            if (ls.getLedgerId() == currentLedger.getId()) {
-                log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
-                        ls.getLedgerId());
-                break;
-            } else if (expired) {
-                log.debug("[{}] Ledger {} has expired, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
-                ledgersToDelete.add(ls);
-            } else if (overRetentionQuota) {
-                log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
-                ledgersToDelete.add(ls);
-            } else {
-                log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
-                break;
-            }
-        }
-        for (LedgerInfo ls : ledgers.values()) {
-            if (isOffloadedNeedsDelete(ls.getOffloadContext()) && !ledgersToDelete.contains(ls)) {
-                log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted", name,
-                        ls.getLedgerId());
-                offloadedLedgersToDelete.add(ls);
-            }
-        }
-    }
-
     // Need to acquire metadataMutex before calling this method.
     private void deleteConsumedLedgers(CompletableFuture<?> promise,
                                        List<LedgerInfo> ledgersToDelete,
                                        List<LedgerInfo> offloadedLedgersToDelete) {
-
         PositionImpl currentLastConfirmedEntry = lastConfirmedEntry;
         // Update metadata
         for (LedgerInfo ls : ledgersToDelete) {
@@ -2390,9 +2383,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             ledgers.put(ls.getLedgerId(), newInfoBuilder.build());
         }
 
-        if (log.isDebugEnabled()) {
             log.debug("[{}] Updating of ledgers list after trimming", name);
-        }
 
         store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
             @Override
@@ -2426,24 +2417,33 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
     }
 
-    public void trimConsumedLedgerForPosition(PositionImpl position, CompletableFuture<List<LedgerInfo>> future) {
+    /**
+     * Try to delete as much ledger as we can given a position.
+     * The ledger containing given position won't be deleted as a ledger can only be deleted as a whole
+     * and we're not able to just delete entries before given position.
+     * @param position The position where we want to trim ledger upon.
+     * @param dryrun   Whether it's a dryrun.
+     * @return         A {@link CompletableFuture} that'll contain list of ledger to delete or deleted, and exception
+     *                 if operation can't be completed.
+     */
+    public CompletableFuture<List<LedgerInfo>> trimConsumedLedgersForPosition(PositionImpl position, boolean dryrun) {
+        CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
+        System.out.println("****************");
         if (lastConfirmedEntry.compareTo(position) < 0) {
             future.completeExceptionally(new
                     IllegalArgumentException("Trying to trim ledger beyond last confirmed position."));
-            return;
+            return future;
         }
 
         // Ensure only one trimming operation is active
         if (!trimmerMutex.tryLock()) {
             future.completeExceptionally(new
                     ManagedLedgerException("There's an ongoing ledger trimming operation, please try again later."));
-            return;
+            return future;
         }
 
         CompletableFuture<Void> trimFuture = new CompletableFuture<>();
 
-        List<LedgerInfo> ledgersToDelete = Lists.newArrayList();
-        List<LedgerInfo> offloadedLedgersToDelete = Lists.newArrayList();
         synchronized (this) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Start TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.keySet(),
@@ -2452,28 +2452,27 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (STATE_UPDATER.get(this) == State.Closed) {
                 trimmerMutex.unlock();
                 future.completeExceptionally(new ManagedLedgerAlreadyClosedException("Can't trim closed ledger"));
-                return;
+                return future;
             }
 
-            searchForConsumedLedgersForDeletion(position.ledgerId, ledgersToDelete, offloadedLedgersToDelete);
-
-            if (ledgersToDelete.isEmpty()) {
+            // not including ledger for given position, prevent deletion of current ledger.
+            List<LedgerInfo> ledgersToDelete = new ArrayList<>(ledgers.headMap(position.ledgerId, false).values());
+            if (ledgersToDelete.isEmpty() || dryrun) {
                 trimmerMutex.unlock();
                 future.complete(ledgersToDelete);
-                return;
+                return future;
             }
-
             // Avoid deadlocks with other operations updating the ledgers list
             if (STATE_UPDATER.get(this) == State.CreatingLedger || !metadataMutex.tryLock()) {
                 trimmerMutex.unlock();
                 future.completeExceptionally(new
                         ManagedLedgerException("Other operation is updating ledger metadata, please try again later."));
-                return;
+                return future;
             }
 
             advanceNonDurableCursors(ledgersToDelete);
 
-            deleteConsumedLedgers(trimFuture, ledgersToDelete, offloadedLedgersToDelete);
+            deleteConsumedLedgers(trimFuture, ledgersToDelete, Collections.emptyList());
 
             trimFuture.thenRun(() -> {
                 future.complete(ledgersToDelete);
@@ -2481,6 +2480,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 future.completeExceptionally(e);
                 return null;
             });
+            return future;
         }
     }
 

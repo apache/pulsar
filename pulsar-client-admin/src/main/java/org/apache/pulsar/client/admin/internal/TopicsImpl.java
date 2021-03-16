@@ -60,6 +60,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
+import org.apache.pulsar.client.impl.TrimTopicData;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
@@ -1260,6 +1261,52 @@ public class TopicsImpl extends BaseResource implements Topics {
         ResetCursorData resetCursorData = new ResetCursorData(messageId);
         resetCursorData.setExcluded(isExcluded);
         return asyncPostRequest(path, Entity.entity(resetCursorData, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public String trimTopic(String topic, MessageId messageId, boolean dryrun) throws PulsarAdminException {
+        try {
+            return asyncTrimTopic(topic, messageId, dryrun).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<String> asyncTrimTopic(String topic, MessageId messageId, boolean dryrun) {
+        TopicName tn = validateTopic(topic);
+        final WebTarget path = topicPath(tn, "trim");
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        TrimTopicData trimTopicData = new TrimTopicData(messageId);
+        trimTopicData.setDryrun(dryrun);
+        try {
+            request(path).async().post(Entity.entity(trimTopicData, MediaType.APPLICATION_JSON),
+                new InvocationCallback<String>() {
+
+                    @Override
+                    public void completed(String response) {
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        log.warn("[{}] Failed to perform http post request: {}", path.getUri(),
+                                throwable.getMessage());
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+
+        return future;
     }
 
     @Override

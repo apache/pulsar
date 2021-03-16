@@ -58,6 +58,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
@@ -3303,31 +3304,47 @@ public class PersistentTopicsBase extends AdminResource {
         return topic.offloadStatus();
     }
 
-    protected void internalTruncateTopic(AsyncResponse asyncResponse, MessageIdImpl messageId, boolean authoritative) {
+    protected void internalTrimTopic(AsyncResponse asyncResponse, Position position, boolean authoritative,
+                                     boolean dryrun) {
         if (topicName.isGlobal()) {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
-                log.warn("[{}][{}] Failed to truncate topic with position {}: {}", clientAppId(),
-                        topicName, messageId, e.getMessage());
+                log.warn("[{}][{}] Failed to trim topic with position {}: {}", clientAppId(),
+                        topicName, position, e.getMessage());
                 resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
         }
 
-        log.info("[{}][{}] received truncate topic with position {}", clientAppId(), topicName, messageId);
+        log.info("[{}][{}] Received trim topic with position {}", clientAppId(), topicName, position);
         validateAdminOperationOnTopic(authoritative);
 
+        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
+            log.warn("[{}] Not supported operation on partitioned-topic {}", clientAppId(), topicName);
+            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Trim ledger is not supported for partitioned-topic"));
+            return;
+        }
+
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        CompletableFuture<List<MLDataFormats.ManagedLedgerInfo.LedgerInfo>> future = new CompletableFuture<>();
-        ((ManagedLedgerImpl)topic.getManagedLedger()).trimConsumedLedgerForPosition(
-                PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()), future);
+        CompletableFuture<List<MLDataFormats.ManagedLedgerInfo.LedgerInfo>> future =
+        ((ManagedLedgerImpl) topic.getManagedLedger()).trimConsumedLedgersForPosition(
+                PositionImpl.get(position.getLedgerId(), position.getEntryId()), dryrun);
         future.thenAccept((list) -> {
-            asyncResponse.resume("Deleted ledgers with ledgerId" + list.stream()
-                    .map(ledgerInfo -> String.valueOf(ledgerInfo.getLedgerId()))
-                    .collect(Collectors.joining( ", " )));
-        })
-        .exceptionally((e) -> {
+            String response;
+            if (list != null && list.size() > 0) {
+                response = (dryrun ? "Following ledgers will be deleted from bookkeeper:" :
+                        "Deleted ledgers with ledgerId from bookkeeper:") + list.size()
+                        + list.stream()
+                        .map(ledgerInfo -> String.valueOf(ledgerInfo.getLedgerId()))
+                        .collect(Collectors.joining(", "));
+            } else {
+                response = dryrun ?  "No ledger will be deleted." : "No ledger can be deleted.";
+            }
+            asyncResponse.resume(response);
+
+        }).exceptionally((e) -> {
             asyncResponse.resume(e);
             return null;
         });
