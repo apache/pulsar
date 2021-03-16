@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Markers;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -64,6 +65,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         doReturn(configuration).when(pulsarService).getConfig();
         doReturn(true).when(configuration).isTransactionCoordinatorEnabled();
         doReturn(managedLedger).when(topic).getManagedLedger();
+        doReturn(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()).when(topic).getName();
         ManagedCursor cursor = managedLedger.openCursor("test");
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, "test",
                 managedLedger.openCursor("test"), false);
