@@ -98,7 +98,7 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> setAsync(String path, Function<T, T> modifyFunction) {
-        return cache.readCloneModifyUpdate(path, modifyFunction);
+        return cache.readModifyUpdate(path, modifyFunction);
     }
 
     public void setWithCreate(String path, Function<Optional<T>, T> createFunction) throws MetadataStoreException {
