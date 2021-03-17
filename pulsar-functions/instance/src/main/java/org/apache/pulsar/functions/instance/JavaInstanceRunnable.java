@@ -60,7 +60,6 @@ import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.state.StateStoreContextImpl;
 import org.apache.pulsar.functions.instance.state.StateStoreProvider;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -737,14 +736,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
                         this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
                 pulsarSinkConfig.setTopic(sinkSpec.getTopic());
-                
-                if (this.instanceConfig.getFunctionDetails().getComponentType()== ComponentType.SOURCE) {
-                  // Forward record level properties for all sources by default
-                  pulsarSinkConfig.setForwardSourceMessageProperty(true);
-                } else if (this.instanceConfig.getFunctionDetails().getComponentType() == ComponentType.SINK) {
-                  pulsarSinkConfig.setForwardSourceMessageProperty(
+                pulsarSinkConfig.setForwardSourceMessageProperty(
                         this.instanceConfig.getFunctionDetails().getSink().getForwardSourceMessageProperty());
-                }
 
                 if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
                     pulsarSinkConfig.setSchemaType(sinkSpec.getSchemaType());

@@ -148,6 +148,8 @@ public class SourceConfigUtils {
             sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(sourceConfig.getProducerConfig()));
         }
 
+        sinkSpecBuilder.setForwardSourceMessageProperty(true);
+
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         // use default resources if resources not set
