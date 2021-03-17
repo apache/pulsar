@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
-
 import com.google.common.collect.Lists;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -34,14 +31,15 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class MessageTTLTest extends BrokerTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(MessageTTLTest.class);
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -92,7 +90,7 @@ public class MessageTTLTest extends BrokerTestBase {
         assertEquals(statsBeforeExpire.markDeletePosition, PositionImpl.get(3, -1).toString());
 
         // wall clock time, we have to make the message to be considered "expired"
-        Thread.sleep(this.conf.getTtlDurationDefaultInSeconds() * 2000);
+        Thread.sleep(this.conf.getTtlDurationDefaultInSeconds() * 2000L);
         log.info("***** run message expiry now");
         this.runMessageExpiryCheck();
 

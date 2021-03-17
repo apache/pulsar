@@ -50,6 +50,7 @@ import org.testng.annotations.AfterClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 
+@Test(groups = "broker")
 public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionBufferClientTest.class);

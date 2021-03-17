@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.testng.Assert.assertTrue;
 
+@Test(groups = "broker")
 public class NamespaceOwnershipListenerTests extends BrokerTestBase {
 
     @BeforeMethod

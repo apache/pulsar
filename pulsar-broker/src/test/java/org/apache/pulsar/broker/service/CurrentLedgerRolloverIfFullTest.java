@@ -29,7 +29,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
+
     @Override
     protected void setup() throws Exception {
 
@@ -77,7 +79,7 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
-            Assert.assertTrue(msg != null);
+            Assert.assertNotNull(msg);
             consumer.acknowledge(msg);
         }
 

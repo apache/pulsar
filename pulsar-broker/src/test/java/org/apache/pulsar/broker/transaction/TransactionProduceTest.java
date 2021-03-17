@@ -68,6 +68,7 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
+@Test(groups = "broker")
 public class TransactionProduceTest extends TransactionTestBase {
 
     private final static int TOPIC_PARTITION = 3;

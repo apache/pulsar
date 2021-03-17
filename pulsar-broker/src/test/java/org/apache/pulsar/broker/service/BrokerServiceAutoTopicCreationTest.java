@@ -33,6 +33,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
     @BeforeClass
@@ -51,7 +52,6 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     protected void cleanupTest() throws Exception {
         pulsar.getAdminClient().namespaces().removeAutoTopicCreation("prop/ns-abc");
     }
-
 
     @Test
     public void testAutoNonPartitionedTopicCreation() throws Exception{
@@ -125,7 +125,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
-    public void testAutoTopicCreationDisableIfNonPartitionedTopicAlreadyExist() throws Exception{
+    public void testAutoTopicCreationDisableIfNonPartitionedTopicAlreadyExist() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
         pulsar.getConfiguration().setDefaultNumPartitions(3);

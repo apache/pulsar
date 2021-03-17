@@ -44,6 +44,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link BookKeeperClientFactoryImpl}.
  */
+@Test(groups = "broker")
 public class BookKeeperClientFactoryImplTest {
 
     @Test

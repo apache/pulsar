@@ -68,13 +68,14 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
+@Test(groups = "broker")
 public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
     private final static String TENANT = "tnx";
     private final static String NAMESPACE1 = TENANT + "/ns1";
     private final static String TOPIC = NAMESPACE1 + "/test-topic";
 
-    @BeforeMethod
+    @BeforeMethod(groups = "broker")
     protected void setup() throws Exception {
         internalSetup();
 
@@ -106,7 +107,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     }
 
     @Test
-    private void testTransactionBufferLowWaterMark() throws Exception {
+    public void testLowWaterMark() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
@@ -178,7 +179,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     }
 
     @Test
-    private void testPendingAckLowWaterMark() throws Exception {
+    public void testPendingAckLowWaterMark() throws Exception {
         String subName = "test";
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)

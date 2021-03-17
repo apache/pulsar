@@ -70,6 +70,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class PrometheusMetricsTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -332,7 +333,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
-        String metricsStr = new String(statsOut.toByteArray());
+        String metricsStr = statsOut.toString();
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
@@ -405,7 +406,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, true, statsOut);
-        String metricsStr = new String(statsOut.toByteArray());
+        String metricsStr = statsOut.toString();
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
@@ -555,8 +556,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
 
-        Map<String, String> typeDefs = new HashMap<String, String>();
-        Map<String, String> metricNames = new HashMap<String, String>();
+        Map<String, String> typeDefs = new HashMap<>();
+        Map<String, String> metricNames = new HashMap<>();
 
         Pattern typePattern = Pattern.compile("^#\\s+TYPE\\s+(\\w+)\\s+(\\w+)");
         Pattern metricNamePattern = Pattern.compile("^(\\w+)\\{.+");
@@ -683,8 +684,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 System.out.println(e.getKey() + ": " + e.getValue())
         );
 
-        Map<String, String> typeDefs = new HashMap<String, String>();
-        Map<String, String> metricNames = new HashMap<String, String>();
+        Map<String, String> typeDefs = new HashMap<>();
+        Map<String, String> metricNames = new HashMap<>();
 
         Pattern typePattern = Pattern.compile("^#\\s+TYPE\\s+(\\w+)\\s+(\\w+)");
         Pattern metricNamePattern = Pattern.compile("^(\\w+)\\{.+");
@@ -978,7 +979,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         pulsar.getConfiguration().setExposeManagedCursorMetricsInPrometheus(true);
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
-        String metricsStr = new String(statsOut.toByteArray());
+        String metricsStr = statsOut.toString();
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
@@ -991,7 +992,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         pulsar.getConfiguration().setExposeManagedCursorMetricsInPrometheus(false);
         ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut2);
-        String metricsStr2 = new String(statsOut2.toByteArray());
+        String metricsStr2 = statsOut2.toString();
         Multimap<String, Metric> metrics2 = parseMetrics(metricsStr2);
         List<Metric> cm2 = (List<Metric>) metrics2.get("pulsar_ml_cursor_persistLedgerSucceed");
         assertEquals(cm2.size(), 0);
