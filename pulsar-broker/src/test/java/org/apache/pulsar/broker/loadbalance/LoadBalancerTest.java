@@ -613,8 +613,7 @@ public class LoadBalancerTest {
     private void createNamespace(PulsarService pulsar, String namespace, int numBundles) throws Exception {
         Policies policies = new Policies();
         policies.bundles = getBundles(numBundles);
-        String zpath = AdminResource.path(POLICIES, namespace);        
-        pulsar.getPulsarResources().getNamespaceResources().create(zpath, policies);
+        pulsar.getPulsarResources().getNamespaceResources().create(namespace, policies);
 
     }
 

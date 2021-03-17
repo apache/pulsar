@@ -388,8 +388,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         try {
             // Write the new policies to zookeeper
-            String namespacePath = path(POLICIES, namespaceName.toString());
-            namespaceResources().set(namespacePath, (p) -> {
+            namespaceResources().set(namespaceName.toString(), (p) -> {
                 p.auth_policies.destination_auth.get(topicUri).remove(role);
                 return p;
             });
