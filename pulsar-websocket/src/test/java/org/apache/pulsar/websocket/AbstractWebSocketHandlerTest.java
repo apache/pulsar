@@ -50,7 +50,6 @@ import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.mockito.Mock;
 import org.testng.annotations.Test;
 
-
 public class AbstractWebSocketHandlerTest {
     @Mock
     private HttpServletRequest httpServletRequest;
@@ -166,14 +165,14 @@ public class AbstractWebSocketHandlerTest {
 
     }
 
-    class WebSocketHandlerImpl extends AbstractWebSocketHandler {
+    static class WebSocketHandlerImpl extends AbstractWebSocketHandler {
 
         public WebSocketHandlerImpl(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
             super(service, request, response);
         }
 
         @Override
-        protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) {
             return null;
         }
 
@@ -188,7 +187,7 @@ public class AbstractWebSocketHandlerTest {
 
     }
 
-    class MockedServletUpgradeResponse extends ServletUpgradeResponse {
+    static class MockedServletUpgradeResponse extends ServletUpgradeResponse {
 
         @Getter
         private int statusCode;

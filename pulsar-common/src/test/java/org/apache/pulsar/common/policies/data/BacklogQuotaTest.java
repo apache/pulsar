@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.testng.Assert;
 import org.testng.annotations.Test;

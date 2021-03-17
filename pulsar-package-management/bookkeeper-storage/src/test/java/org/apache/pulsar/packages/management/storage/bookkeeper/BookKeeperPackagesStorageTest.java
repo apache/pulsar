@@ -86,7 +86,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         storage.readAsync(testPath, readData).get();
         String readResult = new String(readData.toByteArray(), StandardCharsets.UTF_8);
 
-        assertTrue(readResult.equals(testData));
+        assertEquals(testData, readResult);
     }
 
     @Test(timeOut = 60000)
