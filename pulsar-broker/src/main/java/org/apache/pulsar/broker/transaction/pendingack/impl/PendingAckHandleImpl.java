@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -138,90 +137,86 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
         this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                pendingAckStore.appendIndividualAck(txnID, positions,
-                        new AppendPendingAckLogCallBack() {
-                            @Override
-                            public void addComplete() {
-                                for (MutablePair<PositionImpl, Integer> positionIntegerMutablePair : positions) {
-                                    PositionImpl position = positionIntegerMutablePair.left;
+                pendingAckStore.appendIndividualAck(txnID, positions).thenAccept(v -> {
+                    for (MutablePair<PositionImpl, Integer> positionIntegerMutablePair : positions) {
+                        PositionImpl position = positionIntegerMutablePair.left;
 
-                                    // If try to ack message already acked by committed transaction or
-                                    // normal acknowledge,throw exception.
-                                    if (((ManagedCursorImpl) persistentSubscription.getCursor())
-                                            .isMessageDeleted(position)) {
-                                        String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
-                                                + " try to ack message:" + position + " already acked before.";
-                                        log.error(errorMsg);
-                                        completableFuture
-                                                .completeExceptionally(new TransactionConflictException(errorMsg));
-                                        return;
-                                    }
+                        // If try to ack message already acked by committed transaction or
+                        // normal acknowledge,throw exception.
+                        if (((ManagedCursorImpl) persistentSubscription.getCursor())
+                                .isMessageDeleted(position)) {
+                            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                                    + " try to ack message:" + position + " already acked before.";
+                            log.error(errorMsg);
+                            completableFuture
+                                    .completeExceptionally(new TransactionConflictException(errorMsg));
+                            return;
+                        }
 
-                                    if (position.hasAckSet()) {
-                                        //in order to jude the bit set is over lap, so set the covering
-                                        // the batch size bit to 1,should know the two
-                                        // bit set don't have the same point is 0
-                                        BitSetRecyclable bitSetRecyclable =
-                                                BitSetRecyclable.valueOf(position.getAckSet());
-                                        if (positionIntegerMutablePair.right > bitSetRecyclable.size()) {
-                                            bitSetRecyclable.set(positionIntegerMutablePair.right);
-                                        }
-                                        bitSetRecyclable.set(positionIntegerMutablePair.right, bitSetRecyclable.size());
-                                        long[] ackSetOverlap = bitSetRecyclable.toLongArray();
-                                        bitSetRecyclable.recycle();
-                                        if (isAckSetOverlap(ackSetOverlap,
-                                                ((ManagedCursorImpl) persistentSubscription.getCursor())
-                                                        .getBatchPositionAckSet(position))) {
-                                            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:"
-                                                    + txnID + " try to ack message:"
-                                                    + position + " already acked before.";
-                                            log.error(errorMsg);
-                                            completableFuture
-                                                    .completeExceptionally(new TransactionConflictException(errorMsg));
-                                            return;
-                                        }
-
-                                        if (individualAckPositions != null
-                                                && individualAckPositions.containsKey(position)
-                                                && isAckSetOverlap(individualAckPositions
-                                                .get(position).getLeft().getAckSet(), ackSetOverlap)) {
-                                            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:"
-                                                    + txnID + " try to ack batch message:"
-                                                    + position + " in pending ack status.";
-                                            log.error(errorMsg);
-                                            completableFuture
-                                                    .completeExceptionally(new TransactionConflictException(errorMsg));
-                                            return;
-                                        }
-                                    } else {
-                                        if (individualAckPositions != null
-                                                && individualAckPositions.containsKey(position)) {
-                                            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:"
-                                                    + txnID + " try to ack message:"
-                                                    + position + " in pending ack status.";
-                                            log.error(errorMsg);
-                                            completableFuture
-                                                    .completeExceptionally(new TransactionConflictException(errorMsg));
-                                            return;
-                                        }
-                                    }
-                                }
-
-                                handleIndividualAck(txnID, positions);
-                                completableFuture.complete(null);
+                        if (position.hasAckSet()) {
+                            //in order to jude the bit set is over lap, so set the covering
+                            // the batch size bit to 1,should know the two
+                            // bit set don't have the same point is 0
+                            BitSetRecyclable bitSetRecyclable =
+                                    BitSetRecyclable.valueOf(position.getAckSet());
+                            if (positionIntegerMutablePair.right > bitSetRecyclable.size()) {
+                                bitSetRecyclable.set(positionIntegerMutablePair.right);
+                            }
+                            bitSetRecyclable.set(positionIntegerMutablePair.right, bitSetRecyclable.size());
+                            long[] ackSetOverlap = bitSetRecyclable.toLongArray();
+                            bitSetRecyclable.recycle();
+                            if (isAckSetOverlap(ackSetOverlap,
+                                    ((ManagedCursorImpl) persistentSubscription.getCursor())
+                                            .getBatchPositionAckSet(position))) {
+                                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:"
+                                        + txnID + " try to ack message:"
+                                        + position + " already acked before.";
+                                log.error(errorMsg);
+                                completableFuture
+                                        .completeExceptionally(new TransactionConflictException(errorMsg));
+                                return;
                             }
 
-                            @Override
-                            public void addFailed(ManagedLedgerException managedLedgerException) {
-                                //we also modify the in memory state when append fail,
-                                // because we don't know the persistent state, when were play it,
-                                // it will produce the wrong operation. so we append fail,
-                                // we should wait tc time out or client abort this transaction.
-                                handleIndividualAck(txnID, positions);
-                                completableFuture.completeExceptionally(managedLedgerException);
+                            if (individualAckPositions != null
+                                    && individualAckPositions.containsKey(position)
+                                    && isAckSetOverlap(individualAckPositions
+                                    .get(position).getLeft().getAckSet(), ackSetOverlap)) {
+                                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:"
+                                        + txnID + " try to ack batch message:"
+                                        + position + " in pending ack status.";
+                                log.error(errorMsg);
+                                completableFuture
+                                        .completeExceptionally(new TransactionConflictException(errorMsg));
+                                return;
+                            }
+                        } else {
+                            if (individualAckPositions != null
+                                    && individualAckPositions.containsKey(position)) {
+                                String errorMsg = "[" + topicName + "][" + subName + "] Transaction:"
+                                        + txnID + " try to ack message:"
+                                        + position + " in pending ack status.";
+                                log.error(errorMsg);
+                                completableFuture
+                                        .completeExceptionally(new TransactionConflictException(errorMsg));
+                                return;
                             }
                         }
-                ));
+                    }
+
+                    handleIndividualAck(txnID, positions);
+                    completableFuture.complete(null);
+                }).exceptionally(e -> {
+                    //we also modify the in memory state when append fail,
+                    // because we don't know the persistent state, when were play it,
+                    // it will produce the wrong operation. so we append fail,
+                    // we should wait tc time out or client abort this transaction.
+                    handleIndividualAck(txnID, positions);
+                    completableFuture.completeExceptionally(e);
+                    return null;
+                })).exceptionally(e -> {
+                    completableFuture.completeExceptionally(e);
+                    return null;
+        });
         return completableFuture;
     }
 
@@ -248,48 +243,44 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
         this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                pendingAckStore.appendCumulativeAck(txnID, position, new AppendPendingAckLogCallBack() {
-                    @Override
-                    public void addComplete() {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}][{}] TxnID:[{}] Cumulative ack on {}.", topicName,
-                                    subName, txnID.toString(), position);
-                        }
-
-                        if (position.compareTo((PositionImpl) persistentSubscription.getCursor()
-                                .getMarkDeletedPosition()) <= 0) {
-                            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
-                                    + " try to cumulative ack position: " + position + " within range of cursor's "
-                                    + "markDeletePosition: "
-                                    + persistentSubscription.getCursor().getMarkDeletedPosition();
-                            log.error(errorMsg);
-                            completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
-                            return;
-                        }
-
-                        if (cumulativeAckOfTransaction != null && (!cumulativeAckOfTransaction.getKey().equals(txnID)
-                                || compareToWithAckSet(position, cumulativeAckOfTransaction.getValue()) <= 0)) {
-                            String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
-                                    + " try to cumulative batch ack position: " + position + " within range of current "
-                                    + "currentPosition: " + cumulativeAckOfTransaction.getValue();
-                            log.error(errorMsg);
-                            completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
-                            return;
-                        }
-
-                        handleCumulativeAck(txnID, position);
-                        completableFuture.complete(null);
+                pendingAckStore.appendCumulativeAck(txnID, position).thenAccept(v -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{}] TxnID:[{}] Cumulative ack on {}.", topicName,
+                                subName, txnID.toString(), position);
                     }
 
-                    @Override
-                    public void addFailed(ManagedLedgerException managedLedgerException) {
-                        //we also modify the in memory state when append fail, because we don't know the persistent
-                        // state, when wereplay it, it will produce the wrong operation. so we append fail, we should
-                        // wait tc time out or client abort this transaction.
-                        handleCumulativeAck(txnID, position);
-                        completableFuture.completeExceptionally(managedLedgerException);
+                    if (position.compareTo((PositionImpl) persistentSubscription.getCursor()
+                            .getMarkDeletedPosition()) <= 0) {
+                        String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                                + " try to cumulative ack position: " + position + " within range of cursor's "
+                                + "markDeletePosition: "
+                                + persistentSubscription.getCursor().getMarkDeletedPosition();
+                        log.error(errorMsg);
+                        completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                        return;
                     }
-        })).exceptionally(e -> {
+
+                    if (cumulativeAckOfTransaction != null && (!cumulativeAckOfTransaction.getKey().equals(txnID)
+                            || compareToWithAckSet(position, cumulativeAckOfTransaction.getValue()) <= 0)) {
+                        String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
+                                + " try to cumulative batch ack position: " + position + " within range of current "
+                                + "currentPosition: " + cumulativeAckOfTransaction.getValue();
+                        log.error(errorMsg);
+                        completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                        return;
+                    }
+
+                    handleCumulativeAck(txnID, position);
+                    completableFuture.complete(null);
+                }).exceptionally(e -> {
+                    //we also modify the in memory state when append fail, because we don't know the persistent
+                    // state, when wereplay it, it will produce the wrong operation. so we append fail, we should
+                    // wait tc time out or client abort this transaction.
+                    handleCumulativeAck(txnID, position);
+                    completableFuture.completeExceptionally(e);
+                    return null;
+                })
+        ).exceptionally(e -> {
             completableFuture.completeExceptionally(e);
             return null;
         });
@@ -310,29 +301,24 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (this.cumulativeAckOfTransaction != null) {
             if (cumulativeAckOfTransaction.getKey().equals(txnID)) {
                 pendingAckStoreFuture.thenAccept(pendingAckStore -> pendingAckStore
-                                .appendCommitMark(txnID, AckType.Cumulative, new AppendPendingAckLogCallBack() {
-                                    @Override
-                                    public void addComplete() {
-                                        if (log.isDebugEnabled()) {
-                                            log.debug("[{}] Transaction pending ack store commit txnId : [{}] success!",
-                                                    topicName, txnID);
-                                        }
-                                        persistentSubscription.acknowledgeMessage(
-                                                Collections.singletonList(cumulativeAckOfTransaction.getValue()),
-                                                AckType.Cumulative, properties);
-                                        cumulativeAckOfTransaction = null;
-                                        commitFuture.complete(null);
-                                    }
-
-                                    @Override
-                                    public void addFailed(ManagedLedgerException managedLedgerException) {
-                                        log.error("[{}] Transaction pending ack store commit txnId : [{}] fail!",
-                                                topicName, txnID, managedLedgerException);
-                                        commitFuture.completeExceptionally(managedLedgerException);
-                                    }
-                        })).exceptionally(e -> {
+                                .appendCommitMark(txnID, AckType.Cumulative).thenAccept(v -> {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Transaction pending ack store commit txnId : [{}] success!",
+                                        topicName, txnID);
+                            }
+                            persistentSubscription.acknowledgeMessage(
+                                    Collections.singletonList(cumulativeAckOfTransaction.getValue()),
+                                    AckType.Cumulative, properties);
+                            cumulativeAckOfTransaction = null;
+                            commitFuture.complete(null);
+                        }).exceptionally(e -> {
+                            log.error("[{}] Transaction pending ack store commit txnId : [{}] fail!",
+                                    topicName, txnID, e);
                             commitFuture.completeExceptionally(e);
                             return null;
+                        })).exceptionally(e -> {
+                    commitFuture.completeExceptionally(e);
+                    return null;
                 });
             } else {
                 commitFuture.complete(null);
@@ -342,26 +328,20 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                         individualAckOfTransaction.get(txnID);
                 pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                        pendingAckStore.appendCommitMark(txnID, AckType.Individual, new AppendPendingAckLogCallBack() {
-                            @Override
-                            public void addComplete() {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Transaction pending ack store commit txnId : [{}] success!",
-                                            topicName, txnID);
-                                }
-                                individualAckCommitCommon(txnID, pendingAckMessageForCurrentTxn, properties);
-                                commitFuture.complete(null);
-                                handleLowWaterMark(txnID, lowWaterMark);
+                        pendingAckStore.appendCommitMark(txnID, AckType.Individual).thenAccept(v -> {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Transaction pending ack store commit txnId : [{}] success!",
+                                        topicName, txnID);
                             }
-
-                            @Override
-                            public void addFailed(ManagedLedgerException managedLedgerException) {
-                                log.error("[{}] Transaction pending ack store commit txnId : [{}] fail!",
-                                        topicName, txnID, managedLedgerException);
-                                commitFuture.completeExceptionally(managedLedgerException);
-                            }
-                        })
-                ).exceptionally(e -> {
+                            individualAckCommitCommon(txnID, pendingAckMessageForCurrentTxn, properties);
+                            commitFuture.complete(null);
+                            handleLowWaterMark(txnID, lowWaterMark);
+                        }).exceptionally(e -> {
+                            log.error("[{}] Transaction pending ack store commit txnId : [{}] fail!",
+                                    topicName, txnID, e);
+                            commitFuture.completeExceptionally(e);
+                            return null;
+                        })).exceptionally(e -> {
                     commitFuture.completeExceptionally(e);
                     return null;
                 });
@@ -380,27 +360,21 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
         if (this.cumulativeAckOfTransaction != null) {
             pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                    pendingAckStore.appendAbortMark(txnId, AckType.Cumulative,
-                            new AppendPendingAckLogCallBack() {
-                                @Override
-                                public void addComplete() {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("[{}] Transaction pending ack store abort txnId : [{}] success!",
-                                                topicName, txnId);
-                                    }
-                                    if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
-                                        cumulativeAckOfTransaction = null;
-                                    }
-                                    persistentSubscription.redeliverUnacknowledgedMessages(consumer);
-                                    abortFuture.complete(null);
-                                }
-
-                                @Override
-                                public void addFailed(ManagedLedgerException managedLedgerException) {
-                                    log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
-                                            topicName, txnId, managedLedgerException);
-                                    abortFuture.completeExceptionally(managedLedgerException);
-                                }
+                    pendingAckStore.appendAbortMark(txnId, AckType.Cumulative).thenAccept(v -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Transaction pending ack store abort txnId : [{}] success!",
+                                    topicName, txnId);
+                        }
+                        if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
+                            cumulativeAckOfTransaction = null;
+                        }
+                        persistentSubscription.redeliverUnacknowledgedMessages(consumer);
+                        abortFuture.complete(null);
+                    }).exceptionally(e -> {
+                        log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
+                                topicName, txnId, e);
+                        abortFuture.completeExceptionally(e);
+                        return null;
                     })
             ).exceptionally(e -> {
                 abortFuture.completeExceptionally(e);
@@ -411,26 +385,21 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     individualAckOfTransaction.get(txnId);
             if (pendingAckMessageForCurrentTxn != null) {
                 pendingAckStoreFuture.thenAccept(pendingAckStore ->
-                        pendingAckStore.appendAbortMark(txnId, AckType.Individual, new AppendPendingAckLogCallBack() {
-                            @Override
-                            public void addComplete() {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Transaction pending ack store abort txnId : [{}] success!",
-                                            topicName, txnId);
-                                }
-                                individualAckAbortCommon(txnId, pendingAckMessageForCurrentTxn);
-                                persistentSubscription.redeliverUnacknowledgedMessages(consumer,
-                                        new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
-                                abortFuture.complete(null);
-                                handleLowWaterMark(txnId, lowWaterMark);
+                        pendingAckStore.appendAbortMark(txnId, AckType.Individual).thenAccept(v -> {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Transaction pending ack store abort txnId : [{}] success!",
+                                        topicName, txnId);
                             }
-
-                            @Override
-                            public void addFailed(ManagedLedgerException managedLedgerException) {
-                                log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
-                                        topicName, txnId, managedLedgerException);
-                                abortFuture.completeExceptionally(managedLedgerException);
-                            }
+                            individualAckAbortCommon(txnId, pendingAckMessageForCurrentTxn);
+                            persistentSubscription.redeliverUnacknowledgedMessages(consumer,
+                                    new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
+                            abortFuture.complete(null);
+                            handleLowWaterMark(txnId, lowWaterMark);
+                        }).exceptionally(e -> {
+                            log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
+                                    topicName, txnId, e);
+                            abortFuture.completeExceptionally(e);
+                            return null;
                         })
                 ).exceptionally(e -> {
                     abortFuture.completeExceptionally(e);
@@ -453,20 +422,15 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     && firstTxn.getLeastSigBits() <= lowWaterMark) {
                 this.pendingAckStoreFuture.whenComplete((pendingAckStore, throwable) -> {
                     if (throwable == null) {
-                        pendingAckStore.appendAbortMark(txnID, AckType.Individual, new AppendPendingAckLogCallBack() {
-                            @Override
-                            public void addComplete() {
-                                log.warn("[{}] Transaction pending ack handle low water mark success! txnId : [{}], "
-                                        + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
-                                individualAckOfTransaction.remove(firstTxn);
-                                handleLowWaterMark(txnID, lowWaterMark);
-                            }
-
-                            @Override
-                            public void addFailed(ManagedLedgerException managedLedgerException) {
-                                log.warn("[{}] Transaction pending ack handle low water mark fail! txnId : [{}], "
-                                        + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
-                            }
+                        pendingAckStore.appendAbortMark(txnID, AckType.Individual).thenAccept(v -> {
+                            log.warn("[{}] Transaction pending ack handle low water mark success! txnId : [{}], "
+                                    + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
+                            individualAckOfTransaction.remove(firstTxn);
+                            handleLowWaterMark(txnID, lowWaterMark);
+                        }).exceptionally(e -> {
+                            log.warn("[{}] Transaction pending ack handle low water mark fail! txnId : [{}], "
+                                    + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
+                            return null;
                         });
                     }
                 });
@@ -628,10 +592,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     protected void handleCumulativeAckRecover(TxnID txnID, PositionImpl position) {
         if ((position.compareTo((PositionImpl) persistentSubscription.getCursor()
-                .getMarkDeletedPosition()) <= 0) || (cumulativeAckOfTransaction != null
-                && (!cumulativeAckOfTransaction.getKey().equals(txnID)
-                || compareToWithAckSet(position, cumulativeAckOfTransaction.getValue()) <= 0))) {
-        } else {
+                .getMarkDeletedPosition()) > 0) && (cumulativeAckOfTransaction == null
+                || (cumulativeAckOfTransaction.getKey().equals(txnID)
+                && compareToWithAckSet(position, cumulativeAckOfTransaction.getValue()) > 0))) {
             handleCumulativeAck(txnID, position);
         }
     }

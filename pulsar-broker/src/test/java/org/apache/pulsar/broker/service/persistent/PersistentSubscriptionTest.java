@@ -62,10 +62,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
-import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
-import org.apache.pulsar.broker.transaction.pendingack.impl.AppendPendingAckLogCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleState;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -141,27 +139,23 @@ public class PersistentSubscriptionTest {
                     }
 
                     @Override
-                    public void appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
-                                                    AppendPendingAckLogCallBack callBack) {
-                        callBack.addComplete();
+                    public CompletableFuture<Void> appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
+                        return CompletableFuture.completedFuture(null);
                     }
 
                     @Override
-                    public void appendCumulativeAck(TxnID txnID, PositionImpl position,
-                                                    AppendPendingAckLogCallBack callBack) {
-                        callBack.addComplete();
+                    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
+                        return CompletableFuture.completedFuture(null);
                     }
 
                     @Override
-                    public void appendCommitMark(TxnID txnID, AckType ackType,
-                                                 AppendPendingAckLogCallBack callBack) {
-                        callBack.addComplete();
+                    public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
+                        return CompletableFuture.completedFuture(null);
                     }
 
                     @Override
-                    public void appendAbortMark(TxnID txnID, AckType ackType,
-                                                AppendPendingAckLogCallBack callBack) {
-                        callBack.addComplete();
+                    public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
+                        return CompletableFuture.completedFuture(null);
                     }
                 });
             }

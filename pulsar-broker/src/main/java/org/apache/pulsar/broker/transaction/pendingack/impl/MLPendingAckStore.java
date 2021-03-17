@@ -135,8 +135,8 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     @Override
-    public void appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
-                                    AppendPendingAckLogCallBack callBack) {
+    public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
+                                                       List<MutablePair<PositionImpl, Integer>> positions) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ACK);
         pendingAckMetadataEntry.setAckType(AckType.Individual);
@@ -156,11 +156,11 @@ public class MLPendingAckStore implements PendingAckStore {
             pendingAckMetadataList.add(pendingAckMetadata);
         });
         pendingAckMetadataEntry.addAllPendingAckMetadatas(pendingAckMetadataList);
-        appendCommon(pendingAckMetadataEntry, txnID, callBack);
+        return appendCommon(pendingAckMetadataEntry, txnID);
     }
 
     @Override
-    public void appendCumulativeAck(TxnID txnID, PositionImpl position, AppendPendingAckLogCallBack callBack) {
+    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ACK);
         pendingAckMetadataEntry.setAckType(AckType.Cumulative);
@@ -173,28 +173,27 @@ public class MLPendingAckStore implements PendingAckStore {
         pendingAckMetadata.setLedgerId(position.getLedgerId());
         pendingAckMetadata.setEntryId(position.getEntryId());
         pendingAckMetadataEntry.addAllPendingAckMetadatas(Collections.singleton(pendingAckMetadata));
-        appendCommon(pendingAckMetadataEntry, txnID, callBack);
+        return appendCommon(pendingAckMetadataEntry, txnID);
     }
 
     @Override
-    public void appendCommitMark(TxnID txnID, AckType ackType,
-                                                    AppendPendingAckLogCallBack callBack) {
+    public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.COMMIT);
         pendingAckMetadataEntry.setAckType(ackType);
-        appendCommon(pendingAckMetadataEntry, txnID, callBack);
+        return appendCommon(pendingAckMetadataEntry, txnID);
     }
 
     @Override
-    public void appendAbortMark(TxnID txnID, AckType ackType, AppendPendingAckLogCallBack callBack) {
+    public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ABORT);
         pendingAckMetadataEntry.setAckType(ackType);
-        appendCommon(pendingAckMetadataEntry, txnID, callBack);
+        return appendCommon(pendingAckMetadataEntry, txnID);
     }
 
-    private void appendCommon(PendingAckMetadataEntry pendingAckMetadataEntry, TxnID txnID,
-                              AppendPendingAckLogCallBack callBack) {
+    private CompletableFuture<Void> appendCommon(PendingAckMetadataEntry pendingAckMetadataEntry, TxnID txnID) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         pendingAckMetadataEntry.setTxnidLeastBits(txnID.getLeastSigBits());
         pendingAckMetadataEntry.setTxnidMostBits(txnID.getMostSigBits());
         int transactionMetadataEntrySize = pendingAckMetadataEntry.getSerializedSize();
@@ -227,7 +226,7 @@ public class MLPendingAckStore implements PendingAckStore {
                 }
 
                 buf.release();
-                callBack.addComplete();
+                completableFuture.complete(null);
 
                 if (!metadataPositions.isEmpty()) {
                     PositionImpl firstPosition = metadataPositions.firstEntry().getKey();
@@ -272,9 +271,10 @@ public class MLPendingAckStore implements PendingAckStore {
                 log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
                         managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
                 buf.release();
-                callBack.addFailed(exception);
+                completableFuture.completeExceptionally(exception);
             }
         } , null);
+        return completableFuture;
     }
 
     class PendingAckReplay implements Runnable {

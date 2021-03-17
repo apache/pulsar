@@ -43,27 +43,24 @@ public class InMemoryPendingAckStore implements PendingAckStore {
     }
 
     @Override
-    public void appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
-                                    AppendPendingAckLogCallBack callBack) {
-        callBack.addComplete();
+    public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
+                                                       List<MutablePair<PositionImpl, Integer>> positions) {
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public void appendCumulativeAck(TxnID txnID, PositionImpl position,
-                                    AppendPendingAckLogCallBack callBack) {
-        callBack.addComplete();
+    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public void appendCommitMark(TxnID txnID, AckType ackType,
-                                 AppendPendingAckLogCallBack callBack) {
-        callBack.addComplete();
+    public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public void appendAbortMark(TxnID txnID, AckType ackType,
-                                AppendPendingAckLogCallBack callBack) {
-        callBack.addComplete();
+    public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
+        return CompletableFuture.completedFuture(null);
     }
 
 }
