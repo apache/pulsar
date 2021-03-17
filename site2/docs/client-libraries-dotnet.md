@@ -60,7 +60,7 @@ This example shows how to create a Pulsar C# client connected to localhost.
 var client = PulsarClient.Builder().Build();
 ```
 
-To create a Pulsar C# client by using the builder, you can specify the following options:
+To create a Pulsar C# client by using the builder, you can specify the following options.
 
 | Option | Description | Default |
 | ---- | ---- | ---- |
