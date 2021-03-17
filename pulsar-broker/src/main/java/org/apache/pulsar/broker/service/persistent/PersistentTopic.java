@@ -101,6 +101,7 @@ import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferStats;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -1741,6 +1742,13 @@ public class PersistentTopic extends AbstractTopic
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
         stats.offloadedStorageSize = ledger.getOffloadedSize();
+        TransactionBufferStats transactionBufferStats = transactionBuffer.getTransactionBufferStats();
+        stats.activeTransactions = transactionBufferStats.activeTransactions;
+        stats.commitTransactionCount = transactionBufferStats.commitTransactionCount;
+        stats.abortTransactionCount = transactionBufferStats.abortTransactionCount;
+        stats.registeredTransactionCount = transactionBufferStats.registeredTransactionCount;
+        stats.publishTxnMessageCount = transactionBufferStats.publishTxnMessageCount;
+        stats.existedAbortTransactions = transactionBufferStats.existedAbortTransactions;
         return stats;
     }
 

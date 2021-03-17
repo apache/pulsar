@@ -117,6 +117,12 @@ public class NamespaceStatsAggregator {
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
         stats.bytesOutCounter = tStatus.bytesOutCounter;
+        stats.activeTransactions = tStatus.activeTransactions;
+        stats.commitTransactionCount = tStatus.commitTransactionCount;
+        stats.abortTransactionCount = tStatus.abortTransactionCount;
+        stats.registeredTransactionCount = tStatus.registeredTransactionCount;
+        stats.publishTxnMessageCount = tStatus.publishTxnMessageCount;
+        stats.existedAbortTransactions = tStatus.existedAbortTransactions;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {

@@ -364,4 +364,9 @@ class InMemTransactionBuffer implements TransactionBuffer {
         return PositionImpl.latest;
     }
 
+    @Override
+    public TransactionBufferStats getTransactionBufferStats() {
+        return new TransactionBufferStats();
+    }
+
 }

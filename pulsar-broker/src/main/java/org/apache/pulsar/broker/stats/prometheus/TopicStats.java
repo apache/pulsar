@@ -59,6 +59,15 @@ class TopicStats {
     // Used for tracking duplicate TYPE definitions
     static Map<String, String> metricWithTypeDefinition = new HashMap<>();
 
+    // Transaction buffer stats
+    long activeTransactions;
+    long commitTransactionCount;
+    long abortTransactionCount;
+    long registeredTransactionCount;
+    long publishTxnMessageCount;
+    long existedAbortTransactions;
+
+
 
     public void reset() {
         subscriptionsCount = 0;
@@ -87,6 +96,13 @@ class TopicStats {
         storageWriteLatencyBuckets.reset();
         storageLedgerWriteLatencyBuckets.reset();
         entrySizeBuckets.reset();
+
+        activeTransactions = 0;
+        commitTransactionCount = 0;
+        abortTransactionCount = 0;
+        registeredTransactionCount = 0;
+        publishTxnMessageCount = 0;
+        existedAbortTransactions = 0;
     }
 
     static void resetTypes() {
@@ -249,6 +265,19 @@ class TopicStats {
 
         metric(stream, cluster, namespace, topic, "pulsar_in_bytes_total", stats.bytesInCounter);
         metric(stream, cluster, namespace, topic, "pulsar_in_messages_total", stats.msgInCounter);
+
+        metric(stream, cluster, namespace, topic, "pulsar_transaction_buffer_active_transactions",
+                stats.activeTransactions);
+        metric(stream, cluster, namespace, topic, "pulsar_transaction_buffer_commit_transaction_count",
+                stats.commitTransactionCount);
+        metric(stream, cluster, namespace, topic, "pulsar_transaction_buffer_abort_transaction_count",
+                stats.abortTransactionCount);
+        metric(stream, cluster, namespace, topic, "pulsar_transaction_buffer_registered_transaction_count",
+                stats.registeredTransactionCount);
+        metric(stream, cluster, namespace, topic, "pulsar_transaction_buffer_existed_abort_transactions",
+                stats.existedAbortTransactions);
+        metric(stream, cluster, namespace, topic, "pulsar_transaction_buffer_publish_message_count",
+                stats.publishTxnMessageCount);
     }
 
     static void metricType(SimpleTextOutputStream stream, String name) {

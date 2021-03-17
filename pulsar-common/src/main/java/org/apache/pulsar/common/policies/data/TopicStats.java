@@ -91,6 +91,24 @@ public class TopicStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** The active transactions. */
+    public long activeTransactions;
+
+    /** The commit transaction count of this transaction buffer. */
+    public long commitTransactionCount;
+
+    /** The abort transaction count of this transaction buffer. */
+    public long abortTransactionCount;
+
+    /** The registered transaction count of this transaction buffer. */
+    public long registeredTransactionCount;
+
+    /** The public transaction message count of this transaction buffer. */
+    public long publishTxnMessageCount;
+
+    /** The existed abort transactions of this transaction buffer. */
+    public long existedAbortTransactions;
+
     public TopicStats() {
         this.publishers = Lists.newArrayList();
         this.subscriptions = Maps.newHashMap();
@@ -119,6 +137,12 @@ public class TopicStats {
         this.nonContiguousDeletedMessagesRanges = 0;
         this.nonContiguousDeletedMessagesRangesSerializedSize = 0;
         this.offloadedStorageSize = 0;
+        this.activeTransactions = 0;
+        this.commitTransactionCount = 0;
+        this.abortTransactionCount = 0;
+        this.registeredTransactionCount = 0;
+        this.publishTxnMessageCount = 0;
+        this.existedAbortTransactions = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current

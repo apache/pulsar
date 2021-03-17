@@ -27,6 +27,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -61,9 +62,18 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -75,7 +85,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.baseSetup();
+        ServiceConfiguration configuration = getDefaultConf();
+        configuration.setTransactionCoordinatorEnabled(true);
+        super.baseSetup(configuration);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -889,6 +901,114 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.size(), 1);
 
         provider.close();
+    }
+
+    @Test
+    public void testTransactionBufferMetrics() throws Exception{
+
+        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+
+        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+            MLTransactionMetadataStore store = ((MLTransactionMetadataStore) getPulsar()
+                    .getTransactionMetadataStoreService().getStores().get(TransactionCoordinatorID.get(0)));
+            return store != null && store.getState() == TransactionMetadataStoreState.State.Ready;
+        });
+        String ns1 = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns1);
+        String topic = "persistent://" + ns1 + "/test_coordinator_metrics";
+
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        Producer<byte[]> producer= pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        byte[] value = "Hello Pulsar !".getBytes();
+        // test registered transaction and publish txn message count
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value(value).sendAsync().get();
+        producer.newMessage(txn).value(value).sendAsync().get();
+        txn.commit().get();
+
+        // test abort
+        txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value(value).sendAsync().get();
+        txn.abort().get();
+
+        txn = pulsarClient.newTransaction().withTransactionTimeout(20, TimeUnit.SECONDS).build().get();
+        producer.newMessage(txn).value(value).sendAsync().get();
+        txn.abort().get();
+
+        // test active transaction
+        txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value(value).sendAsync().get();
+
+        pulsar.getBrokerService().updateRates();
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_transaction_buffer_active_transactions");
+        metric.forEach(m -> {
+            if (m.tags.containsValue(topic)) {
+                assertEquals(m.value, 1);
+            } else {
+                assertEquals(m.value, 0);
+            }
+        });
+
+        metric = metrics.get("pulsar_transaction_buffer_commit_transaction_count");
+        metric.forEach(m -> {
+            if (m.tags.containsValue(topic)) {
+                assertEquals(m.value, 1);
+            } else {
+                assertEquals(m.value, 0);
+            }
+        });
+
+        metric = metrics.get("pulsar_transaction_buffer_abort_transaction_count");
+        metric.forEach(m -> {
+            if (m.tags.containsValue(topic)) {
+                assertEquals(m.value, 2);
+            } else {
+                assertEquals(m.value, 0);
+            }
+        });
+
+        metric = metrics.get("pulsar_transaction_buffer_registered_transaction_count");
+        metric.forEach(m -> {
+            if (m.tags.containsValue(topic)) {
+                assertEquals(m.value, 4);
+            } else {
+                assertEquals(m.value, 0);
+            }
+        });
+
+        metric = metrics.get("pulsar_transaction_buffer_existed_abort_transactions");
+        metric.forEach(m -> {
+            if (m.tags.containsValue(topic)) {
+                assertEquals(m.value, 2);
+            } else {
+                assertEquals(m.value, 0);
+            }
+        });
+
+        metric = metrics.get("pulsar_transaction_buffer_publish_message_count");
+        metric.forEach(m -> {
+            if (m.tags.containsValue(topic)) {
+                assertEquals(m.value, 5);
+            } else {
+                assertEquals(m.value, 0);
+            }
+        });
     }
 
     @Test

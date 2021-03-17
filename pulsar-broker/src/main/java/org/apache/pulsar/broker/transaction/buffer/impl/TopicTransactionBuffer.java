@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -86,12 +87,21 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final int takeSnapshotIntervalTime;
 
-    private final CompletableFuture<Void> transactionBufferFuture;
+    private final LongAdder publishTxnMessageCount;
+
+    private final LongAdder commitTransactionCount;
+
+    private final LongAdder abortTransactionCount;
+
+    private final LongAdder registeredTransactionCount;
 
     public TopicTransactionBuffer(PersistentTopic topic, CompletableFuture<Void> transactionBufferFuture) {
         super(State.None);
+        this.publishTxnMessageCount = new LongAdder();
+        this.commitTransactionCount = new LongAdder();
+        this.abortTransactionCount = new LongAdder();
+        this.registeredTransactionCount = new LongAdder();
         this.topic = topic;
-        this.transactionBufferFuture = transactionBufferFuture;
         this.changeToInitializingState();
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
@@ -166,6 +176,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 synchronized (TopicTransactionBuffer.this) {
                     handleTransactionMessage(txnId, position);
+                    publishTxnMessageCount.increment();
                 }
                 completableFuture.complete(position);
             }
@@ -185,6 +196,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
             //max read position is less than first ongoing transaction message position, so entryId -1
             maxReadPosition = PositionImpl.get(firstPosition.getLedgerId(), firstPosition.getEntryId() - 1);
+            registeredTransactionCount.increment();
         }
     }
 
@@ -210,6 +222,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     updateMaxReadPosition(txnID);
                     handleLowWaterMark(txnID, lowWaterMark);
                     takeSnapshotByChangeTimes();
+                    commitTransactionCount.increment();
                 }
                 completableFuture.complete(null);
             }
@@ -240,6 +253,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     handleLowWaterMark(txnID, lowWaterMark);
                     changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
                     takeSnapshotByChangeTimes();
+                    abortTransactionCount.increment();
                 }
                 completableFuture.complete(null);
             }
@@ -373,6 +387,18 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         } else {
             return PositionImpl.earliest;
         }
+    }
+
+    @Override
+    public TransactionBufferStats getTransactionBufferStats() {
+        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
+        transactionBufferStats.abortTransactionCount = this.abortTransactionCount.longValue();
+        transactionBufferStats.commitTransactionCount = this.commitTransactionCount.longValue();
+        transactionBufferStats.registeredTransactionCount = this.registeredTransactionCount.longValue();
+        transactionBufferStats.publishTxnMessageCount = this.publishTxnMessageCount.longValue();
+        transactionBufferStats.existedAbortTransactions = this.aborts.size();
+        transactionBufferStats.activeTransactions = this.ongoingTxns.size();
+        return transactionBufferStats;
     }
 
     @Override

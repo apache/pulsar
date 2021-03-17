@@ -129,7 +129,7 @@ public class TransactionMetadataStoreService {
 
     public void addTransactionMetadataStore(TransactionCoordinatorID tcId) {
         pulsarService.getBrokerService()
-                .getManagedLedgerConfig(TopicName.get(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + tcId))
+                .getManagedLedgerConfig(TopicName.get(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX + tcId.getId()))
                 .whenComplete((v, e) -> {
                     if (e != null) {
                         LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
