@@ -18,7 +18,7 @@
  */
 #ifndef PULSAR_PARTITIONED_CONSUMER_HEADER
 #define PULSAR_PARTITIONED_CONSUMER_HEADER
-#include "gtest/gtest_prod.h"
+#include "lib/TestUtil.h"
 #include "ConsumerImpl.h"
 #include "ClientImpl.h"
 #include <vector>

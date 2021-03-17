@@ -206,16 +206,17 @@ public class TransactionMetadataStoreService {
         return store.getLowWaterMark();
     }
 
-    public CompletableFuture<Void> updateTxnStatus(TxnID txnId, TxnStatus newStatus, TxnStatus expectedStatus) {
+    public CompletableFuture<Void> updateTxnStatus(TxnID txnId, TxnStatus newStatus, TxnStatus expectedStatus,
+                                                   boolean isTimeout) {
         TransactionCoordinatorID tcId = getTcIdFromTxnId(txnId);
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.updateTxnStatus(txnId, newStatus, expectedStatus);
+        return store.updateTxnStatus(txnId, newStatus, expectedStatus, isTimeout);
     }
 
-    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction) {
+    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, boolean isTimeout) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         TxnStatus newStatus;
         switch (txnAction) {
@@ -233,7 +234,7 @@ public class TransactionMetadataStoreService {
                 return completableFuture;
         }
 
-        completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
+        completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN, isTimeout)
                 .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction));
         completableFuture.exceptionally(e -> {
                     if (!isRetryableException(e.getCause())) {
@@ -244,7 +245,7 @@ public class TransactionMetadataStoreService {
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("End transaction op retry! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
                         }
-                        transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction),
+                        transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout),
                                 endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
                     }
                     return null;
@@ -255,13 +256,13 @@ public class TransactionMetadataStoreService {
     public CompletableFuture<Void> endTransactionForTimeout(TxnID txnID) {
         return getTxnMeta(txnID).thenCompose(txnMeta -> {
             if (txnMeta.status() == TxnStatus.OPEN) {
-                return endTransaction(txnID, TxnAction.ABORT_VALUE);
+                return endTransaction(txnID, TxnAction.ABORT_VALUE, true);
             } else {
                 return null;
             }
         }).exceptionally(e -> {
             if (!(e instanceof TransactionNotFoundException)) {
-                endTransaction(txnID, TxnAction.ABORT_VALUE);
+                endTransaction(txnID, TxnAction.ABORT_VALUE, true);
             } else {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Transaction have been handle complete, "
@@ -341,9 +342,9 @@ public class TransactionMetadataStoreService {
 
     private CompletableFuture<Void> endTxnInTransactionMetadataStore(TxnID txnID, int txnAction) {
         if (TxnAction.COMMIT.getValue() == txnAction) {
-            return updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING);
+            return updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false);
         } else if (TxnAction.ABORT.getValue() == txnAction) {
-            return updateTxnStatus(txnID, TxnStatus.ABORTED, TxnStatus.ABORTING);
+            return updateTxnStatus(txnID, TxnStatus.ABORTED, TxnStatus.ABORTING, false);
         } else {
             return FutureUtil.failedFuture(new InvalidTxnStatusException("Unsupported txnAction " + txnAction));
         }

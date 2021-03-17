@@ -37,11 +37,11 @@ public class RabbitMQSinkTest {
     @BeforeMethod
     public void setUp() throws Exception {
         rabbitMQBrokerManager = new RabbitMQBrokerManager();
-        rabbitMQBrokerManager.startBroker();
+        rabbitMQBrokerManager.startBroker("5673");
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() throws Exception {
+    public void tearDown() {
         rabbitMQBrokerManager.stopBroker();
     }
 
@@ -49,7 +49,7 @@ public class RabbitMQSinkTest {
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");
-        configs.put("port", "5672");
+        configs.put("port", "5673");
         configs.put("virtualHost", "default");
         configs.put("username", "guest");
         configs.put("password", "guest");
@@ -66,7 +66,7 @@ public class RabbitMQSinkTest {
 
         // open should success
         // rabbitmq service may need time to initialize
-        Awaitility.await().untilAsserted(() -> sink.open(configs, null));
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> sink.open(configs, null));
 
         // write should success
         Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue", "fakeRoutingKey");

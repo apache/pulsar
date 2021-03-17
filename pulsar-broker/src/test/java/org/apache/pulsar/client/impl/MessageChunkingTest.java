@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.junit.Assert.assertNotEquals;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Random;
@@ -31,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -59,12 +61,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
+@Test(groups = "broker-impl")
 public class MessageChunkingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageChunkingTest.class);
 
@@ -350,7 +347,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
         ByteBuf payload = Unpooled.wrappedBuffer(msg.getContent());
-        MessageMetadata msgMetadata = ((TypedMessageBuilderImpl<byte[]>) msg).getMetadataBuilder();
+        MessageMetadata msgMetadata = msg.getMetadataBuilder();
         msgMetadata.setProducerName("test").setSequenceId(1).setPublishTime(10L)
                 .setUuid("123").setNumChunksFromMsg(2).setChunkId(0).setTotalChunkMsgSize(100);
         ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);

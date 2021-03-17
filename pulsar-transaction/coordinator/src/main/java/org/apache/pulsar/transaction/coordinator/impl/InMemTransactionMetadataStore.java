@@ -23,6 +23,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
+
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -42,18 +44,25 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     private final AtomicLong localID;
     private final ConcurrentMap<TxnID, TxnMetaImpl> transactions;
     private final TransactionMetadataStoreStats transactionMetadataStoreStats;
-    private final Rate createTransactionRate;
-    private final Rate commitTransactionRate;
-    private final Rate abortTransactionRate;
+    private final LongAdder createTransactionCount;
+    private final LongAdder commitTransactionCount;
+    private final LongAdder abortTransactionCount;
+    private final LongAdder addProducedPartitionCount;
+    private final LongAdder addAckedPartitionCount;
+    private final LongAdder transactionTimeoutCount;
 
     InMemTransactionMetadataStore(TransactionCoordinatorID tcID) {
         this.tcID = tcID;
         this.localID = new AtomicLong(0L);
         this.transactions = new ConcurrentHashMap<>();
         this.transactionMetadataStoreStats = new TransactionMetadataStoreStats();
-        this.createTransactionRate = new Rate();
-        this.commitTransactionRate = new Rate();
-        this.abortTransactionRate = new Rate();
+        this.createTransactionCount = new LongAdder();
+        this.commitTransactionCount = new LongAdder();
+        this.abortTransactionCount = new LongAdder();
+        this.addProducedPartitionCount = new LongAdder();
+        this.addAckedPartitionCount = new LongAdder();
+        this.transactionTimeoutCount = new LongAdder();
+
     }
 
     @Override
@@ -108,10 +117,14 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Void> updateTxnStatus(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus) {
+    public CompletableFuture<Void> updateTxnStatus(TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus,
+                                                   boolean isTimeout) {
         return getTxnMeta(txnid).thenCompose(txn -> {
             try {
                 txn.updateTxnStatus(newStatus, expectedStatus);
+                if (isTimeout && expectedStatus == TxnStatus.ABORTING) {
+                    transactionTimeoutCount.increment();
+                }
                 return CompletableFuture.completedFuture(null);
             } catch (InvalidTxnStatusException e) {
                 CompletableFuture<Void> error = new CompletableFuture<>();
@@ -135,18 +148,14 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     @Override
     public TransactionMetadataStoreStats getStats() {
         transactionMetadataStoreStats.setTransactionSequenceId(localID.get());
-        transactionMetadataStoreStats.setOngoingTransactionCount(transactions.size());
+        transactionMetadataStoreStats.setActiveTransactions(transactions.size());
         transactionMetadataStoreStats.setTransactionCoordinatorId(tcID.getId());
+        this.transactionMetadataStoreStats.setCreateTransactionCount(this.createTransactionCount.longValue());
+        this.transactionMetadataStoreStats.setCommitTransactionCount(this.commitTransactionCount.longValue());
+        this.transactionMetadataStoreStats.setAbortTransactionCount(this.abortTransactionCount.longValue());
+        this.transactionMetadataStoreStats.setAddProducedPartitionCount(this.addProducedPartitionCount.longValue());
+        this.transactionMetadataStoreStats.setAddAckedPartitionCount(this.addAckedPartitionCount.longValue());
+        this.transactionMetadataStoreStats.setAddAckedPartitionCount(this.addAckedPartitionCount.longValue());
         return transactionMetadataStoreStats;
-    }
-
-    @Override
-    public void updateRates() {
-        this.commitTransactionRate.calculateRate();
-        this.abortTransactionRate.calculateRate();
-        this.createTransactionRate.calculateRate();
-        this.transactionMetadataStoreStats.setCommitTransactionRate(this.commitTransactionRate.getRate());
-        this.transactionMetadataStoreStats.setCommitTransactionRate(this.abortTransactionRate.getRate());
-        this.transactionMetadataStoreStats.setCommitTransactionRate(this.createTransactionRate.getRate());
     }
 }

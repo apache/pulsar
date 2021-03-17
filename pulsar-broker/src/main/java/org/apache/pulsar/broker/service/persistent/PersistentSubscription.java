@@ -1092,5 +1092,9 @@ public class PersistentSubscription implements Subscription {
         return this.pendingAckHandle.checkIsCanDeleteConsumerPendingAck(position);
     }
 
+    public boolean checkAndUnblockIfStuck() {
+        return dispatcher.checkAndUnblockIfStuck();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
 }

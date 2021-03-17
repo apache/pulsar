@@ -22,22 +22,30 @@ public class AggregatedTransactionCoordinatorStats {
 
     public long transactionSequenceId;
 
-    public int ongoingTransactionCount;
+    public int ongoingTransactions;
 
     public long lowWaterMark;
 
-    public double commitTransactionRate;
+    public long commitTransactionCount;
 
-    public double abortTransactionRate;
+    public long abortTransactionCount;
 
-    public double createTransactionRate;
+    public long createTransactionCount;
+
+    public long addAckedPartitionCount;
+
+    public long addProducedPartitionCount;
+
+    public long transactionTimeoutCount;
 
     public void reset() {
         transactionSequenceId = 0;
-        ongoingTransactionCount = 0;
+        ongoingTransactions = 0;
         lowWaterMark = 0;
-        commitTransactionRate = 0d;
-        abortTransactionRate = 0d;
-        createTransactionRate = 0d;
+        commitTransactionCount = 0;
+        abortTransactionCount = 0;
+        createTransactionCount = 0;
+        addAckedPartitionCount = 0;
+        transactionTimeoutCount = 0;
     }
 }

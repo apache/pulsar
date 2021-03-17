@@ -42,16 +42,22 @@ public class TransactionCoordinatorAggregator {
                     transactionCoordinatorStats.reset();
                     TransactionMetadataStoreStats transactionMetadataStoreStats = transactionMetadataStore.getStats();
                     transactionCoordinatorStats.lowWaterMark = transactionMetadataStoreStats.getLowWaterMark();
-                    transactionCoordinatorStats.ongoingTransactionCount =
-                            transactionMetadataStoreStats.getOngoingTransactionCount();
+                    transactionCoordinatorStats.ongoingTransactions =
+                            transactionMetadataStoreStats.getActiveTransactions();
                     transactionCoordinatorStats.transactionSequenceId =
                             transactionMetadataStoreStats.getTransactionSequenceId();
-                    transactionCoordinatorStats.commitTransactionRate =
-                            transactionMetadataStoreStats.getCommitTransactionRate();
-                    transactionCoordinatorStats.abortTransactionRate =
-                            transactionMetadataStoreStats.getAbortTransactionRate();
-                    transactionCoordinatorStats.createTransactionRate =
-                            transactionMetadataStoreStats.getCreateTransactionRate();
+                    transactionCoordinatorStats.commitTransactionCount =
+                            transactionMetadataStoreStats.getCommitTransactionCount();
+                    transactionCoordinatorStats.abortTransactionCount =
+                            transactionMetadataStoreStats.getAbortTransactionCount();
+                    transactionCoordinatorStats.createTransactionCount =
+                            transactionMetadataStoreStats.getCreateTransactionCount();
+                    transactionCoordinatorStats.addAckedPartitionCount =
+                            transactionMetadataStoreStats.getAddAckedPartitionCount();
+                    transactionCoordinatorStats.addProducedPartitionCount =
+                            transactionMetadataStoreStats.getAddProducedPartitionCount();
+                    transactionCoordinatorStats.transactionTimeoutCount =
+                            transactionMetadataStoreStats.getTransactionTimeoutCount();
                     printTransactionCoordinatorStats(stream, cluster, transactionCoordinatorStats,
                             transactionMetadataStoreStats.getTransactionCoordinatorId());
 
@@ -59,17 +65,9 @@ public class TransactionCoordinatorAggregator {
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String name,
-                               long value, long transactionCoordinatorId) {
-        stream.write(name)
-                .write("{cluster=\"").write(cluster)
-                .write("\",transaction_coordinator_id=\"").write(transactionCoordinatorId).write("\"} ")
-                .write(value).write(' ').write(System.currentTimeMillis())
-                .write('\n');
-    }
-
-    private static void metric(SimpleTextOutputStream stream, String cluster, String name,
                                double value, long transactionCoordinatorId) {
-        stream.write(name)
+        stream.write("# TYPE ").write(name).write(" gauge\n")
+                .write(name)
                 .write("{cluster=\"").write(cluster)
                 .write("\",transaction_coordinator_id=\"").write(transactionCoordinatorId).write("\"} ")
                 .write(value).write(' ').write(System.currentTimeMillis())
@@ -79,17 +77,23 @@ public class TransactionCoordinatorAggregator {
     static void printTransactionCoordinatorStats(SimpleTextOutputStream stream, String cluster,
                                                  AggregatedTransactionCoordinatorStats stats,
                                                  long transactionCoordinatorId) {
-        metric(stream, cluster, "pulsar_transaction_ongoing_count",
-                stats.ongoingTransactionCount, transactionCoordinatorId);
+        metric(stream, cluster, "pulsar_active_transactions",
+                stats.ongoingTransactions, transactionCoordinatorId);
         metric(stream, cluster, "pulsar_transaction_sequence_id",
                 stats.transactionSequenceId, transactionCoordinatorId);
         metric(stream, cluster, "pulsar_transaction_low_water_mark",
                 stats.lowWaterMark, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_commit_rate",
-                stats.commitTransactionRate, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_abort_rate",
-                stats.abortTransactionRate, transactionCoordinatorId);
-        metric(stream, cluster, "pulsar_transaction_create_rate",
-                stats.createTransactionRate, transactionCoordinatorId);
+        metric(stream, cluster, "pulsar_transaction_commit_count",
+                stats.commitTransactionCount, transactionCoordinatorId);
+        metric(stream, cluster, "pulsar_transaction_abort_count",
+                stats.abortTransactionCount, transactionCoordinatorId);
+        metric(stream, cluster, "pulsar_transaction_create_count",
+                stats.createTransactionCount, transactionCoordinatorId);
+        metric(stream, cluster, "pulsar_transaction_add_produced_partition_count",
+                stats.addProducedPartitionCount, transactionCoordinatorId);
+        metric(stream, cluster, "pulsar_transaction_add_acked_partition_count",
+                stats.addAckedPartitionCount, transactionCoordinatorId);
+        metric(stream, cluster, "pulsar_transaction_timeout_count",
+                stats.transactionTimeoutCount, transactionCoordinatorId);
     }
 }

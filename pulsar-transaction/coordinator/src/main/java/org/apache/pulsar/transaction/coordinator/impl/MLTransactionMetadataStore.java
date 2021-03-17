@@ -27,12 +27,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
+
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.Subscription;
-import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
@@ -66,9 +67,12 @@ public class MLTransactionMetadataStore
     private final ConcurrentSkipListSet<Long> txnIdSortedSet = new ConcurrentSkipListSet<>();
     private final TransactionTimeoutTracker timeoutTracker;
     private final TransactionMetadataStoreStats transactionMetadataStoreStats;
-    private final Rate createTransactionRate;
-    private final Rate commitTransactionRate;
-    private final Rate abortTransactionRate;
+    private final LongAdder createTransactionCount;
+    private final LongAdder commitTransactionCount;
+    private final LongAdder abortTransactionCount;
+    private final LongAdder addProducedPartitionCount;
+    private final LongAdder addAckedPartitionCount;
+    private final LongAdder transactionTimeoutCount;
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
@@ -79,9 +83,12 @@ public class MLTransactionMetadataStore
         this.timeoutTracker = timeoutTracker;
         this.transactionMetadataStoreStats = new TransactionMetadataStoreStats();
 
-        this.createTransactionRate = new Rate();
-        this.commitTransactionRate = new Rate();
-        this.abortTransactionRate = new Rate();
+        this.createTransactionCount = new LongAdder();
+        this.commitTransactionCount = new LongAdder();
+        this.abortTransactionCount = new LongAdder();
+        this.addProducedPartitionCount = new LongAdder();
+        this.addAckedPartitionCount = new LongAdder();
+        this.transactionTimeoutCount = new LongAdder();
 
         if (!changeToInitializingState()) {
             log.error("Managed ledger transaction metadata store change state error when init it");
@@ -147,7 +154,7 @@ public class MLTransactionMetadataStore
                                 TxnStatus newStatus = transactionMetadataEntry.getNewStatus();
                                 if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                                     transactionLog.deletePosition(txnMetaMap.get(txnID).getRight()).thenAccept(v -> {
-                                        TxnMeta txnMeta = txnMetaMap.remove(txnID).getLeft();
+                                        txnMetaMap.remove(txnID).getLeft();
                                         txnIdSortedSet.remove(transactionMetadataEntry.getTxnidLeastBits());
                                     });
                                 } else {
@@ -215,7 +222,7 @@ public class MLTransactionMetadataStore
                     txnMetaMap.put(txnID, pair);
                     this.timeoutTracker.addTransaction(leastSigBits, timeOut);
                     this.txnIdSortedSet.add(leastSigBits);
-                    createTransactionRate.recordEvent();
+                    createTransactionCount.increment();
                     return CompletableFuture.completedFuture(txnID);
                 });
     }
@@ -242,6 +249,7 @@ public class MLTransactionMetadataStore
                                 txnMetaListPair.getLeft().addProducedPartitions(partitions);
                                 txnMetaMap.get(txnID).getRight().add(position);
                             }
+                            this.addProducedPartitionCount.increment();
                             return CompletableFuture.completedFuture(null);
                         } catch (InvalidTxnStatusException e) {
                             transactionLog.deletePosition(Collections.singletonList(position));
@@ -277,6 +285,7 @@ public class MLTransactionMetadataStore
                                 txnMetaListPair.getLeft().addAckedPartitions(txnSubscriptions);
                                 txnMetaMap.get(txnID).getRight().add(position);
                             }
+                            this.addAckedPartitionCount.increment();
                             return CompletableFuture.completedFuture(null);
                         } catch (InvalidTxnStatusException e) {
                             transactionLog.deletePosition(Collections.singletonList(position));
@@ -290,7 +299,8 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<Void> updateTxnStatus(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
+    public CompletableFuture<Void> updateTxnStatus(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus,
+                                                   boolean isTimeout) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
                     new CoordinatorException.TransactionMetadataStoreStateException(tcID,
@@ -314,14 +324,17 @@ public class MLTransactionMetadataStore
                         txnMetaListPair.getLeft().updateTxnStatus(newStatus, expectedStatus);
                         txnMetaListPair.getRight().add(position);
                     }
+                    if (newStatus == TxnStatus.ABORTING && isTimeout) {
+                        this.transactionTimeoutCount.increment();
+                    }
                     if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                         return transactionLog.deletePosition(txnMetaListPair.getRight()).thenCompose(v -> {
                             txnMetaMap.remove(txnID);
                             txnIdSortedSet.remove(txnID.getLeastSigBits());
                             if (newStatus == TxnStatus.COMMITTED) {
-                                commitTransactionRate.recordEvent();
+                                commitTransactionCount.increment();
                             } else {
-                                abortTransactionRate.recordEvent();
+                                abortTransactionCount.increment();
                             }
                             return CompletableFuture.completedFuture(null);
                         });
@@ -377,21 +390,17 @@ public class MLTransactionMetadataStore
 
     @Override
     public TransactionMetadataStoreStats getStats() {
-        transactionMetadataStoreStats.setLowWaterMark(getLowWaterMark());
-        transactionMetadataStoreStats.setOngoingTransactionCount(txnIdSortedSet.size());
-        transactionMetadataStoreStats.setTransactionSequenceId(sequenceId.get());
-        transactionMetadataStoreStats.setTransactionCoordinatorId(tcID.getId());
+        this.transactionMetadataStoreStats.setLowWaterMark(getLowWaterMark());
+        this.transactionMetadataStoreStats.setActiveTransactions(txnIdSortedSet.size());
+        this.transactionMetadataStoreStats.setTransactionSequenceId(sequenceId.get());
+        this.transactionMetadataStoreStats.setTransactionCoordinatorId(tcID.getId());
+        this.transactionMetadataStoreStats.setCreateTransactionCount(this.createTransactionCount.longValue());
+        this.transactionMetadataStoreStats.setCommitTransactionCount(this.commitTransactionCount.longValue());
+        this.transactionMetadataStoreStats.setAbortTransactionCount(this.abortTransactionCount.longValue());
+        this.transactionMetadataStoreStats.setAddProducedPartitionCount(this.addProducedPartitionCount.longValue());
+        this.transactionMetadataStoreStats.setAddAckedPartitionCount(this.addAckedPartitionCount.longValue());
+        this.transactionMetadataStoreStats.setTransactionTimeoutCount(this.transactionTimeoutCount.longValue());
         return transactionMetadataStoreStats;
-    }
-
-    @Override
-    public void updateRates() {
-        this.commitTransactionRate.calculateRate();
-        this.abortTransactionRate.calculateRate();
-        this.createTransactionRate.calculateRate();
-        this.transactionMetadataStoreStats.setCreateTransactionRate(this.createTransactionRate.getRate());
-        this.transactionMetadataStoreStats.setCommitTransactionRate(this.commitTransactionRate.getRate());
-        this.transactionMetadataStoreStats.setAbortTransactionRate(this.abortTransactionRate.getRate());
     }
 
     public static List<Subscription> txnSubscriptionToSubscription(List<TransactionSubscription> tnxSubscriptions) {

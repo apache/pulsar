@@ -164,7 +164,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
                             componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
                         } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl), e);
                         }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,

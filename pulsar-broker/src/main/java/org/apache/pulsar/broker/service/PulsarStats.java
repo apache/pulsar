@@ -204,15 +204,6 @@ public class PulsarStats implements Closeable {
         } finally {
             bufferLock.writeLock().unlock();
         }
-
-        if (pulsarService.getConfiguration().isTransactionCoordinatorEnabled()) {
-            if (pulsarService.getTransactionMetadataStoreService() != null) {
-                pulsarService.getTransactionMetadataStoreService().getStores()
-                        .forEach((transactionCoordinatorID, transactionMetadataStore) -> {
-                            transactionMetadataStore.updateRates();
-                        });
-            }
-        }
     }
 
     public NamespaceBundleStats invalidBundleStats(String bundleName) {
@@ -230,6 +221,10 @@ public class PulsarStats implements Closeable {
 
     public List<Metrics> getTopicMetrics() {
         return metricsCollection;
+    }
+
+    public BrokerOperabilityMetrics getBrokerOperabilityMetrics() {
+        return brokerOperabilityMetrics;
     }
 
     public Map<String, NamespaceBundleStats> getBundleStats() {
@@ -254,5 +249,21 @@ public class PulsarStats implements Closeable {
         } catch (Exception ex) {
             log.warn("Exception while recording zk-latency {}, {}", eventType, ex.getMessage());
         }
+    }
+
+    public void recordConnectionCreate() {
+        brokerOperabilityMetrics.recordConnectionCreate();
+    }
+
+    public void recordConnectionClose() {
+        brokerOperabilityMetrics.recordConnectionClose();
+    }
+
+    public void recordConnectionCreateSuccess() {
+        brokerOperabilityMetrics.recordConnectionCreateSuccess();
+    }
+
+    public void recordConnectionCreateFail() {
+        brokerOperabilityMetrics.recordConnectionCreateFail();
     }
 }

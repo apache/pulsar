@@ -90,10 +90,11 @@ public interface TransactionMetadataStore {
      * @param txnid {@link TxnID} for update txn status
      * @param newStatus the new txn status that the transaction should be updated to
      * @param expectedStatus the expected status that the transaction should be
+     * @param isTimeout the update txn status operation is it timeout
      * @return a future represents the result of the operation
      */
     CompletableFuture<Void> updateTxnStatus(
-        TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus);
+        TxnID txnid, TxnStatus newStatus, TxnStatus expectedStatus, boolean isTimeout);
 
     /**
      * Get the low water mark of this tc, in order to delete unless transaction in transaction buffer and pending ack.
@@ -122,10 +123,4 @@ public interface TransactionMetadataStore {
      * @return transactionMetadataStoreStats {@link TransactionMetadataStoreStats}
      */
     TransactionMetadataStoreStats getStats();
-
-    /**
-     * Update the transaction metadata store op rates.
-     */
-    void updateRates();
-
 }

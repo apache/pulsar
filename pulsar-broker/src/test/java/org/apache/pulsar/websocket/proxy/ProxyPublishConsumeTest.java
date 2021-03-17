@@ -80,6 +80,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "websocket")
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
 
@@ -299,9 +300,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 10000)
-    public void emptySubcriptionConsumerTest() throws Exception {
+    public void emptySubscriptionConsumerTest() {
 
-        // Empty subcription name
+        // Empty subscription name
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic2/?subscriptionType=Exclusive";
         URI consumeUri = URI.create(consumerUri);
@@ -778,7 +779,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         String statUrl = baseUrl + "metrics";
         WebTarget webTarget = client.target(statUrl);
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        Response response = (Response) invocationBuilder.get();
+        Response response = invocationBuilder.get();
         String responseStr = response.readEntity(String.class);
         final Gson gson = new Gson();
         List<Metrics> data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
@@ -787,7 +788,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         // re-generate metrics
         service.getProxyStats().generate();
         invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        response = (Response) invocationBuilder.get();
+        response = invocationBuilder.get();
         responseStr = response.readEntity(String.class);
         data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
         }.getType());
@@ -799,7 +800,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         String statUrl = baseUrl + "stats";
         WebTarget webTarget = client.target(statUrl);
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        Response response = (Response) invocationBuilder.get();
+        Response response = invocationBuilder.get();
         String responseStr = response.readEntity(String.class);
         final Gson gson = new Gson();
         final Map<String, ProxyTopicStat> data = gson.fromJson(responseStr,

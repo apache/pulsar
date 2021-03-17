@@ -31,18 +31,27 @@ public class TransactionMetadataStoreStats {
     /** The transaction max sequenceId. */
     private long transactionSequenceId;
 
-    /** The ongoing transaction count. */
-    private int ongoingTransactionCount;
+    /** The active transactions. */
+    private int activeTransactions;
 
     /** The low water mark of this transaction coordinator. */
     private long lowWaterMark;
 
-    /** The commit transaction rate of this transaction coordinator. */
-    public double commitTransactionRate;
+    /** The commit transaction count of this transaction coordinator. */
+    public long commitTransactionCount;
 
-    /** The abort transaction rate of this transaction coordinator. */
-    public double abortTransactionRate;
+    /** The abort transaction count of this transaction coordinator. */
+    public long abortTransactionCount;
 
-    /** The create transaction rate of this transaction coordinator. */
-    public double createTransactionRate;
+    /** The create transaction count of this transaction coordinator. */
+    public long createTransactionCount;
+
+    /** The add produced partition count transaction coordinator. */
+    public long addProducedPartitionCount;
+
+    /** The add transaction count of this transaction coordinator. */
+    public long addAckedPartitionCount;
+
+    /** The timeout out transaction count of this transaction coordinator. */
+    public long transactionTimeoutCount;
 }

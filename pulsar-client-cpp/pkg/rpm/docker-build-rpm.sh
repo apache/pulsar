@@ -20,7 +20,7 @@
 
 set -e
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
+ROOT_DIR=$(dirname $0)/../../../..
 
 docker pull apachepulsar/pulsar-build:centos-7
 

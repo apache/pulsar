@@ -58,6 +58,13 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-all</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>io.perfmark</groupId>
+            <artifactId>perfmark-api</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
