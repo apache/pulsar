@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,7 +58,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
     private ProxyService proxyService;
     private WebServer proxyWebServer;
-    private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Override
     @BeforeClass
@@ -93,7 +94,6 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
-
         proxyService.close();
     }
 
@@ -194,7 +194,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
      * @throws Exception
      */
     @Test
-    public void testChangeLogLevel() throws Exception {
+    public void testChangeLogLevel() {
         Assert.assertEquals(proxyService.getProxyLogLevel(), 2);
         int newLogLevel = 1;
         Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));

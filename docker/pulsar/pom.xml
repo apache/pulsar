@@ -38,6 +38,12 @@
       <classifier>bin</classifier>
       <type>tar.gz</type>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 

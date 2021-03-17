@@ -29,7 +29,6 @@ import lombok.Cleanup;
 
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -41,7 +40,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 
+@Test(groups = "broker-api")
 public class ConsumerRedeliveryTest extends ProducerConsumerBase {
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {

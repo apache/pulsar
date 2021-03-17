@@ -315,6 +315,8 @@ public class CmdSources extends CmdBase {
         protected String sourceConfigString;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
+        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
+        protected Boolean forwardSourceMessageProperty = true;
 
         protected SourceConfig sourceConfig;
 
@@ -418,6 +420,10 @@ public class CmdSources extends CmdBase {
 
             if (customRuntimeOptions != null) {
                 sourceConfig.setCustomRuntimeOptions(customRuntimeOptions);
+            }
+
+            if (null != forwardSourceMessageProperty) {
+                sourceConfig.setForwardSourceMessageProperty(forwardSourceMessageProperty);
             }
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);

@@ -33,6 +33,7 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
@@ -135,6 +136,10 @@ public class PrometheusMetricsGenerator {
             parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
                     clusterName, Collector.Type.GAUGE, stream);
         }
+
+        parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()
+                .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
+                clusterName, Collector.Type.GAUGE, stream);
 
         // generate loadBalance metrics
         parseMetricsToPrometheusMetrics(pulsar.getLoadManager().get().getLoadBalancingMetrics(),

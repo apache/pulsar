@@ -28,7 +28,6 @@ cd $ROOT_DIR
 
 PYTHON_VERSIONS=(
    '3.6 cp36-cp36m'
-   '3.9 cp39-cp39'
 )
 
 for line in "${PYTHON_VERSIONS[@]}"; do

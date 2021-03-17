@@ -57,6 +57,7 @@ test_group_shade() {
 
 test_group_backwards_compat() {
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DintegrationTests
+  mvn_run_integration_test "$@" -DBackwardsCompatTests
 }
 
 test_group_cli() {
@@ -66,8 +67,8 @@ test_group_cli() {
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-auth.xml -DintegrationTests
 }
 
-test_group_function_state() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-function-state.xml -DintegrationTests
+test_group_function() {
+  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-function.xml -DintegrationTests
 }
 
 test_group_messaging() {
