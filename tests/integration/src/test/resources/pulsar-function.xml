@@ -24,7 +24,6 @@
         <classes>
             <class name="org.apache.pulsar.tests.integration.functions.PulsarStateTest" />
             <class name="org.apache.pulsar.tests.integration.io.GenericRecordSourceTest" />
-            <class name="org.apache.pulsar.tests.integration.io.PulsarSourcePropertyTest" />
         </classes>
     </test>
 </suite>
