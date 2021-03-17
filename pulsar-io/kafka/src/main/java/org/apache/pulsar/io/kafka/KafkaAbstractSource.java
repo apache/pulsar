@@ -179,6 +179,11 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
 
         @Override
+        public Optional<Integer> getPartitionNumber() {
+            return Optional.of(record.partition());
+        }
+
+        @Override
         public Optional<Long> getRecordSequence() {
             return Optional.of(record.offset());
         }

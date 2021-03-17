@@ -64,6 +64,11 @@ public class SinkRecord<T> implements Record<T> {
     }
 
     @Override
+    public Optional<Integer> getPartitionNumber() {
+        return sourceRecord.getPartitionNumber();
+    }
+
+    @Override
     public Optional<Long> getRecordSequence() {
         return sourceRecord.getRecordSequence();
     }

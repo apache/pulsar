@@ -78,6 +78,15 @@ public interface Record<T> {
     }
 
     /**
+     * Retrieves the partition number if any of the record.
+     *
+     * @return The partition number
+     */
+    default Optional<Integer> getPartitionNumber() {
+        return Optional.empty();
+    }
+
+    /**
      * Retrieves the sequence of the record from a source partition.
      *
      * @return Sequence Id associated with the record
