@@ -40,7 +40,7 @@ To install the Pulsar C# client library, following these steps:
         dotnet add package DotPulsar
         ```
 
-   2. After the command completes, open the `.csproj` file to see the added reference:
+   2. After the command completes, open the `.csproj` file to see the added reference.
 
         ```xml
         <ItemGroup>
