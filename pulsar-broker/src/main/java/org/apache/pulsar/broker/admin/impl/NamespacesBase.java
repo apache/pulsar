@@ -1399,8 +1399,8 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            Policies policies = namespaceResources().get(namespaceName.toString()).orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace policies does not exist"));
+            Policies policies = namespaceResources().get(namespaceName.toString())
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace policies does not exist"));
             if (!checkQuotas(policies, retention)) {
                 log.warn("[{}] Failed to update retention configuration"
                                 + " for namespace {}: conflicts with backlog quota",
@@ -1714,8 +1714,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalSetPolicies(String fieldName, Object value) {
         try {
-            Policies policies = namespaceResources().get(namespaceName.toString()).orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace policies does not exist"));
+            Policies policies = namespaceResources().get(namespaceName.toString())
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace policies does not exist"));
             Field field = Policies.class.getDeclaredField(fieldName);
             field.setAccessible(true);
             field.set(policies, value);
