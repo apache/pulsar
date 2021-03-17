@@ -1083,7 +1083,7 @@ public abstract class PulsarWebResource {
         log.debug("Deleting " + tree.size() + " subnodes ");
         for (int i = tree.size() - 1; i >= 0; --i) {
             // Delete the leaves first and eventually get rid of the root
-            resources.delete(tree.get(i));
+            resources.delete(tree.get(i), false);
         }
     }
 
@@ -1098,7 +1098,15 @@ public abstract class PulsarWebResource {
             if (node == null) {
                 break;
             }
-            List<String> children = resources.getChildren(node);
+            List<String> children;
+            try {
+                children = resources.getStore().getChildren(node).get();
+            } catch (ExecutionException e) {
+                throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                        : new MetadataStoreException(e.getCause());
+            } catch (Exception e) {
+                throw new MetadataStoreException("Failed to get children for " + node, e);
+            }
             for (final String child : children) {
                 final String childPath = node + "/" + child;
                 queue.add(childPath);

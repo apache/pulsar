@@ -142,8 +142,12 @@ public class BaseResources<T> {
     }
 
     public void delete(String path) throws MetadataStoreException {
+        delete(path, true);
+    }
+
+    public void delete(String path, boolean applyInternalPath) throws MetadataStoreException {
         try {
-            deleteAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
+            deleteAsync(path, applyInternalPath).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
                     : new MetadataStoreException(e.getCause());
@@ -153,7 +157,11 @@ public class BaseResources<T> {
     }
 
     public CompletableFuture<Void> deleteAsync(String path) {
-        return cache.delete(internalPath(path));
+        return deleteAsync(path, true);
+    }
+
+    public CompletableFuture<Void> deleteAsync(String path, boolean applyInternalPath) {
+        return cache.delete(applyInternalPath ? internalPath(path) : path);
     }
 
     public boolean exists(String path) throws MetadataStoreException {

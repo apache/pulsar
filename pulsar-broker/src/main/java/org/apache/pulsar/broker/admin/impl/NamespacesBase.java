@@ -455,7 +455,7 @@ public abstract class NamespacesBase extends AdminResource {
                 // now
                 final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
                 final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-                namespaceResources().delete(globalZkPolicyPath);
+                namespaceResources().delete(namespaceName.toString());
 
                 try {
                     getLocalPolicies().delete(lcaolZkPolicyPath);
