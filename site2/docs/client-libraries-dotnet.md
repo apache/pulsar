@@ -34,7 +34,7 @@ To install the Pulsar C# client library, following these steps:
 
 2. Add the DotPulsar NuGet package.
 
-   1. Use the following command to install the `DotPulsar` package:
+   1. Use the following command to install the `DotPulsar` package.
 
         ```
         dotnet add package DotPulsar
