@@ -60,6 +60,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
+@Test(groups = "broker")
 public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
     private final static String TENANT = "tnx";
@@ -299,7 +300,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     private Transaction getTxn() throws Exception {
         return pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
                 .build()
                 .get();
     }

@@ -28,12 +28,10 @@ import java.nio.file.Path;
 
 public class RabbitMQBrokerManager {
 
-    private final String PORT = "5672";
     private final Broker broker = new Broker();
 
-
-    public void startBroker() throws Exception {
-        BrokerOptions brokerOptions = getBrokerOptions();
+    public void startBroker(String port) throws Exception {
+        BrokerOptions brokerOptions = getBrokerOptions(port);
         broker.startup(brokerOptions);
     }
 
@@ -41,7 +39,7 @@ public class RabbitMQBrokerManager {
         broker.shutdown();
     }
 
-    BrokerOptions getBrokerOptions() throws Exception {
+    BrokerOptions getBrokerOptions(String port) throws Exception {
         Path tmpFolder = Files.createTempDirectory("qpidWork");
         Path homeFolder = Files.createTempDirectory("qpidHome");
         File etc = new File(homeFolder.toFile(), "etc");
@@ -53,7 +51,7 @@ public class RabbitMQBrokerManager {
         BrokerOptions brokerOptions = new BrokerOptions();
 
         brokerOptions.setConfigProperty("qpid.work_dir", tmpFolder.toAbsolutePath().toString());
-        brokerOptions.setConfigProperty("qpid.amqp_port", PORT);
+        brokerOptions.setConfigProperty("qpid.amqp_port", port);
         brokerOptions.setConfigProperty("qpid.home_dir", homeFolder.toAbsolutePath().toString());
         String configPath = getFile("qpid.json").getAbsolutePath();
         brokerOptions.setInitialConfigurationLocation(configPath);

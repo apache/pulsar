@@ -18,12 +18,18 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -32,20 +38,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.junit.Assert;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.awaitility.Awaitility;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
-
+@Test(groups = "broker")
 public class TopicDuplicationTest extends ProducerConsumerBase {
     private final String testTenant = "my-property";
     private final String testNamespace = "my-ns";
@@ -80,7 +79,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         admin.topics().enableDeduplication(topicName, true);
         Awaitility.await().atMost(5, TimeUnit.SECONDS)
                 .until(()-> admin.topics().getDeduplicationEnabled(topicName) != null);
-        Assert.assertEquals(admin.topics().getDeduplicationEnabled(topicName), true);
+        assertTrue(admin.topics().getDeduplicationEnabled(topicName));
 
         admin.topics().disableDeduplication(topicName);
         Awaitility.await().atMost(5, TimeUnit.SECONDS)
@@ -99,7 +98,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         admin.topics().setDeduplicationStatus(topicName, true);
         Awaitility.await().atMost(5, TimeUnit.SECONDS)
                 .until(() -> admin.topics().getDeduplicationStatus(topicName) != null);
-        Assert.assertEquals(admin.topics().getDeduplicationStatus(topicName), true);
+        assertTrue(admin.topics().getDeduplicationStatus(topicName));
 
         admin.topics().removeDeduplicationStatus(topicName);
         Awaitility.await().atMost(5, TimeUnit.SECONDS)

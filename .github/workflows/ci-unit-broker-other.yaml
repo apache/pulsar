@@ -27,7 +27,7 @@ on:
       - branch-*
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -59,13 +59,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Replace maven's wagon-http version
+        run: ./build/replace_maven-wagon-http-version.sh
+
       - name: build modules
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
-      - name: run unit test 'BROKER_CLIENT_OTHER'
+      - name: run unit test 'BROKER_FLAKY'
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/run_unit_group.sh BROKER_CLIENT_OTHER
+        run: ./build/run_unit_group.sh BROKER_FLAKY
 
       - name: package surefire artifacts
         if: failure()

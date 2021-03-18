@@ -128,8 +128,13 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             if (conf instanceof ClientConfiguration) {
                 zkTimeout = ((ClientConfiguration) conf).getZkTimeout();
                 zkServers = ((ClientConfiguration) conf).getZkServers();
+                String zkLedgersRootPath = ((ClientConfiguration) conf).getZkLedgersRootPath();
                 try {
-                    ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(zkServers)
+                    int zkLedgerRootIndex = zkLedgersRootPath.contains("/") ?
+                            zkLedgersRootPath.lastIndexOf("/") : 0;
+                    String zkChangeRoot = zkLedgersRootPath.substring(0, zkLedgerRootIndex);
+                    zkChangeRoot = zkChangeRoot.startsWith("/") ? zkChangeRoot : "/" + zkChangeRoot;
+                    ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(zkServers + zkChangeRoot)
                             .sessionTimeoutMs(zkTimeout).build();
                     zkCache = new ZooKeeperCache("bookies-racks", zkClient,
                             (int) TimeUnit.MILLISECONDS.toSeconds(zkTimeout)) {

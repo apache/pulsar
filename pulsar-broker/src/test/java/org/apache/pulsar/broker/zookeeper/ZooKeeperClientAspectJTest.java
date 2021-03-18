@@ -65,6 +65,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class ZooKeeperClientAspectJTest {
 
     private ZookeeperServerTest localZkS;
@@ -140,7 +141,7 @@ public class ZooKeeperClientAspectJTest {
      *
      * @throws Exception
      */
-    @Test(enabled=false, timeOut = 7000)
+    @Test(enabled = false, timeOut = 7000)
     void testZkClientAspectJTrigger() throws Exception {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
         ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
@@ -203,7 +204,7 @@ public class ZooKeeperClientAspectJTest {
      *
      * @throws Exception
      */
-    @Test(enabled=false, timeOut = 7000)
+    @Test(enabled = false, timeOut = 7000)
     public void testZkOpStatsMetrics() throws Exception {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
         ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);

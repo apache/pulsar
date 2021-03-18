@@ -3465,11 +3465,70 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
                     } finally {
                         factory2.shutdown();
-                    }
+                    }   
                 });
 
         factory1.shutdown();
         dirtyFactory.shutdown();
+    }
+
+    @Test
+    public void testCursorCheckReadPositionChanged() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedCursor c1 = ledger.openCursor("c1");
+
+        // check empty ledger
+        assertTrue(c1.checkAndUpdateReadPositionChanged());
+        assertTrue(c1.checkAndUpdateReadPositionChanged());
+
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+
+        // read-position has not been moved
+        assertFalse(c1.checkAndUpdateReadPositionChanged());
+
+        List<Entry> entries = c1.readEntries(2);
+        entries.forEach(e -> {
+            try {
+                c1.markDelete(e.getPosition());
+                e.release();
+            } catch (Exception e1) {
+                // Ok
+            }
+        });
+
+        // read-position is moved
+        assertTrue(c1.checkAndUpdateReadPositionChanged());
+        // read-position has not been moved since last read
+        assertFalse(c1.checkAndUpdateReadPositionChanged());
+
+        c1.close();
+        ledger.close();
+
+        ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        // recover cursor
+        ManagedCursor c2 = ledger.openCursor("c1");
+        assertTrue(c2.checkAndUpdateReadPositionChanged());
+        assertFalse(c2.checkAndUpdateReadPositionChanged());
+
+        entries = c2.readEntries(2);
+        entries.forEach(e -> {
+            try {
+                c2.markDelete(e.getPosition());
+                e.release();
+            } catch (Exception e1) {
+                // Ok
+            }
+        });
+
+        assertTrue(c2.checkAndUpdateReadPositionChanged());
+        // returns true because read-position is on tail
+        assertTrue(c2.checkAndUpdateReadPositionChanged());
+        assertTrue(c2.checkAndUpdateReadPositionChanged());
+
+        ledger.close();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

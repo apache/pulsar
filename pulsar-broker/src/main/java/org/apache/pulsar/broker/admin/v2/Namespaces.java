@@ -144,6 +144,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 405, message = "Broker doesn't allow forced deletion of namespaces"),
             @ApiResponse(code = 409, message = "Namespace is not empty") })
     public void deleteNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
@@ -562,6 +563,15 @@ public class Namespaces extends NamespacesBase {
         internalSetTopicDispatchRate(dispatchRate);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/dispatchRate")
+    @ApiOperation(value = "Delete dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deleteDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeleteTopicDispatchRate();
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/dispatchRate")
     @ApiOperation(value = "Get dispatch-rate configured for the namespace, -1 represents not configured yet")
@@ -597,6 +607,25 @@ public class Namespaces extends NamespacesBase {
         return internalGetSubscriptionDispatchRate();
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/subscriptionDispatchRate")
+    @ApiOperation(value = "Delete Subscription dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deleteSubscriptionDispatchRate(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeleteSubscriptionDispatchRate();
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/subscribeRate")
+    @ApiOperation(value = "Delete subscribe-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deleteSubscribeRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeleteSubscribeRate();
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/subscribeRate")
     @ApiOperation(value = "Set subscribe-rate throttling for all topics of the namespace")
@@ -616,6 +645,17 @@ public class Namespaces extends NamespacesBase {
                                         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetSubscribeRate();
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/replicatorDispatchRate")
+    @ApiOperation(value = "Remove replicator dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
+    public void removeReplicatorDispatchRate(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalRemoveReplicatorDispatchRate();
     }
 
     @POST
@@ -732,6 +772,16 @@ public class Namespaces extends NamespacesBase {
                                        PersistencePolicies persistence) {
         validateNamespaceName(tenant, namespace);
         internalSetPersistence(persistence);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/persistence")
+    @ApiOperation(value = "Delete the persistence configuration for all topics on a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void deletePersistence(@PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalDeletePersistence();
     }
 
     @POST
@@ -1142,7 +1192,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Remove maxUnackedMessagesPerConsumer config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void removeMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
+    public void removeMaxUnackedmessagesPerConsumer(@PathParam("tenant") String tenant,
                                                         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxUnackedMessagesPerConsumer(null);
@@ -1153,7 +1203,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxUnackedMessagesPerSubscription config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
+    public Integer getMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
                                               @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetMaxUnackedMessagesPerSubscription();
@@ -1172,6 +1222,17 @@ public class Namespaces extends NamespacesBase {
                     int maxUnackedMessagesPerSubscription) {
         validateNamespaceName(tenant, namespace);
         internalSetMaxUnackedMessagesPerSubscription(maxUnackedMessagesPerSubscription);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/maxUnackedMessagesPerSubscription")
+    @ApiOperation(value = "Remove maxUnackedMessagesPerSubscription config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public void removeMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
+                                                        @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetMaxUnackedMessagesPerSubscription(null);
     }
 
     @GET

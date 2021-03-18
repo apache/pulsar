@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -48,7 +49,6 @@ import org.apache.curator.shaded.com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
@@ -60,6 +60,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(KeySharedSubscriptionTest.class);
@@ -134,12 +135,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000);
     }
 
     @Test(dataProvider = "data")
     public void testSendAndReceiveWithBatching(String topicType, boolean enableBatch)
-            throws PulsarClientException {
+            throws Exception {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
@@ -155,23 +156,33 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
 
+        CompletableFuture<MessageId> future;
+
         for (int i = 0; i < 1000; i++) {
             // Send the same key twice so that we'll have a batch message
             String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
-            producer.newMessage()
+            future = producer.newMessage()
                     .key(key)
                     .value(i)
                     .sendAsync();
 
-            producer.newMessage()
+            // If not batching, need to wait for message to be persisted
+            if (!enableBatch) {
+                future.get();
+            }
+
+            future = producer.newMessage()
                     .key(key)
                     .value(i)
                     .sendAsync();
+            if (!enableBatch) {
+                future.get();
+            }
         }
-
+        // If batching, flush buffered messages
         producer.flush();
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000 * 2);
     }
 
     @Test(dataProvider = "batch")
@@ -251,7 +262,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000);
 
         // wait for consumer grouping acking send.
         Thread.sleep(1000);
@@ -266,11 +277,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer3), 10);
     }
 
     @Test(dataProvider = "data")
-    public void testNonKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(String topicType, boolean enableBatch) throws PulsarClientException {
+    public void testNonKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(String topicType,
+                                                                                        boolean enableBatch)
+            throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = topicType + "://public/default/key_shared_none_key-" + UUID.randomUUID();
 
@@ -296,7 +309,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testNonKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
+    public void testNonKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch)
+            throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_none_key_exclusive-" + UUID.randomUUID();
 
@@ -334,7 +348,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testOrderingKeyWithHashRangeAutoSplitStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
+    public void testOrderingKeyWithHashRangeAutoSplitStickyKeyConsumerSelector(boolean enableBatch)
+            throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_ordering_key-" + UUID.randomUUID();
 
@@ -358,11 +373,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000);
     }
 
     @Test(dataProvider = "batch")
-    public void testOrderingKeyWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
+    public void testOrderingKeyWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch)
+            throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_exclusive_ordering_key-" + UUID.randomUUID();
 
@@ -424,7 +440,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             .subscribe();
     }
 
-    @Test()
+    @Test
     public void testCannotUseAcknowledgeCumulative() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_ack_cumulative-" + UUID.randomUUID();
@@ -787,7 +803,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000);
     }
 
     @Test
@@ -822,7 +838,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer1.receive();
         consumer1.acknowledge(consumer1.receive());
 
-        // The consumer1 and consumer2 should be stucked because of the mark delete position did not move forward.
+        // The consumer1 and consumer2 should be stuck because of the mark delete position did not move forward.
 
         @Cleanup
         Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
@@ -1010,11 +1026,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             producer = pulsarClient.newProducer(Schema.INT32)
                     .topic(topic)
                     .enableBatching(true)
+                    .maxPendingMessages(2001)
                     .batcherBuilder(BatcherBuilder.KEY_BASED)
                     .create();
         } else {
             producer = pulsarClient.newProducer(Schema.INT32)
                     .topic(topic)
+                    .maxPendingMessages(2001)
                     .enableBatching(false)
                     .create();
         }
@@ -1025,7 +1043,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         return createConsumer(topic, null);
     }
 
-    private Consumer<Integer> createConsumer(String topic, KeySharedPolicy keySharedPolicy) throws PulsarClientException {
+    private Consumer<Integer> createConsumer(String topic, KeySharedPolicy keySharedPolicy)
+            throws PulsarClientException {
         ConsumerBuilder<Integer> builder = pulsarClient.newConsumer(Schema.INT32);
         builder.topic(topic)
                 .subscriptionName("key_shared")
@@ -1068,7 +1087,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     /**
      * Check that every consumer receives a fair number of messages and that same key is delivered to only 1 consumer
      */
-    private void receiveAndCheckDistribution(List<Consumer<?>> consumers) throws PulsarClientException {
+    private void receiveAndCheckDistribution(List<Consumer<?>> consumers, int expectedTotalMessage) throws PulsarClientException {
         // Add a key so that we know this key was already assigned to one consumer
         Map<String, Consumer<?>> keyToConsumer = new HashMap<>();
         Map<Consumer<?>, Integer> messagesPerConsumer = new HashMap<>();
@@ -1106,8 +1125,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         final double PERCENT_ERROR = 0.40; // 40 %
 
         double expectedMessagesPerConsumer = totalMessages / consumers.size();
-
-        System.err.println(messagesPerConsumer);
+        Assert.assertEquals(expectedTotalMessage, totalMessages);
         for (int count : messagesPerConsumer.values()) {
             Assert.assertEquals(count, expectedMessagesPerConsumer, expectedMessagesPerConsumer * PERCENT_ERROR);
         }
@@ -1143,7 +1161,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
             Assert.assertEquals(check.getValue().intValue(), received);
             int redeliveryCount = check.getValue() / 2;
-            log.info("[{}] Consumer wait for {} messages redelivery ...", redeliveryCount);
+            log.info("[{}] Consumer wait for {} messages redelivery ...", check, redeliveryCount);
             // messages not acked, test redelivery
             lastMessageForKey = new HashMap<>();
             for (int i = 0; i < redeliveryCount; i++) {

@@ -37,7 +37,7 @@ mvn_run_integration_test() {
   RETRY=""
   # wrap with retry.sh script if next parameter is "--retry"
   if [[ "$1" == "--retry" ]]; then
-    RETRY="./build/retry.sh"
+    RETRY="./build/retry_integration.sh"
     shift
   fi
   # skip wrapping with retry.sh script if next parameter is "--no-retry"
@@ -46,6 +46,7 @@ mvn_run_integration_test() {
     shift
   fi
   set -x
+
   # run the integration tests
   $RETRY mvn -B -ntp -DredirectTestOutputToFile=false -f tests/pom.xml test "$@"
   )
@@ -57,17 +58,19 @@ test_group_shade() {
 
 test_group_backwards_compat() {
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DintegrationTests
+  mvn_run_integration_test "$@" -DBackwardsCompatTests
 }
 
 test_group_cli() {
   # run pulsar cli integration tests
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-cli.xml -DintegrationTests
+
   # run pulsar auth integration tests
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-auth.xml -DintegrationTests
 }
 
-test_group_function_state() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-function-state.xml -DintegrationTests
+test_group_function() {
+  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-function.xml -DintegrationTests
 }
 
 test_group_messaging() {
@@ -102,8 +105,10 @@ test_group_tiered_jcloud() {
 test_group_pulsar_connectors_thread() {
   # run integration function
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=function
+
   # run integration source
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=source
+
   # run integration sink
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-thread.xml -DintegrationTests -Dgroups=sink
 }
@@ -111,8 +116,10 @@ test_group_pulsar_connectors_thread() {
 test_group_pulsar_connectors_process() {
   # run integration function
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=function
+
   # run integration source
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=source
+
   # run integraion sink
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=sink
 }

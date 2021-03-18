@@ -85,9 +85,11 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
@@ -210,6 +212,7 @@ public class PulsarService implements AutoCloseable {
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
     private TransactionBufferClient transactionBufferClient;
+    private ScheduledExecutorService transactionExecutor;
     private HashedWheelTimer transactionTimer;
 
     private BrokerInterceptor brokerInterceptor;
@@ -221,6 +224,7 @@ public class PulsarService implements AutoCloseable {
 
     private MetadataStoreExtended localMetadataStore;
     private CoordinationService coordinationService;
+    private TransactionBufferSnapshotService transactionBufferSnapshotService;
 
     private MetadataStoreExtended configurationMetadataStore;
     private PulsarResources pulsarResources;
@@ -306,8 +310,13 @@ public class PulsarService implements AutoCloseable {
 
             // close the service in reverse order v.s. in which they are started
             if (this.webService != null) {
-                this.webService.close();
-                this.webService = null;
+                try {
+                    this.webService.close();
+                    this.webService = null;
+                } catch (Exception e) {
+                    LOG.error("Web service closing failed", e);
+                    // Even if the web service fails to close, the graceful shutdown process continues
+                }
             }
 
             if (this.webSocketService != null) {
@@ -353,6 +362,11 @@ public class PulsarService implements AutoCloseable {
             if (adminClient != null) {
                 adminClient.close();
                 adminClient = null;
+            }
+
+            if (transactionBufferSnapshotService != null) {
+                transactionBufferSnapshotService.close();
+                transactionBufferSnapshotService = null;
             }
 
             if (client != null) {
@@ -414,6 +428,7 @@ public class PulsarService implements AutoCloseable {
 
             state = State.Closed;
             isClosedCondition.signalAll();
+
         } catch (Exception e) {
             if (e instanceof CompletionException && e.getCause() instanceof MetadataStoreException) {
                 throw new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e));
@@ -646,6 +661,10 @@ public class PulsarService implements AutoCloseable {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
+                this.transactionExecutor = Executors.newScheduledThreadPool(
+                        config.getNumTransactionExecutorThreadPoolSize(),
+                        new DefaultThreadFactory("pulsar-transaction"));
+                this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
                 transactionBufferClient = TransactionBufferClientImpl.create(

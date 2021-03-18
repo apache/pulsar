@@ -30,12 +30,6 @@
   </parent>
   <artifactId>docker-images</artifactId>
   <name>Apache Pulsar :: Docker Images</name>
-  <modules>
-    <module>pulsar</module>
-    <module>grafana</module>
-    <module>pulsar-all</module>
-    <module>pulsar-standalone</module>
-  </modules>
   <build>
     <plugins>
       <plugin>
@@ -47,4 +41,27 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>skipDocker</id>
+      <activation>
+        <property>
+          <name>skipDocker</name>
+        </property>
+      </activation>
+      <modules/>
+    </profile>
+    <profile>
+      <id>docker</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>pulsar</module>
+        <module>grafana</module>
+        <module>pulsar-all</module>
+        <module>pulsar-standalone</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>

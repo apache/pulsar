@@ -29,6 +29,7 @@ import org.testng.annotations.Test;
 
 import java.util.UUID;
 
+@Test(groups = "broker-api")
 public class ConsumerCleanupTest extends ProducerConsumerBase {
 
     @BeforeClass

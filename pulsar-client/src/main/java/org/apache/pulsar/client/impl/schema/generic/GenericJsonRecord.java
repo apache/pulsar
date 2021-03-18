@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Generic json record.
@@ -124,9 +125,19 @@ public class GenericJsonRecord extends VersionedGenericRecord {
         return isBinary;
     }
 
-    private org.apache.avro.Schema parseAvroSchema(String schemaJson) {
+    private static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
         final org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
         parser.setValidateDefaults(false);
         return parser.parse(schemaJson);
+    }
+
+    @Override
+    public Object getNativeRecord() {
+        return jn;
+    }
+
+    @Override
+    public SchemaType getSchemaType() {
+        return SchemaType.JSON;
     }
 }

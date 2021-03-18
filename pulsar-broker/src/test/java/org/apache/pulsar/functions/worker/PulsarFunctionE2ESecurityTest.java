@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
+import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesJar;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -81,6 +82,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "functions-worker")
 public class PulsarFunctionE2ESecurityTest {
 
     LocalBookkeeperEnsemble bkEnsemble;
@@ -258,7 +260,12 @@ public class PulsarFunctionE2ESecurityTest {
         return workerService;
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -293,7 +300,7 @@ public class PulsarFunctionE2ESecurityTest {
                 PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).build())
         ) {
 
-            String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+            String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
 
             FunctionConfig functionConfig = createFunctionConfig(TENANT, NAMESPACE, functionName,
                     sourceTopic, sinkTopic, subscriptionName);
@@ -563,7 +570,7 @@ public class PulsarFunctionE2ESecurityTest {
                     PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).authentication(authToken2).build())
         ) {
 
-            String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+            String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
 
             FunctionConfig functionConfig = createFunctionConfig(TENANT, NAMESPACE, functionName,
                     sourceTopic, sinkTopic, subscriptionName);

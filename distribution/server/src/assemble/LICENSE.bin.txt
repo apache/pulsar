@@ -330,11 +330,6 @@ The Apache Software License, Version 2.0
  * Gson
     - com.google.code.gson-gson-2.8.6.jar
     - io.gsonfire-gson-fire-1.8.4.jar
- * Sundrio
-    - io.sundr-builder-annotations-0.21.0.jar
-    - io.sundr-resourcecify-annotations-0.21.0.jar
-    - io.sundr-sundr-codegen-0.21.0.jar
-    - io.sundr-sundr-core-0.21.0.jar
  * Guava
     - com.google.guava-guava-30.1-jre.jar
     - com.google.guava-failureaccess-1.0.1.jar
@@ -358,7 +353,7 @@ The Apache Software License, Version 2.0
     - commons-logging-commons-logging-1.1.1.jar
     - org.apache.commons-commons-collections4-4.1.jar
     - org.apache.commons-commons-compress-1.19.jar
-    - org.apache.commons-commons-lang3-3.6.jar
+    - org.apache.commons-commons-lang3-3.11.jar
  * Netty
     - io.netty-netty-buffer-4.1.51.Final.jar
     - io.netty-netty-codec-4.1.51.Final.jar
@@ -454,8 +449,10 @@ The Apache Software License, Version 2.0
  * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.3.4.jar
  * Apache Thrifth - org.apache.thrift-libthrift-0.12.0.jar
- * OkHttp
-    - com.squareup.okhttp-okhttp-2.7.4.jar
+ * OkHttp and OkHttp3
+     - com.squareup.okhttp-okhttp-2.7.4.jar
+     - com.squareup.okhttp3-logging-interceptor-3.14.9.jar
+     - com.squareup.okhttp3-okhttp-3.14.9.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * gRPC
@@ -494,13 +491,10 @@ The Apache Software License, Version 2.0
     - org.apache.yetus-audience-annotations-0.5.0.jar
   * @FreeBuilder
     - org.inferred-freebuilder-1.14.9.jar
-  * Squareup
-    - com.squareup.okhttp3-logging-interceptor-3.14.3.jar
-    - com.squareup.okhttp3-okhttp-3.14.3.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-9.0.2.jar
-    - io.kubernetes-client-java-api-9.0.2.jar
-    - io.kubernetes-client-java-proto-9.0.2.jar
+    - io.kubernetes-client-java-10.0.0.jar
+    - io.kubernetes-client-java-api-10.0.0.jar
+    - io.kubernetes-client-java-proto-10.0.0.jar
   * Joda Time
     - joda-time-2.10.1.jar
     - joda-time-joda-time-2.10.1.jar

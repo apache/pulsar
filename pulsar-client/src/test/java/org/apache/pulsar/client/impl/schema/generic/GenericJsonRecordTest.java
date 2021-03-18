@@ -22,6 +22,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.assertSame;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +35,7 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
@@ -111,5 +114,15 @@ public class GenericJsonRecordTest {
         byte[] encoded = genericJsonSchema.encode(genericJsonRecord);
         PC roundtrippedPc = jsonSchema.decode(encoded);
         assertEquals(roundtrippedPc, pc);
+    }
+
+    @Test
+    public void testGetNativeRecord() throws Exception{
+        byte[] json = "{\"somefield\":null}".getBytes(UTF_8);
+        GenericJsonRecord record
+                = new GenericJsonReader(Collections.singletonList(new Field("somefield", 0)))
+                .read(json, 0, json.length);
+        assertEquals(SchemaType.JSON, record.getSchemaType());
+        assertSame(record.getNativeRecord(), record.getJsonNode());
     }
 }

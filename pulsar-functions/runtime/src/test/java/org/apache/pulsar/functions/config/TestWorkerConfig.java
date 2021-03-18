@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.functions.config;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 public class TestWorkerConfig {
@@ -28,25 +29,25 @@ public class TestWorkerConfig {
         WorkerConfig workerConfig = new WorkerConfig();
 
         workerConfig.setAuthenticationEnabled(false);
-        Assert.assertFalse(workerConfig.isAuthenticationEnabled());
+        assertFalse(workerConfig.isAuthenticationEnabled());
         workerConfig.setBrokerClientAuthenticationEnabled(null);
-        Assert.assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
+        assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
 
         workerConfig.setAuthenticationEnabled(true);
-        Assert.assertTrue(workerConfig.isAuthenticationEnabled());
+        assertTrue(workerConfig.isAuthenticationEnabled());
         workerConfig.setBrokerClientAuthenticationEnabled(null);
-        Assert.assertTrue(workerConfig.isBrokerClientAuthenticationEnabled());
+        assertTrue(workerConfig.isBrokerClientAuthenticationEnabled());
 
         workerConfig.setBrokerClientAuthenticationEnabled(true);
         workerConfig.setAuthenticationEnabled(false);
-        Assert.assertTrue(workerConfig.isBrokerClientAuthenticationEnabled());
+        assertTrue(workerConfig.isBrokerClientAuthenticationEnabled());
         workerConfig.setAuthenticationEnabled(true);
-        Assert.assertTrue(workerConfig.isBrokerClientAuthenticationEnabled());
+        assertTrue(workerConfig.isBrokerClientAuthenticationEnabled());
 
         workerConfig.setBrokerClientAuthenticationEnabled(false);
         workerConfig.setAuthenticationEnabled(false);
-        Assert.assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
+        assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
         workerConfig.setAuthenticationEnabled(true);
-        Assert.assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
+        assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
     }
 }

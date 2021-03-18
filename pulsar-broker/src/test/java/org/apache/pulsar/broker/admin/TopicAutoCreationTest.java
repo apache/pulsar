@@ -19,18 +19,18 @@
 
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertEquals;
+import java.util.List;
+import java.util.UUID;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.List;
-import java.util.UUID;
-
+@Test(groups = "broker")
 public class TopicAutoCreationTest extends ProducerConsumerBase {
 
     @Override
@@ -61,8 +61,8 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
 
         List<String> partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
         List<String> topics = admin.topics().getList(namespaceName);
-        Assert.assertEquals(partitionedTopics.size(), 1);
-        Assert.assertEquals(topics.size(), 3);
+        assertEquals(partitionedTopics.size(), 1);
+        assertEquals(topics.size(), 3);
 
         producer.close();
         for (String t : topics) {
@@ -80,8 +80,8 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
 
         partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
         topics = admin.topics().getList(namespaceName);
-        Assert.assertEquals(partitionedTopics.size(), 0);
-        Assert.assertEquals(topics.size(), 1);
+        assertEquals(partitionedTopics.size(), 0);
+        assertEquals(topics.size(), 1);
 
         producer.close();
     }

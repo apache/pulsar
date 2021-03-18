@@ -90,6 +90,7 @@ import org.testng.collections.Lists;
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
+@Test(groups = "flaky")
 public class ReplicatorTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -104,14 +105,14 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         super.setup();
     }
 
     @Override
     @AfterClass(alwaysRun = true, timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
+    public void cleanup() throws Exception {
+        super.cleanup();
     }
 
     @DataProvider(name = "partitionedTopic")
@@ -127,8 +128,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Run a set of producer tasks to create the topics
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 10; i++) {
-            final TopicName dest = TopicName.get(String
-                    .format(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/topic-" + i)));
+            final TopicName dest = TopicName.get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/topic-" + i));
 
             results.add(executor.submit(new Callable<Void>() {
                 @Override
@@ -422,8 +422,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
-    @Test()
-    public void testFailures() throws Exception {
+    @Test
+    public void testFailures() {
 
         log.info("--- Starting ReplicatorTest::testFailures ---");
 
@@ -470,7 +470,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void testReplicatorClearBacklog() throws Exception {
 
         // This test is to verify that reset cursor fails on global topic
-        SortedSet<String> testDests = new TreeSet<String>();
+        SortedSet<String> testDests = new TreeSet<>();
 
         final TopicName dest = TopicName
                 .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/clearBacklogTopic"));
@@ -496,7 +496,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.replicationBacklog, 0);
     }
 
-    @Test(enabled = true, timeOut = 30000)
+    @Test(timeOut = 30000)
     public void testResetCursorNotFail() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testResetCursorNotFail ---");
@@ -651,7 +651,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * @throws Exception
      */
 
-    @Test(timeOut = 60000, enabled = true, priority = -1)
+    @Test(timeOut = 60000, priority = -1)
     public void testResumptionAfterBacklogRelaxed() throws Exception {
         List<RetentionPolicy> policies = Lists.newArrayList();
         policies.add(RetentionPolicy.producer_exception);
@@ -851,7 +851,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             }
             assertTrue(e.getCause() instanceof NamingException);
         }
-        
+
     }
 
     @Test

@@ -27,7 +27,6 @@ import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,6 +46,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
@@ -55,6 +55,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-multi-topics-sub";
@@ -68,7 +69,11 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+        Policies policies = new Policies();
+        policies.replication_clusters = Sets.newHashSet("test");
+        // infinite retention
+        policies.retention_policies = new RetentionPolicies(-1, -1);
+        admin.namespaces().createNamespace("my-property/my-ns", policies);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -236,9 +241,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     public void testMultiReaderSeek() throws Exception {
         String topic = "persistent://my-property/my-ns/testKeyHashRangeReader";
         admin.topics().createPartitionedTopic(topic, 3);
-        Set<String> ids = publishMessages(topic,100,false);
-        List<String> idList = new ArrayList<>(ids);
-        Collections.sort(idList);
+        publishMessages(topic,100,false);
     }
 
     @Test(timeOut = 10000)
@@ -316,7 +319,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         assertTrue(expectedMessages > 0);
         assertEquals(receivedMessages.size(), expectedMessages);
         for (String receivedMessage : receivedMessages) {
-            assertTrue(Integer.valueOf(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
+            assertTrue(Integer.parseInt(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
         }
 
     }

@@ -20,6 +20,7 @@ package org.apache.pulsar.io.rabbitmq.source;
 
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSource;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -34,16 +35,16 @@ public class RabbitMQSourceTest {
     @BeforeMethod
     public void setUp() throws Exception {
         rabbitMQBrokerManager = new RabbitMQBrokerManager();
-        rabbitMQBrokerManager.startBroker();
+        rabbitMQBrokerManager.startBroker("5672");
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() throws Exception {
+    public void tearDown() {
         rabbitMQBrokerManager.stopBroker();
     }
 
     @Test
-    public void TestOpenAndWriteSink() throws Exception {
+    public void TestOpenAndWriteSink() {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");
         configs.put("port", "5672");
@@ -64,7 +65,8 @@ public class RabbitMQSourceTest {
         RabbitMQSource source = new RabbitMQSource();
 
         // open should success
-        source.open(configs, null);
+        // rabbitmq service may need time to initialize
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> source.open(configs, null));
     }
 
 }
