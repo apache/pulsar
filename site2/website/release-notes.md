@@ -1,7 +1,7 @@
 
 ## Apache Pulsar Release Notes
 
-### 2.7.1 &mdash; 2020-11-25 <a id=“2.7.1”></a>
+### 2.7.1 &mdash; 2021-03-18 <a id=“2.7.1”></a>
 
 #### Broker
 
