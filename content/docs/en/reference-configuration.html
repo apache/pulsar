@@ -269,8 +269,7 @@
 <tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
 <tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file</td><td></td></tr>
 <tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate file. This cert is used to verify that any certs presented by connecting clients are signed by a certificate authority. If this verification fails, then the certs are untrusted and the connections are dropped.</td><td></td></tr>
-<tr><td>tlsAllowInsecureConnection</td><td>Accept untrusted TLS certificate from client. If it is set to <code>true</code>, a client with a cert which cannot be verified with the</td></tr>
-<tr><td>'tlsTrustCertsFilePath' cert will be allowed to connect to the server, though the cert will not be used for client authentication.</td><td>false</td></tr>
+<tr><td>tlsAllowInsecureConnection</td><td>Accept untrusted TLS certificate from client. If it is set to <code>true</code>, a client with a cert which cannot be verified with the 'tlsTrustCertsFilePath' cert will be allowed to connect to the server, though the cert will not be used for client authentication.</td><td>false</td></tr>
 <tr><td>tlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLSv1.2</code>, <code>TLSv1.1</code>, <code>TLSv1</code></td><td></td></tr>
 <tr><td>tlsCiphers</td><td>Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</code></td><td></td></tr>
 <tr><td>tlsEnabledWithKeyStore</td><td>Enable TLS with KeyStore type configuration in broker</td><td>false</td></tr>
@@ -382,8 +381,7 @@
 <tr><td>loadManagerClassName</td><td>Name of load manager to use</td><td>org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</td></tr>
 <tr><td>supportedNamespaceBundleSplitAlgorithms</td><td>Supported algorithms name for namespace bundle split</td><td>[range_equally_divide,topic_count_equally_divide]</td></tr>
 <tr><td>defaultNamespaceBundleSplitAlgorithm</td><td>Default algorithm name for namespace bundle split</td><td>range_equally_divide</td></tr>
-<tr><td>managedLedgerOffloadDriver</td><td>The directory for all the offloader implementations</td></tr>
-<tr><td><code>offloadersDirectory=./offloaders</code>. Driver to use to offload old data to long term storage (Possible values: S3, aws-s3, google-cloud-storage). When using google-cloud-storage, Make sure both Google Cloud Storage and Google Cloud Storage JSON API are enabled for the project (check from Developers Console -&gt; Api&amp;auth -&gt; APIs).</td><td></td></tr>
+<tr><td>managedLedgerOffloadDriver</td><td>The directory for all the offloader implementations <code>offloadersDirectory=./offloaders</code>. Driver to use to offload old data to long term storage (Possible values: S3, aws-s3, google-cloud-storage). When using google-cloud-storage, Make sure both Google Cloud Storage and Google Cloud Storage JSON API are enabled for the project (check from Developers Console -&gt; Api&amp;auth -&gt; APIs).</td><td></td></tr>
 <tr><td>managedLedgerOffloadMaxThreads</td><td>Maximum number of thread pool threads for ledger offloading</td><td>2</td></tr>
 <tr><td>managedLedgerOffloadPrefetchRounds</td><td>The maximum prefetch rounds for ledger reading for offloading.</td><td>1</td></tr>
 <tr><td>managedLedgerUnackedRangesOpenCacheSetEnabled</td><td>Use Open Range-Set to cache unacknowledged messages</td><td>true</td></tr>
@@ -575,8 +573,7 @@
 <tr><td>dispatchThrottlingRatePerTopicInByte</td><td>Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRateRelativeToPublishRate</td><td>Enable dispatch rate-limiting relative to publish rate.</td><td>false</td></tr>
 <tr><td>dispatchThrottlingRatePerSubscriptionInMsg</td><td>The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.</td><td>0</td></tr>
-<tr><td>dispatchThrottlingRatePerSubscriptionInByte</td><td>The default number of message-bytes dispatching throttling-limit for a subscription.</td></tr>
-<tr><td>The value of 0 disables message-byte dispatch-throttling.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRatePerSubscriptionInByte</td><td>The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingOnNonBacklogConsumerEnabled</td><td>Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs.</td><td>true</td></tr>
 <tr><td>dispatcherMaxReadBatchSize</td><td>The maximum number of entries to read from BookKeeper. By default, it is 100 entries.</td><td>100</td></tr>
 <tr><td>dispatcherMaxReadSizeBytes</td><td>The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.</td><td>5242880</td></tr>
@@ -615,7 +612,7 @@
 <tr><td>brokerClientTlsTrustStore</td><td>TLS TrustStore path for the internal client to authenticate with Pulsar brokers.</td><td></td></tr>
 <tr><td>brokerClientTlsTrustStorePassword</td><td>TLS TrustStore password for the internal client to authenticate with Pulsar brokers.</td><td></td></tr>
 <tr><td>brokerClientTlsCiphers</td><td>Specify the TLS cipher that the internal client uses to negotiate during TLS Handshake.</td><td></td></tr>
-<tr><td>brokerClientTlsProtocols</td><td>Specify the TLS protocols that the broker uses to negotiate during TLS handshake.</td></tr>
+<tr><td>brokerClientTlsProtocols</td><td>Specify the TLS protocols that the broker uses to negotiate during TLS handshake.</td><td></td></tr>
 <tr><td>systemTopicEnabled</td><td>Enable/Disable system topics.</td><td>false</td></tr>
 <tr><td>topicLevelPoliciesEnabled</td><td>Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first.</td><td>false</td></tr>
 <tr><td>proxyRoles</td><td>Role names that are treated as &quot;proxy roles&quot;. If the broker sees a request with role as proxyRoles, it demands to see a valid original principal.</td><td></td></tr>
@@ -662,7 +659,8 @@
 <tr><td>bookkeeperTLSClientAuthentication</td><td>Enable TLS authentication with bookie.</td><td>false</td></tr>
 <tr><td>bookkeeperTLSKeyFileType</td><td>Supported type: PEM, JKS, PKCS12.</td><td>PEM</td></tr>
 <tr><td>bookkeeperTLSTrustCertTypes</td><td>Supported type: PEM, JKS, PKCS12.</td><td>PEM</td></tr>
-<tr><td>bookkeeperTLSKeyStorePasswordPath</td><td>Path to file containing keystore password, if the client keystore is password protected.</td><td></td><td>bookkeeperTLSTrustStorePasswordPath</td><td>Path to file containing truststore password, if the client truststore is password protected.</td><td></td></tr>
+<tr><td>bookkeeperTLSKeyStorePasswordPath</td><td>Path to file containing keystore password, if the client keystore is password protected.</td><td></td></tr>
+<tr><td>bookkeeperTLSTrustStorePasswordPath</td><td>Path to file containing truststore password, if the client truststore is password protected.</td><td></td></tr>
 <tr><td>bookkeeperTLSKeyFilePath</td><td>Path for the TLS private key file.</td><td></td></tr>
 <tr><td>bookkeeperTLSCertificateFilePath</td><td>Path for the TLS certificate file.</td><td></td></tr>
 <tr><td>bookkeeperTLSTrustCertsFilePath</td><td>Path for the trusted TLS certificate file.</td><td></td></tr>
