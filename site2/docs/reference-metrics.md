@@ -394,7 +394,7 @@ All the connection metrics are labelled with the following labels:
 | pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
 | pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
 | pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
-| pulsar_broker_throttled_connections_global_limit | Gauge | The number of connections throttled because of per-connection limit. |
+| pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections because of per-connection limit. |
 
 ## Pulsar Functions
 
