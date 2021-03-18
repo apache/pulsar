@@ -77,7 +77,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
-        AuthenticationProviderToken.reset();
+        AuthenticationProviderToken.resetMetrics();
     }
 
     @AfterMethod(alwaysRun = true)

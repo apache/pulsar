@@ -105,7 +105,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @VisibleForTesting
-    public static void reset() {
+    public static void resetMetrics() {
         expiredTokenMetrics.clear();
         expiringTokenMinutesMetrics.clear();
     }
