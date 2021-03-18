@@ -60,6 +60,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
+@Test(groups = "broker")
 public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
     private final static String TENANT = "tnx";

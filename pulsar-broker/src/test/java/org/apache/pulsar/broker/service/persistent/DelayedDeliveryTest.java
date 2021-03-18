@@ -51,6 +51,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Override
@@ -70,8 +71,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testDelayedDelivery()
-            throws Exception {
+    public void testDelayedDelivery() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcks");
 
         @Cleanup

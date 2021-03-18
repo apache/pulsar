@@ -51,8 +51,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker")
 public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
     public BrokerBkEnsemblesTests() {
@@ -278,7 +277,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         client.close();
     }
 
-    @Test(timeOut=20000)
+    @Test(timeOut = 20000)
     public void testTopicWithWildCardChar() throws Exception {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())

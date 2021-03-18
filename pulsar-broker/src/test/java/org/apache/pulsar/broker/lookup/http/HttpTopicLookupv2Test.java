@@ -63,9 +63,8 @@ import com.google.common.collect.Sets;
 
 /**
  * HTTP lookup unit tests.
- *
- *
  */
+@Test(groups = "broker")
 public class HttpTopicLookupv2Test {
 
     private PulsarService pulsar;
@@ -90,7 +89,7 @@ public class HttpTopicLookupv2Test {
         policiesCache = mock(ZooKeeperDataCache.class);
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
-        clusters = new TreeSet<String>();
+        clusters = new TreeSet<>();
         clusters.add("use");
         clusters.add("usc");
         clusters.add("usw");

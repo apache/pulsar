@@ -40,7 +40,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
@@ -48,8 +47,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker")
 public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -225,11 +223,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         retryStrategically((test) -> areAllConsumersConnected(consumers), 5, 500);
 
         int totalConnectedConsumers = 0;
-        for (int i = 0; i < consumers.size(); i++) {
-            if (((ConsumerImpl<?>) consumers.get(i)).isConnected()) {
+        for (Consumer<byte[]> consumer : consumers) {
+            if (consumer.isConnected()) {
                 totalConnectedConsumers++;
             }
-            consumers.get(i).close();
+            consumer.close();
 
         }
         assertEquals(totalConnectedConsumers, totalConsumers);
@@ -239,8 +237,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     }
 
     private boolean areAllConsumersConnected(List<Consumer<byte[]>> consumers) {
-        for (int i = 0; i < consumers.size(); i++) {
-            if (!((ConsumerImpl<?>) consumers.get(i)).isConnected()) {
+        for (Consumer<byte[]> consumer : consumers) {
+            if (!consumer.isConnected()) {
                 return false;
             }
         }
