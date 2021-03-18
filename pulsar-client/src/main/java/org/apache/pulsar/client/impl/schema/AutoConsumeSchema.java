@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.schema;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.PrimitiveRecord;
 
 /**
  * Auto detect schema, returns only GenericRecord instances.
@@ -44,7 +45,17 @@ public class AutoConsumeSchema extends AbstractAutoConsumeSchema<GenericRecord> 
 
     @Override
     public boolean requireFetchingSchemaInfo() {
-        return true;
+        return schema == null || schema.requireFetchingSchemaInfo();
     }
 
+    @Override
+    protected GenericRecord adapt(Object value) {
+        if (value instanceof GenericRecord) {
+            return (GenericRecord) value;
+        }
+        if (this.schema == null) {
+            throw new IllegalStateException("Cannot decode a message without schema");
+        }
+        return PrimitiveRecord.of(value, this.schema.getSchemaInfo().getType());
+    }
 }

@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.PrimitiveRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -240,13 +241,24 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .subscribe();
 
+        // use GenericRecord even for primitive types
+        // it will be a PrimitiveRecord
+        Consumer<GenericRecord> consumer3 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .subscriptionName("test-sub3")
+                .topic(topic)
+                .subscribe();
+
         producer.send("foo");
 
         Message<String> message = consumer.receive();
         Message<Object> message2 = consumer2.receive();
+        Message<GenericRecord> message3 = consumer3.receive();
 
         assertEquals("foo", message.getValue());
         assertEquals("foo", message2.getValue());
+        assertTrue(message3.getValue() instanceof PrimitiveRecord);
+        assertEquals(SchemaType.STRING, message3.getValue().getSchemaType());
+        assertEquals("foo", message3.getValue().getNativeRecord());
 
         producer.close();
         consumer.close();

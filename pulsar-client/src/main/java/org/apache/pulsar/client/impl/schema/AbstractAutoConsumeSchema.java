@@ -76,6 +76,10 @@ public abstract class AbstractAutoConsumeSchema <T> implements Schema<T> {
         return schema.encode(message);
     }
 
+    protected T adapt(Object value) {
+        return (T) value;
+    }
+
     @Override
     public T decode(byte[] bytes, byte[] schemaVersion) {
         if (schema == null) {
@@ -95,7 +99,7 @@ public abstract class AbstractAutoConsumeSchema <T> implements Schema<T> {
                     componentName, topicName, schemaInfo.getSchemaDefinition());
         }
         ensureSchemaInitialized();
-        return schema.decode(bytes, schemaVersion);
+        return adapt(schema.decode(bytes, schemaVersion));
     }
 
     @Override
