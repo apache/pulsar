@@ -358,7 +358,6 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         sourceConfig.setParallelism(1);
         sourceConfig.setRuntimeFlags("-DKerberos");
         sourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        sourceConfig.setForwardSourceMessageProperty(true);
 
         Map<String, String> consumerConfigs = new HashMap<>();
         consumerConfigs.put("security.protocal", "SASL_PLAINTEXT");
