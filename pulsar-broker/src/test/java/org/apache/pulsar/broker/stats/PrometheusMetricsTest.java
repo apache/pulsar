@@ -77,6 +77,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
+        AuthenticationProviderToken.resetMetrics();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -892,6 +893,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
+    // Investigate issue
+    // java.lang.AssertionError: line pulsar_broker_publish_latency{cluster="test",quantile="0.0"} +Inf does not match pattern
+    // ^(\w+)\{([^\}]+)\}\s(-?[\d\w\.-]+)(\s(\d+))?$ expected [true] but found [false]
     @Test
     public void testExpiringTokenMetrics() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -953,6 +957,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
+    // Investigate issue
+    // java.lang.AssertionError: line pulsar_broker_publish_latency{cluster="test",quantile="0.0"} +Inf does not match pattern
+    // ^(\w+)\{([^\}]+)\}\s(-?[\d\w\.-]+)(\s(\d+))?$ expected [true] but found [false]
     @Test
     public void testManagedCursorPersistStats() throws Exception {
         final String subName = "my-sub";
@@ -1011,7 +1018,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
-        String metricsStr = new String(statsOut.toByteArray());
+        String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
         compareBrokerConnectionStateCount(cm, 1.0);
@@ -1028,7 +1035,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         pulsarClient.close();
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
-        metricsStr = new String(statsOut.toByteArray());
+        metricsStr = statsOut.toString();
 
         metrics = parseMetrics(metricsStr);
         cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
@@ -1050,7 +1057,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         pulsarClient.close();
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
-        metricsStr = new String(statsOut.toByteArray());
+        metricsStr = statsOut.toString();
 
         metrics = parseMetrics(metricsStr);
         cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
@@ -1078,7 +1085,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
 
     /**
-     * Hacky parsing of Prometheus text format. Sould be good enough for unit tests
+     * Hacky parsing of Prometheus text format. Should be good enough for unit tests
      */
     private static Multimap<String, Metric> parseMetrics(String metrics) {
         Multimap<String, Metric> parsed = ArrayListMultimap.create();
