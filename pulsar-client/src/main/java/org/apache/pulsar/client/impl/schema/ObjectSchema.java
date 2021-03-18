@@ -20,17 +20,16 @@ package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 
 /**
- * Auto detect schema, returns only GenericRecord instances.
+ * Auto detect schema.
  */
 @Slf4j
-public class AutoConsumeSchema extends AbstractAutoConsumeSchema<GenericRecord> {
+public class ObjectSchema extends AbstractAutoConsumeSchema<Object> {
 
     @Override
-    public Schema<GenericRecord> clone() {
-        Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+    public Schema<Object> clone() {
+        Schema<Object> schema = Schema.OBJECT();
         if (this.schema != null) {
             schema.configureSchemaInfo(topicName, componentName, this.schema.getSchemaInfo());
         } else {
@@ -40,11 +39,6 @@ public class AutoConsumeSchema extends AbstractAutoConsumeSchema<GenericRecord> 
             schema.setSchemaInfoProvider(schemaInfoProvider);
         }
         return schema;
-    }
-
-    @Override
-    public boolean requireFetchingSchemaInfo() {
-        return true;
     }
 
 }
