@@ -25,6 +25,7 @@ BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 
 ROOT_DIR=$(dirname $0)/../..
 cd $ROOT_DIR
+ROOT_DIR=$(pwd)
 
 PYTHON_VERSIONS=(
    '2.7 cp27-cp27mu'
