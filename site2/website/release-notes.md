@@ -6,7 +6,7 @@
 #### Broker
 
 - Fix topic ownership is not checked when getting topic policy [#9781](https://github.com/apache/pulsar/pull/9781)
-- Fix Cannot consume using older subscriptions if max subscription limit is reached [#9758](https://github.com/apache/pulsar/pull/9758)
+- Fix the issue of consumers cannot be created for older subscriptions if the limit of `maxSubscriptionsPerTopic` is reached [#9758](https://github.com/apache/pulsar/pull/9758)
 - Fix marking individual deletes as dirty [#9732](https://github.com/apache/pulsar/pull/9732)
 - Don't add broker-address header if response has already been committed [#9744](https://github.com/apache/pulsar/pull/9744)
 - Fix ByteBuffer allocate error in the AirliftUtils [#9667](https://github.com/apache/pulsar/pull/9667)
