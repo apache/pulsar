@@ -149,8 +149,10 @@ public class EntryCacheImpl implements EntryCache {
         final PositionImpl firstPosition = PositionImpl.get(-1, 0);
 
         if (firstPosition.compareTo(lastPosition) > 0) {
-            log.debug("Attempted to invalidate entries in an invalid range : {} ~ {}",
-                firstPosition, lastPosition);
+            if (log.isDebugEnabled()) {
+                log.debug("Attempted to invalidate entries in an invalid range : {} ~ {}",
+                        firstPosition, lastPosition);
+            }
             return;
         }
 
