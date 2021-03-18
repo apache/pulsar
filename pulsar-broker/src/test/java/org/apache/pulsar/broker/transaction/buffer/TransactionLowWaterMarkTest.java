@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +50,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -59,6 +59,10 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -77,6 +81,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
     @BeforeMethod(groups = "broker")
     protected void setup() throws Exception {
+        setBrokerCount(1);
         internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
@@ -96,9 +101,21 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
-
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> ((PulsarClientImpl) pulsarClient)
-                .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
+        Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
+                getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+            if (stores.size() == 16) {
+                for (TransactionCoordinatorID transactionCoordinatorID : stores.keySet()) {
+                    if (((MLTransactionMetadataStore) stores.get(transactionCoordinatorID)).getState()
+                            != TransactionMetadataStoreState.State.Ready) {
+                        return false;
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
+        });
     }
 
     @AfterMethod(alwaysRun = true)
