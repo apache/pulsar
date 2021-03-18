@@ -217,7 +217,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 Dead letter topic depends on message re-delivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
 > **Note**    
-> Currently, dead letter topic is enabled only in the shared subscription mode.
+> Currently, dead letter topic is enabled in the Shared and Key_Shared subscription modes.
 
 ### Retry letter topic
 
