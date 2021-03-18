@@ -55,7 +55,7 @@ Producers send messages to brokers synchronously (sync) or asynchronously (async
 
 ### Access mode
 
-You can have different types of access modes on topics for applications.
+You can have different types of access modes on topics for producers.
 
 |Access mode | Description
 |---|---
@@ -69,7 +69,7 @@ You can have different types of access modes on topics for applications.
 > 
 > For more information, see [PIP 68: Exclusive Producer](https://github.com/apache/pulsar/wiki/PIP-68:-Exclusive-Producer).
 
-You can set producer access mode through Java Client API. For more information, see `ProducerAccessMode` in [ProducerBuilder.java](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ProducerBuilder.java).
+You can set producer access mode through Java Client API. For more information, see `ProducerAccessMode` in [ProducerBuilder.java](https://github.com/apache/pulsar/blob/fc5768ca3bbf92815d142fe30e6bfad70a1b4fc6/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ProducerBuilder.java).
 
 
 ### Compression
