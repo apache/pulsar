@@ -31,9 +31,19 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteBufferDeserializer;
+import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.common.serialization.DoubleDeserializer;
+import org.apache.kafka.common.serialization.FloatDeserializer;
+import org.apache.kafka.common.serialization.IntegerDeserializer;
+import org.apache.kafka.common.serialization.LongDeserializer;
+import org.apache.kafka.common.serialization.ShortDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
@@ -51,12 +61,9 @@ import org.apache.pulsar.io.core.annotations.IOType;
 public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
     private AvroSchemaCache schemaCache;
-
-    private static final Collection<String> SUPPORTED_KEY_DESERIALIZERS =
-            Collections.unmodifiableCollection(Arrays.asList(StringDeserializer.class.getName()));
-
-    private static final Collection<String> SUPPORTED_VALUE_DESERIALIZERS =
-            Collections.unmodifiableCollection(Arrays.asList(ByteArrayDeserializer.class.getName(), KafkaAvroDeserializer.class.getName()));
+    private Schema keySchema;
+    private Schema valueSchema;
+    private boolean produceKeyValue;
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
@@ -65,48 +72,113 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         log.info("Created kafka consumer config : {}", props);
 
         String currentKeyDeserializer = props.getProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG);
-        if (!SUPPORTED_KEY_DESERIALIZERS.contains(currentKeyDeserializer)) {
-            throw new IllegalArgumentException("Unsupported key deserializer: " + currentKeyDeserializer + ", only " + SUPPORTED_KEY_DESERIALIZERS);
-        }
-
         String currentValueDeserializer = props.getProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG);
-        if (!SUPPORTED_VALUE_DESERIALIZERS.contains(currentValueDeserializer)) {
-            throw new IllegalArgumentException("Unsupported value deserializer: " + currentValueDeserializer + ", only " + SUPPORTED_VALUE_DESERIALIZERS);
+
+        keySchema = getSchemaFromDeserializer(currentKeyDeserializer);
+        if (keySchema == null) {
+            throw new IllegalArgumentException("Unsupported key deserializer: " + currentKeyDeserializer);
+        }
+        valueSchema = getSchemaFromDeserializer(currentKeyDeserializer);
+        if (valueSchema == null) {
+            throw new IllegalArgumentException("Unsupported value deserializer: " + currentValueDeserializer);
         }
 
-        // replace KafkaAvroDeserializer with our custom implementation
+        boolean needsSchemaCache = false;
+        // replace KafkaAvroDeserializer with our custom implementation that extracts the schema registry id
         if (currentValueDeserializer != null && currentValueDeserializer.equals(KafkaAvroDeserializer.class.getName())) {
             props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ExtractKafkaAvroSchemaDeserializer.class.getName());
-            KafkaAvroDeserializerConfig config = new KafkaAvroDeserializerConfig(props);
-            List<String> urls = config.getSchemaRegistryUrls();
-            int maxSchemaObject = config.getMaxSchemasPerSubject();
-            SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(urls, maxSchemaObject);
-            schemaCache = new AvroSchemaCache(schemaRegistryClient);
+            needsSchemaCache = true;
         }
+        if (currentKeyDeserializer != null && currentKeyDeserializer.equals(KafkaAvroDeserializer.class.getName())) {
+            props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ExtractKafkaAvroSchemaDeserializer.class.getName());
+            needsSchemaCache = true;
+        }
+
+        if (needsSchemaCache) {
+            initSchemaCache(props);
+        }
+
+        if (keySchema != Schema.STRING) {
+            produceKeyValue = true;
+        }
+
         return props;
+    }
+
+    private void initSchemaCache(Properties props) {
+        KafkaAvroDeserializerConfig config = new KafkaAvroDeserializerConfig(props);
+        List<String> urls = config.getSchemaRegistryUrls();
+        int maxSchemaObject = config.getMaxSchemasPerSubject();
+        SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(urls, maxSchemaObject);
+        schemaCache = new AvroSchemaCache(schemaRegistryClient);
     }
 
     @Override
     public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
+        if (produceKeyValue) {
+            Object key = encodeKey(consumerRecord);
+            Object value = encodeValue(consumerRecord);
+            KeyValueSchema kvSchema = (KeyValueSchema) extractSchema(consumerRecord);
+            return KeyValue.encode(key, kvSchema.getKeySchema(), value, kvSchema.getValueSchema());
+        } else {
+            return encodeValue(consumerRecord);
+        }
+    }
+
+    private Object encodeValue(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
-        if (value instanceof BytesWithKafkaSchema) {
+        if (value == null) {
+            return null;
+        } else if (value instanceof BytesWithKafkaSchema) {
             return ((BytesWithKafkaSchema) value).getValue();
         } else if (value instanceof byte[]) {
             return ByteBuffer.wrap((byte[]) value);
-        } else if (value == null) {
-            return null;
         } else {
-            throw new UnsupportedOperationException("Cannot extract a value from a " + value.getClass());
+            return ByteBuffer.wrap(valueSchema.encode(value));
+        }
+    }
+
+    private Object encodeKey(ConsumerRecord<Object, Object> consumerRecord) {
+        Object value = consumerRecord.key();
+        if (value == null) {
+            return null;
+        } else if (value instanceof BytesWithKafkaSchema) {
+            return ((BytesWithKafkaSchema) value).getValue();
+        } else if (value instanceof byte[]) {
+            return ByteBuffer.wrap((byte[]) value);
+        } else {
+            return ByteBuffer.wrap(keySchema.encode(value));
         }
     }
 
     @Override
     public org.apache.pulsar.client.api.Schema<ByteBuffer> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
         Object value = consumerRecord.value();
-        if (value instanceof BytesWithKafkaSchema) {
-            return schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId());
+        if (produceKeyValue) {
+            Object key = consumerRecord.key();
+            Schema localKeySchema = keySchema;
+            if (localKeySchema instanceof AutoConsumeSchema) {
+                if (key instanceof BytesWithKafkaSchema) {
+                    localKeySchema = schemaCache.get(((BytesWithKafkaSchema) key).getSchemaId());
+                } else {
+                    localKeySchema =  Schema.BYTEBUFFER;
+                }
+            }
+            Schema localValueSchema = valueSchema;
+            if (localValueSchema instanceof AutoConsumeSchema) {
+                if (value instanceof BytesWithKafkaSchema) {
+                    localValueSchema = schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId());
+                } else {
+                    localValueSchema = Schema.BYTEBUFFER;
+                }
+            }
+            return KeyValueSchema.of(localKeySchema, localValueSchema);
         } else {
-            return Schema.BYTEBUFFER;
+            if (value instanceof BytesWithKafkaSchema) {
+                return schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId());
+            } else {
+                return Schema.BYTEBUFFER;
+            }
         }
     }
 
@@ -128,5 +200,30 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             }
         }
     }
+
+    private static Schema<?> getSchemaFromDeserializer(String kafkaDeserializerClass) {
+        if (ByteArrayDeserializer.class.getCanonicalName().equals(kafkaDeserializerClass)) {
+            return Schema.BYTEBUFFER;
+        } else if (ByteBufferDeserializer.class.getCanonicalName().equals(kafkaDeserializerClass)) {
+            return Schema.BYTEBUFFER;
+        } else if (StringDeserializer.class.getCanonicalName().equals(kafkaDeserializerClass)) {
+            return Schema.STRING;
+        } else if (DoubleDeserializer.class.getCanonicalName().equals(kafkaDeserializerClass)) {
+            return Schema.DOUBLE;
+        } else if (FloatDeserializer.class.getCanonicalName().equals(kafkaDeserializerClass)) {
+            return Schema.FLOAT;
+        } else if (IntegerDeserializer.class.getCanonicalName().equals(kafkaDeserializerClass)) {
+            return Schema.INT32;
+        } else if (LongDeserializer.class.getCanonicalName().equals(kafkaDeserializerClass)) {
+            return Schema.INT64;
+        } else if (ShortDeserializer.class.getCanonicalName().equals(kafkaDeserializerClass)) {
+            return Schema.INT16;
+        } else if (ExtractKafkaAvroSchemaDeserializer.class.getCanonicalName().equals(kafkaDeserializerClass)){
+            return Schema.AUTO_CONSUME();
+        } else {
+            return null;
+        }
+    }
+
 
 }
