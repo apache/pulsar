@@ -398,17 +398,6 @@ public interface Schema<T> extends Cloneable{
         return DefaultImplementation.newAutoProduceSchema(schema);
     }
 
-    /**
-     * Create a schema instance that accepts a serialized payload
-     * and validates it against the schema specified.
-     *
-     * @return the auto schema instance
-     * @since 2.8.0
-     */
-    static <T> Schema<T> AUTO_PRODUCE(Schema<T> schema) {
-        return DefaultImplementation.newAutoProduceClassSchema(schema);
-    }
-
     // CHECKSTYLE.ON: MethodName
 
     static Schema<?> getSchema(SchemaInfo schemaInfo) {

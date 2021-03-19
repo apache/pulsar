@@ -100,11 +100,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     @Override
     public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
-        if (schema == null) {
-            this.schemaInfoProvider = schemaInfoProvider;
-        } else {
+        if (schema != null) {
             schema.setSchemaInfoProvider(schemaInfoProvider);
         }
+
+        this.schemaInfoProvider = schemaInfoProvider;
     }
 
     @Override

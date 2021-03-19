@@ -164,7 +164,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final DeadLetterPolicy deadLetterPolicy;
 
-    private volatile CompletableFuture<Producer<T>> deadLetterProducer;
+    private volatile CompletableFuture<Producer<byte[]>> deadLetterProducer;
 
     private volatile Producer<T> retryLetterProducer;
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
@@ -589,7 +589,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     initDeadLetterProducerIfNeeded();
                     MessageId finalMessageId = messageId;
                     deadLetterProducer.thenAccept(dlqProducer -> {
-                        TypedMessageBuilder<T> typedMessageBuilderNew = dlqProducer.newMessage()
+                        TypedMessageBuilder<T> typedMessageBuilderNew = dlqProducer.newMessage(retryMessage.getSchema())
                                 .value(retryMessage.getValue())
                                 .properties(propertiesMap);
                         typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
@@ -1680,7 +1680,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     String originMessageIdStr = getOriginMessageIdStr(message);
                     String originTopicNameStr = getOriginTopicNameStr(message);
                     if (schema instanceof AutoConsumeSchema) {
-                        ((AutoConsumeSchema) message.getSchema())
+                        ((AutoConsumeSchema) schema)
                                 .getSchemaInfo(message.getSchemaVersion()).thenApply(schemaInfo ->
                                         producerDLQ.newMessage(
                                                 Schema.AUTO_PRODUCE_BYTES(AutoConsumeSchema.getSchema(schemaInfo))))
@@ -1716,8 +1716,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     return null;
                                 });
                     } else {
-                        producerDLQ.newMessage()
-                                .value(message.getValue())
+                        producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getSchema()))
+                                .value(message.getData())
                                 .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr))
                                 .sendAsync()
                                 .thenAccept(messageIdInDLQ -> {
@@ -1757,7 +1757,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             try {
                 createProducerLock.writeLock().lock();
                 if (deadLetterProducer == null) {
-                    deadLetterProducer = client.newProducer(Schema.AUTO_PRODUCE(schema))
+                    deadLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                             .topic(this.deadLetterPolicy.getDeadLetterTopic())
                             .blockIfQueueFull(false)
                             .createAsync();

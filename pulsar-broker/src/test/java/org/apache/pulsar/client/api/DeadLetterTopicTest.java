@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import lombok.Data;
-import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -211,15 +210,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         final int maxRedeliveryCount = 1;
         final int sendMessages = 10;
 
-        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
-                .topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
-
+        admin.topics().createNonPartitionedTopic(topic);
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<FooV2> deadLetterConsumer = newPulsarClient.newConsumer(Schema.AVRO(FooV2.class))
                 .topic(topic + "-" + subName + "-DLQ")
@@ -245,6 +236,14 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 messageIds.add(producer.newMessage(Schema.AVRO(FooV2.class)).value(foo).send().toString());
             }
         }
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
         producer.close();
 
         int totalReceived = 0;
