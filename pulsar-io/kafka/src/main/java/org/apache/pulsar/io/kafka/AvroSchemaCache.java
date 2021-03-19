@@ -97,8 +97,7 @@ final class AvroSchemaCache {
         }
     }
 
-
-    private static byte[] getBytes(ByteBuffer buffer) {
+     static byte[] getBytes(ByteBuffer buffer) {
         buffer.mark();
         byte[] avroEncodedData = new byte[buffer.remaining()];
         buffer.get(avroEncodedData);
