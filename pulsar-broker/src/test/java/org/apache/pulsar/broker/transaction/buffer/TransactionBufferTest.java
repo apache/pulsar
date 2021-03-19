@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -28,8 +29,10 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
@@ -45,6 +48,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test different {@link TransactionBufferProvider}.
  */
+@Test(groups = "broker")
 public class TransactionBufferTest {
 
     @DataProvider(name = "providers")
@@ -56,7 +60,7 @@ public class TransactionBufferTest {
 
     private final TxnID txnId = new TxnID(1234L, 2345L);
     private final String providerClassName;
-    private TransactionBufferProvider provider;
+    private final TransactionBufferProvider provider;
     private TransactionBuffer buffer;
 
     @Factory(dataProvider = "providers")
@@ -67,7 +71,8 @@ public class TransactionBufferTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        this.buffer = this.provider.newTransactionBuffer();
+        PersistentTopic persistentTopic = mock(PersistentTopic.class);
+        this.buffer = this.provider.newTransactionBuffer(persistentTopic, new CompletableFuture<>());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -101,7 +106,7 @@ public class TransactionBufferTest {
         }
     }
 
-//    @Test
+    @Test(enabled = false)
     public void testOpenReaderOnCommittedTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(txnId, numEntries, 0L);
@@ -195,7 +200,7 @@ public class TransactionBufferTest {
         verifyTxnNotExist(txnId);
     }
 
-//    @Test
+    @Test(enabled = false)
     public void testPurgeTxns() throws Exception {
         final int numEntries = 10;
         // create an OPEN txn
@@ -221,7 +226,7 @@ public class TransactionBufferTest {
         assertEquals(TxnStatus.COMMITTED, txnMeta3.status());
 
         // purge the transaction committed on ledger `22L`
-        buffer.purgeTxns(Lists.newArrayList(Long.valueOf(0L))).get();
+        buffer.purgeTxns(Lists.newArrayList(0L)).get();
 
         // txnId2 should be purged
         verifyTxnNotExist(txnId2);

@@ -797,9 +797,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     return this.loadOrCreatePersistentTopic(topicName, createIfMissing);
                 });
             } else {
-                return topics.computeIfAbsent(topic, (topicName) -> {
-                    if (createIfMissing) {
-                        return createNonPersistentTopic(topicName);
+                return topics.computeIfAbsent(topic, (name) -> {
+                    final TopicName topicName = TopicName.get(name);
+                    if (topicName.isPartitioned()) {
+                        final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                        return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
+                            if (topicName.getPartitionIndex() < metadata.partitions) {
+                                return createNonPersistentTopic(name);
+                            }
+                            return CompletableFuture.completedFuture(Optional.empty());
+                        });
+                    } else if (createIfMissing) {
+                        return createNonPersistentTopic(name);
                     } else {
                         return CompletableFuture.completedFuture(Optional.empty());
                     }

@@ -20,13 +20,11 @@ package org.apache.pulsar.broker.admin.v2;
 
 import static org.apache.pulsar.common.util.Codec.decode;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.collect.Maps;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -309,17 +307,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                             OffloadPolicies offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminAccessForTenant(tenant);
-        internalSetOffloadPolicies(offloadPolicies).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set offloadPolicies", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set offloadPolicies", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetOffloadPolicies(offloadPolicies).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set offloadPolicies"));
     }
 
     @DELETE
@@ -376,17 +365,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        internalSetMaxUnackedMessagesOnConsumer(maxUnackedNum).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set MaxUnackedMessagesOnConsumer", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set MaxUnackedMessagesOnConsumer", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetMaxUnackedMessagesOnConsumer(maxUnackedNum).whenComplete((res, ex)
+                        -> internalHandleResult(asyncResponse, res, ex, "Failed set MaxUnackedMessagesOnConsumer"));
     }
 
     @GET
@@ -426,17 +406,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        internalSetDeduplicationSnapshotInterval(interval).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set deduplicationSnapshotInterval", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set deduplicationSnapshotInterval", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetDeduplicationSnapshotInterval(interval).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set deduplicationSnapshotInterval"));
     }
 
     @DELETE
@@ -489,17 +460,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                          @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        internalGetInactiveTopicPolicies(applied).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed get InactiveTopicPolicies", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed get InactiveTopicPolicies", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(res);
-            }
-        });
+        internalGetInactiveTopicPolicies(applied).whenComplete((res, ex)
+                        -> internalHandleResult(asyncResponse, res, ex, "Failed get InactiveTopicPolicies"));
     }
 
     @POST
@@ -515,17 +477,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                         InactiveTopicPolicies inactiveTopicPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        internalSetInactiveTopicPolicies(inactiveTopicPolicies).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set InactiveTopicPolicies", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set InactiveTopicPolicies", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetInactiveTopicPolicies(inactiveTopicPolicies).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set InactiveTopicPolicies"));
     }
 
     @DELETE
@@ -550,15 +503,12 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getMaxUnackedMessagesOnSubscription(@Suspended final AsyncResponse asyncResponse,
                                                     @PathParam("tenant") String tenant,
                                                     @PathParam("namespace") String namespace,
-                                                    @PathParam("topic") @Encoded String encodedTopic) {
+                                                    @PathParam("topic") @Encoded String encodedTopic,
+                                                    @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-        if (topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
-            asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnSubscription());
-        } else {
-            asyncResponse.resume(Response.noContent().build());
-        }
+        internalGetMaxUnackedMessagesOnSubscription(applied).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed get maxUnackedMessagesOnSubscription"));
     }
 
     @POST
@@ -575,17 +525,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum).whenComplete((res, ex) -> {
-            if (ex instanceof RestException) {
-                log.error("Failed set MaxUnackedMessagesOnSubscription", ex);
-                asyncResponse.resume(ex);
-            } else if (ex != null) {
-                log.error("Failed set MaxUnackedMessagesOnSubscription", ex);
-                asyncResponse.resume(new RestException(ex));
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-            }
-        });
+        internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed set MaxUnackedMessagesOnSubscription"));
     }
 
 
@@ -1520,19 +1461,11 @@ public class PersistentTopics extends PersistentTopicsBase {
                     message = "Topic level policy is disabled, to enable the topic level policy and retry")})
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
                                                                   @PathParam("namespace") String namespace,
-                                                                  @PathParam("topic") @Encoded String encodedTopic) {
+                                                                  @PathParam("topic") @Encoded String encodedTopic,
+                                                                  @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        return getTopicPolicies(topicName)
-                .map(TopicPolicies::getBackLogQuotaMap)
-                .map(map -> {
-                    HashMap<BacklogQuotaType, BacklogQuota> hashMap = Maps.newHashMap();
-                    map.forEach((key, value) -> {
-                        hashMap.put(BacklogQuotaType.valueOf(key), value);
-                    });
-                    return hashMap;
-                })
-                .orElse(Maps.newHashMap());
+        return internalGetBacklogQuota(applied);
     }
 
     @POST
@@ -1810,21 +1743,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getPersistence(@Suspended final AsyncResponse asyncResponse,
                                @PathParam("tenant") String tenant,
                                @PathParam("namespace") String namespace,
-                               @PathParam("topic") @Encoded String encodedTopic) {
+                               @PathParam("topic") @Encoded String encodedTopic,
+                               @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<PersistencePolicies> persistencePolicies = internalGetPersistence();
-            if (!persistencePolicies.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
+        internalGetPersistence(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get persistence policies", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get persistence policies", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(persistencePolicies.get());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST
@@ -1993,21 +1926,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getReplicatorDispatchRate(@Suspended final AsyncResponse asyncResponse,
                                           @PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace,
-                                          @PathParam("topic") @Encoded String encodedTopic) {
+                                          @PathParam("topic") @Encoded String encodedTopic,
+                                          @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<DispatchRate> dispatchRate = internalGetReplicatorDispatchRate();
-            if (dispatchRate.isPresent()) {
-                asyncResponse.resume(dispatchRate.get());
+        internalGetReplicatorDispatchRate(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get replicator dispatchRate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get replicator dispatchRate", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(Response.noContent().build());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST
@@ -2553,21 +2486,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getDispatchRate(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic) {
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<DispatchRate> dispatchRate = internalGetDispatchRate();
-            if (!dispatchRate.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
+        internalGetDispatchRate(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get dispatchRate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get dispatchRate", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(dispatchRate.get());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST
@@ -2647,21 +2580,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getSubscriptionDispatchRate(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic) {
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<DispatchRate> dispatchRate = internalGetSubscriptionDispatchRate();
-            if (!dispatchRate.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
+        internalGetSubscriptionDispatchRate(applied).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get subscription dispatchRate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get subscription dispatchRate", ex);
+                asyncResponse.resume(new RestException(ex));
             } else {
-                asyncResponse.resume(dispatchRate.get());
+                asyncResponse.resume(res);
             }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        });
     }
 
     @POST
@@ -3096,21 +3029,13 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getSubscribeRate(@Suspended final AsyncResponse asyncResponse,
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace,
-                                @PathParam("topic") @Encoded String encodedTopic) {
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<SubscribeRate> subscribeRate = internalGetSubscribeRate();
-            if (!subscribeRate.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
-            } else {
-                asyncResponse.resume(subscribeRate.get());
-            }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        internalGetSubscribeRate(applied).whenComplete((res, ex) -> {
+            internalHandleResult(asyncResponse, res, ex, "Failed get subscribe rate");
+        });
     }
 
     @POST

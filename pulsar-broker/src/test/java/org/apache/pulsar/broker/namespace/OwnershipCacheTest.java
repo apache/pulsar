@@ -65,6 +65,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class OwnershipCacheTest {
     private static final Logger log = LoggerFactory.getLogger(OwnershipCacheTest.class);
 
@@ -111,8 +112,8 @@ public class OwnershipCacheTest {
         doReturn(localCache).when(pulsar).getLocalZkCacheService();
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(nsService).when(pulsar).getNamespaceService();
-        doReturn(Optional.ofNullable(new Integer(port))).when(config).getBrokerServicePort();
-        doReturn(Optional.ofNullable(null)).when(config).getWebServicePort();
+        doReturn(Optional.of(port)).when(config).getBrokerServicePort();
+        doReturn(Optional.empty()).when(config).getWebServicePort();
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(selfBrokerUrl).when(pulsar).getSafeBrokerServiceUrl();
     }

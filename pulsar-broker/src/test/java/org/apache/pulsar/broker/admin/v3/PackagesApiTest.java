@@ -35,6 +35,7 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 
+@Test(groups = "broker")
 public class PackagesApiTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
@@ -63,8 +64,7 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         admin.packages().upload(originalMetadata, packageName, file.getPath());
 
         // testing download api
-        String directory = file.getParent();
-        String downloadPath = directory + "package-api-test-download.package";
+        String downloadPath = new File(file.getParentFile(), "package-api-test-download.package").getPath();
         admin.packages().download(packageName, downloadPath);
         File downloadFile = new File(downloadPath);
         assertTrue(downloadFile.exists());

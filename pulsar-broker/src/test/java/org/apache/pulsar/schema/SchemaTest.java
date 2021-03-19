@@ -20,12 +20,14 @@ package org.apache.pulsar.schema;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import com.google.common.collect.Sets;
 
 import java.util.Collections;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
 import org.apache.pulsar.client.api.Consumer;
@@ -43,11 +45,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
+@Test(groups = "schema")
 public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     private final static String CLUSTER_NAME = "test";
@@ -137,8 +136,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.send(personTwo);
 
         Schemas.PersonTwo personConsume = consumer.receive().getValue();
-        assertEquals("Tom", personConsume.getName());
-        assertEquals(1, personConsume.getId());
+        assertEquals(personConsume.getName(), "Tom");
+        assertEquals(personConsume.getId(), 1);
 
         producer.close();
         consumer.close();

@@ -44,6 +44,20 @@
           <artifactId>java-test-functions</artifactId>
           <version>${project.parent.version}</version>
         </dependency>
+        <dependency>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-server-distribution</artifactId>
+          <version>${project.parent.version}</version>
+          <classifier>bin</classifier>
+          <type>tar.gz</type>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
       </dependencies>
       <build>
         <plugins>

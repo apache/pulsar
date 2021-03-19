@@ -238,9 +238,19 @@ public class PerformanceProducer {
         }
 
         if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
-            System.out.println("The size of topics list should be equal to --num-topic");
-            jc.usage();
-            System.exit(-1);
+            // keep compatibility with the previous version
+            if (arguments.topics.size() == 1) {
+                String prefixTopicName = arguments.topics.get(0);
+                List<String> defaultTopics = Lists.newArrayList();
+                for (int i = 0; i < arguments.numTopics; i++) {
+                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
+                }
+                arguments.topics = defaultTopics;
+            } else {
+                System.out.println("The size of topics list should be equal to --num-topic");
+                jc.usage();
+                System.exit(-1);
+            }
         }
 
         if (arguments.confFile != null) {

@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.schema.compatibility;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -44,17 +50,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
-import java.util.concurrent.ThreadLocalRandom;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-
 @Slf4j
+@Test(groups = "schema")
 public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     private final static String CLUSTER_NAME = "test";
 
@@ -242,7 +239,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
                 SchemaCompatibilityStrategy.FULL);
-        
+
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
@@ -332,12 +329,12 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 .topic(fqtn);
         producerOneBuilder.create().close();
 
-        assertArrayEquals(changeSchemaBytes, admin.schemas().getSchemaInfo(fqtn).getSchema());
+        assertEquals(changeSchemaBytes, admin.schemas().getSchemaInfo(fqtn).getSchema());
 
         ProducerBuilder<Schemas.PersonThree> producerThreeBuilder = pulsarClient
                 .newProducer(Schema.AVRO(Schemas.PersonThree.class))
                 .topic(fqtn);
-        
+
         try {
             producerThreeBuilder.create();
             fail();
@@ -390,7 +387,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         Message<Schemas.PersonOne> message = consumerOne.receive();
         personOne = message.getValue();
 
-        assertEquals(10, personOne.getId());
+        assertEquals(personOne.getId(), 10);
 
         consumerOne.close();
         producerOne.close();

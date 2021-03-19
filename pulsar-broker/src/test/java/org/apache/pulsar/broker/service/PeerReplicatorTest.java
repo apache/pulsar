@@ -46,18 +46,19 @@ import org.testng.collections.Lists;
 
 import com.google.common.collect.Sets;
 
+@Test(groups = "broker")
 public class PeerReplicatorTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         super.setup();
     }
 
     @Override
     @AfterClass(alwaysRun = true, timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
+    public void cleanup() throws Exception {
+        super.cleanup();
     }
 
     @DataProvider(name = "lookupType")
@@ -188,7 +189,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(groups = "broker")
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
         // clean up peer-clusters

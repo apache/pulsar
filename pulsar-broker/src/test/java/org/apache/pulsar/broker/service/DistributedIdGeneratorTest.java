@@ -37,6 +37,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class DistributedIdGeneratorTest {
 
     private MetadataStoreExtended store;
@@ -48,7 +49,7 @@ public class DistributedIdGeneratorTest {
         coordinationService = new CoordinationServiceImpl(store);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterMethod(alwaysRun = true, groups = "broker")
     public void teardown() throws Exception {
         coordinationService.close();
         store.close();

@@ -44,6 +44,11 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -51,6 +56,7 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -60,6 +66,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
+@Test(groups = "broker")
 public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
     private final static String TENANT = "tnx";
@@ -67,6 +74,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
     @BeforeMethod
     protected void setup() throws Exception {
+        setBrokerCount(1);
         internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
@@ -87,7 +95,21 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 .enableTransaction(true)
                 .build();
 
-        Thread.sleep(1000 * 3);
+        Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
+                getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+            if (stores.size() == 16) {
+                for (TransactionCoordinatorID transactionCoordinatorID : stores.keySet()) {
+                    if (((MLTransactionMetadataStore) stores.get(transactionCoordinatorID)).getState()
+                            != TransactionMetadataStoreState.State.Ready) {
+                        return false;
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
+        });
     }
 
     @AfterMethod(alwaysRun = true)
@@ -103,6 +125,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
+                .isAckReceiptEnabled(true)
                 .subscriptionName(subscriptionName)
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
@@ -189,6 +212,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 .subscriptionName(subscriptionName)
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true)
                 .ackTimeout(2, TimeUnit.SECONDS)
                 .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
                 .subscribe();
@@ -208,6 +232,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
         ConcurrentSkipListMap<PositionImpl, BitSetRecyclable> batchDeletedIndexes = null;
 
+        Message<byte[]>[] messages = new Message[2];
         for (int retryCnt = 0; retryCnt < 2; retryCnt++) {
 
             int messageCnt = 1000;
@@ -263,10 +288,12 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             //one message are not ack
                             assertEquals(batchDeletedIndexes.size(), 1);
                             assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
+                            messages[0] = consumer.receive();
                         } else {
                             //two message are not ack
-                            assertEquals(batchDeletedIndexes.size(), 1);
-                            assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
+                            assertEquals(batchDeletedIndexes.size(), 2);
+                            assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 2);
+                            messages[1] = consumer.receive();
                         }
                         count++;
                     }
@@ -278,15 +305,13 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         Transaction commitTwice = getTxn();
 
         //this message is in one batch point
-        Message<byte[]> message = consumer.receive();
-        consumer.acknowledge(message.getMessageId());
+        consumer.acknowledge(messages[0].getMessageId());
         assertEquals(batchDeletedIndexes.size(), 1);
         assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
 
         // this test is for the last message has been cleared in this consumer pending acks
         // and it won't clear the last message in cursor batch index ack set
-        message = consumer.receive();
-        consumer.acknowledgeAsync(message.getMessageId(), commitTwice).get();
+        consumer.acknowledgeAsync(messages[1].getMessageId(), commitTwice).get();
         assertEquals(batchDeletedIndexes.size(), 1);
         assertEquals(persistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
 
@@ -299,7 +324,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     private Transaction getTxn() throws Exception {
         return pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
                 .build()
                 .get();
     }

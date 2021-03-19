@@ -88,8 +88,7 @@ public class CLITest extends PulsarTestSuite {
                 "--subscription",
                 "" + subscriptionPrefix + i
             );
-            assertTrue(result.getStdout().isEmpty());
-            assertTrue(result.getStderr().isEmpty());
+            result.assertNoOutput();
             i++;
         }
     }
@@ -161,8 +160,7 @@ public class CLITest extends PulsarTestSuite {
             "-f",
             "/pulsar/conf/schema_example.conf"
         );
-        assertTrue(result.getStdout().isEmpty());
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoOutput();
 
         // get schema
         result = container.execCmd(
@@ -178,8 +176,7 @@ public class CLITest extends PulsarTestSuite {
             "schemas",
             "delete",
             topicName);
-        assertTrue(result.getStdout().isEmpty());
-        assertTrue(result.getStderr().isEmpty());
+        result.assertNoOutput();
 
         // get schema again
         try {
@@ -208,14 +205,7 @@ public class CLITest extends PulsarTestSuite {
         };
 
         result = pulsarCluster.runAdminCommandOnAnyBroker(setCommand);
-        assertTrue(
-            result.getStdout().isEmpty(),
-            result.getStdout()
-        );
-        assertTrue(
-            result.getStderr().isEmpty(),
-            result.getStdout()
-        );
+        result.assertNoOutput();
 
         String[] getCommand = {
             "namespaces", "get-retention", "public/" + namespace

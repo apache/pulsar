@@ -576,5 +576,21 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         return disconnectAllConsumers();
     }
 
+    @Override
+    public boolean checkAndUnblockIfStuck() {
+        if (cursor.checkAndUpdateReadPositionChanged()) {
+            return false;
+        }
+        Consumer consumer = ACTIVE_CONSUMER_UPDATER.get(this);
+        int totalAvailablePermits = consumer.getAvailablePermits();
+        // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
+        if (totalAvailablePermits > 0 && !havePendingRead && cursor.getNumberOfEntriesInBacklog(false) > 0) {
+            log.warn("{}-{} Dispatcher is stuck and unblocking by issuing reads", topic.getName(), name);
+            readMoreEntries(consumer);
+            return true;
+        }
+        return false;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
 }

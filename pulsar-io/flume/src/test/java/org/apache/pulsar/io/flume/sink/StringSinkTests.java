@@ -43,10 +43,10 @@ import org.apache.flume.source.AvroSource;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.flume.AbstractFlumeTests;
-import org.junit.Assert;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -64,7 +64,7 @@ public class StringSinkTests extends AbstractFlumeTests {
     private Channel channel;
 
     @BeforeMethod
-    public void setUp() throws Exception {
+    public void setUp() {
         mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);
         source = new AvroSource();
@@ -89,7 +89,7 @@ public class StringSinkTests extends AbstractFlumeTests {
         when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
             long sequenceCounter = 0;
 
-            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
+            public Optional<String> answer(InvocationOnMock invocation) {
                 return Optional.of("key-" + sequenceCounter++);
             }
         });
@@ -97,18 +97,18 @@ public class StringSinkTests extends AbstractFlumeTests {
         when(mockRecord.getValue()).thenAnswer(new Answer<String>() {
             long sequenceCounter = 0;
 
-            public String answer(InvocationOnMock invocation) throws Throwable {
+            public String answer(InvocationOnMock invocation) {
                 return new String("value-" + sequenceCounter++);
             }
         });
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() throws Exception {
+    public void tearDown() {
         source.stop();
     }
 
-    protected final void send(StringSink stringSink, int numRecords) throws Exception {
+    protected final void send(StringSink stringSink, int numRecords) {
         for (int idx = 0; idx < numRecords; idx++) {
             stringSink.write(mockRecord);
         }
