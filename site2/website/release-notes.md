@@ -8,7 +8,7 @@
 - Fix topic ownership is not checked when getting topic policy [#9781](https://github.com/apache/pulsar/pull/9781)
 - Fix Cannot consume using older subscriptions if max subscription limit is reached [#9758](https://github.com/apache/pulsar/pull/9758)
 - Fix marking individual deletes as dirty [#9732](https://github.com/apache/pulsar/pull/9732)
-- Don't add broker-address header if response has already been committed [#9744](https://github.com/apache/pulsar/pull/9744)
+- Fix broker-address header added when response has already been committed [#9744](https://github.com/apache/pulsar/pull/9744)
 - Fix ByteBuffer allocate error in the AirliftUtils [#9667](https://github.com/apache/pulsar/pull/9667)
 - Use Atomic Field Updater to increment volatile messagesConsumedCounter [#9656](https://github.com/apache/pulsar/pull/9656)
 - Schema comparison logic change [#9612](https://github.com/apache/pulsar/pull/9612)
@@ -108,7 +108,7 @@
 - Fix admin-api-brokers list failed [#9191](https://github.com/apache/pulsar/pull/9191)
 - Fix force delete namespace did not delete all topics of the namespace [#8806](https://github.com/apache/pulsar/pull/8806)
 - Change method `getWebServiceUrl` into async [#8746](https://github.com/apache/pulsar/pull/8746)
-- Cannot get lastMessageId for an empty topic due to message retention [#8725](https://github.com/apache/pulsar/pull/8725)
+- Fix cannot get lastMessageId for an empty topic due to message retention [#8725](https://github.com/apache/pulsar/pull/8725)
 
 #### Pulsar SQL
 
