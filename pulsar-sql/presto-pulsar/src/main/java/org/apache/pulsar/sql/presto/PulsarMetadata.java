@@ -112,11 +112,12 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     @Override
     public ConnectorTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName) {
+        TopicName topicName = checkPulsarTopic(tableName);
         return new PulsarTableHandle(
                 this.connectorId,
                 tableName.getSchemaName(),
                 tableName.getTableName(),
-                tableName.getTableName());
+                topicName.getLocalName());
     }
 
     @Override
@@ -261,40 +262,12 @@ public class PulsarMetadata implements ConnectorMetadata {
         if (schemaTableName.getSchemaName().equals(INFORMATION_SCHEMA)) {
             return null;
         }
-        String namespace = restoreNamespaceDelimiterIfNeeded(schemaTableName.getSchemaName(), pulsarConnectorConfig);
 
-        TopicName topicName = TopicName.get(
-                String.format("%s/%s", namespace, schemaTableName.getTableName()));
-
-        List<String> topics;
-        try {
-            if (!PulsarConnectorUtils.isPartitionedTopic(topicName, this.pulsarAdmin)) {
-                topics = this.pulsarAdmin.topics().getList(namespace);
-            } else {
-                topics = this.pulsarAdmin.topics().getPartitionedTopicList(namespace);
-            }
-        } catch (PulsarAdminException e) {
-            if (e.getStatusCode() == 404) {
-                throw new PrestoException(NOT_FOUND, "Schema " + namespace + " does not exist");
-            } else if (e.getStatusCode() == 401) {
-                throw new PrestoException(QUERY_REJECTED,
-                        String.format("Failed to get topics in schema %s: Unauthorized", namespace));
-            }
-            throw new RuntimeException("Failed to get topics in schema " + namespace
-                    + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
-        }
-
-        if (!topics.contains(topicName.toString())) {
-            log.error("Table %s not found",
-                    String.format("%s/%s", namespace,
-                            schemaTableName.getTableName()));
-            throw new TableNotFoundException(schemaTableName);
-        }
+        TopicName topicName = checkPulsarTopic(schemaTableName);
 
         SchemaInfo schemaInfo;
         try {
-            schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(
-                    String.format("%s/%s", namespace, schemaTableName.getTableName()));
+            schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(topicName.toString());
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
                 // use default schema because there is no schema
@@ -302,12 +275,11 @@ public class PulsarMetadata implements ConnectorMetadata {
 
             } else if (e.getStatusCode() == 401) {
                 throw new PrestoException(QUERY_REJECTED,
-                        String.format("Failed to get pulsar topic schema information for topic %s/%s: Unauthorized",
-                                namespace, schemaTableName.getTableName()));
+                        String.format("Failed to get pulsar topic schema information for topic %s: Unauthorized",
+                                topicName));
             } else {
                 throw new RuntimeException("Failed to get pulsar topic schema information for topic "
-                        + String.format("%s/%s", namespace, schemaTableName.getTableName())
-                        + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
+                        + topicName + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
             }
         }
         List<ColumnMetadata> handles = getPulsarColumns(
@@ -370,6 +342,49 @@ public class PulsarMetadata implements ConnectorMetadata {
                     .forEach(pulsarInternalColumn -> builder.add(pulsarInternalColumn.getColumnMetadata(false)));
         }
         return builder.build();
+    }
+
+    private TopicName checkPulsarTopic(SchemaTableName schemaTableName) {
+        String namespace = restoreNamespaceDelimiterIfNeeded(schemaTableName.getSchemaName(), pulsarConnectorConfig);
+
+        TopicName topicName = TopicName.get(
+                String.format("%s/%s", namespace, schemaTableName.getTableName()));
+
+        List<String> topics;
+        try {
+            if (!PulsarConnectorUtils.isPartitionedTopic(topicName, this.pulsarAdmin)) {
+                topics = this.pulsarAdmin.topics().getList(namespace);
+            } else {
+                topics = this.pulsarAdmin.topics().getPartitionedTopicList(namespace);
+            }
+        } catch (PulsarAdminException e) {
+            if (e.getStatusCode() == 404) {
+                throw new PrestoException(NOT_FOUND, "Schema " + namespace + " does not exist");
+            } else if (e.getStatusCode() == 401) {
+                throw new PrestoException(QUERY_REJECTED,
+                        String.format("Failed to get topics in schema %s: Unauthorized", namespace));
+            }
+            throw new RuntimeException("Failed to get topics in schema " + namespace
+                    + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
+        }
+
+        final String matchedName = topicName.toString();
+        List<String> matchedTopics = topics.stream()
+                .filter(t -> t.toLowerCase().contains(matchedName))
+                .collect(Collectors.toList());
+
+        if (matchedTopics.size() == 0) {
+            log.error("Table %s not found", String.format("%s/%s", namespace, schemaTableName.getTableName()));
+            throw new TableNotFoundException(schemaTableName);
+        } else if (matchedTopics.size() != 1) {
+            String errMsg = String.format("There are multiple topics %s matched the table name %s",
+                    matchedTopics.toString(),
+                    String.format("%s/%s", namespace, schemaTableName.getTableName()));
+            log.error(errMsg);
+            throw new TableNotFoundException(schemaTableName, errMsg);
+        }
+        log.info("matched topic: " + matchedTopics.get(0));
+        return TopicName.get(matchedTopics.get(0));
     }
 
 }

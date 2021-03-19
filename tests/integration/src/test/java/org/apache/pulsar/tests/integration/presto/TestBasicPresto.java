@@ -35,6 +35,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -101,6 +103,25 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         }
         String topic = String.format("public/default/schema_%s_test_%s", schemaFlag, randomName(5)).toLowerCase();
         pulsarSQLBasicTest(TopicName.get(topic), false, false, schema);
+    }
+
+    @Test
+    public void testForUpperCaseTopic() throws Exception {
+        TopicName topicName = TopicName.get("public/default/case_UPPER_topic_" + randomName(5));
+        pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class));
+    }
+
+    @Test
+    public void testForDifferentCaseTopic() throws Exception {
+        String randomSuffix = randomName(5);
+        TopicName topicName1 = TopicName.get("public/default/diff_CASE_topic_" + randomSuffix);
+        TopicName topicName2 = TopicName.get("public/default/diff_case_topic_" + randomSuffix);
+        prepareData(topicName1, false, false, JSONSchema.of(Stock.class));
+        prepareData(topicName2, false, false, JSONSchema.of(Stock.class));
+        ContainerExecResult result =
+                execQuery("select * from pulsar.\"public/default\".\"diff_case_topic_\"" + randomSuffix);
+        log.info(result.getStdout());
+        Assert.assertTrue(result.getStdout().contains("failed: There are multiple topics"));
     }
 
     @Override

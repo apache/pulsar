@@ -102,8 +102,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         TupleDomain<ColumnHandle> tupleDomain = layoutHandle.getTupleDomain();
 
         String namespace = restoreNamespaceDelimiterIfNeeded(tableHandle.getSchemaName(), pulsarConnectorConfig);
-        TopicName topicName = TopicName.get("persistent", NamespaceName.get(namespace),
-                tableHandle.getTableName());
+        TopicName topicName = TopicName.get("persistent", NamespaceName.get(namespace), tableHandle.getTopicName());
 
         SchemaInfo schemaInfo;
 
@@ -251,7 +250,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 numSplits,
                 tableHandle,
                 schemaInfo,
-                tableHandle.getTableName(),
+                topicName.getLocalName(),
                 tupleDomain,
                 offloadPolicies);
     }
