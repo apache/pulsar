@@ -86,6 +86,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         server.stop();
+        metadataStoreInstanceCache.clear();
     }
 
     /**
