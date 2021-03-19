@@ -112,10 +112,19 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         if (produceKeyValue) {
             Object key = extractSimpleValue(consumerRecord.key());
             Object value = extractSimpleValue(consumerRecord.value());
+            Schema currentKeySchema = getSchemaFromObject(consumerRecord.key(), keySchema);
+            Schema currentValueSchema = getSchemaFromObject(consumerRecord.value(), valueSchema);
+            log.info("buildKVRecord {} {} {} {}", key, value, currentKeySchema, currentValueSchema);
+            if (currentKeySchema instanceof AutoProduceBytesSchema) {
+                throw new RuntimeException();
+            }
+            if (currentValueSchema instanceof AutoProduceBytesSchema) {
+                throw new RuntimeException();
+            }
             return new KeyValueKafkaRecord(consumerRecord,
                     new KeyValue<>(key, value),
-                    keySchema,
-                    valueSchema);
+                    currentKeySchema,
+                    currentValueSchema);
 
         } else {
             return new KafkaRecord(consumerRecord,
@@ -146,9 +155,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         Schema localValueSchema = getSchemaFromObject(value, valueSchema);
 
         if (produceKeyValue) {
-            Object key = consumerRecord.key();
-            Schema localKeySchema = getSchemaFromObject(key, keySchema);
-            return KeyValueSchema.of(localKeySchema, localValueSchema, KeyValueEncodingType.INLINE);
+            throw new IllegalStateException();
         } else {
             return localValueSchema;
         }
@@ -160,31 +167,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             // the schema may be different from record to record
             return schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId());
         } else {
-            return new Schema<ByteBuffer>() {
-                @Override
-                public byte[] encode(ByteBuffer message) {
-                    return getBytes(message);
-                }
-
-                @Override
-                public SchemaInfo getSchemaInfo() {
-                    return fallback.getSchemaInfo();
-                }
-
-                @Override
-                public Schema<ByteBuffer> clone() {
-                    return this;
-                }
-
-                @Override
-                public ByteBuffer decode(byte[] bytes, byte[] schemaVersion) {
-                    throw new UnsupportedOperationException();
-                }
-
-                public String toString() {
-                    return "{schema wrapper for "+fallback+"}";
-                }
-            };
+            return new ByteBufferSchemaAdapter(fallback);
         }
     }
 
@@ -253,5 +236,37 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
     boolean isProduceKeyValue() {
         return produceKeyValue;
+    }
+
+    private static class ByteBufferSchemaAdapter implements Schema<ByteBuffer> {
+        private final Schema fallback;
+
+        public ByteBufferSchemaAdapter(Schema fallback) {
+            this.fallback = fallback;
+        }
+
+        @Override
+        public byte[] encode(ByteBuffer message) {
+            return getBytes(message);
+        }
+
+        @Override
+        public SchemaInfo getSchemaInfo() {
+            return fallback.getSchemaInfo();
+        }
+
+        @Override
+        public Schema<ByteBuffer> clone() {
+            return this;
+        }
+
+        @Override
+        public ByteBuffer decode(byte[] bytes, byte[] schemaVersion) {
+            throw new UnsupportedOperationException();
+        }
+
+        public String toString() {
+            return "{schema wrapper for "+ fallback +"}";
+        }
     }
 }
