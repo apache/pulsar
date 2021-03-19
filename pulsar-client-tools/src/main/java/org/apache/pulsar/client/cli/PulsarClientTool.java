@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -64,6 +65,9 @@ public class PulsarClientTool {
             "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
             "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
     String authParams = null;
+
+    @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar client")
+    Boolean version;
 
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
@@ -154,6 +158,12 @@ public class PulsarClientTool {
             if (isBlank(this.serviceURL)) {
                 commandParser.usage();
                 return -1;
+            }
+
+            if (version) {
+                String clientVersion = PulsarVersion.getVersion();
+                System.out.println("Current version of pulsar client is: " + clientVersion);
+                return 0;
             }
 
             if (help) {
