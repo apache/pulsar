@@ -18,21 +18,21 @@
  */
 package org.apache.pulsar.discovery.service.web;
 
-import static org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.apache.pulsar.discovery.service.web.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
+public class MetadataStoreCacheLoaderTest extends BaseZKStarterTest {
 
     @BeforeMethod
     private void init() throws Exception {
@@ -62,19 +62,17 @@ public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
     @Test
     public void testZookeeperCacheLoader() throws InterruptedException, KeeperException, Exception {
 
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
-
+        PulsarResources resources = new PulsarResources(zkStore, null);
         @SuppressWarnings("resource")
-        ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(), "", 30_000);
+        MetadataStoreCacheLoader zkLoader = new MetadataStoreCacheLoader(resources, 30_000);
 
         List<String> brokers = Lists.newArrayList("broker-1:15000", "broker-2:15000", "broker-3:15000");
         for (int i = 0; i < brokers.size(); i++) {
             try {
                 LoadManagerReport report = i % 2 == 0 ? getSimpleLoadManagerLoadReport(brokers.get(i))
                         : getModularLoadManagerLoadReport(brokers.get(i));
-                zkLoader.getLocalZkCache().getZooKeeper().create(LOADBALANCE_BROKERS_ROOT + "/" + brokers.get(i),
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
+                zkStore.put(LOADBALANCE_BROKERS_ROOT + "/" + brokers.get(i),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), Optional.of(-1L));
             } catch (Exception e) {
                 fail("failed while creating broker znodes");
             }
@@ -100,9 +98,8 @@ public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
         // 4.a add new broker
         final String newBroker = "broker-4:15000";
         LoadManagerReport report = getSimpleLoadManagerLoadReport(newBroker);
-        zkLoader.getLocalZkCache().getZooKeeper().create(LOADBALANCE_BROKERS_ROOT + "/" + newBroker,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        zkStore.put(LOADBALANCE_BROKERS_ROOT + "/" + newBroker,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), Optional.of(-1L));
         brokers.add(newBroker);
 
         Thread.sleep(100); // wait for 100 msec: to get cache updated
