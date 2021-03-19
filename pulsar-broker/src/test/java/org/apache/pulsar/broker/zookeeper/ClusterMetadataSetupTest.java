@@ -28,6 +28,7 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
+@Test(groups = "broker")
 public class ClusterMetadataSetupTest {
     private ZookeeperServerTest localZkS;
 

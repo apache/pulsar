@@ -36,6 +36,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
 
     @Test

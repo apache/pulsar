@@ -88,7 +88,7 @@ public class LocalBookkeeperEnsemble {
     public static final int CONNECTION_TIMEOUT = 30000;
 
     int numberOfBookies;
-    private boolean clearOldData;
+    private final boolean clearOldData;
 
     private static class BasePortManager implements Supplier<Integer> {
 
@@ -149,11 +149,11 @@ public class LocalBookkeeperEnsemble {
         this.clearOldData = clearOldData;
         this.zkPort = zkPort;
         this.advertisedAddress = null == advertisedAddress ? "127.0.0.1" : advertisedAddress;
-        LOG.info("Running {} bookie(s) and advertised them at {}.", this.numberOfBookies, advertisedAddress);
+        LOG.info("Running {} bookie(s) and advertised them at {}.", this.numberOfBookies, this.advertisedAddress);
     }
 
     private String HOSTPORT;
-    private String advertisedAddress;
+    private final String advertisedAddress;
     private int zkPort;
 
     NIOServerCnxnFactory serverFactory;
@@ -285,7 +285,7 @@ public class LocalBookkeeperEnsemble {
         for (int i = 0; i < numberOfBookies; i++) {
 
             File bkDataDir = isNotBlank(bkDataDirName)
-                    ? Files.createDirectories(Paths.get(bkDataDirName + Integer.toString(i))).toFile()
+                    ? Files.createDirectories(Paths.get(bkDataDirName + i)).toFile()
                     : createTempDirectory("bk" + Integer.toString(i) + "test");
 
             if (this.clearOldData) {
@@ -518,7 +518,7 @@ public class LocalBookkeeperEnsemble {
 
     /* Watching SyncConnected event from ZooKeeper */
     public static class ZKConnectionWatcher implements Watcher {
-        private CountDownLatch clientConnectLatch = new CountDownLatch(1);
+        private final CountDownLatch clientConnectLatch = new CountDownLatch(1);
 
         @Override
         public void process(WatchedEvent event) {
@@ -541,7 +541,7 @@ public class LocalBookkeeperEnsemble {
 
     public static boolean waitForServerUp(String hp, long timeout) {
         long start = System.currentTimeMillis();
-        String split[] = hp.split(":");
+        String[] split = hp.split(":");
         String host = split[0];
         int port = Integer.parseInt(split[1]);
         while (true) {

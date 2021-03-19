@@ -838,7 +838,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer1.receive();
         consumer1.acknowledge(consumer1.receive());
 
-        // The consumer1 and consumer2 should be stucked because of the mark delete position did not move forward.
+        // The consumer1 and consumer2 should be stuck because of the mark delete position did not move forward.
 
         @Cleanup
         Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)

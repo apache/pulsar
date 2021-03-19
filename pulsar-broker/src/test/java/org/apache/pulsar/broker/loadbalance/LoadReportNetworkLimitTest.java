@@ -27,7 +27,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class LoadReportNetworkLimit extends MockedPulsarServiceBaseTest {
+@Test(groups = "broker")
+public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
     int nicCount;
 
     @BeforeClass

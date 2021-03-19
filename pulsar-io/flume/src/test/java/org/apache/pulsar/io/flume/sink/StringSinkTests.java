@@ -64,7 +64,7 @@ public class StringSinkTests extends AbstractFlumeTests {
     private Channel channel;
 
     @BeforeMethod
-    public void setUp() throws Exception {
+    public void setUp() {
         mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);
         source = new AvroSource();
@@ -89,7 +89,7 @@ public class StringSinkTests extends AbstractFlumeTests {
         when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
             long sequenceCounter = 0;
 
-            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
+            public Optional<String> answer(InvocationOnMock invocation) {
                 return Optional.of("key-" + sequenceCounter++);
             }
         });
@@ -97,18 +97,18 @@ public class StringSinkTests extends AbstractFlumeTests {
         when(mockRecord.getValue()).thenAnswer(new Answer<String>() {
             long sequenceCounter = 0;
 
-            public String answer(InvocationOnMock invocation) throws Throwable {
+            public String answer(InvocationOnMock invocation) {
                 return new String("value-" + sequenceCounter++);
             }
         });
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() throws Exception {
+    public void tearDown() {
         source.stop();
     }
 
-    protected final void send(StringSink stringSink, int numRecords) throws Exception {
+    protected final void send(StringSink stringSink, int numRecords) {
         for (int idx = 0; idx < numRecords; idx++) {
             stringSink.write(mockRecord);
         }

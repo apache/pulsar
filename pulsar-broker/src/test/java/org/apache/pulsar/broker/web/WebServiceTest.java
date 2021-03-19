@@ -68,12 +68,9 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.zookeeper.MockedZooKeeperClientFactoryImpl;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
@@ -88,8 +85,8 @@ import org.testng.annotations.Test;
 /**
  * Tests for the {@code WebService} class. Note that this test only covers the newly added ApiVersionFilter related
  * tests for now as this test class was added quite a bit after the class was written.
- *
  */
+@Test(groups = "broker")
 public class WebServiceTest {
 
     private PulsarService pulsar;
@@ -421,7 +418,7 @@ public class WebServiceTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    void teardown() throws Exception {
+    void teardown() {
         if (pulsar != null) {
             try {
                 pulsar.close();

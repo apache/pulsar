@@ -41,6 +41,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class ResendRequestTest extends BrokerTestBase {
     private static final long testTimeout = 60000; // 1 min
     private static final Logger log = LoggerFactory.getLogger(ResendRequestTest.class);
@@ -65,8 +66,8 @@ public class ResendRequestTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
 
-        HashSet<MessageId> messageIdHashSet = new HashSet<MessageId>();
-        HashSet<String> messageDataHashSet = new HashSet<String>();
+        HashSet<MessageId> messageIdHashSet = new HashSet<>();
+        HashSet<String> messageDataHashSet = new HashSet<>();
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -652,7 +653,7 @@ public class ResendRequestTest extends BrokerTestBase {
                 messageCount2 += 1;
             }
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-        } while (message1 != null || message2 != null);
+        } while (message2 != null);
         log.info(key + " messageCount1 = " + messageCount1);
         log.info(key + " messageCount2 = " + messageCount2);
         log.info(key + " ackCount1 = " + ackCount1);

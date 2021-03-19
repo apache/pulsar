@@ -76,6 +76,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 @Slf4j
+@Test(groups = "broker")
 public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
@@ -104,7 +105,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Producer producer = pulsarClient.newProducer().topic(testTopic).create();
         producer.close();
         waitForZooKeeperWatchers();
-        return;
     }
 
     @AfterMethod(alwaysRun = true)
