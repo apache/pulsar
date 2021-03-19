@@ -30,6 +30,7 @@ import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -112,6 +113,15 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             return null;
         }
         return schema.getSchemaInfo();
+    }
+
+    public CompletableFuture<SchemaInfo> getSchemaInfo(byte[] schemaVersion) {
+        ensureSchemaInitialized();
+        if (schemaVersion == null) {
+            return CompletableFuture.completedFuture(schema.getSchemaInfo());
+        } else {
+            return schemaInfoProvider.getSchemaByVersion(schemaVersion);
+        }
     }
 
     @Override

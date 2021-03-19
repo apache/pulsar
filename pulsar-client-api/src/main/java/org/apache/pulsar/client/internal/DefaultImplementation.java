@@ -298,6 +298,13 @@ public class DefaultImplementation {
                         .newInstance(schema));
     }
 
+    public static <T> Schema<T> newAutoProduceClassSchema(Schema<T> schema) {
+        return catchExceptions(
+                () -> (Schema<T>) getConstructor(
+                        "org.apache.pulsar.client.impl.schema.AutoProduceSchema", Schema.class)
+                        .newInstance(schema));
+    }
+
     public static Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema() {
         return catchExceptions(
                 () -> (Schema<KeyValue<byte[], byte[]>>) getStaticMethod(
