@@ -109,6 +109,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(NamespacesTest.class);
     private Namespaces namespaces;
@@ -119,6 +120,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     private final String testOtherTenant = "other-tenant";
     private final String testLocalCluster = "use";
     private final String testOtherCluster = "usc";
+
+    public static final long THREE_MINUTE_MILLIS = 180000;
 
     protected NamespaceService nsSvc;
     protected Field uriField;
@@ -1479,7 +1482,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace(namespace);
     }
 
-    @Test
+    @Test(timeOut = THREE_MINUTE_MILLIS)
     public void testMaxTopicsPerNamespace() throws Exception {
         cleanup();
         conf.setMaxTopicsPerNamespace(15);
@@ -1709,8 +1712,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     private void assertValidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
                                                                int retentionSizeInMB) throws PulsarAdminException {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
-        RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
-        policies.retention_policies = retention;
+        policies.retention_policies = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
         admin.namespaces().createNamespace(namespace, policies);
         admin.namespaces().deleteNamespace(namespace);
     }

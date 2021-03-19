@@ -65,7 +65,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         this.service = service;
-        this.request = request;
+        this.request = new WebSocketHttpServletRequestWrapper(request);
         this.topic = extractTopicName(request);
 
         this.queryParams = new TreeMap<>();

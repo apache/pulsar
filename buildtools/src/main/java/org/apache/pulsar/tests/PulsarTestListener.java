@@ -35,7 +35,7 @@ public class PulsarTestListener implements ITestListener {
 
     @Override
     public void onTestSuccess(ITestResult result) {
-        System.out.format("------- SUCCESS -- %s.%s(%s)-------", result.getTestClass(),
+        System.out.format("------- SUCCESS -- %s.%s(%s)-------\n", result.getTestClass(),
                 result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
     }
 
@@ -52,7 +52,7 @@ public class PulsarTestListener implements ITestListener {
 
     @Override
     public void onTestSkipped(ITestResult result) {
-        System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------", result.getTestClass(),
+        System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------\n", result.getTestClass(),
                 result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
     }
 

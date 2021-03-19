@@ -55,7 +55,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyRolesEnforcementTest.class);
 
     public static class BasicAuthenticationData implements AuthenticationDataProvider {
-        private String authParam;
+        private final String authParam;
 
         public BasicAuthenticationData(String authParam) {
             this.authParam = authParam;
@@ -150,16 +150,16 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         conf.setBrokerClientAuthenticationParameters("authParam:broker");
 
-        Set<String> superUserRoles = new HashSet<String>();
+        Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("admin");
         conf.setSuperUserRoles(superUserRoles);
 
-        Set<String> providers = new HashSet<String>();
+        Set<String> providers = new HashSet<>();
         providers.add(BasicAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providers);
 
         conf.setClusterName("test");
-        Set<String> proxyRoles = new HashSet<String>();
+        Set<String> proxyRoles = new HashSet<>();
         proxyRoles.add("proxy");
         conf.setProxyRoles(proxyRoles);
 

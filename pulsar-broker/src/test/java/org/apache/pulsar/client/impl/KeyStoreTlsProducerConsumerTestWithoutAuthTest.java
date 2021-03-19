@@ -23,13 +23,11 @@ import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -46,9 +44,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-// TLS authentication and authorization based on KeyStore type config.
+// TLS test without authentication and authorization based on KeyStore type config.
 @Slf4j
-public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBase {
+@Test(groups = "broker-impl")
+public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerConsumerBase {
     protected final String BROKER_KEYSTORE_FILE_PATH =
             "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
     protected final String BROKER_TRUSTSTORE_FILE_PATH =
@@ -63,10 +62,10 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
     protected final String CLIENT_KEYSTORE_PW = "111111";
     protected final String CLIENT_TRUSTSTORE_PW = "111111";
 
-    protected final String CLIENT_KEYSTORE_CN = "clientuser";
     protected final String KEYSTORE_TYPE = "JKS";
 
     private final String clusterName = "use";
+    Set<String> tlsProtocols = Sets.newConcurrentHashSet();
 
     @BeforeMethod
     @Override
@@ -75,7 +74,6 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         internalSetUpForBroker();
 
         // Start Broker
-
         super.init();
     }
 
@@ -100,14 +98,8 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
 
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
-
-        // config for authentication and authorization.
-        conf.setSuperUserRoles(Sets.newHashSet(CLIENT_KEYSTORE_CN));
-        conf.setAuthenticationEnabled(true);
-        conf.setAuthorizationEnabled(true);
-        Set<String> providers = new HashSet<>();
-        providers.add(AuthenticationProviderTls.class.getName());
-        conf.setAuthenticationProviders(providers);
+        tlsProtocols.add("TLSv1.2");
+        conf.setTlsProtocols(tlsProtocols);
         conf.setNumExecutorThreadPoolSize(5);
     }
 
@@ -116,16 +108,12 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
             pulsarClient.close();
         }
 
-        Set<String> tlsProtocols = Sets.newConcurrentHashSet();
-        tlsProtocols.add("TLSv1.2");
-
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
                 .enableTls(true)
                 .useKeyStoreTls(true)
                 .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
                 .tlsTrustStorePassword(BROKER_TRUSTSTORE_PW)
                 .allowTlsInsecureConnection(false)
-                .tlsProtocols(tlsProtocols)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         if (addCertificates) {
             Map<String, String> authParams = new HashMap<>();
@@ -150,7 +138,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
                 .useKeyStoreTls(true)
                 .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
                 .tlsTrustStorePassword(BROKER_TRUSTSTORE_PW)
-                .allowTlsInsecureConnection(false)
+                .allowTlsInsecureConnection(true)
                 .authentication(AuthenticationKeyStoreTls.class.getName(), authParams).build());
         admin.clusters().createCluster(clusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()));
@@ -201,7 +189,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(timeOut = 300000)
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -223,18 +211,17 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
             // OK
         }
 
-        // Using TLS on binary protocol - sending certs
+        // Test 2 - Using TLS on binary protocol - sending certs
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
-
-        // Should not fail since certs are sent
-        pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscribe();
+        try {
+            pulsarClient.newConsumer().topic(topicName)
+                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+        } catch (Exception ex) {
+            Assert.fail("Should not fail since certs are sent.");
+        }
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -257,12 +244,12 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
 
         // Test 2 - Using TLS on https - sending certs
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
-        // Should not fail since certs are sent
-        pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscribe();
+        try {
+            pulsarClient.newConsumer().topic(topicName)
+                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
+        } catch (Exception ex) {
+            Assert.fail("Should not fail since certs are sent.");
+        }
     }
 
 }

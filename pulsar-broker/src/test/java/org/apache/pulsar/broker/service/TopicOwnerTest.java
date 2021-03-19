@@ -72,6 +72,7 @@ import org.testng.annotations.Test;
 
 import java.util.Optional;
 
+@Test(groups = "broker")
 public class TopicOwnerTest {
 
     private static final Logger log = LoggerFactory.getLogger(TopicOwnerTest.class);

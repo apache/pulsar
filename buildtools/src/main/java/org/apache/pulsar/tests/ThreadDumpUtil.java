@@ -40,7 +40,7 @@ import javax.management.ObjectName;
 public class ThreadDumpUtil {
     static final String TEST_TIMED_OUT_PREFIX = "test timed out after";
 
-    private static String INDENT = "    ";
+    private static final String INDENT = "    ";
 
     public static String buildThreadDiagnosticString() {
         StringWriter sw = new StringWriter();

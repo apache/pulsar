@@ -95,20 +95,32 @@ All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}
 
 The following metrics are available for broker:
 
-* [Namespace metrics](#namespace-metrics)
-    * [Replication metrics](#replication-metrics)
-* [Topic metrics](#topic-metrics)
-    * [Replication metrics](#replication-metrics-1)
-* [ManagedLedgerCache metrics](#managedledgercache-metrics)
-* [ManagedLedger metrics](#managedledger-metrics)
-* [LoadBalancing metrics](#loadbalancing-metrics)
-    * [BundleUnloading metrics](#bundleunloading-metrics)
-    * [BundleSplit metrics](#bundlesplit-metrics)
-* [Subscription metrics](#subscription-metrics)
-* [Consumer metrics](#consumer-metrics)
-* [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
-* [Token metrics](#token-metrics)
-* [Authentication metrics](#authentication-metrics) 
+- [ZooKeeper](#zookeeper)
+  - [Server metrics](#server-metrics)
+  - [Request metrics](#request-metrics)
+- [BookKeeper](#bookkeeper)
+  - [Server metrics](#server-metrics-1)
+  - [Journal metrics](#journal-metrics)
+  - [Storage metrics](#storage-metrics)
+- [Broker](#broker)
+  - [Namespace metrics](#namespace-metrics)
+    - [Replication metrics](#replication-metrics)
+  - [Topic metrics](#topic-metrics)
+    - [Replication metrics](#replication-metrics-1)
+  - [ManagedLedgerCache metrics](#managedledgercache-metrics)
+  - [ManagedLedger metrics](#managedledger-metrics)
+  - [LoadBalancing metrics](#loadbalancing-metrics)
+    - [BundleUnloading metrics](#bundleunloading-metrics)
+    - [BundleSplit metrics](#bundlesplit-metrics)
+  - [Subscription metrics](#subscription-metrics)
+  - [Consumer metrics](#consumer-metrics)
+  - [Managed ledger bookie client metrics](#managed-ledger-bookie-client-metrics)
+  - [Token metrics](#token-metrics)
+  - [Authentication metrics](#authentication-metrics)
+  - [Connection metrics](#connection-metrics)
+- [Pulsar Functions](#pulsar-functions)
+- [Proxy](#proxy)
+- [Pulsar SQL Worker](#pulsar-sql-worker)
 
 ### Namespace metrics
 
@@ -365,6 +377,24 @@ All the authentication metrics are labelled with the following labels:
 |---|---|---|
 | pulsar_authentication_success_count| Counter | The number of successful authentication operations. |
 | pulsar_authentication_failures_count | Counter | The number of failing authentication operations. |
+
+### Connection metrics
+
+All the connection metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+- *broker*: `broker=${advertised_address}`. `${advertised_address}` is the advertised address of the broker.
+- *metric*: `metric=${metric}`. `${metric}` is the connection metric collective name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_active_connections| Gauge | The number of active connections. |
+| pulsar_connection_created_total_count | Gauge | The total number of connections. |
+| pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
+| pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
+| pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
+| pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
+| pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections because of per-connection limit. |
 
 ## Pulsar Functions
 

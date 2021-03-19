@@ -55,8 +55,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-/**
- */
+@Test(groups = "broker")
 public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @BeforeClass
@@ -205,7 +204,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared).messageListener((consumer, msg) -> {
-                    // do notthing
+                    // do nothing
                 }).subscribe();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);

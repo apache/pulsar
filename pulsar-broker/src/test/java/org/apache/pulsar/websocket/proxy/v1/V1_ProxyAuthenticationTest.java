@@ -57,6 +57,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "websocket")
 public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
     private ProxyServer proxyServer;
@@ -94,7 +95,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
     }
 
     @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         ExecutorService executor = newFixedThreadPool(1);
         try {
             executor.submit(() -> {
@@ -122,7 +123,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
     }
 
-    public void socketTest() throws Exception {
+    private void socketTest() throws Exception {
         final String topic = "prop/use/my-ns/my-topic1";
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/consumer/persistent/" + topic + "/my-sub";
         final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/producer/persistent/" + topic;
@@ -151,18 +152,18 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void authenticatedSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void anonymousSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut=10000)
-    public void unauthenticatedSocketTest() throws Exception{
+    @Test(timeOut = 10000)
+    public void unauthenticatedSocketTest() {
         Exception exception = null;
         try {
             socketTest();
@@ -172,7 +173,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         Assert.assertTrue(exception instanceof java.util.concurrent.ExecutionException);
     }
 
-    @Test(timeOut=10000)
+    @Test(timeOut = 10000)
     public void statsTest() throws Exception {
         final String topic = "prop/use/my-ns/my-topic2";
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/consumer/persistent/" + topic + "/my-sub";
@@ -223,7 +224,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
     private void verifyResponseStatus(Client client, String url) {
         WebTarget webTarget = client.target(url);
         Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
-        Response response = (Response) invocationBuilder.get();
+        Response response = invocationBuilder.get();
         Assert.assertEquals(response.getStatus(), 200);
     }
 

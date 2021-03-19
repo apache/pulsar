@@ -221,6 +221,10 @@ public class PulsarStats implements Closeable {
         return metricsCollection;
     }
 
+    public BrokerOperabilityMetrics getBrokerOperabilityMetrics() {
+        return brokerOperabilityMetrics;
+    }
+
     public Map<String, NamespaceBundleStats> getBundleStats() {
         return bundleStats;
     }
@@ -243,5 +247,21 @@ public class PulsarStats implements Closeable {
         } catch (Exception ex) {
             log.warn("Exception while recording zk-latency {}, {}", eventType, ex.getMessage());
         }
+    }
+
+    public void recordConnectionCreate() {
+        brokerOperabilityMetrics.recordConnectionCreate();
+    }
+
+    public void recordConnectionClose() {
+        brokerOperabilityMetrics.recordConnectionClose();
+    }
+
+    public void recordConnectionCreateSuccess() {
+        brokerOperabilityMetrics.recordConnectionCreateSuccess();
+    }
+
+    public void recordConnectionCreateFail() {
+        brokerOperabilityMetrics.recordConnectionCreateFail();
     }
 }

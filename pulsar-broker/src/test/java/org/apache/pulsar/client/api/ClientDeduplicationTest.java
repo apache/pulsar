@@ -30,7 +30,9 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class ClientDeduplicationTest extends ProducerConsumerBase {
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -58,7 +60,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerSequenceAfterReconnect() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
+        final String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
@@ -178,8 +180,14 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Set infinite timeout
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
-                .producerName("my-producer-name").enableBatching(true).batchingMaxMessages(10).sendTimeout(0, TimeUnit.SECONDS);
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer()
+                        .topic(topic)
+                        .producerName("my-producer-name")
+                        .enableBatching(true)
+                        .batchingMaxMessages(10)
+                        .sendTimeout(0, TimeUnit.SECONDS);
+
         Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);

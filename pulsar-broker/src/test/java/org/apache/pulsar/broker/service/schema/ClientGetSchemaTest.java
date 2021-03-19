@@ -47,6 +47,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
+@Test(groups = "broker")
 public class ClientGetSchemaTest extends ProducerConsumerBase {
 
     private static final String topicBytes = "my-property/my-ns/topic-bytes";
@@ -94,7 +95,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
     }
 
     @DataProvider(name = "serviceUrl")
-    public String[] serviceUrls() {
+    public Object[] serviceUrls() {
         return new String[] {
                 pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress()
@@ -151,7 +152,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
                         .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
                 .topic(fqtnOne).create();
 
-        assertNotEquals(schemaLedgerId, schemaStrogate.getSchemaLedgerList(key).get(0).longValue());
+        assertNotEquals(schemaLedgerId, schemaStrogate.getSchemaLedgerList(key).get(0));
 
         Schemas.PersonTwo personTwo = new Schemas.PersonTwo();
         personTwo.setId(1);

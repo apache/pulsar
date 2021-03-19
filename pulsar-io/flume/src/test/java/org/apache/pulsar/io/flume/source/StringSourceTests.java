@@ -69,7 +69,7 @@ public class StringSourceTests extends AbstractFlumeTests {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() throws Exception {
+    public void tearDown() {
         sink.stop();
         sink = null;
     }
