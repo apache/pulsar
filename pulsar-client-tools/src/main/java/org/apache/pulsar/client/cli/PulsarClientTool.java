@@ -67,7 +67,7 @@ public class PulsarClientTool {
     String authParams = null;
 
     @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar client")
-    Boolean version;
+    boolean version;
 
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
