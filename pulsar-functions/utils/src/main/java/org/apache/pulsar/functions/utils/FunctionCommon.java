@@ -21,6 +21,10 @@ package org.apache.pulsar.functions.utils;
 import com.google.protobuf.AbstractMessage.Builder;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
+import java.io.InputStream;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -218,11 +222,9 @@ public class FunctionCommon {
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
         URL website = new URL(destPkgUrl);
-
-        ReadableByteChannel rbc = Channels.newChannel(website.openStream());
-        log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
-        try (FileOutputStream fos = new FileOutputStream(targetFile)) {
-            fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+        try (InputStream in = website.openStream()) {
+            log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
+            Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
         log.info("Downloading function package from {} to {} completed!", destPkgUrl, targetFile.getAbsoluteFile());
     }
@@ -482,5 +484,27 @@ public class FunctionCommon {
 
     public static String capFirstLetter(Enum en) {
         return StringUtils.capitalize(en.toString().toLowerCase());
+    }
+
+    public static boolean isFunctionCodeBuiltin(org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails) {
+        if (functionDetails.hasSource()) {
+            org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = functionDetails.getSource();
+            if (!isEmpty(sourceSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        if (functionDetails.hasSink()) {
+            org.apache.pulsar.functions.proto.Function.SinkSpec sinkSpec = functionDetails.getSink();
+            if (!isEmpty(sinkSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        if (!isEmpty(functionDetails.getBuiltin())) {
+            return true;
+        }
+
+        return false;
     }
 }

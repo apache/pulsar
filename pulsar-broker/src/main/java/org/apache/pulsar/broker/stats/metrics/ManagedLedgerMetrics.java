@@ -35,6 +35,16 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
     private Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap;
     // temp map to prepare aggregation metrics
     private Map<String, Double> tempAggregatedMetricsMap;
+    private static final Buckets
+            BRK_ML_ADDENTRYLATENCYBUCKETS = new Buckets("brk_ml_AddEntryLatencyBuckets",
+            ENTRY_LATENCY_BUCKETS_MS);
+    private static final Buckets BRK_ML_LEDGERADDENTRYLATENCYBUCKETS = new Buckets(
+            "brk_ml_LedgerAddEntryLatencyBuckets", ENTRY_LATENCY_BUCKETS_MS);
+    private static final Buckets BRK_ML_LEDGERSWITCHLATENCYBUCKETS = new Buckets(
+            "brk_ml_LedgerSwitchLatencyBuckets", ENTRY_LATENCY_BUCKETS_MS);
+
+    private static final Buckets
+            BRK_ML_ENTRYSIZEBUCKETS = new Buckets("brk_ml_EntrySizeBuckets", ENTRY_SIZE_BUCKETS_BYTES);
 
     public ManagedLedgerMetrics(PulsarService pulsar) {
         super(pulsar);
@@ -98,18 +108,17 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
                         (double) lStats.getStoredMessagesSize());
 
                 // handle bucket entries initialization here
-                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_AddEntryLatencyBuckets",
-                        ENTRY_LATENCY_BUCKETS_MS, lStats.getAddEntryLatencyBuckets(),
+                BRK_ML_ADDENTRYLATENCYBUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
+                        lStats.getAddEntryLatencyBuckets(),
                         ManagedLedgerFactoryImpl.StatsPeriodSeconds);
-                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_LedgerAddEntryLatencyBuckets",
-                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerAddEntryLatencyBuckets(),
+                BRK_ML_LEDGERADDENTRYLATENCYBUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
+                        lStats.getLedgerAddEntryLatencyBuckets(),
                         ManagedLedgerFactoryImpl.StatsPeriodSeconds);
-                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_LedgerSwitchLatencyBuckets",
-                        ENTRY_LATENCY_BUCKETS_MS, lStats.getLedgerSwitchLatencyBuckets(),
+                BRK_ML_LEDGERSWITCHLATENCYBUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
+                        lStats.getLedgerSwitchLatencyBuckets(),
                         ManagedLedgerFactoryImpl.StatsPeriodSeconds);
-
-                populateBucketEntries(tempAggregatedMetricsMap, "brk_ml_EntrySizeBuckets",
-                        ENTRY_SIZE_BUCKETS_BYTES, lStats.getEntrySizeBuckets(),
+                BRK_ML_ENTRYSIZEBUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
+                        lStats.getEntrySizeBuckets(),
                         ManagedLedgerFactoryImpl.StatsPeriodSeconds);
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_MarkDeleteRate",
                         lStats.getMarkDeleteRate());

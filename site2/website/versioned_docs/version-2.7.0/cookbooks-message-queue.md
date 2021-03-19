@@ -93,3 +93,26 @@ Consumer consumer;
 Result result = client.subscribe(topic, subscription, consumerConfig, consumer);
 ```
 
+## Go clients
+
+Here is an example of a Go consumer configuration that uses a shared subscription:
+
+```go
+import "github.com/apache/pulsar-client-go/pulsar"
+
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+    URL: "pulsar://localhost:6650",
+})
+if err != nil {
+    log.Fatal(err)
+}
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+    Topic:             "persistent://public/default/mq-topic-1",
+    SubscriptionName:  "sub-1",
+    Type:              pulsar.Shared,
+    ReceiverQueueSize: 10, // If you'd like to restrict the receiver queue size
+})
+if err != nil {
+    log.Fatal(err)
+}
+```

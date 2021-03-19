@@ -75,7 +75,7 @@ public class ClusterServiceCoordinatorTest {
     }
 
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() {
         coordinator.close();
 

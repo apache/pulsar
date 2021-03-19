@@ -91,7 +91,7 @@ class ProcessRuntime implements Runtime {
                    String pulsarWebServiceUrl) throws Exception {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
-        this.metricsPort = FunctionCommon.findAvailablePort();
+        this.metricsPort = instanceConfig.getMetricsPort();
         this.expectedHealthCheckInterval = expectedHealthCheckInterval;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.funcLogDir = RuntimeUtils.genFunctionLogFolder(logDirectory, instanceConfig);
@@ -134,7 +134,6 @@ class ProcessRuntime implements Runtime {
             false,
             null,
             null,
-                this.metricsPort,
                 narExtractionDirectory,
                 null,
                 pulsarWebServiceUrl);

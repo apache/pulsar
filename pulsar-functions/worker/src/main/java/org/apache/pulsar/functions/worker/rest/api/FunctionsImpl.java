@@ -64,7 +64,7 @@ import java.util.function.Supplier;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
-import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
@@ -164,7 +164,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
                             componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
                         } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl), e);
                         }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,

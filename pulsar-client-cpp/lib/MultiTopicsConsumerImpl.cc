@@ -35,7 +35,6 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
       pendingReceives_(),
-      namespaceName_(topicName ? topicName->getNamespaceName() : std::shared_ptr<NamespaceName>()),
       lookupServicePtr_(lookupServicePtr),
       numberTopicPartitions_(std::make_shared<std::atomic<int>>(0)),
       topics_(topics) {
@@ -97,9 +96,6 @@ void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer c
     if (topicsNeedCreate->load() == 0) {
         if (compareAndSetState(Pending, Ready)) {
             LOG_INFO("Successfully Subscribed to Topics");
-            if (!namespaceName_) {
-                namespaceName_ = TopicName::get(topic)->getNamespaceName();
-            }
             multiTopicsConsumerCreatedPromise_.setValue(shared_from_this());
         } else {
             LOG_ERROR("Unable to create Consumer - " << consumerStr_ << " Error - " << result);
@@ -118,13 +114,6 @@ Future<Result, Consumer> MultiTopicsConsumerImpl::subscribeOneTopicAsync(const s
     ConsumerSubResultPromisePtr topicPromise = std::make_shared<Promise<Result, Consumer>>();
     if (!(topicName = TopicName::get(topic))) {
         LOG_ERROR("TopicName invalid: " << topic);
-        topicPromise->setFailed(ResultInvalidTopicName);
-        return topicPromise->getFuture();
-    }
-
-    if (namespaceName_ && !(*namespaceName_ == *(topicName->getNamespaceName()))) {
-        LOG_ERROR("TopicName namespace not the same with topicsConsumer. wanted namespace: "
-                  << namespaceName_->toString() << " this topic: " << topic);
         topicPromise->setFailed(ResultInvalidTopicName);
         return topicPromise->getFuture();
     }
@@ -719,22 +708,12 @@ void MultiTopicsConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerS
 
 std::shared_ptr<TopicName> MultiTopicsConsumerImpl::topicNamesValid(const std::vector<std::string>& topics) {
     TopicNamePtr topicNamePtr = std::shared_ptr<TopicName>();
-    NamespaceNamePtr namespaceNamePtr = std::shared_ptr<NamespaceName>();
 
     // all topics name valid, and all topics have same namespace
     for (std::vector<std::string>::const_iterator itr = topics.begin(); itr != topics.end(); itr++) {
         // topic name valid
         if (!(topicNamePtr = TopicName::get(*itr))) {
             LOG_ERROR("Topic name invalid when init " << *itr);
-            return std::shared_ptr<TopicName>();
-        }
-
-        // all contains same namespace part
-        if (!namespaceNamePtr) {
-            namespaceNamePtr = topicNamePtr->getNamespaceName();
-        } else if (!(*namespaceNamePtr == *(topicNamePtr->getNamespaceName()))) {
-            LOG_ERROR("Different namespace name. expected: " << namespaceNamePtr->toString() << " now:"
-                                                             << topicNamePtr->getNamespaceName()->toString());
             return std::shared_ptr<TopicName>();
         }
     }

@@ -51,8 +51,13 @@ public class KafkaAbstractSourceTest {
     private static class DummySource extends KafkaAbstractSource<String> {
 
         @Override
-        public String extractValue(ConsumerRecord<String, byte[]> record) {
-            return new String(record.value());
+        public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
+            return new String((byte[]) consumerRecord.value());
+        }
+
+        @Override
+        public Schema<String> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
+            return Schema.STRING;
         }
     }
 
@@ -162,6 +167,16 @@ public class KafkaAbstractSourceTest {
             public CompletableFuture<ByteBuffer> getStateAsync(String key) {
                 return null;
             }
+            
+            @Override
+            public void deleteState(String key) {
+            	
+            }
+            
+            @Override
+            public CompletableFuture<Void> deleteStateAsync(String key) {
+            	return null;
+            }
 
             @Override
             public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
@@ -203,6 +218,9 @@ public class KafkaAbstractSourceTest {
         config.put("heartbeatIntervalMs", 20000);
         expectThrows(IllegalArgumentException.class, "Unable to instantiate Kafka consumer", openAndClose);
         config.put("heartbeatIntervalMs", 5000);
+        config.put("autoOffsetReset", "some-value");
+        expectThrows(IllegalArgumentException.class, "Unable to instantiate Kafka consumer", openAndClose);
+        config.put("autoOffsetReset", "earliest");
         source.open(config, ctx);
         source.close();
     }
@@ -216,6 +234,7 @@ public class KafkaAbstractSourceTest {
         assertEquals("test", config.getTopic());
         assertEquals(Long.parseLong("10000"), config.getSessionTimeoutMs());
         assertEquals(Boolean.parseBoolean("false"), config.isAutoCommitEnabled());
+        assertEquals("latest", config.getAutoOffsetReset());
         assertNotNull(config.getConsumerConfigProperties());
         Properties props = new Properties();
         props.putAll(config.getConsumerConfigProperties());

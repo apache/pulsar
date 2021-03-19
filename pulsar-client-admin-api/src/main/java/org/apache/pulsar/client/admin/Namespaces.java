@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -1085,6 +1086,33 @@ public interface Namespaces {
     CompletableFuture<Void> deleteNamespaceAntiAffinityGroupAsync(String namespace);
 
     /**
+     * Remove the deduplication status for all topics within a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationStatus(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the deduplication status for all topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationStatusAsync(String namespace);
+    /**
+     * Get the deduplication status for all topics within a namespace .
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationStatus(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the deduplication status for all topics within a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationStatusAsync(String namespace);
+    /**
      * Set the deduplication status for all topics within a namespace.
      * <p/>
      * When deduplication is enabled, the broker will prevent to store the same message multiple times.
@@ -1270,6 +1298,80 @@ public interface Namespaces {
      */
     CompletableFuture<Void> setAutoSubscriptionCreationAsync(
             String namespace, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride);
+
+    /**
+     * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "subscriptionTypesEnabled" : {"Shared", "Failover"}
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param subscriptionTypesEnabled
+     *            is enable subscription types
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionTypesEnabled(String namespace,
+                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
+
+    /**
+     * Sets the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "subscriptionTypesEnabled" : {"Shared", "Failover"}
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param subscriptionTypesEnabled
+     *            is enable subscription types
+     */
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String namespace,
+                                                        Set<SubscriptionType> subscriptionTypesEnabled);
+
+    /**
+     * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return subscription types {@link Set<SubscriptionType>} the subscription types
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Set<SubscriptionType> getSubscriptionTypesEnabled(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the subscriptionTypesEnabled policy for a given namespace, overriding broker settings.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return the future of subscription types {@link Set<SubscriptionType>} the subscription types
+     */
+    CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace);
 
     /**
      * Removes the autoSubscriptionCreation policy for a given namespace.
@@ -1461,6 +1563,19 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<Void> removeBacklogQuotaAsync(String namespace);
+
+    /**
+     * Remove the persistence configuration on a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removePersistence(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the persistence configuration on a namespace asynchronously.
+     * @param namespace
+     */
+    CompletableFuture<Void> removePersistenceAsync(String namespace);
 
     /**
      * Set the persistence configuration for all the topics on a namespace.
@@ -1902,6 +2017,19 @@ public interface Namespaces {
     CompletableFuture<PublishRate> getPublishRateAsync(String namespace);
 
     /**
+     * Remove message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeDispatchRateAsync(String namespace);
+    /**
      * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
      *
      * @param namespace
@@ -1966,6 +2094,21 @@ public interface Namespaces {
     CompletableFuture<Void> setSubscribeRateAsync(String namespace, SubscribeRate subscribeRate);
 
     /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscribeRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeSubscribeRateAsync(String namespace);
+
+    /**
      * Get namespace-subscribe-rate (topics under this namespace allow subscribe times per consumer in a period).
      *
      * @param namespace
@@ -1984,6 +2127,20 @@ public interface Namespaces {
      * @returns subscribeRate
      */
     CompletableFuture<SubscribeRate> getSubscribeRateAsync(String namespace);
+
+    /**
+     * Remove subscription-message-dispatch-rate.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove subscription-message-dispatch-rate asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String namespace);
 
     /**
      * Set subscription-message-dispatch-rate.
@@ -2056,6 +2213,22 @@ public interface Namespaces {
      *            number of messages per second
      */
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate);
+
+    /**
+     * Remove replicator-message-dispatch-rate.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeReplicatorDispatchRate(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set replicator-message-dispatch-rate asynchronously.
+     *
+     * @param namespace
+     */
+    CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace);
 
     /**
      * Get replicator-message-dispatch-rate.
@@ -2804,7 +2977,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
+    Integer getMaxUnackedMessagesPerConsumer(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxUnackedMessagesPerConsumer for a namespace asynchronously.
@@ -2861,6 +3034,21 @@ public interface Namespaces {
     CompletableFuture<Void> setMaxUnackedMessagesPerConsumerAsync(String namespace, int maxUnackedMessagesPerConsumer);
 
     /**
+     * Remove maxUnackedMessagesPerConsumer for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesPerConsumer(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Remove maxUnackedMessagesPerConsumer for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesPerConsumerAsync(
+            String namespace);
+    /**
      * Get the maxUnackedMessagesPerSubscription for a namespace.
      * <p/>
      * Response example:
@@ -2879,7 +3067,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
+    Integer getMaxUnackedMessagesPerSubscription(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxUnackedMessagesPerSubscription for a namespace asynchronously.
@@ -2935,6 +3123,22 @@ public interface Namespaces {
      */
     CompletableFuture<Void> setMaxUnackedMessagesPerSubscriptionAsync(
             String namespace, int maxUnackedMessagesPerSubscription);
+
+    /**
+     * Remove maxUnackedMessagesPerSubscription for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesPerSubscription(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Remove maxUnackedMessagesPerSubscription for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesPerSubscriptionAsync(
+            String namespace);
 
     /**
      * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace

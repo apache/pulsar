@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -46,14 +47,14 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         super.setup();
     }
 
     @Override
     @AfterClass(alwaysRun = true, timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
+    public void cleanup() throws Exception {
+        super.cleanup();
     }
 
     /**

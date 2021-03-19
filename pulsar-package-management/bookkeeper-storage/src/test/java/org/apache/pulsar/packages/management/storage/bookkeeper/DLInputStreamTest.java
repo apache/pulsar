@@ -59,7 +59,7 @@ public class DLInputStreamTest {
         when(reader.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws IOException {
         if (dlm != null) {
             dlm.close();

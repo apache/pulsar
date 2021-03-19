@@ -115,6 +115,26 @@
     </dependency>
 
     <dependency>
+       <groupId>io.dropwizard.metrics</groupId>
+       <artifactId>metrics-core</artifactId>
+    </dependency>
+
+    <dependency>
+       <groupId>io.dropwizard.metrics</groupId>
+       <artifactId>metrics-graphite</artifactId>
+    </dependency>
+
+    <dependency>
+       <groupId>io.dropwizard.metrics</groupId>
+       <artifactId>metrics-jvm</artifactId>
+    </dependency>
+
+    <dependency>
+       <groupId>org.xerial.snappy</groupId>
+       <artifactId>snappy-java</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
@@ -147,6 +167,12 @@
       <version>${project.version}</version>
       <!-- make sure the api examples are compiled before assembly -->
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -173,6 +199,12 @@
       <version>${project.version}</version>
       <!-- make sure the api examples are compiled before assembly -->
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- local-runner -->
@@ -192,6 +224,12 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.perfmark</groupId>
+      <artifactId>perfmark-api</artifactId>
+      <scope>compile</scope>
     </dependency>
 
     <!-- bookkeeper http server -->
@@ -311,4 +349,32 @@
       </plugins>
     </pluginManagement>
   </build>
+  <profiles>
+    <profile>
+      <id>core-modules</id>
+      <!-- allow building the distribution without pulsar-presto-distribution when core-modules is active -->
+    </profile>
+    <profile>
+      <id>main</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <!-- depend on pulsar-presto-distribution by default, unless core-modules profile is active -->
+      <dependencies>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-presto-distribution</artifactId>
+          <version>${project.version}</version>
+          <type>tar.gz</type>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

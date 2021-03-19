@@ -18,23 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TransactionMetadataStoreService;
-import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
-import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
-import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
-import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
-import org.awaitility.Awaitility;
-import org.junit.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -42,9 +28,26 @@ import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
+import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-
+@Test(groups = "broker")
 public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -86,9 +89,9 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         TxnID txnID0 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0), 5).get();
         TxnID txnID1 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(1), 5).get();
         TxnID txnID2 = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(2), 5).get();
-        Assert.assertEquals(0, txnID0.getMostSigBits());
-        Assert.assertEquals(1, txnID1.getMostSigBits());
-        Assert.assertEquals(2, txnID2.getMostSigBits());
+        Assert.assertEquals(txnID0.getMostSigBits(), 0);
+        Assert.assertEquals(txnID1.getMostSigBits(), 1);
+        Assert.assertEquals(txnID2.getMostSigBits(), 2);
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(0));
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(1));
         transactionMetadataStoreService.removeTransactionMetadataStore(TransactionCoordinatorID.get(2));
@@ -226,5 +229,47 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         }).start();
         Awaitility.await().atLeast(3000, TimeUnit.MICROSECONDS).atMost(10000, TimeUnit.MILLISECONDS)
                 .until(() -> txnMap.size() == 100);
+    }
+
+    @Test
+    public void testEndTransactionOpRetry() throws Exception {
+        int timeOut = 3000;
+        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
+        Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS)
+                .until(() -> pulsar.getTransactionMetadataStoreService()
+                        .getStores().get(TransactionCoordinatorID.get(0)) != null);
+        MLTransactionMetadataStore transactionMetadataStore =
+                (MLTransactionMetadataStore) pulsar.getTransactionMetadataStoreService()
+                        .getStores().get(TransactionCoordinatorID.get(0));
+        Method method = TransactionMetadataStoreState.class.getDeclaredMethod("checkIfReady");
+        method.setAccessible(true);
+        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+                .until(() -> (Boolean) method.invoke(transactionMetadataStore));
+        TxnID txnID = transactionMetadataStore.newTransaction(timeOut).get();
+        TxnMeta txnMeta = transactionMetadataStore.getTxnMeta(txnID).get();
+
+        Field field = TransactionMetadataStoreState.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(transactionMetadataStore, TransactionMetadataStoreState.State.None);
+        try {
+            pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue()).get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof CoordinatorException.TransactionMetadataStoreStateException);
+        }
+
+        assertEquals(txnMeta.status(), TxnStatus.OPEN);
+
+        field = TransactionMetadataStoreState.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(transactionMetadataStore, TransactionMetadataStoreState.State.Ready);
+        Awaitility.await().atMost(timeOut, TimeUnit.MILLISECONDS).until(() -> {
+            try {
+                transactionMetadataStore.getTxnMeta(txnID).get();
+                return false;
+            } catch (ExecutionException e) {
+                return e.getCause() instanceof CoordinatorException.TransactionNotFoundException;
+            }
+        });
     }
 }

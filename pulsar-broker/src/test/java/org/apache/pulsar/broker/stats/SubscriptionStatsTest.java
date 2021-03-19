@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
+@Test(groups = "broker")
 public class SubscriptionStatsTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -47,7 +48,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

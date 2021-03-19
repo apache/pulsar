@@ -30,6 +30,7 @@ import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 
 public class BookiesImpl extends BaseResource implements Bookies {
@@ -44,6 +45,39 @@ public class BookiesImpl extends BaseResource implements Bookies {
     public BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException {
         try {
             return getBookiesRackInfoAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<BookiesClusterInfo> getBookiesAsync() {
+        WebTarget path = adminBookies.path("all");
+        final CompletableFuture<BookiesClusterInfo> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<BookiesClusterInfo>() {
+                    @Override
+                    public void completed(BookiesClusterInfo bookies) {
+                        future.complete(bookies);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public BookiesClusterInfo getBookies() throws PulsarAdminException {
+        try {
+            return getBookiesAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {

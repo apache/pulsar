@@ -27,9 +27,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -37,6 +39,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -305,6 +308,36 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set subscription types enabled for a namespace")
+    private class SetSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--types",
+                "-t" }, description = "Subscription types enabled list (comma separated values)", required = true)
+        private String subTypes;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            Set<SubscriptionType> types = new HashSet<>();
+            Lists.newArrayList(subTypes.split(",")).forEach(s -> types.add(SubscriptionType.valueOf(s)));
+            getAdmin().namespaces().setSubscriptionTypesEnabled(namespace, types);
+        }
+    }
+
+    @Parameters(commandDescription = "Get subscription types enabled for a namespace")
+    private class GetSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getSubscriptionTypesEnabled(namespace));
+        }
+    }
+
     @Parameters(commandDescription = "Set Message TTL for a namespace")
     private class SetMessageTTL extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -349,7 +382,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--maxSubscriptionsPerTopic", "-m" }, description = "Max subscriptions per topic",
+        @Parameter(names = { "--max-subscriptions-per-topic", "-m" }, description = "Max subscriptions per topic",
                 required = true)
         private int maxSubscriptionsPerTopic;
 
@@ -445,6 +478,29 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get Deduplication for a namespace")
+    private class GetDeduplication extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getDeduplicationStatus(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove Deduplication for a namespace")
+    private class RemoveDeduplication extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeDeduplicationStatus(namespace);
+        }
+    }
 
     @Parameters(commandDescription = "Enable or disable deduplication for a namespace")
     private class SetDeduplication extends CliCommand {
@@ -751,6 +807,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove configured message-dispatch-rate for all topics of the namespace")
+    private class RemoveDispatchRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeDispatchRate(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)")
     private class GetDispatchRate extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -797,6 +865,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove configured subscribe-rate per consumer for all topics of the namespace")
+    private class RemoveSubscribeRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeSubscribeRate(namespace);
+        }
+    }
+
 
     @Parameters(commandDescription = "Set subscription message-dispatch-rate for all subscription of the namespace")
     private class SetSubscriptionDispatchRate extends CliCommand {
@@ -824,6 +904,19 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
             getAdmin().namespaces().setSubscriptionDispatchRate(namespace,
                     new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove subscription configured message-dispatch-rate " +
+            "for all topics of the namespace")
+    private class RemoveSubscriptionDispatchRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeSubscriptionDispatchRate(namespace);
         }
     }
 
@@ -921,6 +1014,19 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove replicator configured message-dispatch-rate " +
+            "for all topics of the namespace")
+    private class RemoveReplicatorDispatchRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeReplicatorDispatchRate(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get the backlog quota policies for a namespace")
     private class GetBacklogQuotaMap extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -985,6 +1091,18 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(getAdmin().namespaces().getPersistence(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the persistence policies for a namespace")
+    private class RemovePersistence extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removePersistence(namespace);
         }
     }
 
@@ -1426,6 +1544,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove maxUnackedMessagesPerSubscription for a namespace")
+    private class RemoveMaxUnackedMessagesPerSubscription extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get compactionThreshold for a namespace")
     private class GetCompactionThreshold extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -1762,7 +1892,7 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--offloadedReadPriority", "-orp"},
-                description = "read priority for offloaded messages",
+                description = "Read priority for offloaded messages. By default, once messages are offloaded to long-term storage, brokers read messages from long-term storage, but messages can still exist in BookKeeper for a period depends on your configuration. For messages that exist in both long-term storage and BookKeeper, you can set where to read messages from with the option `tiered-storage-first` or `bookkeeper-first`.",
                 required = false
         )
         private String offloadReadPriorityStr;
@@ -1954,12 +2084,16 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-clusters", new SetReplicationClusters());
         jcommander.addCommand("get-clusters", new GetReplicationClusters());
 
+        jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
+        jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
+
         jcommander.addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
         jcommander.addCommand("set-backlog-quota", new SetBacklogQuota());
         jcommander.addCommand("remove-backlog-quota", new RemoveBacklogQuota());
 
         jcommander.addCommand("get-persistence", new GetPersistence());
         jcommander.addCommand("set-persistence", new SetPersistence());
+        jcommander.addCommand("remove-persistence", new RemovePersistence());
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
@@ -1978,6 +2112,8 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("delete-anti-affinity-group", new DeleteAntiAffinityGroup());
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
+        jcommander.addCommand("get-deduplication", new GetDeduplication());
+        jcommander.addCommand("remove-deduplication", new RemoveDeduplication());
 
         jcommander.addCommand("set-auto-topic-creation", new SetAutoTopicCreation());
         jcommander.addCommand("remove-auto-topic-creation", new RemoveAutoTopicCreation());
@@ -1998,13 +2134,16 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("split-bundle", new SplitBundle());
 
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
+        jcommander.addCommand("remove-dispatch-rate", new RemoveDispatchRate());
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
 
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
+        jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
 
         jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
         jcommander.addCommand("get-subscription-dispatch-rate", new GetSubscriptionDispatchRate());
+        jcommander.addCommand("remove-subscription-dispatch-rate", new RemoveSubscriptionDispatchRate());
 
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
@@ -2012,6 +2151,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-replicator-dispatch-rate", new SetReplicatorDispatchRate());
         jcommander.addCommand("get-replicator-dispatch-rate", new GetReplicatorDispatchRate());
+        jcommander.addCommand("remove-replicator-dispatch-rate", new RemoveReplicatorDispatchRate());
 
         jcommander.addCommand("clear-backlog", new ClearBacklog());
 
@@ -2038,8 +2178,13 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
         jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
+
         jcommander.addCommand("get-max-unacked-messages-per-subscription", new GetMaxUnackedMessagesPerSubscription());
         jcommander.addCommand("set-max-unacked-messages-per-subscription", new SetMaxUnackedMessagesPerSubscription());
+        jcommander.addCommand("remove-max-unacked-messages-per-subscription",
+                new RemoveMaxUnackedMessagesPerSubscription());
+
+
         jcommander.addCommand("get-max-unacked-messages-per-consumer", new GetMaxUnackedMessagesPerConsumer());
         jcommander.addCommand("set-max-unacked-messages-per-consumer", new SetMaxUnackedMessagesPerConsumer());
 

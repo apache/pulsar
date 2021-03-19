@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.stats.client;
 
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import java.net.URL;
+import java.util.concurrent.TimeUnit;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.ServerErrorException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -39,16 +48,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
-import java.net.URL;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
+@Test(groups = "stats")
 public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -92,7 +92,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         assertTrue(client.getApiException(new ServerErrorException(500)) instanceof ServerSideErrorException);
         assertTrue(client.getApiException(new ServerErrorException(503)) instanceof PulsarAdminException);
 
-        log.info("Client: ", client);
+        log.info("Client: -- {}", client);
 
         admin.close();
     }
@@ -128,7 +128,8 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
         assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0
                 && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
-
+        assertFalse(cursor.subscriptionHavePendingRead);
+        assertFalse(cursor.subscriptionHavePendingReplayRead);
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);

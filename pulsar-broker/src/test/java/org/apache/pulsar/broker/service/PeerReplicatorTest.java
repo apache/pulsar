@@ -28,6 +28,7 @@ import static org.testng.Assert.fail;
 import java.util.LinkedHashSet;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
@@ -45,18 +46,19 @@ import org.testng.collections.Lists;
 
 import com.google.common.collect.Sets;
 
+@Test(groups = "broker")
 public class PeerReplicatorTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         super.setup();
     }
 
     @Override
     @AfterClass(alwaysRun = true, timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
+    public void cleanup() throws Exception {
+        super.cleanup();
     }
 
     @DataProvider(name = "lookupType")
@@ -187,7 +189,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(groups = "broker")
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
         // clean up peer-clusters
@@ -196,7 +198,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.clusters().updatePeerClusterNames("r3", null);
 
         final String serviceUrl = pulsar3.getBrokerServiceUrl();
-        final String namespace1 = "pulsar/global/peer-change-repl-ns-" + System.nanoTime();
+        final String namespace1 = BrokerTestUtil.newUniqueName("pulsar/global/peer-change-repl-ns");
         admin1.namespaces().createNamespace(namespace1);
         // add replication cluster
         admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));

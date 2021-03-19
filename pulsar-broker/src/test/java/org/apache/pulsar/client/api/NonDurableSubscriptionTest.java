@@ -36,6 +36,7 @@ import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 
+@Test(groups = "broker-api")
 public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
 
     @BeforeMethod

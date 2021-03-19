@@ -104,10 +104,14 @@ abstract class CliCommand {
     }
 
     static MessageId validateMessageIdString(String resetMessageIdStr) throws PulsarAdminException {
+        return validateMessageIdString(resetMessageIdStr, -1);
+    }
+
+    static MessageId validateMessageIdString(String resetMessageIdStr, int partitionIndex) throws PulsarAdminException {
         String[] messageId = resetMessageIdStr.split(":");
         try {
             Preconditions.checkArgument(messageId.length == 2);
-            return new MessageIdImpl(Long.parseLong(messageId[0]), Long.parseLong(messageId[1]), -1);
+            return new MessageIdImpl(Long.parseLong(messageId[0]), Long.parseLong(messageId[1]), partitionIndex);
         } catch (Exception e) {
             throw new PulsarAdminException(
                     "Invalid message id (must be in format: ledgerId:entryId) value " + resetMessageIdStr);

@@ -27,6 +27,7 @@ void export_config();
 void export_enums();
 void export_authentication();
 void export_schema();
+void export_cryptoKeyReader();
 
 
 static void translateException(const PulsarException& ex) {
@@ -53,4 +54,5 @@ BOOST_PYTHON_MODULE(_pulsar)
     export_enums();
     export_authentication();
     export_schema();
+    export_cryptoKeyReader();
 }

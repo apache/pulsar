@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +32,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import com.google.common.collect.Maps;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -41,24 +44,19 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
-
+@Test(groups = "broker")
 public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     private final String testTenant = "my-property";
     private final String testNamespace = "my-ns";
     private final String myNamespace = testTenant + "/" + testNamespace;
     private final String testTopic = "persistent://" + myNamespace + "/max-unacked-";
 
-    @BeforeClass
+    @BeforeMethod
     @Override
     protected void setup() throws Exception {
         this.conf.setSystemTopicEnabled(true);
@@ -67,10 +65,11 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
     }
 
     @Test(timeOut = 10000)
@@ -136,7 +135,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
 
         // client must receive number of messages = unAckedMessagesBufferSize rather all produced messages: check
         // delta as 3 consumers with receiverQueueSize = 10
-        Assert.assertEquals(messages.size(), unackMsgAllowed, receiverQueueSize * 3);
+        assertEquals(unackMsgAllowed, messages.size(), receiverQueueSize * 3);
 
         // start acknowledging messages
         messages.forEach((m, c) -> {
@@ -171,7 +170,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         latch.await(10, TimeUnit.SECONDS);
 
         // total received-messages should match to produced messages (it may have duplicate messages)
-        Assert.assertEquals(result.size(), expectedRemainingMessages);
+        assertEquals(result.size(), expectedRemainingMessages);
 
         producer.close();
         consumers.forEach(c -> {
@@ -198,6 +197,55 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(()
                 -> assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
         assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName));
+    }
+
+    @Test(timeOut = 20000)
+    public void testMaxUnackedMessagesOnConsumerAppliedApi() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topicName, 3);
+        waitCacheInit(topicName);
+        Integer max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
+        assertEquals(max.intValue(), pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer());
+
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 10);
+        Awaitility.await().untilAsserted(()
+                -> assertNotNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace)));
+        max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
+        assertEquals(max.intValue(), 10);
+
+        admin.topics().setMaxUnackedMessagesOnConsumer(topicName, 20);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
+        max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
+        assertEquals(max.intValue(), 20);
+    }
+
+    @Test
+    public void testMaxUnackedMessagesOnSubApplied() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        waitCacheInit(topicName);
+        assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace));
+        assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName));
+        assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName, true),
+                Integer.valueOf(conf.getMaxUnackedMessagesPerSubscription()));
+
+        admin.namespaces().setMaxUnackedMessagesPerSubscription(myNamespace, 10);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace),
+                Integer.valueOf(10)));
+
+        admin.topics().setMaxUnackedMessagesOnSubscription(topicName, 20);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName), Integer.valueOf(20)));
+
+        admin.topics().removeMaxUnackedMessagesOnSubscription(topicName);
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace),
+                Integer.valueOf(10)));
+
+        admin.namespaces().removeMaxUnackedMessagesPerSubscription(myNamespace);
+        assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName, true),
+                Integer.valueOf(conf.getMaxUnackedMessagesPerSubscription()));
     }
 
     @Test(timeOut = 30000)
@@ -264,7 +312,8 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         assertEquals(consumer3Counter.get(), unackMsgAllowed);
     }
 
-    private void startConsumer(Consumer<String> consumer, AtomicInteger consumerCounter, CountDownLatch countDownLatch) {
+    private void startConsumer(Consumer<String> consumer, AtomicInteger consumerCounter,
+                               CountDownLatch countDownLatch) {
         new Thread(() -> {
             while (true) {
                 try {
@@ -285,6 +334,6 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe().close();
         TopicName topic = TopicName.get(topicName);
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .until(()-> pulsar.getTopicPoliciesService().cacheIsInitialized(topic));
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(topic));
     }
 }

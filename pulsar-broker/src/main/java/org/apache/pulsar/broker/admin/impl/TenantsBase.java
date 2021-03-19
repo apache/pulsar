@@ -30,11 +30,13 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
@@ -42,6 +44,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -224,9 +227,11 @@ public class TenantsBase extends PulsarWebResource {
     @ApiOperation(value = "Delete a tenant and all namespaces and topics under it.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 405, message = "Broker doesn't allow forced deletion of tenants"),
             @ApiResponse(code = 409, message = "The tenant still has active namespaces") })
     public void deleteTenant(@Suspended final AsyncResponse asyncResponse,
-            @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant) {
+            @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant,
+            @QueryParam("force") @DefaultValue("false") boolean force) {
         try {
             validateSuperUserAccess();
             validatePoliciesReadOnlyAccess();
@@ -234,8 +239,19 @@ public class TenantsBase extends PulsarWebResource {
             asyncResponse.resume(e);
             return;
         }
+        internalDeleteTenant(asyncResponse, tenant, force);
+    }
 
-        tenantResources().existsAsync(path(POLICIES, tenant)).thenApply(exists ->{
+    protected void internalDeleteTenant(AsyncResponse asyncResponse, String tenant, boolean force) {
+        if (force) {
+            internalDeleteTenantForcefully(asyncResponse, tenant);
+        } else {
+            internalDeleteTenant(asyncResponse, tenant);
+        }
+    }
+
+    protected void internalDeleteTenant(AsyncResponse asyncResponse, String tenant) {
+        tenantResources().existsAsync(path(POLICIES, tenant)).thenApply(exists -> {
             if (!exists) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant doesn't exist"));
                 return null;
@@ -271,6 +287,50 @@ public class TenantsBase extends PulsarWebResource {
                 asyncResponse.resume(new RestException(ex));
                 return null;
             });
+        });
+    }
+
+    protected void internalDeleteTenantForcefully(AsyncResponse asyncResponse, String tenant) {
+        if (!pulsar().getConfiguration().isForceDeleteTenantAllowed()) {
+            asyncResponse.resume(
+                    new RestException(Status.METHOD_NOT_ALLOWED, "Broker doesn't allow forced deletion of tenants"));
+            return;
+        }
+
+        List<String> namespaces;
+        try {
+            namespaces = getListOfNamespaces(tenant);
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespaces list of {}", clientAppId(), tenant, e);
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+
+        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        try {
+            for (String namespace : namespaces) {
+                futures.add(pulsar().getAdminClient().namespaces().deleteNamespaceAsync(namespace, true));
+            }
+        } catch (Exception e) {
+            log.error("[{}] Failed to force delete namespaces {}", clientAppId(), namespaces, e);
+            asyncResponse.resume(new RestException(e));
+        }
+
+        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+            if (exception != null) {
+                if (exception.getCause() instanceof PulsarAdminException) {
+                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
+                } else {
+                    log.error("[{}] Failed to force delete namespaces {}", clientAppId(), namespaces, exception);
+                    asyncResponse.resume(new RestException(exception.getCause()));
+                }
+                return null;
+            }
+            // delete tenant normally
+            internalDeleteTenant(asyncResponse, tenant);
+
+            asyncResponse.resume(Response.noContent().build());
+            return null;
         });
     }
 

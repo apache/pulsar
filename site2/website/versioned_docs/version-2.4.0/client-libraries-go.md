@@ -7,7 +7,7 @@ original_id: client-libraries-go
 
 The Pulsar Go client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
-> #### API docs available as well
+> **API docs available as well**  
 > For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar/pulsar-client-go/pulsar).
 
 
@@ -21,7 +21,7 @@ through [RPM](client-libraries-cpp.md#rpm), [Deb](client-libraries-cpp.md#deb) o
 
 ### Installing go package
 
-> #### Compatibility Warning
+> **Compatibility Warning**  
 > The version number of the Go client **must match** the version number of the Pulsar C++ client library.
 
 You can install the `pulsar` library locally using `go get`.  Note that `go get` doesn't support fetching a specific tag - it will always pull in master's version of the Go client.  You'll need a C++ client library that matches master.
@@ -144,7 +144,7 @@ if err := producer.Send(msg); err != nil {
 }
 ```
 
-> #### Blocking operation
+> **Blocking operation**  
 > When you create a new Pulsar producer, the operation will block (waiting on a go channel) until either a producer is successfully created or an error is thrown.
 
 
@@ -262,7 +262,7 @@ for cm := range msgChannel {
 }
 ```
 
-> #### Blocking operation
+> **Blocking operation**  
 > When you create a new Pulsar consumer, the operation will block (on a go channel) until either a producer is successfully created or an error is thrown.
 
 
@@ -414,7 +414,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 })
 ```
 
-> #### Blocking operation
+> **Blocking operation**  
 > When you create a new Pulsar reader, the operation will block (on a go channel) until either a reader is successfully created or an error is thrown.
 
 

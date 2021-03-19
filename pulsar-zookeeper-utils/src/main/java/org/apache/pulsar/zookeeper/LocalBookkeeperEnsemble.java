@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
@@ -87,7 +88,7 @@ public class LocalBookkeeperEnsemble {
     public static final int CONNECTION_TIMEOUT = 30000;
 
     int numberOfBookies;
-    private boolean clearOldData;
+    private final boolean clearOldData;
 
     private static class BasePortManager implements Supplier<Integer> {
 
@@ -148,11 +149,11 @@ public class LocalBookkeeperEnsemble {
         this.clearOldData = clearOldData;
         this.zkPort = zkPort;
         this.advertisedAddress = null == advertisedAddress ? "127.0.0.1" : advertisedAddress;
-        LOG.info("Running {} bookie(s) and advertised them at {}.", this.numberOfBookies, advertisedAddress);
+        LOG.info("Running {} bookie(s) and advertised them at {}.", this.numberOfBookies, this.advertisedAddress);
     }
 
     private String HOSTPORT;
-    private String advertisedAddress;
+    private final String advertisedAddress;
     private int zkPort;
 
     NIOServerCnxnFactory serverFactory;
@@ -204,7 +205,7 @@ public class LocalBookkeeperEnsemble {
             serverFactory.configure(new InetSocketAddress(zkPort), maxCC);
             serverFactory.startup(zks);
 
-            zkDataCleanupManager = new DatadirCleanupManager(zkDataDir, zkDataDir, 0, 1 /* hour */);
+            zkDataCleanupManager = new DatadirCleanupManager(zkDataDir, zkDataDir, 3, 1 /* hour */);
             zkDataCleanupManager.start();
         } catch (Exception e) {
             LOG.error("Exception while instantiating ZooKeeper", e);
@@ -227,8 +228,10 @@ public class LocalBookkeeperEnsemble {
     public void disconnectZookeeper(ZooKeeper zooKeeper) {
         ServerCnxn serverCnxn = getZookeeperServerConnection(zooKeeper);
         try {
-            Method method = serverCnxn.getClass().getMethod("close");
-            method.invoke(serverCnxn);
+            LOG.info("disconnect ZK server side connection {}", serverCnxn);
+            Class disconnectReasonClass = Class.forName("org.apache.zookeeper.server.ServerCnxn$DisconnectReason");
+            Method method = serverCnxn.getClass().getMethod("close", disconnectReasonClass);
+            method.invoke(serverCnxn, Stream.of(disconnectReasonClass.getEnumConstants()).filter(s->s.toString().equals("CONNECTION_CLOSE_FORCED")).findFirst().get());
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -282,7 +285,7 @@ public class LocalBookkeeperEnsemble {
         for (int i = 0; i < numberOfBookies; i++) {
 
             File bkDataDir = isNotBlank(bkDataDirName)
-                    ? Files.createDirectories(Paths.get(bkDataDirName + Integer.toString(i))).toFile()
+                    ? Files.createDirectories(Paths.get(bkDataDirName + i)).toFile()
                     : createTempDirectory("bk" + Integer.toString(i) + "test");
 
             if (this.clearOldData) {
@@ -491,7 +494,11 @@ public class LocalBookkeeperEnsemble {
 
         LOG.debug("Local ZK/BK stopping ...");
         for (BookieServer bookie : bs) {
-            bookie.shutdown();
+            try {
+                bookie.shutdown();
+            } catch (Exception e) {
+                LOG.warn("failed to shutdown bookie", e);
+            }
         }
 
         zkc.close();
@@ -511,7 +518,7 @@ public class LocalBookkeeperEnsemble {
 
     /* Watching SyncConnected event from ZooKeeper */
     public static class ZKConnectionWatcher implements Watcher {
-        private CountDownLatch clientConnectLatch = new CountDownLatch(1);
+        private final CountDownLatch clientConnectLatch = new CountDownLatch(1);
 
         @Override
         public void process(WatchedEvent event) {
@@ -534,7 +541,7 @@ public class LocalBookkeeperEnsemble {
 
     public static boolean waitForServerUp(String hp, long timeout) {
         long start = System.currentTimeMillis();
-        String split[] = hp.split(":");
+        String[] split = hp.split(":");
         String host = split[0];
         int port = Integer.parseInt(split[1]);
         while (true) {

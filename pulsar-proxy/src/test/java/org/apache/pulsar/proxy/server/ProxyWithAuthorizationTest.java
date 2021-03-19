@@ -73,7 +73,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private final String TLS_SUPERUSER_CLIENT_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     private ProxyService proxyService;
-    private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @DataProvider(name = "hostnameVerification")
     public Object[][] hostnameVerificationCodecProvider() {
@@ -203,14 +203,14 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                                                    PulsarConfigurationLoader.convertFrom(proxyConfig))));
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
         proxyService.close();
     }
 
-    void startProxy() throws Exception {
+    private void startProxy() throws Exception {
         proxyService.start();
     }
 
@@ -458,7 +458,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    protected final void createAdminClient() throws Exception {
+    private void createAdminClient() throws Exception {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_SUPERUSER_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);

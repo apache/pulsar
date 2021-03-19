@@ -156,6 +156,7 @@ properties:
 
 For *Token Authentication* provider, add necessary settings for `properties` if needed.
 See [Token Authentication](security-jwt.md) for more details.
+Note: key files must be DER-encoded
 ```
 properties:
   tokenSecretKey:       file://my/secret.key 

@@ -45,6 +45,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
+@Test(groups = "broker-api")
 public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationTlsHostnameVerificationTest.class);
 
@@ -78,6 +79,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         superUserRoles.add("localhost");
         superUserRoles.add("superUser");
         superUserRoles.add("superUser2");
+        superUserRoles.add("admin");
         conf.setSuperUserRoles(superUserRoles);
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());

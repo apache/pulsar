@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
+@Test(groups = "flaky")
 public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
@@ -125,9 +126,9 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTopicPolicyDisabled() throws Exception {
+        super.internalCleanup();
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(false);
-        super.internalCleanup();
         super.internalSetup();
 
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));

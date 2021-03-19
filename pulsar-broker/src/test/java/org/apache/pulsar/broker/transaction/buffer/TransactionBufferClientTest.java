@@ -50,6 +50,7 @@ import org.testng.annotations.AfterClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 
+@Test(groups = "broker")
 public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionBufferClientTest.class);
@@ -92,7 +93,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         brokerServices = new BrokerService[pulsarServices.length];
         for (int i = 0; i < pulsarServices.length; i++) {
             Subscription mockSubscription = Mockito.mock(Subscription.class);
-            Mockito.when(mockSubscription.endTxn(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyInt()))
+            Mockito.when(mockSubscription.endTxn(Mockito.anyLong(),
+                    Mockito.anyLong(), Mockito.anyInt(), Mockito.anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
 
             Topic mockTopic = Mockito.mock(Topic.class);
@@ -143,7 +145,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
-            futures.add(tbClient.commitTxnOnSubscription(topic, "test", 1L, i));
+            futures.add(tbClient.commitTxnOnSubscription(topic, "test", 1L, i, -1L));
         }
         for (int i = 0; i < futures.size(); i++) {
             Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
@@ -156,7 +158,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         List<CompletableFuture<TxnID>> futures = new ArrayList<>();
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
-            futures.add(tbClient.abortTxnOnSubscription(topic, "test", 1L, i));
+            futures.add(tbClient.abortTxnOnSubscription(topic, "test", 1L, i, -1L));
         }
         for (int i = 0; i < futures.size(); i++) {
             Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);

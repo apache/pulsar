@@ -25,7 +25,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 public class ContinuousAsyncProducer {
-    public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
+    public static void main(String[] args) throws InterruptedException, IOException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-tenant/my-ns/my-topic")

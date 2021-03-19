@@ -108,6 +108,8 @@ The following metrics are available for broker:
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
 * [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
+* [Token metrics](#token-metrics)
+* [Authentication metrics](#authentication-metrics) 
 
 ### Namespace metrics
 
@@ -340,6 +342,31 @@ All the managed ledger bookie client metrics are labelled with the following lab
 | pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution | Summary | The worker task execution latency calculated in milliseconds. |
 | pulsar_managedLedger_client_bookkeeper_ml_workers_task_queued | Summary | The worker task queued latency calculated in milliseconds. |
 
+### Token metrics
+
+All the token metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_expired_token_count | Counter | The number of expired tokens in Pulsar. |
+| pulsar_expiring_token_minutes | Histogram | The remaining time of expiring tokens in minutes. |
+
+### Authentication metrics
+
+All the authentication metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+- *provider_name*: `provider_name=${provider_name}`. `${provider_name}` is the class name of the authentication provider.
+- *auth_method*: `auth_method=${auth_method}`. `${auth_method}` is the authentication method of the authentication provider.
+- *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_count`.)
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_authentication_success_count| Counter | The number of successful authentication operations. |
+| pulsar_authentication_failures_count | Counter | The number of failing authentication operations. |
+
 ## Pulsar Functions
 
 All the Pulsar Functions metrics are labelled with the following labels:
@@ -401,4 +428,4 @@ All the proxy metrics are labelled with the following labels:
 | split_read_latency_per_query | Summary | Total read latency per query. |
 | split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
 | split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
-| split_total_execution_time | Summary | Total execution time . |
+| split_total_execution_time | Summary | The total execution time. |

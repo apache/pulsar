@@ -19,17 +19,14 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
-
 import org.jclouds.domain.Credentials;
 import org.testng.annotations.Test;
 
 public class TieredStorageConfigurationTests {
-    
+
     /*
      * Previous property names, for backwards-compatibility.
      */
@@ -50,7 +47,7 @@ public class TieredStorageConfigurationTests {
      */
     @Test
     public final void awsS3KeysTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         TieredStorageConfiguration config = new TieredStorageConfiguration(map);
         List<String> keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_BUCKET);
@@ -79,7 +76,7 @@ public class TieredStorageConfigurationTests {
      */
     @Test
     public final void awsS3PropertiesTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put("managedLedgerOffloadRegion", "us-east-1");
         map.put("managedLedgerOffloadBucket", "test bucket");
@@ -150,7 +147,7 @@ public class TieredStorageConfigurationTests {
      */
     @Test
     public final void gcsKeysTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());
         TieredStorageConfiguration config = new TieredStorageConfiguration(map);
         List<String> keys = config.getKeys(TieredStorageConfiguration.METADATA_FIELD_BUCKET);
@@ -175,7 +172,7 @@ public class TieredStorageConfigurationTests {
      */
     @Test
     public final void gcsPropertiesTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());
         map.put("managedLedgerOffloadRegion", "us-east-1");
         map.put("managedLedgerOffloadBucket", "test bucket");
@@ -195,7 +192,7 @@ public class TieredStorageConfigurationTests {
      */
     @Test
     public final void gcsBackwardCompatiblePropertiesTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());
         map.put(BC_GCS_BUCKET, "test bucket");
         map.put(BC_GCS_MAX_BLOCK_SIZE, "12");

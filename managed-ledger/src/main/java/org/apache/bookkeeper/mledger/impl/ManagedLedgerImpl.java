@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
@@ -75,7 +76,6 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
-import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
@@ -124,6 +124,7 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
@@ -1120,6 +1121,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return size;
             }
         }
+    }
+
+    /**
+     * Get estimated backlog size from a specific position.
+     */
+    public long getEstimatedBacklogSize(PositionImpl pos) {
+        if (pos == null) {
+            return 0;
+        }
+        return estimateBacklogFromPosition(pos);
     }
 
     long estimateBacklogFromPosition(PositionImpl pos) {
@@ -2751,6 +2762,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                            scheduledExecutor, name)
                             .whenComplete((ignore2, exception) -> {
                                     if (exception != null) {
+                                        log.error("[{}] Failed to offload data for the ledgerId {}",
+                                                name, ledgerId, exception);
                                         cleanupOffloaded(
                                             ledgerId, uuid,
                                             driverName, driverMetadata,
@@ -2941,13 +2954,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                                                        * identify offloader
                                                                                        */
             Map<String, String> offloadDriverMetadata, String cleanupReason) {
+        log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
+                name, ledgerId, uuid.toString(), cleanupReason);
         Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
                 Retries.NonFatalPredicate,
                 () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, offloadDriverMetadata),
                 scheduledExecutor, name).whenComplete((ignored, exception) -> {
                     if (exception != null) {
-                        log.warn("Error cleaning up offload for {}, (cleanup reason: {})", ledgerId, cleanupReason,
-                                exception);
+                        log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
+                                name, ledgerId, cleanupReason, exception);
                     }
                 });
     }
@@ -3485,7 +3500,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     config.getBookKeeperEnsemblePlacementPolicyClassName(),
                     config.getBookKeeperEnsemblePlacementPolicyProperties()
                 ));
-            } catch (JsonUtil.ParseJsonException e) {
+            } catch (EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException e) {
                 log.error("[{}] Serialize the placement configuration failed", name, e);
                 cb.createComplete(Code.UnexpectedConditionException, null, ledgerCreated);
                 return;

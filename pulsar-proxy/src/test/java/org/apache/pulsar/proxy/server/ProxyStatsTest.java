@@ -19,21 +19,21 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Consumer;
@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.proxy.stats.ConnectionStats;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.glassfish.jersey.client.ClientConfig;
@@ -53,14 +54,11 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
 public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
     private ProxyService proxyService;
     private WebServer proxyWebServer;
-    private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Override
     @BeforeClass
@@ -77,6 +75,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
+        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
         Optional<Integer> proxyLogLevel = Optional.of(2);
         assertEquals(proxyLogLevel, proxyService.getConfiguration().getProxyLogLevel());
@@ -91,16 +91,15 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
-
         proxyService.close();
     }
 
     /**
      * Validates proxy connection stats api.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -140,7 +139,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
     /**
      * Validate proxy topic stats api
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -191,11 +190,11 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
     /**
      * Change proxy log level dynamically
-     * 
+     *
      * @throws Exception
      */
     @Test
-    public void testChangeLogLevel() throws Exception {
+    public void testChangeLogLevel() {
         Assert.assertEquals(proxyService.getProxyLogLevel(), 2);
         int newLogLevel = 1;
         Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));

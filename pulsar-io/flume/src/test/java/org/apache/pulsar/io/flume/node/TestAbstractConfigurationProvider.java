@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.io.flume.node;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotSame;
-import static junit.framework.Assert.assertSame;
-import static junit.framework.Assert.assertTrue;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Maps;
 import java.util.Map;
 import org.apache.flume.Channel;
@@ -38,7 +37,7 @@ import org.apache.flume.conf.Configurable;
 import org.apache.flume.conf.FlumeConfiguration;
 import org.apache.flume.sink.AbstractSink;
 import org.apache.flume.source.AbstractSource;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 public class TestAbstractConfigurationProvider {
 
@@ -135,9 +134,9 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        assertEquals(0, config.getSourceRunners().size());
-        assertEquals(1, config.getChannels().size());
-        assertEquals(1, config.getSinkRunners().size());
+        assertEquals(config.getSourceRunners().size(), 0);
+        assertEquals(config.getChannels().size(), 1);
+        assertEquals(config.getSinkRunners().size(), 1);
     }
 
     @Test
@@ -151,9 +150,9 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        assertEquals(0, config.getSourceRunners().size());
-        assertEquals(0, config.getChannels().size());
-        assertEquals(0, config.getSinkRunners().size());
+        assertEquals(config.getSourceRunners().size(), 0);
+        assertEquals(config.getChannels().size(), 0);
+        assertEquals(config.getSinkRunners().size(), 0);
     }
 
     @Test
@@ -167,9 +166,9 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        assertEquals(1, config.getSourceRunners().size());
-        assertEquals(1, config.getChannels().size());
-        assertEquals(0, config.getSinkRunners().size());
+        assertEquals(config.getSourceRunners().size(), 1);
+        assertEquals(config.getChannels().size(), 1);
+        assertEquals(config.getSinkRunners().size(), 0);
     }
 
     @Test
@@ -184,9 +183,9 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        assertEquals(0, config.getSourceRunners().size());
-        assertEquals(0, config.getChannels().size());
-        assertEquals(0, config.getSinkRunners().size());
+        assertEquals(config.getSourceRunners().size(), 0);
+        assertEquals(config.getChannels().size(), 0);
+        assertEquals(config.getSinkRunners().size(), 0);
     }
 
     @Test
@@ -207,36 +206,36 @@ public class TestAbstractConfigurationProvider {
         MemoryConfigurationProvider provider =
                 new MemoryConfigurationProvider(agentName, properties);
         MaterializedConfiguration config = provider.getConfiguration();
-        assertEquals(1, config.getSourceRunners().size());
-        assertEquals(1, config.getChannels().size());
-        assertEquals(1, config.getSinkRunners().size());
+        assertEquals(config.getSourceRunners().size(), 1);
+        assertEquals(config.getChannels().size(), 1);
+        assertEquals(config.getSinkRunners().size(), 1);
 
         properties.put(agentName + ".sources.source1.batchSize", "1001");
         properties.put(agentName + ".sinks.sink1.batch-size", "1000");
 
         provider = new MemoryConfigurationProvider(agentName, properties);
         config = provider.getConfiguration();
-        assertEquals(0, config.getSourceRunners().size());
-        assertEquals(1, config.getChannels().size());
-        assertEquals(1, config.getSinkRunners().size());
+        assertEquals(config.getSourceRunners().size(), 0);
+        assertEquals(config.getChannels().size(), 1);
+        assertEquals(config.getSinkRunners().size(), 1);
 
         properties.put(agentName + ".sources.source1.batchSize", "1000");
         properties.put(agentName + ".sinks.sink1.batch-size", "1001");
 
         provider = new MemoryConfigurationProvider(agentName, properties);
         config = provider.getConfiguration();
-        assertEquals(1, config.getSourceRunners().size());
-        assertEquals(1, config.getChannels().size());
-        assertEquals(0, config.getSinkRunners().size());
+        assertEquals(config.getSourceRunners().size(), 1);
+        assertEquals(config.getChannels().size(), 1);
+        assertEquals(config.getSinkRunners().size(), 0);
 
         properties.put(agentName + ".sources.source1.batchSize", "1001");
         properties.put(agentName + ".sinks.sink1.batch-size", "1001");
 
         provider = new MemoryConfigurationProvider(agentName, properties);
         config = provider.getConfiguration();
-        assertEquals(0, config.getSourceRunners().size());
-        assertEquals(0, config.getChannels().size());
-        assertEquals(0, config.getSinkRunners().size());
+        assertEquals(config.getSourceRunners().size(), 0);
+        assertEquals(config.getChannels().size(), 0);
+        assertEquals(config.getSinkRunners().size(), 0);
     }
 
     private Map<String, String> getProperties(String agentName,

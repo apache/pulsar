@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.io.flume.node;
 
-import junit.framework.Assert;
+import java.io.File;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
 
-import java.io.File;
-
-public class TestEnvVarResolverProperties {
+public final class TestEnvVarResolverProperties {
     private static final File TESTFILE = new File(
             TestEnvVarResolverProperties.class.getClassLoader()
                     .getResource("flume-conf-with-envvars.properties").getFile());

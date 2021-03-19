@@ -23,7 +23,7 @@ set -e
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
+ROOT_DIR=$(dirname $0)/../..
 cd $ROOT_DIR
 
 PYTHON_VERSIONS=(

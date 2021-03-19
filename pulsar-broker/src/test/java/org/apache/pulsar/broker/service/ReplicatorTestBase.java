@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -53,7 +54,7 @@ import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ReplicatorTestBase {
+public class ReplicatorTestBase extends TestRetrySupport {
     URL url1;
     URL urlTls1;
     ServiceConfiguration config1 = new ServiceConfiguration();
@@ -98,7 +99,10 @@ public class ReplicatorTestBase {
         return false;
     }
 
-    void setup() throws Exception {
+    @Override
+    protected void setup() throws Exception {
+        incrementSetupNumber();
+
         log.info("--- Starting ReplicatorTestBase::setup ---");
         globalZkS = new ZookeeperServerTest(0);
         globalZkS.start();
@@ -258,7 +262,9 @@ public class ReplicatorTestBase {
         return (int) TimeUnit.SECONDS.convert(time, unit);
     }
 
-    void shutdown() throws Exception {
+    @Override
+    protected void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
         executor.shutdown();
 
@@ -280,6 +286,10 @@ public class ReplicatorTestBase {
         bkEnsemble2.stop();
         bkEnsemble3.stop();
         globalZkS.stop();
+
+        resetConfig1();
+        resetConfig2();
+        resetConfig3();
     }
 
     static class MessageProducer implements AutoCloseable {
@@ -343,7 +353,7 @@ public class ReplicatorTestBase {
         void produce(int messages, TypedMessageBuilder<byte[]> messageBuilder) throws Exception {
             log.info("Start sending messages");
             for (int i = 0; i < messages; i++) {
-                final String m = new String("test-" + i);
+                final String m = "test-" + i;
                 messageBuilder.value(m.getBytes()).send();
                 log.info("Sent message {}", m);
             }

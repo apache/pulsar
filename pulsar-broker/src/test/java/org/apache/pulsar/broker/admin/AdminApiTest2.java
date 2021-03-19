@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +47,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -92,6 +94,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
@@ -119,7 +122,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-        mockPulsarSetup.cleanup();
+        if (mockPulsarSetup != null) {
+            mockPulsarSetup.cleanup();
+        }
         resetConfig();
     }
 
@@ -177,8 +182,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // (1) update partitions
         admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions);
-        // invalidate global-cache to make sure that mock-zk-cache reds fresh data
-        pulsar.getGlobalZkCache().invalidateAll();
         // verify new partitions have been created
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 newPartitions);
@@ -238,6 +241,70 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer1.close();
         consumer2.close();
         consumer2.close();
+    }
+
+    @Test
+    public void testTopicPoliciesWithMultiBroker() throws Exception {
+        //setup cluster with 3 broker
+        cleanup();
+        conf.setSystemTopicEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        super.internalSetup();
+        admin.clusters().createCluster("test"
+                , new ClusterData(pulsar.getWebServiceAddress() + ",localhost:1026," + "localhost:2050"));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
+        admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
+        conf.setBrokerServicePort(Optional.of(1024));
+        conf.setBrokerServicePortTls(Optional.of(1025));
+        conf.setWebServicePort(Optional.of(1026));
+        conf.setWebServicePortTls(Optional.of(1027));
+        @Cleanup
+        PulsarService pulsar2 = startBrokerWithoutAuthorization(conf);
+        conf.setBrokerServicePort(Optional.of(2048));
+        conf.setBrokerServicePortTls(Optional.of(2049));
+        conf.setWebServicePort(Optional.of(2050));
+        conf.setWebServicePortTls(Optional.of(2051));
+        @Cleanup
+        PulsarService pulsar3 = startBrokerWithoutAuthorization(conf);
+        @Cleanup
+        PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(pulsar2.getWebServiceAddress()).build();
+        @Cleanup
+        PulsarAdmin admin3 = PulsarAdmin.builder().serviceHttpUrl(pulsar3.getWebServiceAddress()).build();
+
+        //for partitioned topic, we can get topic policies from every broker
+        final String topic = "persistent://prop-xyz/ns1/" + BrokerTestUtil.newUniqueName("test");
+        int partitionNum = 3;
+        admin.topics().createPartitionedTopic(topic, partitionNum);
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
+        TopicName topicName = TopicName.get(topic);
+        Awaitility.await().until(()-> pulsar.getTopicPoliciesService().cacheIsInitialized(topicName));
+
+        setTopicPoliciesAndValidate(admin2, admin3, topic);
+        //for non-partitioned topic, we can get topic policies from every broker
+        final String topic2 = "persistent://prop-xyz/ns1/" + BrokerTestUtil.newUniqueName("test");
+        pulsarClient.newConsumer().topic(topic2).subscriptionName("sub").subscribe().close();
+        setTopicPoliciesAndValidate(admin2, admin3, topic2);
+    }
+
+    private void setTopicPoliciesAndValidate(PulsarAdmin admin2
+            , PulsarAdmin admin3, String topic) throws Exception {
+        admin.topics().setMaxUnackedMessagesOnConsumer(topic, 100);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topic)));
+        admin.topics().setMaxConsumers(topic, 101);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getMaxConsumers(topic)));
+        admin.topics().setMaxProducers(topic, 102);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getMaxProducers(topic)));
+
+        assertEquals(admin.topics().getMaxUnackedMessagesOnConsumer(topic).intValue(), 100);
+        assertEquals(admin2.topics().getMaxUnackedMessagesOnConsumer(topic).intValue(), 100);
+        assertEquals(admin3.topics().getMaxUnackedMessagesOnConsumer(topic).intValue(), 100);
+        assertEquals(admin.topics().getMaxConsumers(topic).intValue(), 101);
+        assertEquals(admin2.topics().getMaxConsumers(topic).intValue(), 101);
+        assertEquals(admin3.topics().getMaxConsumers(topic).intValue(), 101);
+        assertEquals(admin.topics().getMaxProducers(topic).intValue(), 102);
+        assertEquals(admin2.topics().getMaxProducers(topic).intValue(), 102);
+        assertEquals(admin3.topics().getMaxProducers(topic).intValue(), 102);
     }
 
     /**
@@ -1154,7 +1221,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = admin.topics().getStats(topic);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
 
-        topicStats = admin.topics().getStats(topic, true);
+        topicStats = admin.topics().getStats(topic, true, true);
+        assertEquals(topicStats.subscriptions.get(subName).backlogSize, 43);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 1);
         consumer.acknowledge(message);
 
@@ -1162,7 +1230,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         Thread.sleep(500);
 
         // Consumer acks the message, so the precise backlog is 0
-        topicStats = admin.topics().getStats(topic, true);
+        topicStats = admin.topics().getStats(topic, true, true);
+        assertEquals(topicStats.subscriptions.get(subName).backlogSize, 0);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 0);
 
         topicStats = admin.topics().getStats(topic);
@@ -1207,7 +1276,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // not yet guaranteed to see the stats updated.
         Thread.sleep(500);
 
-        TopicStats topicStats = admin.topics().getStats(topic, true);
+        TopicStats topicStats = admin.topics().getStats(topic, true, true);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 5);
 
@@ -1216,7 +1285,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
         // Wait the ack send.
         Thread.sleep(500);
-        topicStats = admin.topics().getStats(topic, true);
+        topicStats = admin.topics().getStats(topic, true, true);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 5);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 0);
     }
@@ -1258,8 +1327,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 20);
 
-        topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 1);
+        assertEquals(topicStats.subscriptions.get(subName).backlogSize, 43);
     }
 
     @Test(timeOut = 30000)
@@ -1296,8 +1366,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             }
         }
 
-        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+        assertEquals(topicStats.subscriptions.get(subName).backlogSize, 470);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 5);
 
         for (int i = 0; i < 5; i++) {
@@ -1305,8 +1376,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
         // Wait the ack send.
         Thread.sleep(500);
-        topicStats = admin.topics().getPartitionedStats(topic, false, true);
+        topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 5);
+        assertEquals(topicStats.subscriptions.get(subName).backlogSize, 238);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 0);
     }
 

@@ -40,10 +40,14 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.cache.ConfigurationMetadataCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
@@ -59,12 +63,16 @@ public class DiscoveryService implements Closeable {
     private final ServiceConfig config;
     private String serviceUrl;
     private String serviceUrlTls;
-    private ConfigurationCacheService configurationCacheService;
+    private ConfigurationMetadataCacheService configurationCacheService;
     private AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
     private ZooKeeperClientFactory zkClientFactory = null;
     private BrokerDiscoveryProvider discoveryProvider;
     private final EventLoopGroup acceptorGroup;
+    private MetadataStoreExtended localMetadataStore;
+    private MetadataStoreExtended configMetadataStore;
+    @Getter
+    private PulsarResources pulsarResources;
     @Getter
     private final EventLoopGroup workerGroup;
     private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-discovery-acceptor");
@@ -87,8 +95,11 @@ public class DiscoveryService implements Closeable {
      * @throws Exception
      */
     public void start() throws Exception {
-        discoveryProvider = new BrokerDiscoveryProvider(this.config, getZooKeeperClientFactory());
-        this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
+        localMetadataStore = createLocalMetadataStore();
+        configMetadataStore = createConfigurationMetadataStore();
+        pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
+        discoveryProvider = new BrokerDiscoveryProvider(this.config, getZooKeeperClientFactory(), pulsarResources);
+        this.configurationCacheService = new ConfigurationMetadataCacheService(pulsarResources, null);
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(config);
         authenticationService = new AuthenticationService(serviceConfiguration);
         authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
@@ -150,6 +161,12 @@ public class DiscoveryService implements Closeable {
         discoveryProvider.close();
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
+        try {
+            localMetadataStore.close();
+            configMetadataStore.close();
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
     }
 
     /**
@@ -214,9 +231,18 @@ public class DiscoveryService implements Closeable {
         return configurationCacheService;
     }
 
-    public void setConfigurationCacheService(ConfigurationCacheService configurationCacheService) {
+    public void setConfigurationCacheService(ConfigurationMetadataCacheService configurationCacheService) {
         this.configurationCacheService = configurationCacheService;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(DiscoveryService.class);
+
+    public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
+        return PulsarResources.createMetadataStore(config.getZookeeperServers(), config.getZookeeperSessionTimeoutMs());
+    }
+
+    public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
+        return PulsarResources.createMetadataStore(config.getConfigurationStoreServers(),
+                config.getZookeeperSessionTimeoutMs());
+    }
 }

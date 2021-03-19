@@ -33,50 +33,48 @@ import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 
-/**
- */
 public interface MockBrokerServiceHooks {
-    public interface CommandConnectHook {
-        public void apply(ChannelHandlerContext ctx, CommandConnect connect);
+    interface CommandConnectHook {
+        void apply(ChannelHandlerContext ctx, CommandConnect connect);
     }
 
-    public interface CommandPartitionLookupHook {
-        public void apply(ChannelHandlerContext ctx, CommandPartitionedTopicMetadata connect);
+    interface CommandPartitionLookupHook {
+        void apply(ChannelHandlerContext ctx, CommandPartitionedTopicMetadata connect);
     }
 
-    public interface CommandTopicLookupHook {
-        public void apply(ChannelHandlerContext ctx, CommandLookupTopic connect);
+    interface CommandTopicLookupHook {
+        void apply(ChannelHandlerContext ctx, CommandLookupTopic connect);
     }
 
-    public interface CommandSubscribeHook {
-        public void apply(ChannelHandlerContext ctx, CommandSubscribe subscribe);
+    interface CommandSubscribeHook {
+        void apply(ChannelHandlerContext ctx, CommandSubscribe subscribe);
     }
 
-    public interface CommandProducerHook {
-        public void apply(ChannelHandlerContext ctx, CommandProducer producer);
+    interface CommandProducerHook {
+        void apply(ChannelHandlerContext ctx, CommandProducer producer);
     }
 
-    public interface CommandSendHook {
-        public void apply(ChannelHandlerContext ctx, CommandSend send, ByteBuf headersAndPayload);
+    interface CommandSendHook {
+        void apply(ChannelHandlerContext ctx, CommandSend send, ByteBuf headersAndPayload);
     }
 
-    public interface CommandAckHook {
-        public void apply(ChannelHandlerContext ctx, CommandAck ack);
+    interface CommandAckHook {
+        void apply(ChannelHandlerContext ctx, CommandAck ack);
     }
 
-    public interface CommandFlowHook {
-        public void apply(ChannelHandlerContext ctx, CommandFlow flow);
+    interface CommandFlowHook {
+        void apply(ChannelHandlerContext ctx, CommandFlow flow);
     }
 
-    public interface CommandUnsubscribeHook {
-        public void apply(ChannelHandlerContext ctx, CommandUnsubscribe unsubscribe);
+    interface CommandUnsubscribeHook {
+        void apply(ChannelHandlerContext ctx, CommandUnsubscribe unsubscribe);
     }
 
-    public interface CommandCloseProducerHook {
-        public void apply(ChannelHandlerContext ctx, CommandCloseProducer closeProducer);
+    interface CommandCloseProducerHook {
+        void apply(ChannelHandlerContext ctx, CommandCloseProducer closeProducer);
     }
 
-    public interface CommandCloseConsumerHook {
-        public void apply(ChannelHandlerContext ctx, CommandCloseConsumer closeConsumer);
+    interface CommandCloseConsumerHook {
+        void apply(ChannelHandlerContext ctx, CommandCloseConsumer closeConsumer);
     }
 }

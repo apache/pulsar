@@ -68,8 +68,8 @@ ProducerConfiguration& ProducerConfiguration::setCompressionType(CompressionType
 CompressionType ProducerConfiguration::getCompressionType() const { return impl_->compressionType; }
 
 ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendingMessages) {
-    if (maxPendingMessages <= 0) {
-        throw std::invalid_argument("maxPendingMessages needs to be greater than 0");
+    if (maxPendingMessages < 0) {
+        throw std::invalid_argument("maxPendingMessages needs to be >= 0");
     }
     impl_->maxPendingMessages = maxPendingMessages;
     return *this;
@@ -78,8 +78,8 @@ ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendi
 int ProducerConfiguration::getMaxPendingMessages() const { return impl_->maxPendingMessages; }
 
 ProducerConfiguration& ProducerConfiguration::setMaxPendingMessagesAcrossPartitions(int maxPendingMessages) {
-    if (maxPendingMessages <= 0) {
-        throw std::invalid_argument("maxPendingMessages needs to be greater than 0");
+    if (maxPendingMessages < 0) {
+        throw std::invalid_argument("maxPendingMessages needs to be >=0");
     }
     impl_->maxPendingMessagesAcrossPartitions = maxPendingMessages;
     return *this;

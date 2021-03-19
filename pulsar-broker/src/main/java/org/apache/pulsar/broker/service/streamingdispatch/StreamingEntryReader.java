@@ -74,8 +74,8 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             1, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
 
     /**
-     * Read entries in streaming way, that said instead reading with micro batch and send entries to consumer after all
-     * entries in the batch are read from ledger, this method will fire numEntriesToRead requests to managedLedger
+     * Read entries in streaming way, that said instead of reading with micro batch and send entries to consumer after
+     * all entries in the batch are read from ledger, this method will fire numEntriesToRead requests to managedLedger
      * and send entry to consumer whenever it is read && all entries before it have been sent to consumer.
      * @param numEntriesToRead number of entry to read from ledger.
      * @param maxReadSizeByte maximum byte will be read from ledger.

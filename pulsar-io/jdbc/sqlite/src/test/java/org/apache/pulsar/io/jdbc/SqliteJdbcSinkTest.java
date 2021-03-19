@@ -104,7 +104,7 @@ public class SqliteJdbcSinkTest {
 
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         sqliteUtils.tearDown();
         jdbcSink.close();

@@ -40,6 +40,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class RackAwareTest extends BkEnsemblesTestBase {
 
     private static final int NUM_BOOKIES = 6;

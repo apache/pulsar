@@ -1,3 +1,4 @@
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -33,7 +34,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -54,6 +54,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "prop-xyz";
@@ -259,7 +260,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         testOffload(false);
     }
 
-    public void testOffload(boolean isPartitioned) throws Exception {
+    private void testOffload(boolean isPartitioned) throws Exception {
         String topicName = testTopic + UUID.randomUUID().toString();
         int partitionNum = 3;
         //1 create topic
@@ -297,6 +298,9 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
         when(topicOffloader.getOffloadDriverName()).thenReturn("mock");
         doReturn(topicOffloader).when(pulsar).createManagedLedgerOffloader(any());
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
 
         //4 set topic level offload policies
         admin.topics().setOffloadPolicies(topicName, offloadPolicies);

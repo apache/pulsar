@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
 
     /**

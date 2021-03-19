@@ -52,9 +52,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-discovery")
 public class DiscoveryServiceWebTest extends ProducerConsumerBase {
 
-    private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+    private final Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
 
     @BeforeMethod
     @Override
@@ -116,11 +117,11 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
             WebTarget webTarget = client.target(url);
             Invocation.Builder invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
             if (HttpMethod.PUT.equals(method)) {
-                response = (Response) invocationBuilder.put(Entity.entity(data, MediaType.APPLICATION_JSON));
+                response = invocationBuilder.put(Entity.entity(data, MediaType.APPLICATION_JSON));
             } else if (HttpMethod.GET.equals(method)) {
-                response = (Response) invocationBuilder.get();
+                response = invocationBuilder.get();
             } else if (HttpMethod.POST.equals(method)) {
-                response = (Response) invocationBuilder.post(Entity.entity(data, MediaType.APPLICATION_JSON));
+                response = invocationBuilder.post(Entity.entity(data, MediaType.APPLICATION_JSON));
             } else {
                 fail("Unsupported http method");
             }
@@ -130,8 +131,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         }
 
         JsonObject jsonObject = new Gson().fromJson(response.readEntity(String.class), JsonObject.class);
-        String serviceResponse = jsonObject.get("reason").getAsString();
-        return serviceResponse;
+        return jsonObject.get("reason").getAsString();
     }
 
     static class DiscoveryZooKeeperClientFactoryImpl implements ZooKeeperClientFactory {

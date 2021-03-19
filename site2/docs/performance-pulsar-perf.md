@@ -124,6 +124,7 @@ The following table lists configuration options available for the `pulsar-perf c
 | subscriber-name | Set the subscriber name prefix. | sub |
 | subscription-type | Set the subscription type. <li> Exclusive <li> Shared <li> Failover <li> Key_Shared | Exclusive |
 | trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
+| batch-index-ack | Enable or disable the batch index acknowledgment. | false |
 
 ## Configurations
 

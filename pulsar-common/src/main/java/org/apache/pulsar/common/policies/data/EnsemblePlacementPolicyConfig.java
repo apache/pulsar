@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Objects;
-import org.apache.bookkeeper.common.util.JsonUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -66,11 +67,29 @@ public class EnsemblePlacementPolicyConfig {
         return false;
     }
 
-    public byte[] encode() throws JsonUtil.ParseJsonException {
-        return JsonUtil.toJson(this).getBytes(StandardCharsets.UTF_8);
+    public byte[] encode() throws ParseEnsemblePlacementPolicyConfigException {
+        try {
+            return ObjectMapperFactory.getThreadLocal()
+                .writerWithDefaultPrettyPrinter()
+                .writeValueAsString(this)
+                .getBytes(StandardCharsets.UTF_8);
+        } catch (JsonProcessingException e) {
+            throw new ParseEnsemblePlacementPolicyConfigException("Failed to encode to json", e);
+        }
     }
 
-    public static EnsemblePlacementPolicyConfig decode(byte[] data) throws JsonUtil.ParseJsonException {
-        return JsonUtil.fromJson(new String(data, StandardCharsets.UTF_8), EnsemblePlacementPolicyConfig.class);
+    public static EnsemblePlacementPolicyConfig decode(byte[] data) throws ParseEnsemblePlacementPolicyConfigException {
+        try {
+            return ObjectMapperFactory.getThreadLocal()
+                .readValue(new String(data, StandardCharsets.UTF_8), EnsemblePlacementPolicyConfig.class);
+        } catch (JsonProcessingException e) {
+            throw new ParseEnsemblePlacementPolicyConfigException("Failed to decode from json", e);
+        }
+    }
+
+    public static class ParseEnsemblePlacementPolicyConfigException extends Exception {
+        ParseEnsemblePlacementPolicyConfigException(String message, Throwable throwable) {
+            super(message, throwable);
+        }
     }
 }

@@ -30,6 +30,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -755,6 +756,8 @@ public interface Topics {
      *            topic name
      * @param getPreciseBacklog
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -764,10 +767,15 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException;
+    TopicStats getStats(String topic, boolean getPreciseBacklog,
+                        boolean subscriptionBacklogSize) throws PulsarAdminException;
+
+    default TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException {
+        return getStats(topic, getPreciseBacklog, false);
+    }
 
     default TopicStats getStats(String topic) throws PulsarAdminException {
-        return getStats(topic, false);
+        return getStats(topic, false, false);
     }
 
     /**
@@ -778,14 +786,16 @@ public interface Topics {
      *            topic name
      * @param getPreciseBacklog
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
-     *
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return a future that can be used to track when the topic statistics are returned
      *
      */
-    CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog);
+    CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
+                                                boolean subscriptionBacklogSize);
 
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
-        return getStatsAsync(topic, false);
+        return getStatsAsync(topic, false, false);
     }
 
     /**
@@ -936,7 +946,11 @@ public interface Topics {
      * @param topic
      *            topic name
      * @param perPartition
-     *
+     *            flag to get stats per partition
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return the partitioned topic statistics
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -946,11 +960,12 @@ public interface Topics {
      *             Unexpected error
      *
      */
-    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog)
+    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog,
+                                              boolean subscriptionBacklogSize)
             throws PulsarAdminException;
 
     default PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException {
-        return getPartitionedStats(topic, perPartition, false);
+        return getPartitionedStats(topic, perPartition, false, false);
     }
 
     /**
@@ -960,13 +975,17 @@ public interface Topics {
      *            topic Name
      * @param perPartition
      *            flag to get stats per partition
+     * @param getPreciseBacklog
+     *            Set to true to get precise backlog, Otherwise get imprecise backlog.
+     * @param subscriptionBacklogSize
+     *            Whether to get backlog size for each subscription.
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
     CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(
-            String topic, boolean perPartition, boolean getPreciseBacklog);
+            String topic, boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize);
 
     default CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition) {
-        return getPartitionedStatsAsync(topic, perPartition, false);
+        return getPartitionedStatsAsync(topic, perPartition, false, false);
     }
 
     /**
@@ -1163,6 +1182,40 @@ public interface Topics {
      */
     CompletableFuture<Void> expireMessagesAsync(String topic, String subscriptionName,
             long expireTimeInSeconds);
+
+    /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            Position before which all messages will be expired.
+     * @param isExcluded
+     *            Will message at passed in position also be expired.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void expireMessages(String topic, String subscriptionName, MessageId messageId, boolean isExcluded)
+            throws PulsarAdminException;
+
+    /**
+     * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription asynchronously.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            Position before which all messages will be expired.
+     * @param isExcluded
+     *            Will message at passed in position also be expired.
+     * @return
+     *            A {@link CompletableFuture} that'll be completed when expire message is done.
+     */
+    CompletableFuture<Void> expireMessagesAsync(String topic, String subscriptionName,
+                                                MessageId messageId, boolean isExcluded);
 
     /**
      * Expire all messages older than given N seconds for all subscriptions of the persistent-topic.
@@ -1481,6 +1534,16 @@ public interface Topics {
      *             Unexpected error
      */
     Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic) throws PulsarAdminException;
+
+    /**
+     * Get applied backlog quota map for a topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic, boolean applied)
+            throws PulsarAdminException;
 
     /**
      * Set a backlog quota for a topic.
@@ -1816,6 +1879,23 @@ public interface Topics {
     CompletableFuture<Integer> getMaxUnackedMessagesOnConsumerAsync(String topic);
 
     /**
+     * get applied max unacked messages on consumer of a topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnConsumer(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * get applied max unacked messages on consumer of a topic asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnConsumerAsync(String topic, boolean applied);
+
+    /**
      * set max unacked messages on consumer of a topic.
      * @param topic
      * @param maxNum
@@ -1982,6 +2062,21 @@ public interface Topics {
     CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic);
 
     /**
+     * get max unacked messages on subscription of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnSubscription(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic, boolean applied);
+
+    /**
      * set max unacked messages on subscription of a topic.
      * @param topic
      * @param maxNum
@@ -2045,6 +2140,22 @@ public interface Topics {
     CompletableFuture<PersistencePolicies> getPersistenceAsync(String topic);
 
     /**
+     * Get the applied configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    PersistencePolicies getPersistence(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the applied configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<PersistencePolicies> getPersistenceAsync(String topic, boolean applied);
+
+    /**
      * Remove the configuration of persistence policies for specified topic.
      *
      * @param topic Topic name
@@ -2065,6 +2176,7 @@ public interface Topics {
      * @return
      * @throws PulsarAdminException
      */
+    @Deprecated
     Boolean getDeduplicationEnabled(String topic) throws PulsarAdminException;
 
     /**
@@ -2072,7 +2184,37 @@ public interface Topics {
      * @param topic
      * @return
      */
+    @Deprecated
     CompletableFuture<Boolean> getDeduplicationEnabledAsync(String topic);
+
+    /**
+     * get deduplication enabled of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationStatus(String topic) throws PulsarAdminException;
+
+    /**
+     * get deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationStatusAsync(String topic);
+    /**
+     * get applied deduplication enabled of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationStatus(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * get applied deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationStatusAsync(String topic, boolean applied);
 
     /**
      * set deduplication enabled of a topic.
@@ -2080,6 +2222,7 @@ public interface Topics {
      * @param enabled
      * @throws PulsarAdminException
      */
+    @Deprecated
     void enableDeduplication(String topic, boolean enabled) throws PulsarAdminException;
 
     /**
@@ -2088,13 +2231,31 @@ public interface Topics {
      * @param enabled
      * @return
      */
+    @Deprecated
     CompletableFuture<Void> enableDeduplicationAsync(String topic, boolean enabled);
+
+    /**
+     * set deduplication enabled of a topic.
+     * @param topic
+     * @param enabled
+     * @throws PulsarAdminException
+     */
+    void setDeduplicationStatus(String topic, boolean enabled) throws PulsarAdminException;
+
+    /**
+     * set deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @param enabled
+     * @return
+     */
+    CompletableFuture<Void> setDeduplicationStatusAsync(String topic, boolean enabled);
 
     /**
      * remove deduplication enabled of a topic.
      * @param topic
      * @throws PulsarAdminException
      */
+    @Deprecated
     void disableDeduplication(String topic) throws PulsarAdminException;
 
     /**
@@ -2102,7 +2263,22 @@ public interface Topics {
      * @param topic
      * @return
      */
+    @Deprecated
     CompletableFuture<Void> disableDeduplicationAsync(String topic);
+
+    /**
+     * remove deduplication enabled of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationStatus(String topic) throws PulsarAdminException;
+
+    /**
+     * remove deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationStatusAsync(String topic);
 
     /**
      * Set message-dispatch-rate (topic can dispatch this many messages per second).
@@ -2149,6 +2325,28 @@ public interface Topics {
     CompletableFuture<DispatchRate> getDispatchRateAsync(String topic);
 
     /**
+     * Get applied message-dispatch-rate (topic can dispatch this many messages per second).
+     *
+     * @param topic
+     * @returns messageRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getDispatchRate(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied message-dispatch-rate asynchronously.
+     * <p/>
+     * Topic can dispatch this many messages per second.
+     *
+     * @param topic
+     * @returns messageRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getDispatchRateAsync(String topic, boolean applied);
+
+    /**
      * Remove message-dispatch-rate.
      * <p/>
      * Remove topic message dispatch rate
@@ -2193,6 +2391,30 @@ public interface Topics {
      *            number of messages per second
      */
     CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Get applied subscription-message-dispatch-rate.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getSubscriptionDispatchRate(String namespace, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied subscription-message-dispatch-rate asynchronously.
+     * <p/>
+     * Subscriptions under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String namespace, boolean applied);
 
     /**
      * Get subscription-message-dispatch-rate for the topic.
@@ -2281,6 +2503,23 @@ public interface Topics {
      *            number of messages per second
      */
     CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String topic);
+
+    /**
+     * Get applied replicatorDispatchRate for the topic.
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    DispatchRate getReplicatorDispatchRate(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied replicatorDispatchRate asynchronously.
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String topic, boolean applied);
 
     /**
      * Remove replicatorDispatchRate for a topic.
@@ -2828,6 +3067,47 @@ public interface Topics {
     CompletableFuture<Void> removeDeduplicationSnapshotIntervalAsync(String topic);
 
     /**
+     * Set is enable sub types.
+     *
+     * @param topic
+     * @param subscriptionTypesEnabled
+     *            is enable subTypes
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionTypesEnabled(String topic,
+                                     Set<SubscriptionType> subscriptionTypesEnabled) throws PulsarAdminException;
+
+    /**
+     * Set is enable sub types asynchronously.
+     *
+     * @param topic
+     * @param subscriptionTypesEnabled
+     *            is enable subTypes
+     */
+    CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String topic,
+                                                             Set<SubscriptionType> subscriptionTypesEnabled);
+
+    /**
+     * Get is enable sub types.
+     *
+     * @param topic
+     *            is topic for get is enable sub types
+     * @return set of enable sub types {@link Set<SubscriptionType>}
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Set<SubscriptionType> getSubscriptionTypesEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * Get is enable sub types asynchronously.
+     *
+     * @param topic
+     *            is topic for get is enable sub types
+     */
+    CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic);
+
+    /**
      * Set topic-subscribe-rate (topic will limit by subscribeRate).
      *
      * @param topic
@@ -2866,6 +3146,24 @@ public interface Topics {
      * @returns subscribeRate
      */
     CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic);
+
+    /**
+     * Get applied topic-subscribe-rate (topics allow subscribe times per consumer in a period).
+     *
+     * @param topic
+     * @returns subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SubscribeRate getSubscribeRate(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied topic-subscribe-rate asynchronously.
+     *
+     * @param topic
+     * @returns subscribeRate
+     */
+    CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic, boolean applied);
 
     /**
      * Remove topic-subscribe-rate.

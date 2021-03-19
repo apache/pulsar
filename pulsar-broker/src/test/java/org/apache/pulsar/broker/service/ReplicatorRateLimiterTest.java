@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import lombok.Cleanup;
-
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -43,13 +43,10 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
+@Test(groups = "broker")
 public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -61,17 +58,14 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(timeOut = 300000)
-    void setup() throws Exception {
+    public void setup() throws Exception {
         super.setup();
     }
 
     @Override
     @AfterClass(alwaysRun = true, timeOut = 300000)
-    void shutdown() throws Exception {
-        super.shutdown();
-        resetConfig1();
-        resetConfig2();
-        resetConfig3();
+    public void cleanup() throws Exception {
+        super.cleanup();
     }
 
     enum DispatchRateType {
@@ -85,7 +79,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     @Test
     public void testReplicatorRatePriority() throws Exception {
-        shutdown();
+        cleanup();
         config1.setSystemTopicEnabled(true);
         config1.setTopicLevelPoliciesEnabled(true);
         config1.setDispatchThrottlingRatePerReplicatorInMsg(100);

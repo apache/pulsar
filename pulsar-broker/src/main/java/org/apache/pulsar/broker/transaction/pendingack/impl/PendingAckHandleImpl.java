@@ -28,10 +28,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -59,7 +61,7 @@ public class PendingAckHandleImpl implements PendingAckHandle {
      *     If the position is batch position and it exits the map, will do operation `and` for this
      *     two positions bit set.
      */
-    private Map<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction;
+    private LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction;
 
     /**
      * The map is for individual ack of positions for transaction.
@@ -160,11 +162,11 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 log.debug("[{}][{}] TxnID:[{}] Individual acks on {}", topicName, subName, txnID.toString(), positions);
             }
             if (individualAckOfTransaction == null) {
-                individualAckOfTransaction = new HashMap<>();
+                individualAckOfTransaction = new LinkedMap<>();
             }
 
             if (individualAckPositions == null) {
-                individualAckPositions = new HashMap<>();
+                individualAckPositions = new ConcurrentSkipListMap<>();
             }
 
             PositionImpl position = positions.get(i).left;
@@ -248,7 +250,8 @@ public class PendingAckHandleImpl implements PendingAckHandle {
     }
 
     @Override
-    public synchronized CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties) {
+    public synchronized CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties,
+                                                          long lowWaterMark) {
 
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         // It's valid to create transaction then commit without doing any operation, which will cause
@@ -269,12 +272,13 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                 }
             }
         }
+        handleLowWaterMark(txnID, lowWaterMark);
         commitFuture.complete(null);
         return commitFuture;
     }
 
     @Override
-    public synchronized CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer) {
+    public synchronized CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark) {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
         if (this.cumulativeAckOfTransaction != null) {
             if (this.cumulativeAckOfTransaction.getKey().equals(txnId)) {
@@ -303,14 +307,27 @@ public class PendingAckHandleImpl implements PendingAckHandle {
                         new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
             }
         }
+        handleLowWaterMark(txnId, lowWaterMark);
         abortFuture.complete(null);
         return abortFuture;
+    }
+
+    private void handleLowWaterMark(TxnID txnID, long lowWaterMark) {
+        if (individualAckOfTransaction != null && !individualAckOfTransaction.isEmpty()) {
+            TxnID firstTxn = individualAckOfTransaction.firstKey();
+
+            if (firstTxn.getMostSigBits() == txnID.getMostSigBits()
+                    && firstTxn.getLeastSigBits() <= lowWaterMark) {
+                individualAckOfTransaction.remove(firstTxn);
+                handleLowWaterMark(txnID, lowWaterMark);
+            }
+        }
     }
 
     @Override
     public synchronized void syncBatchPositionAckSetForTransaction(PositionImpl position) {
         if (individualAckPositions == null) {
-            individualAckPositions = new HashMap<>();
+            individualAckPositions = new ConcurrentSkipListMap<>();
         }
         //sync don't carry the batch size
         //when one position is ack by transaction the batch size is for `and` operation.
@@ -350,6 +367,15 @@ public class PendingAckHandleImpl implements PendingAckHandle {
 
         if (position instanceof PositionImpl) {
             individualAckPositions.remove(position);
+            for (PositionImpl individualAckPosition : individualAckPositions.keySet()) {
+                // individualAckPositions is currentSkipListMap, delete the position form individualAckPositions which
+                // is smaller than can delete position
+                if (individualAckPosition.compareTo((PositionImpl) position) <= 0) {
+                    individualAckPositions.remove(individualAckPosition);
+                } else {
+                    return;
+                }
+            }
         }
     }
 
