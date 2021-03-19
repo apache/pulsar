@@ -201,7 +201,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
         MetadataCache<Policies> objCache = store.getMetadataCache(Policies.class);
-        String path = "/policies";
+        String path = "/testReadCloned-policies";
         // init cache
         Policies policies = new Policies();
         policies.max_unacked_messages_per_consumer = 100;
@@ -239,7 +239,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
         MetadataCache<Policies> objCache = store.getMetadataCache(Policies.class);
-        String path = "/policies";
+        String path = "/testCloneInReadModifyUpdateOrCreate-policies";
         // init cache
         Policies policies = new Policies();
         policies.max_unacked_messages_per_consumer = 100;
