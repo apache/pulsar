@@ -38,13 +38,13 @@ public class FunctionInstanceId {
         this.tenant = t1[0];
         this.namespace = t1[1];
 
-        String[] t2 = t1[2].split(":");
+        int instanceIdDelimiterIndex = t1[2].lastIndexOf(':');
 
-        if (t2.length != 2) {
-            throw new IllegalArgumentException("Invalid format for fully qualified instance name: " + fullyQualifiedInstanceName);
+        if (instanceIdDelimiterIndex < 0) {
+            throw new IllegalArgumentException("Invalid format for fully qualified instance name: " + fullyQualifiedInstanceName);            
         }
-
-        this.name = t2[0];
-        this.instanceId = Integer.parseInt(t2[1]);
+        
+        this.name = t1[2].substring(0, instanceIdDelimiterIndex);
+        this.instanceId = Integer.parseInt(t1[2].substring(instanceIdDelimiterIndex + 1));
     }
 }
