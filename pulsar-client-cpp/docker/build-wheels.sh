@@ -23,11 +23,9 @@ set -e
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 
-ROOT_DIR=$(dirname $0)/../..
-cd $ROOT_DIR
-
 # ROOT_DIR should be an absolute path so that Docker accepts it as a valid volumes path
-ROOT_DIR=$(pwd)
+ROOT_DIR=`cd $(dirname $0)/../..; pwd`
+cd $ROOT_DIR
 
 PYTHON_VERSIONS=(
    '2.7 cp27-cp27mu'
