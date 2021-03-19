@@ -48,7 +48,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -57,6 +56,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -168,9 +168,12 @@ public class PulsarClientImplTest {
     @Test
     public void testInitializeWithTimer() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("test"));
+        ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
         conf.setServiceUrl("pulsar://localhost:6650");
+
         HashedWheelTimer timer = new HashedWheelTimer();
-        PulsarClientImpl client = new PulsarClientImpl(conf, timer);
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool, timer);
 
         client.shutdown();
         client.timer().stop();

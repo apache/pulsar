@@ -140,15 +140,6 @@ public class PulsarClientImpl implements PulsarClient {
         this(conf, eventLoopGroup, cnxPool, null);
     }
 
-    public PulsarClientImpl(ClientConfigurationData conf, Timer timer) throws PulsarClientException {
-        this(conf, getEventLoopGroup(conf), timer);
-    }
-
-    public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Timer timer)
-            throws PulsarClientException {
-        this(conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup), timer);
-    }
-
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool, Timer timer)
             throws PulsarClientException {
         if (conf == null || isBlank(conf.getServiceUrl()) || eventLoopGroup == null) {
