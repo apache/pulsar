@@ -249,8 +249,7 @@ public class PulsarAdminTool {
         }
 
         if (version) {
-            String clientVersion = PulsarVersion.getVersion();
-            System.out.println("Current version of pulsar admin client is: " + clientVersion);
+            System.out.println("Current version of pulsar admin client is: " + PulsarVersion.getVersion());
             return true;
         }
 

@@ -161,8 +161,7 @@ public class PulsarClientTool {
             }
 
             if (version) {
-                String clientVersion = PulsarVersion.getVersion();
-                System.out.println("Current version of pulsar client is: " + clientVersion);
+                System.out.println("Current version of pulsar client is: " + PulsarVersion.getVersion());
                 return 0;
             }
 
