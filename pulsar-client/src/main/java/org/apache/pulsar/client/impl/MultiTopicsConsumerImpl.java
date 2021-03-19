@@ -170,6 +170,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         if (conf.getTopicNames().isEmpty()) {
             setState(State.Ready);
             subscribeFuture().complete(MultiTopicsConsumerImpl.this);
+            conf.getTopicNames().add(singleTopic);
             return;
         }
 
