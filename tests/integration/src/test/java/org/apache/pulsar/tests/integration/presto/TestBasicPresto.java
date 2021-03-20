@@ -118,10 +118,15 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         TopicName topicName2 = TopicName.get("public/default/diff_case_topic_" + randomSuffix);
         prepareData(topicName1, false, false, JSONSchema.of(Stock.class));
         prepareData(topicName2, false, false, JSONSchema.of(Stock.class));
-        ContainerExecResult result =
-                execQuery("select * from pulsar.\"public/default\".\"diff_case_topic_" + randomSuffix + "\"");
-        log.info(result.getStderr());
-        Assert.assertTrue(result.getStderr().contains("failed: There are multiple topics"));
+        try {
+            String query = "select * from pulsar.\"public/default\".\"diff_case_topic_" + randomSuffix + "\"";
+            ContainerExecResult result = execQuery(query);
+            Assert.fail("The query [" + query + "] should be failed.");
+        } catch (Exception e) {
+            log.info("Expected exception. exception class: {}, exception message: {}",
+                    e.getCause().getClass(), e.getMessage());
+            Assert.assertTrue(e.getMessage().contains("There are multiple topics"));
+        }
     }
 
     @Override
