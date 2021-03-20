@@ -2572,7 +2572,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 if (topics.size() + numPartitions > maxTopicsPerNamespace) {
                     log.error("Failed to create persistent topic {}, "
                             + "exceed maximum number of topics in namespace", topicName);
-                    topicFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+                    topicFuture.completeExceptionally(new NotAllowedException(
                             "Exceed maximum number of topics in namespace."));
                     return false;
                 }
