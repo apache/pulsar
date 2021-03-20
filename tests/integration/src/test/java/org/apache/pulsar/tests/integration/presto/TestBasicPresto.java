@@ -106,7 +106,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     }
 
     @Test
-    public void testForUpperCaseTopic() throws Exception {
+    public void testForUppercaseTopic() throws Exception {
         TopicName topicName = TopicName.get("public/default/case_UPPER_topic_" + randomName(5));
         pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class));
     }
@@ -119,9 +119,9 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         prepareData(topicName1, false, false, JSONSchema.of(Stock.class));
         prepareData(topicName2, false, false, JSONSchema.of(Stock.class));
         ContainerExecResult result =
-                execQuery("select * from pulsar.\"public/default\".\"diff_case_topic_\"" + randomSuffix);
-        log.info(result.getStdout());
-        Assert.assertTrue(result.getStdout().contains("failed: There are multiple topics"));
+                execQuery("select * from pulsar.\"public/default\".\"diff_case_topic_" + randomSuffix + "\"");
+        log.info(result.getStderr());
+        Assert.assertTrue(result.getStderr().contains("failed: There are multiple topics"));
     }
 
     @Override

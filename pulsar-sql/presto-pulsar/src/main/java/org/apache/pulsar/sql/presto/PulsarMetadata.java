@@ -27,6 +27,9 @@ import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertColumnHan
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertTableHandle;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
@@ -50,6 +53,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -75,8 +80,19 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     private static final String INFORMATION_SCHEMA = "information_schema";
 
-
     private static final Logger log = Logger.get(PulsarMetadata.class);
+
+    private final LoadingCache<SchemaTableName, TopicName> tableNameTopicNameCache =
+            CacheBuilder.newBuilder()
+                    // use a short live cache to make sure one query not get matched the topic many times and
+                    // prevent get the wrong cache due to the topic changes in the Pulsar.
+                    .expireAfterWrite(30, TimeUnit.SECONDS)
+                    .build(new CacheLoader<SchemaTableName, TopicName>() {
+                        @Override
+                        public TopicName load(SchemaTableName schemaTableName) throws Exception {
+                            return getMatchedPulsarTopic(schemaTableName);
+                        }
+                    });
 
     @Inject
     public PulsarMetadata(PulsarConnectorId connectorId, PulsarConnectorConfig pulsarConnectorConfig,
@@ -112,7 +128,7 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     @Override
     public ConnectorTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName) {
-        TopicName topicName = checkPulsarTopic(tableName);
+        TopicName topicName = getMatchedTopicName(tableName);
         return new PulsarTableHandle(
                 this.connectorId,
                 tableName.getSchemaName(),
@@ -263,7 +279,7 @@ public class PulsarMetadata implements ConnectorMetadata {
             return null;
         }
 
-        TopicName topicName = checkPulsarTopic(schemaTableName);
+        TopicName topicName = getMatchedTopicName(schemaTableName);
 
         SchemaInfo schemaInfo;
         try {
@@ -344,19 +360,26 @@ public class PulsarMetadata implements ConnectorMetadata {
         return builder.build();
     }
 
-    private TopicName checkPulsarTopic(SchemaTableName schemaTableName) {
+    private TopicName getMatchedTopicName(SchemaTableName schemaTableName) {
+        TopicName topicName;
+        try {
+            topicName = tableNameTopicNameCache.get(schemaTableName);
+        } catch (ExecutionException e) {
+            log.error(e, "Failed to get table handler for tableName " + schemaTableName);
+            throw new TableNotFoundException(schemaTableName);
+        }
+        return topicName;
+    }
+
+    private TopicName getMatchedPulsarTopic(SchemaTableName schemaTableName) {
         String namespace = restoreNamespaceDelimiterIfNeeded(schemaTableName.getSchemaName(), pulsarConnectorConfig);
 
-        TopicName topicName = TopicName.get(
-                String.format("%s/%s", namespace, schemaTableName.getTableName()));
-
-        List<String> topics;
+        Set<String> topicsSetWithoutPartition;
         try {
-            if (!PulsarConnectorUtils.isPartitionedTopic(topicName, this.pulsarAdmin)) {
-                topics = this.pulsarAdmin.topics().getList(namespace);
-            } else {
-                topics = this.pulsarAdmin.topics().getPartitionedTopicList(namespace);
-            }
+            List<String> allTopics = this.pulsarAdmin.topics().getList(namespace);
+            topicsSetWithoutPartition = allTopics.stream()
+                    .map(t -> t.split(TopicName.PARTITIONED_TOPIC_SUFFIX)[0])
+                    .collect(Collectors.toSet());
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
                 throw new PrestoException(NOT_FOUND, "Schema " + namespace + " does not exist");
@@ -368,9 +391,8 @@ public class PulsarMetadata implements ConnectorMetadata {
                     + ": " + ExceptionUtils.getRootCause(e).getLocalizedMessage(), e);
         }
 
-        final String matchedName = topicName.toString();
-        List<String> matchedTopics = topics.stream()
-                .filter(t -> t.toLowerCase().contains(matchedName))
+        List<String> matchedTopics = topicsSetWithoutPartition.stream()
+                .filter(t -> TopicName.get(t).getLocalName().equalsIgnoreCase(schemaTableName.getTableName()))
                 .collect(Collectors.toList());
 
         if (matchedTopics.size() == 0) {
@@ -383,7 +405,7 @@ public class PulsarMetadata implements ConnectorMetadata {
             log.error(errMsg);
             throw new TableNotFoundException(schemaTableName, errMsg);
         }
-        log.info("matched topic: " + matchedTopics.get(0));
+        log.info("matched topic %s for table %s ", matchedTopics.get(0), schemaTableName);
         return TopicName.get(matchedTopics.get(0));
     }
 
