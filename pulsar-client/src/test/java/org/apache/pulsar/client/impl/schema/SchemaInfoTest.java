@@ -26,6 +26,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
@@ -317,5 +318,14 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getProperties(), Maps.newHashMap(map));
         }
 
+        @Test
+        public void testNullPropertyValue() {
+            final Map<String, String> map = new HashMap<>();
+            map.put("key", null);
+            final SchemaInfo schemaInfo = Schema.INT32.getSchemaInfo();
+            schemaInfo.setProperties(map);
+
+            assertEquals(map, Schema.INT32.getSchemaInfo().getProperties());
+        }
     }
 }
