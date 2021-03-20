@@ -66,9 +66,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
-      - name: run unit test 'BROKER_CLIENT_OTHER'
+      - name: run unit test 'BROKER_FLAKY'
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/run_unit_group.sh BROKER_CLIENT_OTHER
+        run: ./build/run_unit_group.sh BROKER_FLAKY
 
       - name: package surefire artifacts
         if: failure()

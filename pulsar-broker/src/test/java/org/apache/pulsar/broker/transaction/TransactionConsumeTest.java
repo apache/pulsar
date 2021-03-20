@@ -54,13 +54,14 @@ import org.testng.annotations.Test;
  * Test for consuming transaction messages.
  */
 @Slf4j
+@Test(groups = "broker")
 public class TransactionConsumeTest extends TransactionTestBase {
 
     private final static String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
     private final static String NORMAL_MSG_CONTENT = "Normal - ";
     private final static String TXN_MSG_CONTENT = "Txn - ";
 
-    @BeforeMethod
+    @BeforeMethod(groups = "broker")
     public void setup() throws Exception {
         setBrokerCount(1);
         super.internalSetup();

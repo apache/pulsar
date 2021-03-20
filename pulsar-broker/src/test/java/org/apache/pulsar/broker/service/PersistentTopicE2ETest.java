@@ -90,9 +90,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "flaky")
 public class PersistentTopicE2ETest extends BrokerTestBase {
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -568,7 +568,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         int i = 0;
         for (i = 0; i < 30; i++) {
-            if (pulsar.getBrokerService().getTopicReference(topic) == null) {
+            if (!pulsar.getBrokerService().getTopicReference(topic).isPresent()) {
                 break;
             }
             Thread.sleep(1000);
@@ -1417,9 +1417,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Thread.sleep(1000);
         brokerService.updateRates();
         List<Metrics> metrics = brokerService.getTopicMetrics();
-        for (int i = 0; i < metrics.size(); i++) {
-            if (metrics.get(i).getDimension("namespace").equalsIgnoreCase(namespace)) {
-                metric = metrics.get(i);
+        for (Metrics value : metrics) {
+            if (value.getDimension("namespace").equalsIgnoreCase(namespace)) {
+                metric = value;
                 break;
             }
         }

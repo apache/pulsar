@@ -50,6 +50,7 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
+@Test(groups = "broker")
 public class TransactionStablePositionTest extends TransactionTestBase {
 
     private final static String TENANT = "tnx";
@@ -88,7 +89,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
     }
 
     @Test
-    private void commitTxnTest() throws Exception {
+    public void commitTxnTest() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
@@ -134,7 +135,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
     }
 
     @Test
-    private void abortTxnTest() throws Exception {
+    public void abortTxnTest() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();

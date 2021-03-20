@@ -38,6 +38,7 @@ import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
@@ -120,9 +121,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- */
 @SuppressWarnings("unchecked")
+@Test(groups = "broker")
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
     private ServiceConfiguration svcConfig;
@@ -144,8 +144,8 @@ public class ServerCnxTest {
     private final String nonExistentTopicName = "persistent://nonexistent-prop/nonexistent-cluster/nonexistent-namespace/successNonExistentTopic";
     private final String topicWithNonLocalCluster = "persistent://prop/usw/ns-abc/successTopic";
 
-    private ManagedLedger ledgerMock = mock(ManagedLedger.class);
-    private ManagedCursor cursorMock = mock(ManagedCursor.class);
+    private final ManagedLedger ledgerMock = mock(ManagedLedger.class);
+    private final ManagedCursor cursorMock = mock(ManagedCursor.class);
     private OrderedExecutor executor;
 
     @BeforeMethod
@@ -898,7 +898,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000, invocationCount = 1, skipFailedInvocations = true)
+    @Test(timeOut = 30000, skipFailedInvocations = true)
     public void testCreateProducerBookieTimeout() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1466,7 +1466,13 @@ public class ServerCnxTest {
         }
         serverCnx = new ServerCnx(pulsar);
         serverCnx.authRole = "";
-        channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4), serverCnx);
+        channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(
+                MaxMessageSize,
+                0,
+                4,
+                0,
+                4),
+                (ChannelHandler) serverCnx);
     }
 
     protected void setChannelConnected() throws Exception {
@@ -1476,7 +1482,7 @@ public class ServerCnxTest {
     }
 
     private void setConnectionVersion(int version) throws Exception {
-        PulsarHandler cnx = (PulsarHandler) serverCnx;
+        PulsarHandler cnx = serverCnx;
         Field versionField = PulsarHandler.class.getDeclaredField("remoteEndpointProtocolVersion");
         versionField.setAccessible(true);
         versionField.set(cnx, version);

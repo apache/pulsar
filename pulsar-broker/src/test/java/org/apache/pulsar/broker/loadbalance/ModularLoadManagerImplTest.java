@@ -85,6 +85,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class ModularLoadManagerImplTest {
     private LocalBookkeeperEnsemble bkEnsemble;
 

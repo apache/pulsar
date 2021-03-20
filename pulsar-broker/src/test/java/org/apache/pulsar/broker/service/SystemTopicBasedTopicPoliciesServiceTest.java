@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.ExecutionException;
 
+@Test(groups = "broker")
 public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final String NAMESPACE1 = "system-topic/namespace-1";

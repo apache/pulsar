@@ -78,8 +78,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker")
 public class BrokerBookieIsolationTest {
 
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -256,7 +255,7 @@ public class BrokerBookieIsolationTest {
      * @throws Exception
      */
     @Test
-    public void testBookieIsilationWithSecondaryGroup() throws Exception {
+    public void testBookieIsolationWithSecondaryGroup() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
         final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");

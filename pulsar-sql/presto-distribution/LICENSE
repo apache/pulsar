@@ -358,8 +358,8 @@ The Apache Software License, Version 2.0
   * Apache XBean :: Reflect
     - xbean-reflect-3.4.jar
   * Avro
-    - avro-1.9.1.jar
-    - avro-protobuf-1.9.1.jar
+    - avro-1.10.2.jar
+    - avro-protobuf-1.10.2.jar
   * Caffeine
     - caffeine-2.6.2.jar
   * Javax

@@ -51,10 +51,10 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- */
 @Slf4j
+@Test(groups = "broker")
 public class SubscriptionSeekTest extends BrokerTestBase {
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -301,9 +301,9 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             resetCursorThreads.get(i).join();
         }
 
-        for (int i = 0; i < exceptions.size(); i++) {
-            log.error("Meet Exception", exceptions.get(i));
-            assertTrue(exceptions.get(i).getMessage().contains("Failed to fence subscription"));
+        for (PulsarAdminException exception : exceptions) {
+            log.error("Meet Exception", exception);
+            assertTrue(exception.getMessage().contains("Failed to fence subscription"));
         }
     }
 
