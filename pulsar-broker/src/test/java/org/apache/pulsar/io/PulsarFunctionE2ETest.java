@@ -291,7 +291,7 @@ public class PulsarFunctionE2ETest {
         }
     }
 
-    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) throws IOException {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) throws IOException{
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());

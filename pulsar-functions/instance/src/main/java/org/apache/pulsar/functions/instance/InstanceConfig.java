@@ -37,6 +37,7 @@ public class InstanceConfig {
     private Function.FunctionAuthenticationSpec functionAuthenticationSpec;
     private int port;
     private String clusterName;
+    private ClusterFunctionProducerDefaultsProxy clusterFunctionProducerDefaultsProxy;
     // Max pending async requests per instance to avoid large number of concurrent requests.
     // Only used in AsyncFunction. Default: 1000
     private int maxPendingAsyncRequests = 1000;

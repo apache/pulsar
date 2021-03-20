@@ -25,6 +25,7 @@ import static org.testng.Assert.assertNull;
 import java.net.URL;
 
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
+import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.testng.annotations.Test;

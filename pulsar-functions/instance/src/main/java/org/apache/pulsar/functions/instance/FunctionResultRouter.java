@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
+import org.apache.pulsar.functions.proto.Function;
 
 /**
  * Router for routing function results.
@@ -48,7 +49,21 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
             clock);
     }
 
+    @VisibleForTesting
+    public FunctionResultRouter(ClusterFunctionProducerDefaultsProxy clusterFunctionProducerDefaultsProxy, int startPtnIdx, Clock clock) {
+        super(
+                clusterFunctionProducerDefaultsProxy.getHashingScheme(),
+                startPtnIdx,
+                clusterFunctionProducerDefaultsProxy.getBatchingEnabled(),
+                1,
+                clock);
+    }
+
     public static FunctionResultRouter of() {
+        return INSTANCE;
+    }
+    public static FunctionResultRouter of(ClusterFunctionProducerDefaultsProxy clusterFunctionProducerDefaultsProxy) {
+        INSTANCE.isBatchingEnabled = clusterFunctionProducerDefaultsProxy.getBatchingEnabled();
         return INSTANCE;
     }
 

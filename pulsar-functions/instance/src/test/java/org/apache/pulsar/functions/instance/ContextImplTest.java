@@ -39,9 +39,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -50,6 +48,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.slf4j.Logger;
@@ -72,10 +71,33 @@ public class ContextImplTest {
     public void setup() {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);
+        Function.ProducerSpec producerSpec = Function.ProducerSpec.newBuilder()
+                .setBatching(Function.Batching.UNKNOWN_BATCHING)
+                .setChunking(Function.Chunking.UNKNOWN_CHUNKING)
+                .setBlockIfQueueFull(Function.BlockIfQueueFull.UNKNOWN_BLOCKING)
+                .setCompressionType(Function.CompressionType.UNKNOWN_COMPRESSION)
+                .setHashingScheme(Function.HashingScheme.UNKNOWN_HASHING)
+                .setMessageRoutingMode(Function.MessageRoutingMode.UNKNOWN_ROUTING)
+                .setBatchingMaxPublishDelay(0)  // This is the default case.
+                .build();
+        Function.SinkSpec sink = Function.SinkSpec.newBuilder()
+                .setProducerSpec(producerSpec)
+                .build();
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
-            .setUserConfig("")
-            .build();
+                .setUserConfig("")
+                .setSink(sink)
+                .build();
         config.setFunctionDetails(functionDetails);
+        ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = mock(ClusterFunctionProducerDefaultsProxy.class);
+        when(producerDefaultsProxy.getBatchingEnabled()).thenReturn(true);
+        when(producerDefaultsProxy.getChunkingEnabled()).thenReturn(false);
+        when(producerDefaultsProxy.getBlockIfQueueFull()).thenReturn(true);
+        when(producerDefaultsProxy.getCompressionType()).thenReturn(CompressionType.SNAPPY);
+        when(producerDefaultsProxy.getHashingScheme()).thenReturn(HashingScheme.JavaStringHash);
+        when(producerDefaultsProxy.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(producerDefaultsProxy.getBatchingMaxPublishDelay()).thenReturn(10);
+
+        config.setClusterFunctionProducerDefaultsProxy(producerDefaultsProxy);
         logger = mock(Logger.class);
         client = mock(PulsarClientImpl.class);
         pulsarAdmin = mock(PulsarAdmin.class);
@@ -176,7 +198,7 @@ public class ContextImplTest {
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
-    public void testGetPulsarAdminWithExposePulsarAdminDisabled() {
+    public void testGetPulsarAdminWithExposePulsarAdminDisabled() throws InvalidWorkerConfigDefaultException {
         config.setExposePulsarAdminClientEnabled(false);
         context = new ContextImpl(
                 config,

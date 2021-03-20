@@ -16,27 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.functions;
+package org.apache.pulsar.functions.instance;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+public class InvalidWorkerConfigDefaultException extends Exception {
+    private static final long serialVersionUID = -2978143271894L;
 
-/**
- * Configuration of the producer inside the function.
- */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
-public class ProducerConfig {
-    private Integer maxPendingMessages;
-    private Integer maxPendingMessagesAcrossPartitions;
-    private Boolean useThreadLocalProducers;
-    private CryptoConfig cryptoConfig;
-    private String batchBuilder;
-    private Boolean isFunctionBatchingEnabled; // We need to add the other default configs here as well.
+    public InvalidWorkerConfigDefaultException() {
+        super();
+    }
+
+    public InvalidWorkerConfigDefaultException(String propertyName, String propertyValue) {
+        super("The property value of " + propertyValue + " is not a valid option for the property " + propertyName
+             + " in the configuration for function_worker.yml . Please restart the broker after correcting the invalid configuration.");
+
+    }
+
 }

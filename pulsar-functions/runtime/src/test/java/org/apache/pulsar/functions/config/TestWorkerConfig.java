@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.config;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
+import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.testng.annotations.Test;
 

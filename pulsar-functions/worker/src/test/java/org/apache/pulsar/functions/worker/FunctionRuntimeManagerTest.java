@@ -57,6 +57,7 @@ import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntime;
@@ -820,7 +821,7 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
-    public void testFunctionRuntimeSetCorrectly() {
+    public void testFunctionRuntimeSetCorrectly() throws InvalidWorkerConfigDefaultException {
 
         // Function runtime not set
         try {

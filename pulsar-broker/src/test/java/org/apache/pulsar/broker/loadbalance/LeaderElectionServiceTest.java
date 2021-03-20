@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.mockito.Mockito;
@@ -61,7 +62,7 @@ public class LeaderElectionServiceTest {
     }
 
     @Test
-    public void anErrorShouldBeThrowBeforeLeaderElected() throws PulsarServerException, PulsarClientException, PulsarAdminException {
+    public void anErrorShouldBeThrowBeforeLeaderElected() throws PulsarServerException, PulsarClientException, PulsarAdminException, InvalidWorkerConfigDefaultException {
         final String clusterName = "elect-test";
         ServiceConfiguration config = new ServiceConfiguration();
         config.setBrokerServicePort(Optional.of(6650));
@@ -118,13 +119,13 @@ public class LeaderElectionServiceTest {
 
     private static class MockPulsarService extends PulsarService {
 
-        public MockPulsarService(ServiceConfiguration config) {
+        public MockPulsarService(ServiceConfiguration config) throws InvalidWorkerConfigDefaultException {
             super(config);
         }
 
         public MockPulsarService(ServiceConfiguration config,
                                  Optional<WorkerService> functionWorkerService,
-                                 Consumer<Integer> processTerminator) {
+                                 Consumer<Integer> processTerminator) throws InvalidWorkerConfigDefaultException {
             super(config, functionWorkerService, processTerminator);
         }
 

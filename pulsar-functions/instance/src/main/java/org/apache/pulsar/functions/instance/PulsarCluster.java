@@ -52,12 +52,14 @@ public class PulsarCluster {
     @Getter
     private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
 
-    public PulsarCluster(PulsarClient client, PulsarAdmin adminClient, ProducerSpec producerSpec) {
+    public PulsarCluster(PulsarClient client, PulsarAdmin adminClient, ProducerSpec producerSpec, InstanceConfig config)  {
         this.client = client;
         this.adminClient = adminClient;
         this.topicSchema = new TopicSchema(client);
-        this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
-                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+        this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer()
+                .blockIfQueueFull(config.getClusterFunctionProducerDefaultsProxy().getBlockIfQueueFull())
+                .enableBatching(config.getClusterFunctionProducerDefaultsProxy().getBatchingEnabled())
+                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS); // Should we use any other defaults from clusterFunctionProducerDefaults here?
         boolean useThreadLocalProducers = false;
         if (producerSpec != null) {
             if (producerSpec.getMaxPendingMessages() != 0) {

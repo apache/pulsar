@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -85,7 +86,7 @@ public class SchedulerManagerTest {
     private PulsarClient pulsarClient;
 
     @BeforeMethod
-    public void setup() {
+    public void setup() throws InvalidWorkerConfigDefaultException {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
@@ -890,7 +891,7 @@ public class SchedulerManagerTest {
         complete.get(30, TimeUnit.SECONDS);
     }
 
-    private List<Invocation> getMethodInvocationDetails(Object o, Method method) throws NoSuchMethodException {
+    private List<Invocation> getMethodInvocationDetails(Object o, Method method) {
         List<Invocation> ret = new LinkedList<>();
         for (Invocation entry : Mockito.mockingDetails(o).getInvocations()) {
             if (entry.getMethod().getName().equals(method.getName())) {

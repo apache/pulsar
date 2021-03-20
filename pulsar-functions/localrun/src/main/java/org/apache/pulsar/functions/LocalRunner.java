@@ -53,6 +53,8 @@ import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaults;
+import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaultsProxy;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -161,6 +163,26 @@ public class LocalRunner implements AutoCloseable {
     protected String secretsProviderClassName;
     @Parameter(names = "--secretsProviderConfig", description = "Whats the config for the secrets provider", hidden = true)
     protected String secretsProviderConfig;
+    @Parameter(names = "--clusterFunctionBatchingDefault", description = "The default message batching behavior for functions", hidden = true)
+    public boolean clusterFunctionBatchingDefault = true;
+
+    @Parameter(names = "--clusterFunctionChunkingDefault", description = "The default message chunking behavior for functions", hidden = true)
+    public boolean clusterFunctionChunkingDefault = false;
+
+    @Parameter(names = "--clusterFunctionBlockIfQueueFullDefault", description = "The default blocking behavior for functions when queue is full", hidden = true)
+    public boolean clusterFunctionBlockIfQueueFullDefault = true;
+
+    @Parameter(names = "--clusterFunctionCompressionTypeDefault", description = "The default Compression Type for functions", hidden = true)
+    public String clusterFunctionCompressionTypeDefault = "LZ4";
+
+    @Parameter(names = "--clusterFunctionHashingSchemeDefault", description = "The default Hashing Scheme for functions", hidden = true)
+    public String clusterFunctionHashingSchemeDefault = "Murmur3_32Hash";
+
+    @Parameter(names = "--clusterFunctionMessageRoutingModeDefault", description = "The default Message Routing Mode for functions", hidden = true)
+    public String clusterFunctionMessageRoutingModeDefault = "CustomPartition";
+
+    @Parameter(names = "--clusterFunctionBatchingMaxPublishDelayDefault", description = "The default max publish delay (in milliseconds) for functions when message batching is enabled", hidden = true)
+    public int clusterFunctionBatchingMaxPublishDelayDefault = 10;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
     private static final String DEFAULT_WEB_SERVICE_URL = "http://localhost:8080";
@@ -445,6 +467,12 @@ public class LocalRunner implements AutoCloseable {
                 instanceConfig.setPort(FunctionCommon.findAvailablePort());
                 instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
                 instanceConfig.setClusterName("local");
+                ClusterFunctionProducerDefaults producerDefaults = new ClusterFunctionProducerDefaults(this.clusterFunctionBatchingDefault,
+                        this.clusterFunctionChunkingDefault, this.clusterFunctionBlockIfQueueFullDefault, this.clusterFunctionCompressionTypeDefault,
+                        this.clusterFunctionHashingSchemeDefault, this.clusterFunctionMessageRoutingModeDefault, this.clusterFunctionBatchingMaxPublishDelayDefault);
+                ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = new ClusterFunctionProducerDefaultsProxy(functionDetails, producerDefaults);
+
+                instanceConfig.setClusterFunctionProducerDefaultsProxy(producerDefaultsProxy);
                 if (functionConfig != null) {
                     instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
                     if (functionConfig.getExposePulsarAdminClientEnabled() != null) {
@@ -538,6 +566,12 @@ public class LocalRunner implements AutoCloseable {
             instanceConfig.setPort(FunctionCommon.findAvailablePort());
             instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
             instanceConfig.setClusterName("local");
+            ClusterFunctionProducerDefaults producerDefaults = new ClusterFunctionProducerDefaults(this.clusterFunctionBatchingDefault,
+                    this.clusterFunctionChunkingDefault, this.clusterFunctionBlockIfQueueFullDefault, this.clusterFunctionCompressionTypeDefault,
+                    this.clusterFunctionHashingSchemeDefault, this.clusterFunctionMessageRoutingModeDefault, this.clusterFunctionBatchingMaxPublishDelayDefault);
+            ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = new ClusterFunctionProducerDefaultsProxy(functionDetails, producerDefaults);
+
+            instanceConfig.setClusterFunctionProducerDefaultsProxy(producerDefaultsProxy);
             if (functionConfig != null) {
                 instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
                 if (functionConfig.getExposePulsarAdminClientEnabled() != null) {

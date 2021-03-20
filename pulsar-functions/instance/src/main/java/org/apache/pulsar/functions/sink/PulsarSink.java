@@ -26,11 +26,8 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
-import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
@@ -48,8 +45,7 @@ import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.instance.FunctionResultRouter;
-import org.apache.pulsar.functions.instance.SinkRecord;
+import org.apache.pulsar.functions.instance.*;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
@@ -80,6 +76,7 @@ public class PulsarSink<T> implements Sink<T> {
     private final Map<String, String> properties;
     private final ClassLoader functionClassLoader;
     private ComponentStatsManager stats;
+    private InstanceConfig instanceConfig;
 
     @VisibleForTesting
     PulsarSinkProcessor<T> pulsarSinkProcessor;
@@ -107,14 +104,17 @@ public class PulsarSink<T> implements Sink<T> {
 
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
+            InstanceConfig localInstanceConfig = PulsarSink.this.instanceConfig;
+            ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = localInstanceConfig.getClusterFunctionProducerDefaultsProxy();
+
             ProducerBuilder<T> builder = client.newProducer(schema)
-                    .blockIfQueueFull(true)
-                    .enableBatching(true)
-                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                    .compressionType(CompressionType.LZ4)
-                    .hashingScheme(HashingScheme.Murmur3_32Hash) //
-                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
-                    .messageRouter(FunctionResultRouter.of())
+                    .blockIfQueueFull(producerDefaultsProxy.getBlockIfQueueFull())
+                    .enableBatching(producerDefaultsProxy.getBatchingEnabled())
+                    .batchingMaxPublishDelay(producerDefaultsProxy.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS)
+                    .compressionType(producerDefaultsProxy.getCompressionType())
+                    .hashingScheme(producerDefaultsProxy.getHashingScheme()) //
+                    .messageRoutingMode(producerDefaultsProxy.getMessageRoutingMode())
+                    .messageRouter(FunctionResultRouter.of(producerDefaultsProxy))
                     // set send timeout to be infinity to prevent potential deadlock with consumer
                     // that might happen when consumer is blocked due to unacked messages
                     .sendTimeout(0, TimeUnit.SECONDS)
@@ -322,15 +322,15 @@ public class PulsarSink<T> implements Sink<T> {
             future.thenAccept(messageId -> record.ack()).exceptionally(getPublishErrorHandler(record, true));
         }
     }
-
     public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties,
-                      ComponentStatsManager stats, ClassLoader functionClassLoader) {
+                      ComponentStatsManager stats, ClassLoader functionClassLoader, InstanceConfig instanceConfig) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
         this.properties = properties;
         this.stats = stats;
         this.functionClassLoader = functionClassLoader;
+        this.instanceConfig = instanceConfig;
     }
 
     @Override

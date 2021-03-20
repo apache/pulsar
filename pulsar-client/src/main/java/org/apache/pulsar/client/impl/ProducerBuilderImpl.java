@@ -63,7 +63,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     private List<ProducerInterceptor> interceptorList;
 
     @VisibleForTesting
-    public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+    public  ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
         this(client, new ProducerConfigurationData(), schema);
     }
 

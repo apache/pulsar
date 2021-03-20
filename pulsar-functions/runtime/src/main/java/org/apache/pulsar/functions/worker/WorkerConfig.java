@@ -32,10 +32,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -50,6 +47,9 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
+import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaults;
+import org.apache.pulsar.functions.instance.FunctionDefaultsConfig;
+import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
@@ -61,6 +61,16 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     private static final long serialVersionUID = 1L;
+
+    private ClusterFunctionProducerDefaults clusterFunctionProducerDefaults;
+
+    public WorkerConfig() {
+        this.functionDefaults = new FunctionDefaults();
+    }
+    public WorkerConfig buildProducerDefaults() throws InvalidWorkerConfigDefaultException {
+        this.clusterFunctionProducerDefaults = this.getFunctionDefaults().buildProducerDefaults();
+        return this;
+    }
 
     @Category
     private static final String CATEGORY_WORKER = "Worker Settings";
@@ -84,6 +94,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private static final String CATEGORY_CONNECTORS = "Connectors";
     @Category
     private static final String CATEGORY_FUNCTIONS = "Functions";
+    @Category
+    private static final String CATEGORY_FUNCTION_DEFAULTS = "Cluster-Wide Function Defaults";
 
     @FieldContext(
         category = CATEGORY_WORKER,
@@ -280,6 +292,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "Whether to enable the broker client authentication used by function workers to talk to brokers"
     )
     private Boolean brokerClientAuthenticationEnabled = null;
+
     public boolean isBrokerClientAuthenticationEnabled() {
         if (brokerClientAuthenticationEnabled != null) {
             return brokerClientAuthenticationEnabled;
@@ -538,12 +551,25 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private boolean exposeAdminClientEnabled = false;
 
-    public static WorkerConfig load(String yamlFile) throws IOException {
-        if (isBlank(yamlFile)) {
-            return new WorkerConfig();
+    @Data
+    public static class FunctionDefaults extends FunctionDefaultsConfig {
+
+    }
+    @FieldContext(
+            category = CATEGORY_FUNCTION_DEFAULTS,
+            doc = "Enables configuration of cluster-wide defaults for functions"
+    )
+    private FunctionDefaults functionDefaults;
+
+    public static WorkerConfig load(String yamlFile) throws IOException, InvalidWorkerConfigDefaultException {
+        // Validation is kept in setters used in BuildProducerDefaults to keep the validation close to the
+        // implementation to prevent the validation and implementation from getting out of sync.
+
+        if (isBlank(yamlFile)) { // How will this ever evaluate to true? Jackson throws an exception if file is blank.
+            return new WorkerConfig().buildProducerDefaults();
         }
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), WorkerConfig.class);
+        return mapper.readValue(new File(yamlFile), WorkerConfig.class).buildProducerDefaults();
     }
 
     public String getWorkerId() {

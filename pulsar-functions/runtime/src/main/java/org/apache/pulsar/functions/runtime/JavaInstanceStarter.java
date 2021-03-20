@@ -43,6 +43,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaults;
+import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaultsProxy;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -138,6 +140,27 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client exposed to function context, default is disabled.", required = false)
     public Boolean exposePulsarAdminClientEnabled = false;
 
+    @Parameter(names = "--clusterFunctionBatchingDefault", description = "The default message batching behavior for functions", hidden = true)
+    public boolean clusterFunctionBatchingDefault = true;
+
+    @Parameter(names = "--clusterFunctionChunkingDefault", description = "The default message chunking behavior for functions", hidden = true)
+    public boolean clusterFunctionChunkingDefault = false;
+
+    @Parameter(names = "--clusterFunctionBlockIfQueueFullDefault", description = "The default blocking behavior for functions when queue is full", hidden = true)
+    public boolean clusterFunctionBlockIfQueueFullDefault = true;
+
+    @Parameter(names = "--clusterFunctionCompressionTypeDefault", description = "The default Compression Type for functions", hidden = true)
+    public String clusterFunctionCompressionTypeDefault = "LZ4";
+
+    @Parameter(names = "--clusterFunctionHashingSchemeDefault", description = "The default Hashing Scheme for functions", hidden = true)
+    public String clusterFunctionHashingSchemeDefault = "Murmur3_32Hash";
+
+    @Parameter(names = "--clusterFunctionMessageRoutingModeDefault", description = "The default Message Routing Mode for functions", hidden = true)
+    public String clusterFunctionMessageRoutingModeDefault = "CustomPartition";
+
+    @Parameter(names = "--clusterFunctionBatchingMaxPublishDelayDefault", description = "The default max publish delay (in milliseconds) for functions when message batching is enabled", hidden = true)
+    public int clusterFunctionBatchingMaxPublishDelayDefault = 10;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -174,6 +197,13 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
         instanceConfig.setMetricsPort(metrics_port);
+
+        ClusterFunctionProducerDefaults producerDefaults = new ClusterFunctionProducerDefaults(this.clusterFunctionBatchingDefault,
+                        this.clusterFunctionChunkingDefault, this.clusterFunctionBlockIfQueueFullDefault, this.clusterFunctionCompressionTypeDefault,
+                        this.clusterFunctionHashingSchemeDefault, this.clusterFunctionMessageRoutingModeDefault, this.clusterFunctionBatchingMaxPublishDelayDefault);
+        ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = new ClusterFunctionProducerDefaultsProxy(functionDetails, producerDefaults);
+
+        instanceConfig.setClusterFunctionProducerDefaultsProxy(producerDefaultsProxy);
 
         Map<String, String> secretsProviderConfigMap = null;
         if (!StringUtils.isEmpty(secretsProviderConfig)) {

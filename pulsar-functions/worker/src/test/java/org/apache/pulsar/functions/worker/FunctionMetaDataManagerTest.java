@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Request;
 import org.testng.Assert;
@@ -70,7 +71,7 @@ public class FunctionMetaDataManagerTest {
     }
 
     @Test
-    public void testListFunctions() throws PulsarClientException {
+    public void testListFunctions() throws PulsarClientException, InvalidWorkerConfigDefaultException {
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(new WorkerConfig(),
                         mock(SchedulerManager.class),

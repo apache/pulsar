@@ -25,10 +25,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -40,19 +37,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.client.api.*;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -65,6 +55,8 @@ import org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaultsProxy;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.sink.PulsarSink.PulsarSinkProcessorBase;
@@ -78,6 +70,8 @@ import org.testng.annotations.Test;
 public class PulsarSinkTest {
 
     private static final String TOPIC = "persistent://sample/standalone/ns1/test_result";
+
+    private InstanceConfig mockInstanceConfig;
 
     public static class TestSerDe implements SerDe<String> {
 
@@ -140,6 +134,18 @@ public class PulsarSinkTest {
     @BeforeMethod
     public void setup() {
 
+        this.mockInstanceConfig = mock(InstanceConfig.class);
+
+        ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = mock(ClusterFunctionProducerDefaultsProxy.class);
+        when(producerDefaultsProxy.getBatchingEnabled()).thenReturn(true);
+        when(producerDefaultsProxy.getChunkingEnabled()).thenReturn(false);
+        when(producerDefaultsProxy.getBlockIfQueueFull()).thenReturn(true);
+        when(producerDefaultsProxy.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(producerDefaultsProxy.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(producerDefaultsProxy.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(producerDefaultsProxy.getBatchingMaxPublishDelay()).thenReturn(10);
+
+        when(this.mockInstanceConfig.getClusterFunctionProducerDefaultsProxy()).thenReturn(producerDefaultsProxy);
     }
 
     private static PulsarSinkConfig getPulsarConfigs() {
@@ -178,7 +184,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(Void.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
 
         try {
             Schema schema = pulsarSink.initializeSchema();
@@ -196,7 +202,7 @@ public class PulsarSinkTest {
         // set type to be inconsistent to that of SerDe
         pulsarConfig.setTypeClassName(Integer.class.getName());
         pulsarConfig.setSerdeClassName(TestSerDe.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
         try {
             pulsarSink.initializeSchema();
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
@@ -218,7 +224,7 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
 
         try {
             pulsarSink.initializeSchema();
@@ -237,7 +243,7 @@ public class PulsarSinkTest {
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
         pulsarConfig.setSerdeClassName(TopicSchema.DEFAULT_SERDE);
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
 
         try {
             pulsarSink.initializeSchema();
@@ -253,7 +259,7 @@ public class PulsarSinkTest {
         // set type to void
         pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
         pulsarConfig.setSerdeClassName(ComplexSerDe.class.getName());
-        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
+        PulsarSink pulsarSink = new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
 
         try {
             pulsarSink.initializeSchema();
@@ -273,7 +279,7 @@ public class PulsarSinkTest {
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
         PulsarSink sink = new PulsarSink(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
         Schema<?> schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
 
@@ -282,7 +288,7 @@ public class PulsarSinkTest {
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
         sink = new PulsarSink(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
         schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
 
@@ -293,7 +299,7 @@ public class PulsarSinkTest {
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
         sink = new PulsarSink(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
         schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
 
@@ -304,7 +310,7 @@ public class PulsarSinkTest {
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
         sink = new PulsarSink(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
         schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
 
@@ -314,7 +320,7 @@ public class PulsarSinkTest {
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
         sink = new PulsarSink(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
         schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
     }
@@ -331,7 +337,7 @@ public class PulsarSinkTest {
         /** test At-least-once **/
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        PulsarSink pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
+        PulsarSink pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 
@@ -378,7 +384,7 @@ public class PulsarSinkTest {
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
         pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                Thread.currentThread().getContextClassLoader());
+                Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 
@@ -421,7 +427,7 @@ public class PulsarSinkTest {
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
         pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                Thread.currentThread().getContextClassLoader());
+                Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 
@@ -508,7 +514,7 @@ public class PulsarSinkTest {
         PulsarClient client = getPulsarClient();
         PulsarSink pulsarSink = new PulsarSink(
             client, sinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), this.mockInstanceConfig);
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 

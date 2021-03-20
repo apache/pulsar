@@ -42,6 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -186,7 +187,7 @@ public class SLAMonitoringTest {
     }
 
     @Test
-    public void testUnloadIfBrokerCrashes() {
+    public void testUnloadIfBrokerCrashes() throws InvalidWorkerConfigDefaultException {
         int crashIndex = BROKER_COUNT / 2;
         log.info("Trying to close the broker at index = {}", crashIndex);
 

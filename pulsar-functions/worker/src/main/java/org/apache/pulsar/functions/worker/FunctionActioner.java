@@ -34,6 +34,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaultsProxy;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -189,6 +190,7 @@ public class FunctionActioner {
         instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
         instanceConfig.setMaxPendingAsyncRequests(workerConfig.getMaxPendingAsyncRequests());
         instanceConfig.setExposePulsarAdminClientEnabled(workerConfig.isExposeAdminClientEnabled());
+        instanceConfig.setClusterFunctionProducerDefaultsProxy(new ClusterFunctionProducerDefaultsProxy(functionDetails, workerConfig.getClusterFunctionProducerDefaults()));
         return instanceConfig;
     }
 
