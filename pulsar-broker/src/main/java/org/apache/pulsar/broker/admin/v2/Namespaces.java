@@ -1343,7 +1343,7 @@ public class Namespaces extends NamespacesBase {
                           + "A threshold of 0 disabled automatic compaction")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public long getCompactionThreshold(@PathParam("tenant") String tenant,
+    public Long getCompactionThreshold(@PathParam("tenant") String tenant,
                                        @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetCompactionThreshold();
@@ -1365,6 +1365,20 @@ public class Namespaces extends NamespacesBase {
                                                required = true) long newThreshold) {
         validateNamespaceName(tenant, namespace);
         internalSetCompactionThreshold(newThreshold);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/compactionThreshold")
+    @ApiOperation(value = "Delete maximum number of uncompacted bytes in a topic before compaction is triggered.",
+            notes = "The backlog size is compared to the threshold periodically. "
+                    + "A threshold of 0 disabled automatic compaction")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void deleteCompactionThreshold(@PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetCompactionThreshold(null);
     }
 
     @GET

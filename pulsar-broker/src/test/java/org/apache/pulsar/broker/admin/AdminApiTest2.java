@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -45,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.core.Response.Status;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -1879,6 +1883,67 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, sub, MessageId.earliest);
         admin.topics().skipAllMessages(topic, sub);
+    }
+
+    @Test(timeOut = 200000)
+    public void testCompactionApi() throws Exception {
+        final String namespace = "prop-xyz/ns1";
+        assertNull(admin.namespaces().getCompactionThreshold(namespace));
+        assertEquals(pulsar.getConfiguration().getBrokerServiceCompactionThresholdInBytes(), 0);
+
+        admin.namespaces().setCompactionThreshold(namespace, 10);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.namespaces().getCompactionThreshold(namespace)));
+        assertEquals(admin.namespaces().getCompactionThreshold(namespace).intValue(), 10);
+
+        admin.namespaces().removeCompactionThreshold(namespace);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getCompactionThreshold(namespace)));
+    }
+
+    @Test(timeOut = 200000)
+    public void testCompactionPriority() throws Exception {
+        cleanup();
+        conf.setSystemTopicEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setBrokerServiceCompactionMonitorIntervalInSeconds(10000);
+        setup();
+        final String topic = "persistent://prop-xyz/ns1/topic" + UUID.randomUUID();
+        final String namespace = "prop-xyz/ns1";
+        pulsarClient.newProducer().topic(topic).create().close();
+        TopicName topicName = TopicName.get(topic);
+        Awaitility.await().until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(topicName));
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentTopic mockTopic = spy(persistentTopic);
+        mockTopic.checkCompaction();
+        // Disabled by default
+        verify(mockTopic, times(0)).triggerCompaction();
+        // Set namespace-level policy
+        admin.namespaces().setCompactionThreshold(namespace, 1);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.namespaces().getCompactionThreshold(namespace)));
+        ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+        Field field = managedLedger.getClass().getDeclaredField("totalSize");
+        field.setAccessible(true);
+        field.setLong(managedLedger, 1000L);
+
+        mockTopic.checkCompaction();
+        verify(mockTopic, times(1)).triggerCompaction();
+        //Set topic-level policy
+        admin.topics().setCompactionThreshold(topic, 0);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getCompactionThreshold(topic)));
+        mockTopic.checkCompaction();
+        verify(mockTopic, times(1)).triggerCompaction();
+        // Remove topic-level policy
+        admin.topics().removeCompactionThreshold(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getCompactionThreshold(topic)));
+        mockTopic.checkCompaction();
+        verify(mockTopic, times(2)).triggerCompaction();
+        // Remove namespace-level policy
+        admin.namespaces().removeCompactionThreshold(namespace);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin.namespaces().getCompactionThreshold(namespace)));
+        mockTopic.checkCompaction();
+        verify(mockTopic, times(2)).triggerCompaction();
     }
 
 

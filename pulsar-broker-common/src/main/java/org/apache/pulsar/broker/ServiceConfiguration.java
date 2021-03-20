@@ -1808,7 +1808,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The estimated backlog size is greater than this threshold, compression will be triggered.\n"
             + "Using a value of 0, is disabling compression check."
     )
-    private long brokerServiceCompactionThreshold = 0;
+    private long brokerServiceCompactionThresholdInBytes = 0;
 
     @FieldContext(
         category = CATEGORY_SCHEMA,
