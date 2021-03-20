@@ -23,6 +23,7 @@
     <test name="pulsar-function-state-test-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.functions.PulsarStateTest" />
+            <class name="org.apache.pulsar.tests.integration.io.PulsarSourcePropertyTest"/>
         </classes>
     </test>
 </suite>
