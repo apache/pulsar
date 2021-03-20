@@ -43,12 +43,12 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public Position addEntry(byte[] data) throws InterruptedException, ManagedLedgerException {
+    public Position addEntry(byte[] data) {
         return null;
     }
 
     @Override
-    public Position addEntry(byte[] data, int numberOfMessages) throws InterruptedException, ManagedLedgerException {
+    public Position addEntry(byte[] data, int numberOfMessages) {
         return null;
     }
 
@@ -58,7 +58,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public Position addEntry(byte[] data, int offset, int length) throws InterruptedException, ManagedLedgerException {
+    public Position addEntry(byte[] data, int offset, int length) {
         return null;
     }
 

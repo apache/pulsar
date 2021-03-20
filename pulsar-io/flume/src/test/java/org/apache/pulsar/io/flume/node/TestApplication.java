@@ -18,39 +18,40 @@
  */
 package org.apache.pulsar.io.flume.node;
 
-import static org.mockito.Mockito.*;
-
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import com.google.common.collect.Lists;
+import com.google.common.eventbus.EventBus;
+import com.google.common.io.Files;
 import java.io.File;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.flume.Channel;
 import org.apache.flume.SinkRunner;
 import org.apache.flume.SourceRunner;
 import org.apache.flume.lifecycle.LifecycleAware;
 import org.apache.flume.lifecycle.LifecycleState;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import com.google.common.collect.Lists;
-import com.google.common.eventbus.EventBus;
-import com.google.common.io.Files;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class TestApplication {
 
     private File baseDir;
 
-    @Before
+    @BeforeMethod
     public void setup() throws Exception {
         baseDir = Files.createTempDir();
     }
 
-    @After
+    @AfterMethod
     public void tearDown() throws Exception {
         FileUtils.deleteDirectory(baseDir);
     }
@@ -153,7 +154,7 @@ public class TestApplication {
         }
     }
 
-    @Test(timeout = 10000L)
+    @Test(timeOut = 10000L)
     public void testFLUME2786() throws Exception {
         final String agentName = "test";
         final int interval = 1;

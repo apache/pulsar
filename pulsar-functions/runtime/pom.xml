@@ -61,17 +61,33 @@
     </dependency>
 
     <dependency>
-      <groupId>io.kubernetes</groupId>
-      <artifactId>client-java</artifactId>
-      <version>${kubernetesclient.version}</version>
-      <scope>compile</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>ch.qos.logback</groupId>
-          <artifactId>logback-classic</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
+    <groupId>io.kubernetes</groupId>
+    <artifactId>client-java</artifactId>
+    <version>${kubernetesclient.version}</version>
+    <scope>compile</scope>
+    <exclusions>
+      <exclusion>
+            <groupId>io.sundr</groupId>
+            <artifactId>*</artifactId>
+      </exclusion>
+      <exclusion>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+      </exclusion>
+    </exclusions>
+  </dependency>
+  <dependency>
+    <groupId>io.sundr</groupId>
+    <artifactId>sundr-codegen</artifactId>
+    <version>${sundr.version}</version>
+    <scope>provided</scope>
+  </dependency>
+  <dependency>
+    <groupId>io.sundr</groupId>
+    <artifactId>sundr-core</artifactId>
+    <version>${sundr.version}</version>
+    <scope>provided</scope>
+  </dependency>
 
       <dependency>
           <groupId>${project.groupId}</groupId>

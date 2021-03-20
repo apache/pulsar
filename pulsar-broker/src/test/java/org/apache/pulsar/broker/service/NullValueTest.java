@@ -43,6 +43,7 @@ import org.testng.annotations.Test;
  * Null value message produce and consume test.
  */
 @Slf4j
+@Test(groups = "broker")
 public class NullValueTest extends BrokerTestBase {
 
     @BeforeMethod

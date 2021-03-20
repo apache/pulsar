@@ -71,7 +71,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
 
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         tempFile.delete();

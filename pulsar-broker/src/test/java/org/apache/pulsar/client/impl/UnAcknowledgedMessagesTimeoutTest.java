@@ -43,6 +43,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(UnAcknowledgedMessagesTimeoutTest.class);
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
@@ -346,7 +347,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     }
 
     @Test
-    public void testAckTimeoutMinValue() throws PulsarClientException {
+    public void testAckTimeoutMinValue() {
         try {
             pulsarClient.newConsumer().ackTimeout(999, TimeUnit.MILLISECONDS);
             Assert.fail("Exception should have been thrown since the set timeout is less than min timeout.");

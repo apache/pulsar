@@ -26,7 +26,7 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     private int count = 0;
 
     // Only try again once
-    private static final int MAX_RETRIES = Integer.valueOf(System.getProperty("testRetryCount", "1"));
+    private static final int MAX_RETRIES = Integer.parseInt(System.getProperty("testRetryCount", "1"));
 
     @Override
     public boolean retry(ITestResult result) {

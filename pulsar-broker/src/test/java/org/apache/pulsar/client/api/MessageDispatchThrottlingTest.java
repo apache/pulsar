@@ -49,15 +49,16 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        this.conf.setClusterName("test");
         super.internalSetup();
         super.producerBaseSetup();
-        this.conf.setClusterName("test");
     }
 
     @AfterMethod(alwaysRun = true)
@@ -79,7 +80,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     @DataProvider(name = "subscriptionAndDispatchRateType")
     public Object[][] subDisTypeProvider() {
-        List<Object[]> mergeList = new LinkedList<Object[]>();
+        List<Object[]> mergeList = new LinkedList<>();
         for (Object[] sub : subscriptionsProvider()) {
             for (Object[] dispatch : dispatchRateProvider()) {
                 mergeList.add(merge(sub, dispatch));
@@ -245,7 +246,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test()
+    @Test
     public void testClusterMsgByteRateLimitingClusterConfig() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

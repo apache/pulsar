@@ -20,15 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
-import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
@@ -41,8 +37,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -57,7 +51,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -72,14 +65,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
+@Test(groups = "broker-impl")
 public class TopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(TopicsConsumerImplTest.class);
@@ -488,46 +480,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testSubscribeKeySharedWithDLQ() throws Exception{
-        final String topicName = "persistent://prop/use/ns-abc/testTopicNameValid";
-        TenantInfo tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("prop", tenantInfo);
-        admin.topics().createPartitionedTopic(topicName, 3);
-        // Through builder
-        pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName("subscriptionName")
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
-                .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic("DLQ").build())
-                .receiverQueueSize(0)
-                .subscribeAsync().handle((res, exception) -> {
-                    assertTrue(exception instanceof PulsarClientException.InvalidConfigurationException);
-                    assertEquals(((PulsarClientException.InvalidConfigurationException) exception).getMessage(), "DeadLetterQueue is not supported for Key_Shared subscription type since DLQ can't guarantee message ordering.");
-                    return null;
-                }).get();
-
-        // Through constructor
-        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
-        ConsumerConfigurationData<Byte[]> consumerConfig = new ConsumerConfigurationData<>();
-        consumerConfig.setDeadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic("DLQ").build());
-        consumerConfig.setSubscriptionType(SubscriptionType.Key_Shared);
-        when(mockClient.newConsumerId()).thenReturn(1l);
-        when(mockClient.getConfiguration()).thenReturn(new ClientConfigurationData());
-        when(mockClient.timer()).thenReturn(new HashedWheelTimer());
-        when(mockClient.eventLoopGroup()).thenReturn(new NioEventLoopGroup());
-        try {
-            ConsumerImpl consumer = new ConsumerImpl(mockClient, "my-topic", consumerConfig,
-            Executors.newSingleThreadExecutor(), 0, false, new CompletableFuture<>(),
-            MessageId.earliest, 100, Schema.BYTES,
-                    new ConsumerInterceptors(Collections.emptyList()), false);
-        } catch (Exception exception) {
-            assertTrue(exception instanceof PulsarClientException.InvalidConfigurationException);
-            assertEquals(exception.getMessage(), "Deadletter topic on Key_Shared subscription type is not supported.");
-        }
-    }
-
-    @Test
     public void testSubscribeUnsubscribeSingleTopic() throws Exception {
         String key = "TopicsConsumerSubscribeUnsubscribeSingleTopicTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -654,7 +606,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer2.close();
         producer3.close();
     }
-
 
     @Test
     public void testResubscribeSameTopic() throws Exception {
@@ -801,8 +752,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             })
             .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
-
-        MultiTopicsConsumerImpl topicsConsumer = (MultiTopicsConsumerImpl) consumer;
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -1205,7 +1154,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             try {
                 client.newConsumer(Schema.STRING)
                         .subscriptionName("subName")
-                        .topics(Lists.<String>newArrayList(topic0, topic1))
+                        .topics(Lists.newArrayList(topic0, topic1))
                         .receiverQueueSize(2)
                         .subscriptionType(SubscriptionType.Shared)
                         .ackTimeout(365, TimeUnit.DAYS)
@@ -1219,6 +1168,34 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             }
         }
     }
+
+    @Test(timeOut = testTimeout)
+    public void testAutoDiscoverMultiTopicsPartitions() throws Exception {
+        final String topicName = "persistent://public/default/issue-9585";
+        admin.topics().createPartitionedTopic(topicName, 3);
+        PatternMultiTopicsConsumerImpl<String> consumer = (PatternMultiTopicsConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern(topicName)
+                .subscriptionName("sub-issue-9585")
+                .subscribe();
+
+        Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 3);
+        Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 3);
+
+        admin.topics().deletePartitionedTopic(topicName, true);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 0);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 0);
+        });
+
+        admin.topics().createPartitionedTopic(topicName, 7);
+        consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 7);
+            Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 7);
+        });
+    }
+
 
     @Test(timeOut = testTimeout)
     public void testPartitionsUpdatesForMultipleTopics() throws Exception {

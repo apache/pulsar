@@ -21,12 +21,15 @@ package org.apache.pulsar.broker.service.persistent;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.apache.pulsar.client.api.SubscriptionMessageDispatchThrottlingTest;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * SubscriptionMessageDispatchThrottlingTest with {@link StreamingDispatcher}
  */
+@Test(groups = "flaky")
 public class PersistentSubscriptionMessageDispatchStreamingDispatcherThrottlingTest
     extends SubscriptionMessageDispatchThrottlingTest {
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {

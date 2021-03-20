@@ -127,7 +127,7 @@ public class WebSocketWebResourceTest {
         topicName = TopicName.get("persistent://tenant/cluster/ns/dest");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         this.webResource = null;
     }

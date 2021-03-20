@@ -137,7 +137,7 @@ public class SchedulerManagerTest {
         schedulerManager.setLeaderService(leaderService);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void stop() {
         this.executor.shutdown();
     }

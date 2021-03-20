@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +45,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -52,6 +53,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -62,17 +64,19 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-
 /**
  * End to end transaction test.
  */
 @Slf4j
+@Test(groups = "flaky")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
     private final static int TOPIC_PARTITION = 3;
@@ -148,11 +152,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         int messageCnt = 1000;
         for (int i = 0; i < messageCnt; i++) {
             if (i % 5 == 0) {
-                MessageId messageId = producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
-                log.info("txnId : {}, messageId : {}", new TxnID(((TransactionImpl)txn1).getTxnIdMostBits(), ((TransactionImpl)txn1).getTxnIdLeastBits()), messageId);
+                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
             } else {
-                MessageId messageId = producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).send();
-                log.info("txnId : {}, messageId : {}", new TxnID(((TransactionImpl)txn2).getTxnIdMostBits(), ((TransactionImpl)txn2).getTxnIdLeastBits()), messageId);
+                producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
             }
             txnMessageCnt++;
         }
@@ -345,6 +347,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNull(message);
 
+            Field field = TransactionImpl.class.getDeclaredField("state");
+            field.setAccessible(true);
+            field.set(commitTxn, TransactionImpl.State.OPEN);
             try {
                 commitTxn.commit().get();
                 fail("recommit one transaction should be failed.");
@@ -478,7 +483,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         txnCumulativeAckTest(false, 1, SubscriptionType.Failover);
     }
 
-    public void txnCumulativeAckTest(boolean batchEnable, int maxBatchSize, SubscriptionType subscriptionType)
+    private void txnCumulativeAckTest(boolean batchEnable, int maxBatchSize, SubscriptionType subscriptionType)
             throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
 
@@ -549,6 +554,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
 
             commitTxn.commit().get();
+            Field field = TransactionImpl.class.getDeclaredField("state");
+            field.setAccessible(true);
+            field.set(commitTxn, TransactionImpl.State.OPEN);
             try {
                 commitTxn.commit().get();
                 fail("recommit one transaction should be failed.");
@@ -567,7 +575,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     private Transaction getTxn() throws Exception {
         return pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
                 .build()
                 .get();
     }
@@ -676,4 +684,99 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
     }
 
+    @Test
+    public void produceAndConsumeCloseStateTxnTest() throws Exception {
+        String topic = NAMESPACE1 + "/txn-close-state";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .producerName("txn-close-state")
+                .create();
+
+        Transaction produceTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .build().get();
+
+        Transaction consumeTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .build().get();
+
+        producer.newMessage(produceTxn).value(("Hello Pulsar!").getBytes()).sendAsync().get();
+        produceTxn.commit().get();
+        try {
+            producer.newMessage(produceTxn).value(("Hello Pulsar!").getBytes()).sendAsync().get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+        }
+
+        try {
+            produceTxn.commit().get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+        }
+
+
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message.getMessageId(), consumeTxn).get();
+        consumeTxn.commit().get();
+        try {
+            consumer.acknowledgeAsync(message.getMessageId(), consumeTxn).get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+        }
+
+        try {
+            consumeTxn.commit().get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+        }
+
+        Transaction timeoutTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(1, TimeUnit.SECONDS)
+                .build().get();
+        AtomicReference<TransactionMetadataStore> transactionMetadataStore = new AtomicReference<>();
+        getPulsarServiceList().forEach(pulsarService -> {
+            if (pulsarService.getTransactionMetadataStoreService().getStores()
+                    .containsKey(TransactionCoordinatorID.get(((TransactionImpl) timeoutTxn).getTxnIdMostBits()))) {
+                transactionMetadataStore.set(pulsarService.getTransactionMetadataStoreService().getStores()
+                        .get(TransactionCoordinatorID.get(((TransactionImpl) timeoutTxn).getTxnIdMostBits())));
+            }
+        });
+
+        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(() -> {
+            try {
+                transactionMetadataStore.get().getTxnMeta(new TxnID(((TransactionImpl) timeoutTxn)
+                        .getTxnIdMostBits(), ((TransactionImpl) timeoutTxn).getTxnIdLeastBits())).get();
+                return false;
+            } catch (Exception e) {
+                return true;
+            }
+        });
+
+        try {
+            timeoutTxn.commit().get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionNotFoundException);
+        }
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxn);
+        assertEquals(state, TransactionImpl.State.ERROR);
+    }
 }

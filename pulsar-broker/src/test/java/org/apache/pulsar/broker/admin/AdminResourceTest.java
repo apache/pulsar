@@ -32,6 +32,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link AdminResource}.
  */
+@Test(groups = "broker")
 public class AdminResourceTest extends BrokerTestBase {
 
     @BeforeClass

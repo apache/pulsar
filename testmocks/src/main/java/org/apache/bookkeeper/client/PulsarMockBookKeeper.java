@@ -278,6 +278,10 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return ledgers.keySet();
     }
 
+    public Map<Long, PulsarMockLedgerHandle> getLedgerMap() {
+        return ledgers;
+    }
+
     void checkProgrammedFail() throws BKException, InterruptedException {
         try {
             getProgrammedFailure().get();

@@ -50,7 +50,7 @@ public class PackagesCliTest {
         pulsarCluster.start();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardown() {
         if (pulsarCluster != null) {
             pulsarCluster.stop();
@@ -131,7 +131,7 @@ public class PackagesCliTest {
 
         result = runPackagesCommand("list-versions", "function://public/default/test");
         assertEquals(result.getExitCode(), 0);
-        assertTrue(result.getStdout().isEmpty());
+        result.assertNoStdout();
     }
 
     private ContainerExecResult runPackagesCommand(String... commands) throws Exception {

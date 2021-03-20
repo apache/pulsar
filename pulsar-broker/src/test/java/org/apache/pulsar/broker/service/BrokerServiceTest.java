@@ -87,9 +87,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- */
 @Slf4j
+@Test(groups = "broker")
 public class BrokerServiceTest extends BrokerTestBase {
 
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";

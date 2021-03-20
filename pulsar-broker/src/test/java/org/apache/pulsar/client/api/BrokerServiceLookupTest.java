@@ -81,6 +81,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.discovery.service.DiscoveryService;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -98,6 +100,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-api")
 public class BrokerServiceLookupTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerServiceLookupTest.class);
 
@@ -190,9 +193,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         consumer.acknowledgeCumulative(msg);
         consumer.close();
         producer.close();
-
-        loadManager1 = null;
-        loadManager2 = null;
 
     }
 
@@ -478,9 +478,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setBindOnLocalhost(true);
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
 
         // (2) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrl();
@@ -547,9 +545,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
 
         // (3) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrlTls();
@@ -607,9 +603,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setConfigurationStoreServers("localhost:3181");
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
 
         // (2) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrl();
@@ -644,10 +638,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(discoverySvcUrl).authentication(auth).build();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use2/my-ns/my-topic1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-            .topic("persistent://my-property/use2/my-ns/my-topic1")
+            .topic("persistent://my-property/use/my-ns/my-topic1")
             .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -683,9 +677,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setAuthorizationEnabled(true);
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
         // (2) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrl();
 
@@ -745,9 +737,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setAuthorizationEnabled(true);
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
         // (2) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrl();
 
@@ -1201,5 +1191,17 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return "invalid";
         }
+    }
+
+    private DiscoveryService createAndStartDiscoveryService(ServiceConfig config) throws Exception {
+        MetadataStoreExtended localMetadatastore = new ZKMetadataStore(mockZooKeeper);
+        MetadataStoreExtended configMetadatastore = new ZKMetadataStore(mockZooKeeperGlobal);
+        DiscoveryService discoveryService = spy(new DiscoveryService(config));
+        doReturn(localMetadatastore).when(discoveryService).createLocalMetadataStore();
+        doReturn(configMetadatastore).when(discoveryService).createConfigurationMetadataStore();
+        doReturn(localMetadatastore).when(discoveryService).createLocalMetadataStore();
+        doReturn(configMetadatastore).when(discoveryService).createConfigurationMetadataStore();
+        discoveryService.start();
+        return discoveryService;
     }
 }

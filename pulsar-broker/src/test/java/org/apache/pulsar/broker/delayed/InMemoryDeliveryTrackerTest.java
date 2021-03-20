@@ -46,6 +46,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class InMemoryDeliveryTrackerTest {
 
     @Test
@@ -162,7 +163,7 @@ public class InMemoryDeliveryTrackerTest {
      * to a rejection from the tracker.
      */
     @Test
-    public void testAddWithinTickTime() throws Exception {
+    public void testAddWithinTickTime() {
         PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
 
         Timer timer = mock(Timer.class);

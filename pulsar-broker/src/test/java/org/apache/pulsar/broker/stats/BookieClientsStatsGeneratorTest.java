@@ -33,8 +33,7 @@ import org.testng.annotations.Test;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 
-/**
- */
+@Test(groups = "broker")
 public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
 
     @BeforeClass
@@ -57,7 +56,7 @@ public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
     }
 
     @Test
-    public void testJvmDirectMemoryUsedMetric() throws Exception {
+    public void testJvmDirectMemoryUsedMetric() {
         PooledByteBufAllocator allocator = new PooledByteBufAllocator( //
                 true, // preferDirect
                 0, // nHeapArenas,

@@ -31,7 +31,6 @@ import com.google.common.collect.Sets;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -74,21 +73,20 @@ import org.testng.annotations.Test;
 
 /**
  * Test Pulsar function TLS authentication
- *
  */
+@Test(groups = "broker-io")
 public class PulsarFunctionTlsTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
     ServiceConfiguration config;
     WorkerConfig workerConfig;
-    URL urlTls;
     PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
     String workerId;
     WorkerServer workerServer;
     PulsarAdmin functionAdmin;
-    private List<String> namespaceList = new LinkedList<>();
+    private final List<String> namespaceList = new LinkedList<>();
 
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
@@ -176,7 +174,7 @@ public class PulsarFunctionTlsTest {
     }
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
-                                                           PulsarAdmin mockPulsarAdmin) throws Exception {
+                                                           PulsarAdmin mockPulsarAdmin) {
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
@@ -231,7 +229,7 @@ public class PulsarFunctionTlsTest {
     }
 
     @Test
-    public void testAuthorization() throws Exception {
+    public void testAuthorization() {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -254,7 +252,13 @@ public class PulsarFunctionTlsTest {
 
     }
 
-    protected static FunctionConfig createFunctionConfig(String jarFile, String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String jarFile,
+                                                         String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         File file = new File(jarFile);
         try {
@@ -263,7 +267,6 @@ public class PulsarFunctionTlsTest {
             throw new RuntimeException("Failed to load user jar " + file, e);
         }
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
-        Class<?> typeArg = byte[].class;
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);

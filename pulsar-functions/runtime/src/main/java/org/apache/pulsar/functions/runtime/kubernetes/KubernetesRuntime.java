@@ -189,7 +189,6 @@ public class KubernetesRuntime implements Runtime {
                       Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider,
                       boolean authenticationEnabled,
                       Integer grpcPort,
-                      Integer metricsPort,
                       String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer,
                       String functinoInstanceClassPath,
@@ -238,7 +237,7 @@ public class KubernetesRuntime implements Runtime {
         this.functionAuthDataCacheProvider = functionAuthDataCacheProvider;
 
         this.grpcPort = grpcPort;
-        this.metricsPort = metricsPort;
+        this.metricsPort = instanceConfig.hasValidMetricsPort() ? instanceConfig.getMetricsPort() : null;
         this.narExtractionDirectory = narExtractionDirectory;
 
         this.processArgs = new LinkedList<>();
@@ -275,7 +274,6 @@ public class KubernetesRuntime implements Runtime {
                         installUserCodeDependencies,
                         pythonDependencyRepository,
                         pythonExtraDependencyRepository,
-                        metricsPort,
                         narExtractionDirectory,
                         functinoInstanceClassPath,
                         true,

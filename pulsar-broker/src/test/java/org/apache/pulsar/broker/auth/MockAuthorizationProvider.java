@@ -275,12 +275,13 @@ public class MockAuthorizationProvider implements AuthorizationProvider {
     boolean roleAuthorized(String role) {
         String[] parts = role.split("\\.");
         if (parts.length == 2) {
-            if (parts[1].equals("pass")) {
-                return true;
-            } else if (parts[1].equals("fail")) {
-                return false;
-            } else if (parts[1].equals("error")) {
-                throw new RuntimeException("Error in authn");
+            switch (parts[1]) {
+                case "pass":
+                    return true;
+                case "fail":
+                    return false;
+                case "error":
+                    throw new RuntimeException("Error in authn");
             }
         }
         throw new IllegalArgumentException(

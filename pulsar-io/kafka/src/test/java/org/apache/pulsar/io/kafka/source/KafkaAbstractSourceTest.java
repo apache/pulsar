@@ -51,8 +51,13 @@ public class KafkaAbstractSourceTest {
     private static class DummySource extends KafkaAbstractSource<String> {
 
         @Override
-        public String extractValue(ConsumerRecord<String, byte[]> record) {
-            return new String(record.value());
+        public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
+            return new String((byte[]) consumerRecord.value());
+        }
+
+        @Override
+        public Schema<String> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
+            return Schema.STRING;
         }
     }
 
@@ -161,6 +166,16 @@ public class KafkaAbstractSourceTest {
             @Override
             public CompletableFuture<ByteBuffer> getStateAsync(String key) {
                 return null;
+            }
+            
+            @Override
+            public void deleteState(String key) {
+            	
+            }
+            
+            @Override
+            public CompletableFuture<Void> deleteStateAsync(String key) {
+            	return null;
             }
 
             @Override

@@ -73,6 +73,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -82,15 +83,16 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "flaky")
 public class PersistentTopicE2ETest extends BrokerTestBase {
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -566,7 +568,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         int i = 0;
         for (i = 0; i < 30; i++) {
-            if (pulsar.getBrokerService().getTopicReference(topic) == null) {
+            if (!pulsar.getBrokerService().getTopicReference(topic).isPresent()) {
                 break;
             }
             Thread.sleep(1000);
@@ -911,9 +913,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         int topicMessageTTLSecs = 2;
         String namespaceName = "prop/expiry-check-2";
 
+        cleanup();
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
-        cleanup();
         setup();
 
         admin.namespaces().createNamespace(namespaceName);
@@ -1415,9 +1417,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Thread.sleep(1000);
         brokerService.updateRates();
         List<Metrics> metrics = brokerService.getTopicMetrics();
-        for (int i = 0; i < metrics.size(); i++) {
-            if (metrics.get(i).getDimension("namespace").equalsIgnoreCase(namespace)) {
-                metric = metrics.get(i);
+        for (Metrics value : metrics) {
+            if (value.getDimension("namespace").equalsIgnoreCase(namespace)) {
+                metric = value;
                 break;
             }
         }
@@ -1425,6 +1427,86 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         double msgInRate = (double) metrics.get(0).getMetrics().get("brk_in_rate");
         // rate should be calculated and no must be > 0 as we have produced 10 msgs so far
         assertTrue(msgInRate > 0);
+    }
+
+    @Test
+    public void testBrokerConnectionStats() throws Exception {
+
+        BrokerService brokerService = this.pulsar.getBrokerService();
+
+        final String namespace = "prop/ns-abc";
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://" + namespace + "/topic0")
+                .create();
+        Map<String, Object> map = null;
+
+        brokerService.updateRates();
+        List<Metrics> metrics = brokerService.getTopicMetrics();
+        for (int i = 0; i < metrics.size(); i++) {
+            if (metrics.get(i).getDimensions().containsValue("broker_connection")) {
+                map = metrics.get(i).getMetrics();
+                break;
+            }
+        }
+        assertNotNull(map);
+        assertEquals((long) map.get("brk_connection_created_total_count"), 1);
+        assertEquals((long) map.get("brk_active_connections"), 1);
+        assertEquals((long) map.get("brk_connection_closed_total_count"), 0);
+        assertEquals((long) map.get("brk_connection_create_success_count"), 1);
+        assertEquals((long) map.get("brk_connection_create_fail_count"), 0);
+
+        producer.close();
+        pulsarClient.close();
+
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+            brokerService.updateRates();
+            List<Metrics> closeMetrics = brokerService.getTopicMetrics();
+            Map<String, Object> closeMap = null;
+            for (int i = 0; i < closeMetrics.size(); i++) {
+                if (closeMetrics.get(i).getDimensions().containsValue("broker_connection")) {
+                    closeMap = closeMetrics.get(i).getMetrics();
+                    break;
+                }
+            }
+
+            if (closeMap != null && (long) closeMap.get("brk_connection_created_total_count") == 1
+                    && (long) closeMap.get("brk_active_connections") == 0
+                    && (long) closeMap.get("brk_connection_closed_total_count") == 1
+                    && (long) closeMap.get("brk_connection_create_fail_count") == 0
+                    && (long) closeMap.get("brk_connection_create_success_count") == 1) {
+                return true;
+            } else {
+                return false;
+            }
+        });
+
+        pulsar.getConfiguration().setAuthenticationEnabled(true);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(1, TimeUnit.MILLISECONDS).build();
+
+        try {
+            pulsarClient.newProducer()
+                    .topic("persistent://" + namespace + "/topic0")
+                    .create();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.AuthenticationException);
+        }
+
+        brokerService.updateRates();
+        metrics = brokerService.getTopicMetrics();
+        for (int i = 0; i < metrics.size(); i++) {
+            if (metrics.get(i).getDimensions().containsValue("broker_connection")) {
+                map = metrics.get(i).getMetrics();
+                break;
+            }
+        }
+        assertNotNull(map);
+        assertEquals((long) map.get("brk_connection_created_total_count"), 2);
+        assertEquals((long) map.get("brk_active_connections"), 0);
+        assertEquals((long) map.get("brk_connection_closed_total_count") , 2);
+        assertEquals((long) map.get("brk_connection_create_success_count"), 1);
+        assertEquals((long) map.get("brk_connection_create_fail_count") , 1);
     }
 
     @Test

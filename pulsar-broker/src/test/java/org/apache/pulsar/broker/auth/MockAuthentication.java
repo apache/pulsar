@@ -55,7 +55,7 @@ public class MockAuthentication implements Authentication {
             @Override
             public String getHttpAuthType() { return "mock"; }
             @Override
-            public Set<Map.Entry<String, String>> getHttpHeaders() throws Exception {
+            public Set<Map.Entry<String, String>> getHttpHeaders() {
                 return ImmutableMap.of("mockuser", user).entrySet();
             }
             @Override

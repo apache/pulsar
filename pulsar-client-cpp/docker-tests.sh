@@ -34,7 +34,7 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
-BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04}"
+BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04-py2}"
 
 IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
 
@@ -48,12 +48,12 @@ DOCKER_CMD="docker run -i -v $ROOT_DIR:/pulsar $IMAGE"
 for args in "$@"
 do
     arg=$(echo $args | cut -f1 -d=)
-    val=$(echo $args | cut -f2 -d=)   
+    val=$(echo $args | cut -f2 -d=)
 
     case "$arg" in
             --tests)   tests=${val} ;;
-            *)   
-    esac    
+            *)
+    esac
 done
 
 # Start 2 Pulsar standalone instances (one with TLS and one without)

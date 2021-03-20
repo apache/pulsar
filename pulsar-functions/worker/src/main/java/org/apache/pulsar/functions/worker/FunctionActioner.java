@@ -143,7 +143,7 @@ public class FunctionActioner {
         } catch (Exception ex) {
             FunctionDetails details = functionRuntimeInfo.getFunctionInstance()
                     .getFunctionMetaData().getFunctionDetails();
-            log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
+            log.error("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
                     details.getName(), ex);
             functionRuntimeInfo.setStartupException(ex);
         }
@@ -184,6 +184,7 @@ public class FunctionActioner {
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(FunctionCommon.findAvailablePort());
+        instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
         instanceConfig.setMaxPendingAsyncRequests(workerConfig.getMaxPendingAsyncRequests());

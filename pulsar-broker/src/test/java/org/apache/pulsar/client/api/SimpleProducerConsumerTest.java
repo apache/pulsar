@@ -32,6 +32,8 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -96,6 +98,7 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -106,10 +109,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(groups = { "broker", "flaky" })
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -137,7 +141,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterMethod(alwaysRun = true, groups = { "broker" })
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -657,7 +661,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         } catch (PulsarClientException.AlreadyClosedException e) {
             // ok
         }
-
     }
 
     @Test
@@ -969,11 +972,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String topic = "persistent://my-property/my-ns/" + topicName;
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic);
 
-        if (batchMessageDelayMs != 0) {
-            producerBuilder.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
-            producerBuilder.batchingMaxMessages(5);
-            producerBuilder.enableBatching(true);
-        }
+        producerBuilder.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
+        producerBuilder.batchingMaxMessages(5);
+        producerBuilder.enableBatching(true);
         Producer<byte[]> producer = producerBuilder.create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
@@ -1071,10 +1072,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic);
-        if (batchMessageDelayMs != 0) {
-            producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
-                    .batchingMaxMessages(5);
-        }
+        producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(5);
         Producer<byte[]> producer = producerBuilder.create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
@@ -1174,7 +1173,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final Set<String> consumeMsgs = Sets.newHashSet();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
-        ;
 
         // produce message
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
@@ -1206,7 +1204,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testtSendCallBackReturnSequenceId() throws Exception {
+    public void testSendCallBackReturnSequenceId() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
@@ -1305,14 +1303,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             consumerMsgSet2.add(msg);
         }
 
-        consumerMsgSet1.stream().forEach(m -> {
+        consumerMsgSet1.forEach(m -> {
             try {
                 consumer2.acknowledge(m);
             } catch (PulsarClientException e) {
                 fail();
             }
         });
-        consumerMsgSet2.stream().forEach(m -> {
+        consumerMsgSet2.forEach(m -> {
             try {
                 consumer1.acknowledge(m);
             } catch (PulsarClientException e) {
@@ -1371,10 +1369,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * messages This test case enables checksum sending while producing message and broker verifies the checksum for the
      * message.
      *
-     * @throws Exception
      */
     @Test(dataProvider = "ackReceiptEnabled")
-    public void testConsumerBlockingWithUnAckedMessages(boolean ackReceiptEnabled) throws Exception {
+    public void testConsumerBlockingWithUnAckedMessages(boolean ackReceiptEnabled) {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1520,10 +1517,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * Verify: Consumer1 which doesn't send ack will not impact Consumer2 which sends ack for consumed message.
      *
      *
-     * @throws Exception
      */
     @Test(dataProvider = "ackReceiptEnabled")
-    public void testMutlipleSharedConsumerBlockingWithUnAckedMessages(boolean ackReceiptEnabled) throws Exception {
+    public void testMultipleSharedConsumerBlockingWithUnActedMessages(boolean ackReceiptEnabled) {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1622,7 +1618,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testShouldNotBlockConsumerIfRedeliverBeforeReceive() throws Exception {
+    public void testShouldNotBlockConsumerIfRedeliverBeforeReceive() {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1680,7 +1676,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
-    public void testUnackBlockRedeliverMessages(boolean ackReceiptEnabled) throws Exception {
+    public void testUnackBlockRedeliverMessages(boolean ackReceiptEnabled) {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1748,7 +1744,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batchAndAckReceipt")
-    public void testUnackedBlockAtBatch(int batchMessageDelayMs, boolean ackReceiptEnabled) throws Exception {
+    public void testUnackedBlockAtBatch(int batchMessageDelayMs, boolean ackReceiptEnabled) {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1788,7 +1784,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (2) Consumer1: consume without ack:
             // try to consume messages: but will be able to consume number of messages = maxUnackedMessages
-            Message<byte[]> msg = null;
+            Message<byte[]> msg;
             List<Message<byte[]>> messages = Lists.newArrayList();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer1.receive(1, TimeUnit.SECONDS);
@@ -1840,10 +1836,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * Verify: Consumer2 sends ack of Consumer1 and consumer1 should be unblock if it is blocked due to unack-messages
      *
      *
-     * @throws Exception
      */
     @Test
-    public void testBlockUnackConsumerAckByDifferentConsumer() throws Exception {
+    public void testBlockUnackConsumerAckByDifferentConsumer() {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -1941,10 +1936,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic1");
         final int batchMessageDelayMs = 300;
-        if (batchMessageDelayMs != 0) {
-            producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
-                    .batchingMaxMessages(5);
-        }
+        producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
+                .batchingMaxMessages(5);
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < totalMsg; i++) {
@@ -1973,10 +1966,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      *
      * Usecase: produce message with 10ms interval: so, consumer can consume only 10 messages without acking
      *
-     * @throws Exception
      */
     @Test
-    public void testBlockUnackedConsumerRedeliverySpecificMessagesProduceWithPause() throws Exception {
+    public void testBlockUnackedConsumerRedeliverySpecificMessagesProduceWithPause() {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -2001,7 +1993,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
-            Message<byte[]> msg = null;
+            Message<byte[]> msg;
             List<Message<byte[]>> messages1 = Lists.newArrayList();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer.receive(1, TimeUnit.SECONDS);
@@ -2055,10 +2047,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * Usecase: Consumer starts consuming only after all messages have been produced. So, consumer consumes total
      * receiver-queue-size number messages => ask for redelivery and receives all messages again.
      *
-     * @throws Exception
      */
     @Test
-    public void testBlockUnackedConsumerRedeliverySpecificMessagesCloseConsumerWhileProduce() throws Exception {
+    public void testBlockUnackedConsumerRedeliverySpecificMessagesCloseConsumerWhileProduce() {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
@@ -2256,7 +2247,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         List<Message<byte[]>> messages = Lists.newArrayList();
 
-        // let consumer1 and consumer2 cosume messages up to the queue will be full
+        // let consumer1 and consumer2 consume messages up to the queue will be full
         for (int i = 0; i < totalPublishMessages; i++) {
             Message<byte[]> msg = c1.receive(500, TimeUnit.MILLISECONDS);
             if (msg != null) {
@@ -2460,14 +2451,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/my-ns/myecdsa-topic1-" + System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -2542,14 +2533,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testRSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/my-ns/myrsa-topic1-"+ System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -2629,7 +2620,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testDefaultCryptoKeyReader() throws Exception {
         final String topic = "persistent://my-property/my-ns/default-crypto-key-reader" + System.currentTimeMillis();
         final String ecdsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
@@ -2673,7 +2664,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
 
-        for (Consumer<byte[]> consumer : (List<Consumer<byte[]>>) Lists.newArrayList(consumer1, consumer2)) {
+        for (Consumer<byte[]> consumer : Lists.newArrayList(consumer1, consumer2)) {
             MessageImpl<byte[]> msg = null;
 
             for (int i = 0; i < numMsg * 2; i++) {
@@ -2706,7 +2697,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer3.close();
         producer4.close();
 
-        for (Consumer<byte[]> consumer : (List<Consumer<byte[]>>) Lists.newArrayList(consumer3, consumer4)) {
+        for (Consumer<byte[]> consumer : Lists.newArrayList(consumer3, consumer4)) {
             MessageImpl<byte[]> msg = null;
 
             for (int i = 0; i < numMsg * 4; i++) {
@@ -2725,7 +2716,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer4.unsubscribe();
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testRedeliveryOfFailedMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2734,7 +2725,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Map<String, String> metadata = Maps.newHashMap();
         metadata.put("version", encryptionKeyVersion);
         class EncKeyReader implements CryptoKeyReader {
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -2772,7 +2763,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         class InvalidKeyReader implements CryptoKeyReader {
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -2822,7 +2812,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         int numberOfMessages = 100;
         String message = "my-message";
-        Set<String> messages = new HashSet(); // Since messages are in random order
+        Set<String> messages = new HashSet<>(); // Since messages are in random order
         for (int i = 0; i<numberOfMessages; i++) {
             producer.send((message + i).getBytes());
         }
@@ -2862,13 +2852,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testEncryptionFailure() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         class EncKeyReader implements CryptoKeyReader {
 
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -2989,7 +2979,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testEncryptionConsumerWithoutCryptoReader() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2998,7 +2988,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Map<String, String> metadata = Maps.newHashMap();
         metadata.put("version", encryptionKeyVersion);
         class EncKeyReader implements CryptoKeyReader {
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -3055,8 +3045,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    private String decryptMessage(TopicMessageImpl<byte[]> msg, String encryptionKeyName, CryptoKeyReader reader)
-            throws Exception {
+    private String decryptMessage(TopicMessageImpl<byte[]> msg,
+                                  String encryptionKeyName,
+                                  CryptoKeyReader reader) throws Exception {
         Optional<EncryptionContext> ctx = msg.getEncryptionCtx();
         Assert.assertTrue(ctx.isPresent());
         EncryptionContext encryptionCtx = ctx
@@ -3396,9 +3387,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                             .getValue().activeConsumerName;
                     subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
                 });
-                return subsCount.size() == 3 && subsCount.get("bbb1") == evenDistributionCount
-                        && subsCount.get("bbb2") == evenDistributionCount
-                        && subsCount.get("bbb3") == evenDistributionCount;
+                return subsCount.size() == 3 && subsCount.get("bbb1").equals(evenDistributionCount)
+                        && subsCount.get("bbb2").equals(evenDistributionCount)
+                        && subsCount.get("bbb3").equals(evenDistributionCount);
 
             } catch (PulsarAdminException e) {
                 // Ok
@@ -3896,10 +3887,70 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         GenericRecord res = consumer.receive().getValue();
         consumer.close();
+        assertEquals(SchemaType.AVRO, res.getSchemaType());
+        org.apache.avro.generic.GenericRecord nativeRecord = (org.apache.avro.generic.GenericRecord) res.getNativeRecord();
+        org.apache.avro.Schema schema = nativeRecord.getSchema();
         for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
             log.info("field {} {}", f.getName(), res.getField(f));
             assertEquals("field", f.getName());
             assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
+            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", nativeRecord.get(f.getName()).toString());
+        }
+
+        assertEquals(1, res.getFields().size());
+    }
+
+    @DataProvider(name = "avroSchemaProvider")
+    public static Object[] avroSchemaProvider() {
+        return new Object[]{Schema.AVRO(MyBean.class), Schema.JSON(MyBean.class)};
+    }
+
+    @Test(dataProvider = "avroSchemaProvider")
+    public void testAccessAvroSchemaMetadata(Schema<MyBean> schema) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topic = "persistent://my-property/my-ns/accessSchema";
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionName("testsub")
+                .subscribe();
+
+        Producer<MyBean> producer = pulsarClient
+                .newProducer(schema)
+                .topic(topic)
+                .create();
+        MyBean payload = new MyBean();
+        payload.setField("aaaaaaaaaaaaaaaaaaaaaaaaa");
+        producer.send(payload);
+        producer.close();
+
+        GenericRecord res = consumer.receive().getValue();
+        consumer.close();
+        assertEquals(schema.getSchemaInfo().getType(), res.getSchemaType());
+        org.apache.avro.generic.GenericRecord nativeAvroRecord = null;
+        JsonNode nativeJsonRecord = null;
+        if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
+            nativeAvroRecord = (org.apache.avro.generic.GenericRecord) res.getNativeRecord();
+            assertNotNull(nativeAvroRecord);
+        } else {
+            nativeJsonRecord = (JsonNode) res.getNativeRecord();
+            assertNotNull(nativeJsonRecord);
+        }
+        for (org.apache.pulsar.client.api.schema.Field f : res.getFields()) {
+            log.info("field {} {}", f.getName(), res.getField(f));
+            assertEquals("field", f.getName());
+            assertEquals("aaaaaaaaaaaaaaaaaaaaaaaaa", res.getField(f));
+
+            if (nativeAvroRecord != null) {
+                // test that the native schema is accessible
+                org.apache.avro.Schema.Field fieldDetails = nativeAvroRecord.getSchema().getField(f.getName());
+                // a nullable string is an UNION
+                assertEquals(org.apache.avro.Schema.Type.UNION, fieldDetails.schema().getType());
+                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.STRING));
+                assertTrue(fieldDetails.schema().getTypes().stream().anyMatch(s -> s.getType() == org.apache.avro.Schema.Type.NULL));
+            } else {
+                assertEquals(JsonNodeType.STRING, nativeJsonRecord.get("field").getNodeType());
+            }
         }
         assertEquals(1, res.getFields().size());
     }

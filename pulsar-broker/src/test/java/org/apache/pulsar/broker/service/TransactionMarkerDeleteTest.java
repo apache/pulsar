@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.util.Collections;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
@@ -27,20 +32,13 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.protocol.Markers;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
-
+@Test(groups = "broker")
 public class TransactionMarkerDeleteTest extends BrokerTestBase{
 
     @BeforeMethod
@@ -78,12 +76,12 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
                 .newTxnCommitMarker(1, 1, 1).array());
         Position position3 = managedLedger.addEntry(Markers
                 .newTxnCommitMarker(1, 1, 1).array());
-        assertEquals(3, cursor.getNumberOfEntriesInBacklog(true));
+        assertEquals(cursor.getNumberOfEntriesInBacklog(true), 3);
         assertTrue(((PositionImpl) cursor.getMarkDeletedPosition()).compareTo((PositionImpl) position1) < 0);
         persistentSubscription.acknowledgeMessage(Collections.singletonList(position1),
                 AckType.Individual, Collections.emptyMap());
         Thread.sleep(1000L);
-        assertEquals(0, ((PositionImpl) persistentSubscription.getCursor()
-                .getMarkDeletedPosition()).compareTo((PositionImpl) position3));
+        assertEquals(((PositionImpl) persistentSubscription.getCursor()
+                .getMarkDeletedPosition()).compareTo((PositionImpl) position3), 0);
     }
 }

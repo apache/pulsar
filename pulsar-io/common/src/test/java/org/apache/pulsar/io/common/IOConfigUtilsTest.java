@@ -183,6 +183,16 @@ public class IOConfigUtilsTest {
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
             return null;
         }
+        
+        @Override
+        public void deleteState(String key) {
+        	
+        }
+        
+        @Override
+        public CompletableFuture<Void> deleteStateAsync(String key) {
+        	return null;
+        }
 
         @Override
         public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
@@ -330,6 +340,16 @@ public class IOConfigUtilsTest {
         @Override
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
             return null;
+        }
+        
+        @Override
+        public void deleteState(String key) {
+        	
+        }
+        
+        @Override
+        public CompletableFuture<Void> deleteStateAsync(String key) {
+        	return null;
         }
     }
 

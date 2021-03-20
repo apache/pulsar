@@ -131,7 +131,7 @@ public class KubernetesRuntimeFactoryTest {
         this.logDirectory = "logs/functions";
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (null != this.factory) {
             this.factory.close();

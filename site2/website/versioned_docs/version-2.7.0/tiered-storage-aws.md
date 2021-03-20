@@ -175,7 +175,7 @@ You can configure the size of a request sent to or read from AWS S3 in the confi
 Configuration|Description|Default value
 |---|---|---
 `s3ManagedLedgerOffloadReadBufferSizeInBytes`|Block size for each individual read when reading back data from AWS S3.|1 MB
-`s3ManagedLedgerOffloadMaxBlockSizeInBytes`|Maximum size of a "part" sent during a multipart upload to GCS. It **cannot** be smaller than 5 MB. |64 MB
+`s3ManagedLedgerOffloadMaxBlockSizeInBytes`|Maximum size of a "part" sent during a multipart upload to AWS S3. It **cannot** be smaller than 5 MB. |64 MB
 
 ### Configure AWS S3 offloader to run automatically
 

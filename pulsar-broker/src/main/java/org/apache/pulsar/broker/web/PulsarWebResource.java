@@ -51,17 +51,19 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.admin.impl.BaseResources;
-import org.apache.pulsar.broker.admin.impl.ClusterResources;
-import org.apache.pulsar.broker.admin.impl.DynamicConfigurationResources;
-import org.apache.pulsar.broker.admin.impl.NamespaceResources;
-import org.apache.pulsar.broker.admin.impl.NamespaceResources.IsolationPolicyResources;
-import org.apache.pulsar.broker.admin.impl.TenantResources;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.BaseResources;
+import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
+import org.apache.pulsar.broker.resources.LocalPoliciesResources;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.common.naming.Constants;
@@ -255,7 +257,7 @@ public abstract class PulsarWebResource {
     protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
                                                        String originalPrincipal, String tenant,
                                                        AuthenticationDataSource authenticationData)
-            throws RestException, Exception {
+            throws Exception {
         if (log.isDebugEnabled()) {
             log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
                     (isClientAuthenticated(clientAppId)), clientAppId);
@@ -776,12 +778,12 @@ public abstract class PulsarWebResource {
         return null;
     }
 
-    protected void checkConnect(TopicName topicName) throws RestException, Exception {
+    protected void checkConnect(TopicName topicName) throws Exception {
         checkAuthorization(pulsar(), topicName, clientAppId(), clientAuthData());
     }
 
     protected static void checkAuthorization(PulsarService pulsarService, TopicName topicName, String role,
-            AuthenticationDataSource authenticationData) throws RestException, Exception {
+            AuthenticationDataSource authenticationData) throws Exception {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return;
@@ -869,6 +871,10 @@ public abstract class PulsarWebResource {
         }
     }
 
+    protected PulsarResources getPulsarResources() {
+        return pulsar().getPulsarResources();
+    }
+
     protected TenantResources tenantResources() {
         return pulsar().getPulsarResources().getTenatResources();
     }
@@ -879,6 +885,10 @@ public abstract class PulsarWebResource {
 
     protected NamespaceResources namespaceResources() {
         return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected LocalPoliciesResources getLocalPolicies() {
+        return pulsar().getPulsarResources().getLocalPolicies();
     }
 
     protected IsolationPolicyResources namespaceIsolationPolicies(){
@@ -1008,10 +1018,8 @@ public abstract class PulsarWebResource {
      *
      * @param broker
      *            Broker name
-     * @throws MalformedURLException
-     *             In case the redirect happens
      */
-    protected void validateBrokerName(String broker) throws MalformedURLException {
+    protected void validateBrokerName(String broker) {
         String brokerUrl = String.format("http://%s", broker);
         String brokerUrlTls = String.format("https://%s", broker);
         if (!brokerUrl.equals(pulsar().getSafeWebServiceAddress())
@@ -1079,8 +1087,8 @@ public abstract class PulsarWebResource {
 
     public static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)
             throws MetadataStoreException {
-        Deque<String> queue = new LinkedList<String>();
-        List<String> tree = new ArrayList<String>();
+        Deque<String> queue = new LinkedList<>();
+        List<String> tree = new ArrayList<>();
         queue.add(pathRoot);
         tree.add(pathRoot);
         while (true) {

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -31,7 +30,7 @@ public class ResourceQuotaTest {
         Assert.assertEquals(quota.getBandwidthIn(), 0.0);
         Assert.assertEquals(quota.getBandwidthOut(), 0.0);
         Assert.assertEquals(quota.getMemory(), 0.0);
-        Assert.assertEquals(quota.getDynamic(), true);
+        Assert.assertTrue(quota.getDynamic());
         Assert.assertFalse(quota.isValid());
 
         quota.setMsgRateIn(10);
@@ -45,7 +44,7 @@ public class ResourceQuotaTest {
         Assert.assertEquals(quota.getBandwidthIn(), 10000.0);
         Assert.assertEquals(quota.getBandwidthOut(), 20000.0);
         Assert.assertEquals(quota.getMemory(), 100.0);
-        Assert.assertEquals(quota.getDynamic(), false);
+        Assert.assertFalse(quota.getDynamic());
     }
 
     @Test

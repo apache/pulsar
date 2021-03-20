@@ -212,7 +212,7 @@ public class GrowableArrayBlockingQueueTest {
     }
 
     @Test
-    public void removeTest() throws Exception {
+    public void removeTest() {
         BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
 
         assertNull(queue.poll());

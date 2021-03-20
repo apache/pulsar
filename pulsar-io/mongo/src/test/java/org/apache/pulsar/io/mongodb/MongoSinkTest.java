@@ -126,7 +126,7 @@ public class MongoSinkTest {
         }).when(mockPublisher).subscribe(any());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         sink.close();
         verify(mockMongoClient, times(1)).close();

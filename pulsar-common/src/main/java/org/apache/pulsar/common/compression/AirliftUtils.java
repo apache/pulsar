@@ -25,10 +25,10 @@ import java.nio.ByteBuffer;
  */
 public abstract class AirliftUtils {
 
-    static ByteBuffer ensureAirliftSupported(ByteBuffer encodedNio, int uncompressedLength) {
+    static ByteBuffer ensureAirliftSupported(ByteBuffer encodedNio) {
         if (!encodedNio.isDirect() && !encodedNio.hasArray()) {
             // airlift needs a raw ByteArray
-            ByteBuffer copy = ByteBuffer.allocate(uncompressedLength);
+            ByteBuffer copy = ByteBuffer.allocate(encodedNio.capacity());
             copy.put(encodedNio);
             copy.flip();
             encodedNio = copy;

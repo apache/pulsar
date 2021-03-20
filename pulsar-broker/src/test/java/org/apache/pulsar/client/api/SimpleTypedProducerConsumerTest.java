@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -49,6 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-api")
 public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleTypedProducerConsumerTest.class);
 
@@ -308,7 +310,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
    }
 
     @Test(expectedExceptions = {PulsarClientException.class})
-    public void testAvroConsumerWithWrongPrestoredSchema() throws Exception {
+    public void testAvroConsumerWithWrongRestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         byte[] randomSchemaBytes = ("{\n" +
@@ -601,7 +603,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
     @Test
     public void testMessageBuilderLoadConf() throws Exception {
-        String topic = "my-topic-" + System.nanoTime();
+        String topic = BrokerTestUtil.newUniqueName("my-topic");
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)

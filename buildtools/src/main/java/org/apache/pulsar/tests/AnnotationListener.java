@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 import org.testng.IAnnotationTransformer;
 import org.testng.annotations.ITestAnnotation;
 
-@SuppressWarnings("rawtypes")
 public class AnnotationListener implements IAnnotationTransformer {
 
     private static final long DEFAULT_TEST_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(5);
@@ -35,7 +34,10 @@ public class AnnotationListener implements IAnnotationTransformer {
     }
 
     @Override
-    public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
+    public void transform(ITestAnnotation annotation,
+                          Class testClass,
+                          Constructor testConstructor,
+                          Method testMethod) {
         annotation.setRetryAnalyzer(RetryAnalyzer.class);
 
         // Enforce default test timeout
