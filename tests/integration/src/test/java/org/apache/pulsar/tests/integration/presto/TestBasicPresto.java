@@ -123,8 +123,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             ContainerExecResult result = execQuery(query);
             Assert.fail("The query [" + query + "] should be failed.");
         } catch (Exception e) {
-            log.info("Expected exception. exception class: {}, exception message: {}",
-                    e.getCause().getClass(), e.getMessage());
+            log.warn("Expected exception. exception message: {}", e.getMessage(), e);
             Assert.assertTrue(e.getMessage().contains("There are multiple topics"));
         }
     }
