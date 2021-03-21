@@ -33,7 +33,6 @@ env:
 jobs:
 
   unit-tests:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name:
     runs-on: ubuntu-latest
     container:
@@ -41,6 +40,13 @@ jobs:
     timeout-minutes: 120
 
     steps:
+
+      - name: fail PR drafts
+        if: ${{ github.event.pull_request.draft == true }}
+        run: |
+          echo "::warning::Skipping pull requests in draft status"
+          exit 99
+
       - name: checkout
         uses: actions/checkout@v2
 
@@ -79,7 +85,7 @@ jobs:
         run: ./build/run_unit_group.sh PROXY
 
       - name: package surefire artifacts
-        if: failure()
+        if: ${{ failure() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
         run: |
           rm -rf artifacts
           mkdir artifacts
@@ -88,7 +94,7 @@ jobs:
 
       - uses: actions/upload-artifact@master
         name: upload surefire-artifacts
-        if: failure()
+        if: ${{ failure() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
         with:
           name: surefire-artifacts
           path: artifacts.zip

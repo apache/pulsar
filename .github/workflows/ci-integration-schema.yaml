@@ -33,11 +33,17 @@ env:
 jobs:
 
   schema:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
     steps:
+
+      - name: fail PR drafts
+        if: ${{ github.event.pull_request.draft == true }}
+        run: |
+          echo "::warning::Skipping pull requests in draft status"
+          exit 99
+
       - name: checkout
         uses: actions/checkout@v2
 

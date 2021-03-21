@@ -38,7 +38,6 @@ env:
 
 jobs:
   check-style:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
 
     name: Go ${{ matrix.go-version }} Functions style check
     runs-on: ubuntu-latest
@@ -47,6 +46,13 @@ jobs:
         go-version: [1.11, 1.12, 1.13, 1.14]
 
     steps:
+
+      - name: fail PR drafts
+        if: ${{ github.event.pull_request.draft == true }}
+        run: |
+          echo "::warning::Skipping pull requests in draft status"
+          exit 99
+
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
 
