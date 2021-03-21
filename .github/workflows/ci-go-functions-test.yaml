@@ -20,6 +20,7 @@
 name: CI - Go Functions Tests
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - master
     paths:
@@ -38,6 +39,7 @@ env:
 jobs:
 
   go-functions-tests:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Run Go Tests
     strategy:
       matrix:

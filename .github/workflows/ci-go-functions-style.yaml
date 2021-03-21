@@ -20,6 +20,7 @@
 name: CI - Go Functions style check
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - master
     paths:
@@ -37,6 +38,7 @@ env:
 
 jobs:
   check-style:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
 
     name: Go ${{ matrix.go-version }} Functions style check
     runs-on: ubuntu-latest
