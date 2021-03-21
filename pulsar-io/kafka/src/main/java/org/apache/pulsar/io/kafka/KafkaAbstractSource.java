@@ -166,7 +166,9 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         return consumerRecord.value();
     }
 
-    public abstract Schema<V> extractSchema(ConsumerRecord<Object, Object> consumerRecord);
+    public Schema<V> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
+        throw new UnsupportedOperationException();
+    }
 
     @Slf4j
     protected static class KafkaRecord<V> implements Record<V> {

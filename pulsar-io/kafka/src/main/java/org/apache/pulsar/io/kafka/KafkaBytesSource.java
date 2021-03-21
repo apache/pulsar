@@ -41,10 +41,7 @@ import org.apache.kafka.common.serialization.ShortDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
@@ -72,8 +69,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         log.info("Created kafka consumer config : {}", props);
 
-        keySchema = getSchemaFromDeserializer(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, props, true);
-        valueSchema = getSchemaFromDeserializer(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, props, false);
+        keySchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, props, true);
+        valueSchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, props, false);
 
         boolean needsSchemaCache = keySchema instanceof AutoProduceBytesSchema
                                     || valueSchema instanceof AutoProduceBytesSchema;
@@ -99,13 +96,6 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
     }
 
     @Override
-    public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
-        if (produceKeyValue) {
-            throw new IllegalStateException();
-        }
-        return extractSimpleValue(consumerRecord.value());
-    }
-
     public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
         if (produceKeyValue) {
             Object key = extractSimpleValue(consumerRecord.key());
@@ -125,9 +115,10 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
                     currentValueSchema);
 
         } else {
+            Object value = consumerRecord.value();
             return new KafkaRecord(consumerRecord,
-                    extractValue(consumerRecord),
-                    extractSchema(consumerRecord));
+                    extractSimpleValue(value),
+                    getSchemaFromObject(value, valueSchema));
 
         }
     }
@@ -143,19 +134,6 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             return (ByteBuffer) value;
         } else {
             throw new IllegalArgumentException("Unexpected type from Kafka: "+value.getClass());
-        }
-    }
-
-    @Override
-    public org.apache.pulsar.client.api.Schema<ByteBuffer> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
-
-        Object value = consumerRecord.value();
-        Schema localValueSchema = getSchemaFromObject(value, valueSchema);
-
-        if (produceKeyValue) {
-            throw new IllegalStateException();
-        } else {
-            return localValueSchema;
         }
     }
 
@@ -188,7 +166,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         }
     }
 
-    private static Schema<?> getSchemaFromDeserializer(String key, Properties props, boolean isKey) {
+    private static Schema<?> getSchemaFromDeserializerAndAdaptConfiguration(String key, Properties props, boolean isKey) {
         String kafkaDeserializerClass = props.getProperty(key);
         Objects.requireNonNull(kafkaDeserializerClass);
 
