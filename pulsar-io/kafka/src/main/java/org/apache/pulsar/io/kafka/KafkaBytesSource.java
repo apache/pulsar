@@ -48,8 +48,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
-import static org.apache.pulsar.io.kafka.AvroSchemaCache.getBytes;
-
 /**
  * Simple Kafka Source that just transfers the value part of the kafka records
  * as Strings
@@ -167,7 +165,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             // the schema may be different from record to record
             return schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId());
         } else {
-            return new ByteBufferSchemaAdapter(fallback);
+            return new ByteBufferSchemaWrapper(fallback);
         }
     }
 
@@ -238,35 +236,4 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         return produceKeyValue;
     }
 
-    private static class ByteBufferSchemaAdapter implements Schema<ByteBuffer> {
-        private final Schema fallback;
-
-        public ByteBufferSchemaAdapter(Schema fallback) {
-            this.fallback = fallback;
-        }
-
-        @Override
-        public byte[] encode(ByteBuffer message) {
-            return getBytes(message);
-        }
-
-        @Override
-        public SchemaInfo getSchemaInfo() {
-            return fallback.getSchemaInfo();
-        }
-
-        @Override
-        public Schema<ByteBuffer> clone() {
-            return this;
-        }
-
-        @Override
-        public ByteBuffer decode(byte[] bytes, byte[] schemaVersion) {
-            throw new UnsupportedOperationException();
-        }
-
-        public String toString() {
-            return "{schema wrapper for "+ fallback +"}";
-        }
-    }
 }
