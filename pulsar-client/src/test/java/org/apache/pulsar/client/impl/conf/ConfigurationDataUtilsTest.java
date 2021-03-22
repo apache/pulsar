@@ -19,8 +19,7 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.common.collect.ImmutableSet;
 import org.testng.Assert;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -113,7 +112,7 @@ public class ConfigurationDataUtilsTest {
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
         Map<String, Object> config = new HashMap<>();
-        config.put("topicName", "test-topic");
+        config.put("topicNames", ImmutableSet.of("test-topic"));
         config.put("receiverQueueSize", 100);
         confData = ConfigurationDataUtils.loadData(config, confData, ReaderConfigurationData.class);
         assertEquals("test-topic", confData.getTopicName());
