@@ -23,6 +23,10 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testcontainers.shaded.org.apache.commons.lang.RandomStringUtils;
 
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
 import static org.testng.Assert.assertTrue;
 
 /**
