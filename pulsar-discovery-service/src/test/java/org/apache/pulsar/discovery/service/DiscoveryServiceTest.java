@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.discovery.service;
 
-import static org.apache.pulsar.discovery.service.web.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.apache.pulsar.broker.resources.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;

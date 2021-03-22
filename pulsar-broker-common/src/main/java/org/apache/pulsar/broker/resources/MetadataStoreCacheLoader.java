@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.discovery.service.web;
+package org.apache.pulsar.broker.resources;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -28,8 +28,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.pulsar.broker.resources.LoadManagerReportResources;
-import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
@@ -48,7 +46,7 @@ public class MetadataStoreCacheLoader implements Closeable {
     private volatile List<LoadManagerReport> availableBrokers;
 
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
-            .name("pulsar-discovery-ordered-cache").build();
+            .name("pulsar-metadata-cache-loader-ordered-cache").build();
 
     public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 

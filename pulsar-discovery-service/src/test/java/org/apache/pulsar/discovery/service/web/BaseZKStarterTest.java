@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.discovery.service.web;
 
-import static org.apache.pulsar.discovery.service.web.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.apache.pulsar.broker.resources.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
