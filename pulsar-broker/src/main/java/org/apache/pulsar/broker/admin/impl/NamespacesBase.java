@@ -2195,17 +2195,17 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected long internalGetCompactionThreshold() {
+    protected Long internalGetCompactionThreshold() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.COMPACTION, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).compaction_threshold;
     }
 
-    protected void internalSetCompactionThreshold(long newThreshold) {
+    protected void internalSetCompactionThreshold(Long newThreshold) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.COMPACTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
-            if (newThreshold < 0) {
+            if (newThreshold != null && newThreshold < 0) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "compactionThreshold must be 0 or more");
             }
