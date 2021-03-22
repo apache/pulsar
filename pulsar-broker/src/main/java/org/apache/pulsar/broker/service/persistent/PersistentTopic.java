@@ -1313,7 +1313,10 @@ public class PersistentTopic extends AbstractTopic
                     .orElseThrow(() -> new KeeperException.NoNodeException());
                 compactionThreshold = policies.compaction_threshold;
             }
-
+            if (compactionThreshold == null) {
+                compactionThreshold = brokerService.pulsar().getConfiguration()
+                        .getBrokerServiceCompactionThresholdInBytes();
+            }
 
             if (isSystemTopic() || compactionThreshold != 0
                 && currentCompaction.isDone()) {

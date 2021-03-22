@@ -1630,7 +1630,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(compactPromise).when(compactor).compact(anyString());
 
         Policies policies = new Policies();
-        policies.compaction_threshold = 1;
+        policies.compaction_threshold = 1L;
         when(pulsar.getConfigurationCache().policiesCache()
                 .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
                 .thenReturn(Optional.of(policies));
@@ -1663,7 +1663,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(Compactor.COMPACTION_SUBSCRIPTION).when(subCursor).getName();
 
         Policies policies = new Policies();
-        policies.compaction_threshold = 1;
+        policies.compaction_threshold = 1L;
         when(pulsar.getConfigurationCache().policiesCache()
                 .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
                 .thenReturn(Optional.of(policies));
@@ -1691,7 +1691,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(compactPromise).when(compactor).compact(anyString());
 
         Policies policies = new Policies();
-        policies.compaction_threshold = 0;
+        policies.compaction_threshold = 0L;
         when(pulsar.getConfigurationCache().policiesCache()
                 .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
                 .thenReturn(Optional.of(policies));
