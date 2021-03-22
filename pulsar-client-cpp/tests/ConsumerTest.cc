@@ -423,9 +423,10 @@ TEST(ConsumerTest, testGetTopicNameFromReceivedMessage) {
 
     Client client(lookupUrl);
 
-    auto sendMessage = [&client](const std::string& topic) {
+    auto sendMessage = [&client](const std::string& topic, bool enabledBatching) {
+        const auto producerConf = ProducerConfiguration().setBatchingEnabled(enabledBatching);
         Producer producer;
-        ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+        ASSERT_EQ(ResultOk, client.createProducer(topic, producerConf, producer));
         ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent("hello").build()));
         LOG_INFO("Send 'hello' to " << topic);
     };
@@ -446,7 +447,10 @@ TEST(ConsumerTest, testGetTopicNameFromReceivedMessage) {
     Consumer consumer2;
     ASSERT_EQ(ResultOk, client.subscribe({topic1, topic2}, "sub-2", consumer2));
 
-    sendMessage(topic1);
+    sendMessage(topic1, true);
+    validateTopicName(consumer1, topic1);
+    validateTopicName(consumer2, topic1);
+    sendMessage(topic1, false);
     validateTopicName(consumer1, topic1);
     validateTopicName(consumer2, topic1);
 
@@ -454,7 +458,9 @@ TEST(ConsumerTest, testGetTopicNameFromReceivedMessage) {
     Consumer consumer3;
     ASSERT_EQ(ResultOk, client.subscribe(topic3, "sub-3", consumer3));
     const auto partition = topic3 + "-partition-0";
-    sendMessage(partition);
+    sendMessage(partition, true);
+    validateTopicName(consumer3, partition);
+    sendMessage(partition, false);
     validateTopicName(consumer3, partition);
 
     client.close();
