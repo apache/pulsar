@@ -28,15 +28,19 @@ import java.util.function.Supplier;
 /**
  * This is a ByteBuffer schema that reports SchemaInfo from another Schema instance.
  */
-public class ByteBufferSchemaWrapper implements Schema<ByteBuffer> {
+class ByteBufferSchemaWrapper implements Schema<ByteBuffer> {
     private final Supplier<SchemaInfo> original;
 
     public ByteBufferSchemaWrapper(Schema original) {
-        this.original = original::getSchemaInfo;
+        this(original::getSchemaInfo);
     }
 
     public ByteBufferSchemaWrapper(SchemaInfo info) {
-        this.original = () -> info;
+        this(() -> info);
+    }
+
+    public ByteBufferSchemaWrapper(Supplier<SchemaInfo> original) {
+        this.original = original;
     }
 
     @Override
@@ -51,7 +55,7 @@ public class ByteBufferSchemaWrapper implements Schema<ByteBuffer> {
 
     @Override
     public Schema<ByteBuffer> clone() {
-        return this;
+        return new ByteBufferSchemaWrapper(original);
     }
 
     @Override
@@ -64,8 +68,17 @@ public class ByteBufferSchemaWrapper implements Schema<ByteBuffer> {
     }
 
     static byte[] getBytes(ByteBuffer buffer) {
+        int remaining = buffer.remaining();
+//        if (buffer.hasArray() && buffer.arrayOffset() == 0) {
+//            // do not copy data if the ByteBuffer is a simple wrapper over
+//            // and array
+//            byte[] array = buffer.array();
+//            if (array.length == remaining) {
+//                return array;
+//            }
+//        }
         buffer.mark();
-        byte[] avroEncodedData = new byte[buffer.remaining()];
+        byte[] avroEncodedData = new byte[remaining];
         buffer.get(avroEncodedData);
         buffer.reset();
         return avroEncodedData;
