@@ -240,12 +240,12 @@ public class PerformanceProducer {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
@@ -260,7 +260,7 @@ public class PerformanceProducer {
             } else {
                 System.out.println("The size of topics list should be equal to --num-topic");
                 jc.usage();
-                System.exit(-1);
+                PerfClientUtils.exit(-1);
             }
         }
 
@@ -369,7 +369,7 @@ public class PerformanceProducer {
                         if (partitionedTopicMetadata.partitions != arguments.partitions) {
                             log.error("Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
                                     topic, partitionedTopicMetadata.partitions, arguments.partitions);
-                            System.exit(-1);
+                            PerfClientUtils.exit(-1);
                         }
                     }
                 }
@@ -558,7 +558,7 @@ public class PerformanceProducer {
                             printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            System.exit(0);
+                            PerfClientUtils.exit(0);
                         }
                     }
 
@@ -568,7 +568,7 @@ public class PerformanceProducer {
                             printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            System.exit(0);
+                            PerfClientUtils.exit(0);
                         }
                     }
                     rateLimiter.acquire();
@@ -616,7 +616,7 @@ public class PerformanceProducer {
                         log.warn("Write error on message", ex);
                         messagesFailed.increment();
                         if (arguments.exitOnFailure) {
-                            System.exit(-1);
+                            PerfClientUtils.exit(-1);
                         }
                         return null;
                     });

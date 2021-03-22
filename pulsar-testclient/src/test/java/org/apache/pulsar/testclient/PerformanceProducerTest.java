@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -32,17 +33,28 @@ import org.testng.annotations.Test;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.testng.Assert.fail;
+
+@Slf4j
 public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     private final String testTenant = "prop-xyz";
     private final String testNamespace = "ns1";
     private final String myNamespace = testTenant + "/" + testNamespace;
     private final String testTopic = "persistent://" + myNamespace + "/test-";
+    private final AtomicInteger lastExitCode = new AtomicInteger(0);
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
+        PerfClientUtils.setExitProcedure(code -> {
+            log.error("JVM exit code is {}", code);
+            if (code != 0) {
+                throw new RuntimeException("JVM should exit with code " + code);
+            }
+        });
         // Setup namespaces
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
@@ -54,6 +66,10 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        int exitCode = lastExitCode.get();
+        if (exitCode != 0) {
+            fail("Unexpected JVM exit code "+exitCode);
+        }
     }
 
     @Test(timeOut = 20000)
