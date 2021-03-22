@@ -151,7 +151,7 @@ public class CmdBrokers extends CmdBase {
 
         @Override
         void run() throws Exception {
-            System.out.println( getAdmin().brokers().getVersion());
+            System.out.println(getAdmin().brokers().getVersion());
         }
     }
 
