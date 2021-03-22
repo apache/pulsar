@@ -1026,7 +1026,7 @@ public class Namespaces extends NamespacesBase {
                           + "A threshold of 0 disabled automatic compaction")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public long getCompactionThreshold(@PathParam("property") String property,
+    public Long getCompactionThreshold(@PathParam("property") String property,
                                        @PathParam("cluster") String cluster,
                                        @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
