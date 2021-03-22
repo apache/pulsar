@@ -64,10 +64,10 @@ public class PulsarVersionTest {
         assertTrue(adminVersionLongOption.getStdout().contains(version));
         ContainerExecResult clientVersionShortOption = pulsarCluster.getAnyBroker().execCmd(
                 PulsarCluster.CLIENT_SCRIPT, "-v");
-        AssertTrue(clientVersionShortOption.getStdout().contains(version));
+        assertTrue(clientVersionShortOption.getStdout().contains(version));
         ContainerExecResult clientVersionLongOption = pulsarCluster.getAnyBroker().execCmd(
                 PulsarCluster.CLIENT_SCRIPT, "--version");
-        AssertTrue(clientVersionLongOption.getStdout().contains(version));
+        assertTrue(clientVersionLongOption.getStdout().contains(version));
     }
 
 }
