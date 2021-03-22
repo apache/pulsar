@@ -35,12 +35,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -319,8 +321,15 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    public Schema<T> getSchema() {
+    public Schema<T> getCurrentSchema() {
         return this.schema;
+    }
+
+    public CompletableFuture<Schema<?>> getOriginalSchema() {
+        if (this.schema.supportSchemaVersioning()) {
+            return schema.getSchemaInfo(getSchemaVersion()).thenApply(AutoConsumeSchema::getSchema);
+        }
+        return CompletableFuture.completedFuture(this.schema);
     }
 
     @Override

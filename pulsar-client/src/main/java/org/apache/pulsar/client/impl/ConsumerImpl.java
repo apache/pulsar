@@ -589,18 +589,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     initDeadLetterProducerIfNeeded();
                     MessageId finalMessageId = messageId;
                     deadLetterProducer.thenAccept(dlqProducer -> {
-                        TypedMessageBuilder<T> typedMessageBuilderNew = dlqProducer.newMessage(retryMessage.getSchema())
-                                .value(retryMessage.getValue())
-                                .properties(propertiesMap);
-                        typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
-                            doAcknowledge(finalMessageId, ackType, properties, null).thenAccept(v -> {
-                                result.complete(null);
+                        retryMessage.getOriginalSchema().thenAccept(originalSchema -> {
+                            TypedMessageBuilder<T> typedMessageBuilderNew =
+                                    dlqProducer.newMessage(retryMessage.getCurrentSchema())
+                                            .value(retryMessage.getValue())
+                                            .properties(propertiesMap);
+                            typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
+                                doAcknowledge(finalMessageId, ackType, properties, null).thenAccept(v -> {
+                                    result.complete(null);
+                                }).exceptionally(ex -> {
+                                    result.completeExceptionally(ex);
+                                    return null;
+                                });
                             }).exceptionally(ex -> {
                                 result.completeExceptionally(ex);
                                 return null;
                             });
                         }).exceptionally(ex -> {
                             result.completeExceptionally(ex);
+                            deadLetterProducer = null;
                             return null;
                         });
                     }).exceptionally(ex -> {
@@ -1679,65 +1686,33 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 for (MessageImpl<T> message : finalDeadLetterMessages) {
                     String originMessageIdStr = getOriginMessageIdStr(message);
                     String originTopicNameStr = getOriginTopicNameStr(message);
-                    if (schema instanceof AutoConsumeSchema) {
-                        ((AutoConsumeSchema) schema)
-                                .getSchemaInfo(message.getSchemaVersion()).thenApply(schemaInfo ->
-                                        producerDLQ.newMessage(
-                                                Schema.AUTO_PRODUCE_BYTES(AutoConsumeSchema.getSchema(schemaInfo))))
-                                .thenAccept(typedMessageBuilder -> {
-                                    typedMessageBuilder
-                                            .value(message.getData())
-                                            .properties(getPropertiesMap(message,
-                                                    originMessageIdStr, originTopicNameStr))
-                                            .sendAsync()
-                                            .thenAccept(messageIdInDLQ -> {
-                                                possibleSendToDeadLetterTopicMessages.remove(finalMessageId);
-                                                acknowledgeAsync(finalMessageId).whenComplete((v, ex) -> {
-                                                    if (ex != null) {
-                                                        log.warn("[{}] [{}] [{}] Failed to acknowledge the message {} "
-                                                                        + "of the original topic but send "
-                                                                        + "to the DLQ successfully.",
-                                                                topicName, subscription, consumerName,
-                                                                finalMessageId, ex);
-                                                    } else {
-                                                        result.complete(true);
-                                                    }
-                                                });
-                                            }).exceptionally(ex -> {
-                                        log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
-                                                topicName, subscription, consumerName, finalMessageId, ex);
-                                        result.complete(false);
-                                        return null;
-                                    });
-                                }).exceptionally(e -> {
-                                    log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
-                                            topicName, subscription, consumerName, finalMessageId, e);
-                                    result.complete(false);
-                                    return null;
-                                });
-                    } else {
-                        producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getSchema()))
-                                .value(message.getData())
-                                .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr))
-                                .sendAsync()
-                                .thenAccept(messageIdInDLQ -> {
-                                    possibleSendToDeadLetterTopicMessages.remove(finalMessageId);
-                                    acknowledgeAsync(finalMessageId).whenComplete((v, ex) -> {
-                                        if (ex != null) {
-                                            log.warn("[{}] [{}] [{}] Failed to acknowledge the message {} "
-                                                            + "of the original topic but send to the DLQ successfully.",
-                                                    topicName, subscription, consumerName, finalMessageId, ex);
-                                        } else {
-                                            result.complete(true);
-                                        }
-                                    });
-                                }).exceptionally(ex -> {
-                            log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
-                                    topicName, subscription, consumerName, finalMessageId, ex);
-                            result.complete(false);
-                            return null;
-                        });
-                    }
+                    message.getOriginalSchema().thenAccept(originalSchema ->
+                            producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(originalSchema))
+                                    .value(message.getData())
+                                    .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr))
+                                    .sendAsync()
+                                    .thenAccept(messageIdInDLQ -> {
+                                        possibleSendToDeadLetterTopicMessages.remove(finalMessageId);
+                                        acknowledgeAsync(finalMessageId).whenComplete((v, ex) -> {
+                                            if (ex != null) {
+                                                log.warn("[{}] [{}] [{}] Failed to acknowledge the message {} "
+                                                        + "of the original topic but send to the DLQ successfully.",
+                                                        topicName, subscription, consumerName, finalMessageId, ex);
+                                            } else {
+                                                result.complete(true);
+                                            }
+                                        });
+                                    }).exceptionally(ex -> {
+                                log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                                        topicName, subscription, consumerName, finalMessageId, ex);
+                                result.complete(false);
+                                return null;
+                    })).exceptionally(ex -> {
+                        log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                                topicName, subscription, consumerName, finalMessageId, ex);
+                        result.complete(false);
+                        return null;
+                    });
                 }
             }).exceptionally(ex -> {
                 log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",

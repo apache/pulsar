@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -29,6 +30,7 @@ import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -115,12 +117,18 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         return schema.getSchemaInfo();
     }
 
+    @Override
     public CompletableFuture<SchemaInfo> getSchemaInfo(byte[] schemaVersion) {
         ensureSchemaInitialized();
-        if (schemaVersion == null) {
-            return CompletableFuture.completedFuture(schema.getSchemaInfo());
+        if (schema.supportSchemaVersioning()) {
+            if (schemaVersion == null) {
+                return FutureUtil.failedFuture(new PulsarClientException
+                        .NotAllowedException("Schema version is null when message get schemaInfo by schema version!"));
+            } else {
+                return schemaInfoProvider.getSchemaByVersion(schemaVersion);
+            }
         } else {
-            return schemaInfoProvider.getSchemaByVersion(schemaVersion);
+            return CompletableFuture.completedFuture(this.schema.getSchemaInfo());
         }
     }
 

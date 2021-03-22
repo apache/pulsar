@@ -21,12 +21,16 @@ package org.apache.pulsar.client.impl.schema;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * minimal abstract StructSchema
@@ -73,6 +77,19 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
     @Override
     public SchemaInfo getSchemaInfo() {
         return this.schemaInfo;
+    }
+
+    @Override
+    public CompletableFuture<SchemaInfo> getSchemaInfo(byte[] schemaVersion) {
+        if (schemaVersion == null) {
+            return FutureUtil.failedFuture(new PulsarClientException
+                    .NotAllowedException("Schema version is null when message get schemaInfo by schema version!"));
+        }
+        if (schemaInfoProvider == null) {
+            return FutureUtil.failedFuture(new PulsarClientException("SchemaInfoProvider don't initialized"));
+        } else {
+            return schemaInfoProvider.getSchemaByVersion(schemaVersion);
+        }
     }
 
     @Override

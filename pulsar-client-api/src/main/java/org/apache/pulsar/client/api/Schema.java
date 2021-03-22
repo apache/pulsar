@@ -26,6 +26,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -121,6 +123,14 @@ public interface Schema<T> extends Cloneable{
      * @return an object that represents the Schema associated metadata
      */
     SchemaInfo getSchemaInfo();
+
+    /**
+     * Get schema info by schema version.
+     * @return the future of the result.
+     */
+    default CompletableFuture<SchemaInfo> getSchemaInfo(byte[] schemaVersion) {
+        return CompletableFuture.completedFuture(getSchemaInfo());
+    }
 
     /**
      * Check if this schema requires fetching schema info to configure the schema.
