@@ -154,8 +154,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         protected Producer<T> getProducer(String producerId, String producerName, String topicName, Schema schema) {
-            String producerSchemaUniqueId = schema == null ? producerId : producerId+"-"+System.identityHashCode(schema);
-            return publishProducers.computeIfAbsent(producerSchemaUniqueId, s -> {
+             return publishProducers.computeIfAbsent(producerId, s -> {
                 try {
                     log.info("Initializing producer {} on topic {} with schema {}",
                         producerName, topicName, schema);
