@@ -53,7 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
@@ -283,7 +282,7 @@ public class PulsarMetadata implements ConnectorMetadata {
 
         SchemaInfo schemaInfo;
         try {
-            schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(topicName.toString());
+            schemaInfo = this.pulsarAdmin.schemas().getSchemaInfo(topicName.getSchemaName());
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() == 404) {
                 // use default schema because there is no schema
@@ -364,8 +363,11 @@ public class PulsarMetadata implements ConnectorMetadata {
         TopicName topicName;
         try {
             topicName = tableNameTopicNameCache.get(schemaTableName);
-        } catch (ExecutionException e) {
+        } catch (Exception e) {
             log.error(e, "Failed to get table handler for tableName " + schemaTableName);
+            if (e.getCause() != null && e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            }
             throw new TableNotFoundException(schemaTableName);
         }
         return topicName;
