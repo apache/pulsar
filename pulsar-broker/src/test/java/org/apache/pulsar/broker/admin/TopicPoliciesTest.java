@@ -1616,7 +1616,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         doTestMaxSubscriptionsFailFast(SubscriptionMode.NonDurable);
     }
 
-    public void doTestMaxSubscriptionsFailFast(SubscriptionMode subMode) throws Exception {
+    private void doTestMaxSubscriptionsFailFast(SubscriptionMode subMode) throws Exception {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         // init cache
         pulsarClient.newProducer().topic(topic).create().close();
