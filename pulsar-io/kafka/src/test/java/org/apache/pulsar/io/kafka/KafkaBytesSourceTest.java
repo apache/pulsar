@@ -84,7 +84,7 @@ public class KafkaBytesSourceTest {
                 ShortDeserializer.class.getName(), Schema.INT16);
 
         validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                KafkaAvroDeserializer.class.getName(), Schema.AUTO_PRODUCE_BYTES());
+                KafkaAvroDeserializer.class.getName(), KafkaBytesSource.DeferredSchemaPlaceholder.INSTANCE);
 
     }
 
@@ -104,22 +104,22 @@ public class KafkaBytesSourceTest {
         assertFalse(source.isProduceKeyValue());
         Schema keySchema  = source.getKeySchema();
         Schema valueSchema = source.getValueSchema();
-        assertEquals(keySchema.getClass(), expectedKeySchema.getClass());
-        assertEquals(valueSchema.getClass(), expectedValueSchema.getClass());
+        assertEquals(keySchema.getSchemaInfo().getType(), expectedKeySchema.getSchemaInfo().getType());
+        assertEquals(valueSchema.getSchemaInfo().getType(), expectedValueSchema.getSchemaInfo().getType());
     }
 
     @Test
     public void testKeyValueSchema() throws Exception {
         validateSchemaKeyValue(IntegerDeserializer.class.getName(), Schema.INT32,
                 StringDeserializer.class.getName(), Schema.STRING,
-                new IntegerSerializer().serialize("test", 10),
-                new StringSerializer().serialize("test", "test"));
+                ByteBuffer.wrap(new IntegerSerializer().serialize("test", 10)),
+                ByteBuffer.wrap(new StringSerializer().serialize("test", "test")));
     }
 
     private void validateSchemaKeyValue(String keyDeserializationClass, Schema expectedKeySchema,
                                           String valueDeserializationClass, Schema expectedValueSchema,
-                                          byte[] key,
-                                          byte[] value) throws Exception {
+                                          ByteBuffer key,
+                                        ByteBuffer value) throws Exception {
         KafkaBytesSource source = new KafkaBytesSource();
         Map<String, Object> config = new HashMap<>();
         config.put("topic","test");
@@ -134,8 +134,8 @@ public class KafkaBytesSourceTest {
         assertTrue(source.isProduceKeyValue());
         Schema keySchema  = source.getKeySchema();
         Schema valueSchema = source.getValueSchema();
-        assertEquals(keySchema.getClass(), expectedKeySchema.getClass());
-        assertEquals(valueSchema.getClass(), expectedValueSchema.getClass());
+        assertEquals(keySchema.getSchemaInfo().getType(), expectedKeySchema.getSchemaInfo().getType());
+        assertEquals(valueSchema.getSchemaInfo().getType(), expectedValueSchema.getSchemaInfo().getType());
 
         KafkaAbstractSource.KafkaRecord record = source.buildRecord(new ConsumerRecord<Object, Object>("test", 0, 0, key, value));
         assertThat(record, instanceOf(KafkaAbstractSource.KeyValueKafkaRecord.class));
@@ -144,14 +144,14 @@ public class KafkaBytesSourceTest {
         assertSame(valueSchema, kvRecord.getValueSchema());
         assertEquals(KeyValueEncodingType.SEPARATED, kvRecord.getKeyValueEncodingType());
         KeyValue kvValue = (KeyValue) kvRecord.getValue();
-        log.info("key {}", Arrays.toString(key));
-        log.info("value {}", Arrays.toString(value));
+        log.info("key {}", Arrays.toString(toArray(key)));
+        log.info("value {}", Arrays.toString(toArray(value)));
 
         log.info("key {}", Arrays.toString(toArray((ByteBuffer) kvValue.getKey())));
         log.info("value {}", Arrays.toString(toArray((ByteBuffer) kvValue.getValue())));
 
-        assertEquals(ByteBuffer.wrap(key).compareTo((ByteBuffer) kvValue.getKey()), 0);
-        assertEquals(ByteBuffer.wrap(value).compareTo((ByteBuffer) kvValue.getValue()), 0);
+        assertEquals(ByteBuffer.wrap(toArray(key)).compareTo((ByteBuffer) kvValue.getKey()), 0);
+        assertEquals(ByteBuffer.wrap(toArray(value)).compareTo((ByteBuffer) kvValue.getValue()), 0);
     }
 
     private static byte[] toArray(ByteBuffer b) {

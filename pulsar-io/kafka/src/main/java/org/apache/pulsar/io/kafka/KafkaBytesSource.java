@@ -50,7 +50,7 @@ import org.apache.pulsar.io.core.annotations.IOType;
 
 /**
  *  Kafka Source that transfers the data from Kafka to Pulsar and sets the Schema type properly.
- *  We the key and the value deserializer in order to decide the type of Schema to be set on the topic on Pulsar.
+ *  We use the key and the value deserializer in order to decide the type of Schema to be set on the topic on Pulsar.
  *  In case of KafkaAvroDeserializer we use the Schema Registry to download the schema and apply it to the topic.
  *  Please refer to {@link #getSchemaFromDeserializerAndAdaptConfiguration(String, Properties, boolean)} for the list
  *  of supported Deserializers.
@@ -135,6 +135,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
     private static ByteBuffer extractSimpleValue(Object value) {
         // we have substituted the original Deserializer with
         // ByteBufferDeserializer in order to save memory copies
+        // so here we can have only a ByteBuffer or at most a
+        // BytesWithKafkaSchema in case of ExtractKafkaAvroSchemaDeserializer
         if (value == null) {
             return null;
         } else if (value instanceof BytesWithKafkaSchema) {
@@ -152,11 +154,11 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             // the schema may be different from record to record
             return schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId());
         } else {
-            return new ByteBufferSchemaWrapper(fallback);
+            return fallback;
         }
     }
 
-    private static Schema<?> getSchemaFromDeserializerAndAdaptConfiguration(String key, Properties props, boolean isKey) {
+    private static Schema<ByteBuffer> getSchemaFromDeserializerAndAdaptConfiguration(String key, Properties props, boolean isKey) {
         String kafkaDeserializerClass = props.getProperty(key);
         Objects.requireNonNull(kafkaDeserializerClass);
 
@@ -165,26 +167,27 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         // to pass the original ByteBuffer
         props.put(key, ByteBufferDeserializer.class.getCanonicalName());
 
+        Schema<?> result;
         if (ByteArrayDeserializer.class.getName().equals(kafkaDeserializerClass)
             || ByteBufferDeserializer.class.getName().equals(kafkaDeserializerClass)
             || BytesDeserializer.class.getName().equals(kafkaDeserializerClass)) {
-            return Schema.BYTEBUFFER;
+            result = Schema.BYTEBUFFER;
         } else if (StringDeserializer.class.getName().equals(kafkaDeserializerClass)) {
             if (isKey) {
-                // for the key we keep the String
+                // for the key we use the String value and we want StringDeserializer
                 props.put(key, kafkaDeserializerClass);
             }
-            return Schema.STRING;
+            result = Schema.STRING;
         } else if (DoubleDeserializer.class.getName().equals(kafkaDeserializerClass)) {
-            return Schema.DOUBLE;
+            result = Schema.DOUBLE;
         } else if (FloatDeserializer.class.getName().equals(kafkaDeserializerClass)) {
-            return Schema.FLOAT;
+            result = Schema.FLOAT;
         } else if (IntegerDeserializer.class.getName().equals(kafkaDeserializerClass)) {
-            return Schema.INT32;
+            result = Schema.INT32;
         } else if (LongDeserializer.class.getName().equals(kafkaDeserializerClass)) {
-            return Schema.INT64;
+            result = Schema.INT64;
         } else if (ShortDeserializer.class.getName().equals(kafkaDeserializerClass)) {
-            return Schema.INT16;
+            result = Schema.INT16;
         } else if (KafkaAvroDeserializer.class.getName().equals(kafkaDeserializerClass)){
             // in this case we have to inject our custom deserializer
             // that extracts Avro schema information
@@ -195,6 +198,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         } else {
             throw new IllegalArgumentException("Unsupported deserializer "+kafkaDeserializerClass);
         }
+        return new ByteBufferSchemaWrapper(result);
     }
 
     Schema getKeySchema() {
@@ -229,9 +233,14 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         }
     }
 
-    private static final class DeferredSchemaPlaceholder extends ByteBufferSchemaWrapper {
+     static final class DeferredSchemaPlaceholder extends ByteBufferSchemaWrapper {
         DeferredSchemaPlaceholder() {
-            super(SchemaInfo.builder().build());
+            super(SchemaInfo
+                    .builder()
+                    .type(SchemaType.AVRO)
+                    .properties(Collections.emptyMap())
+                    .schema(new byte[0])
+                    .build());
         }
         static final DeferredSchemaPlaceholder INSTANCE = new DeferredSchemaPlaceholder();
     }
