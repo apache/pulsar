@@ -286,9 +286,9 @@ public class PulsarSourceTest {
         Consumer consumer = mock(Consumer.class);
         MessageImpl messageImpl = mock(MessageImpl.class);
         Schema schema = mock(Schema.class);
-        when(messageImpl.getSchema()).thenReturn(schema);
+        when(messageImpl.getCurrentSchema()).thenReturn(schema);
         pulsarSource.received(consumer, (Message) messageImpl);
-        verify(messageImpl.getSchema(), times(1));
+        verify(messageImpl.getCurrentSchema(), times(1));
         Record<GenericRecord> pushed = pulsarSource.read();
         assertSame(pushed.getSchema(), schema);
     }
