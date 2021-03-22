@@ -31,6 +31,8 @@ import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteBufferDeserializer;
+import org.apache.kafka.common.serialization.BytesDeserializer;
 import org.apache.kafka.common.serialization.DoubleDeserializer;
 import org.apache.kafka.common.serialization.FloatDeserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
@@ -61,13 +63,10 @@ public class KafkaBytesSourceTest {
                 StringDeserializer.class.getName(), Schema.STRING);
 
         validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                ByteArrayDeserializer.class.getName(), Schema.BYTEBUFFER);
+                ByteBufferDeserializer.class.getName(), Schema.BYTEBUFFER);
 
         validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                ByteArrayDeserializer.class.getName(), Schema.BYTEBUFFER);
-
-        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
-                DoubleDeserializer.class.getName(), Schema.DOUBLE);
+                BytesDeserializer.class.getName(), Schema.BYTEBUFFER);
 
         validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
                 DoubleDeserializer.class.getName(), Schema.DOUBLE);

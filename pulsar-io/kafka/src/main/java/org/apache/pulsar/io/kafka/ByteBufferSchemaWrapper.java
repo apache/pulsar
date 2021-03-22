@@ -28,7 +28,6 @@ import java.util.function.Supplier;
 /**
  * This is a ByteBuffer schema that reports SchemaInfo from another Schema instance.
  */
-@Value
 public class ByteBufferSchemaWrapper implements Schema<ByteBuffer> {
     private final Supplier<SchemaInfo> original;
 
@@ -61,7 +60,7 @@ public class ByteBufferSchemaWrapper implements Schema<ByteBuffer> {
     }
 
     public String toString() {
-        return "{schema wrapper for "+ original +"}";
+        return original.get().toString();
     }
 
     static byte[] getBytes(ByteBuffer buffer) {
