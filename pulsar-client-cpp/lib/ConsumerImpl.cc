@@ -427,6 +427,7 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
         // This is a cheap copy since message contains only one shared pointer (impl_)
         Message msg = Commands::deSerializeSingleMessageInBatch(batchedMessage, i);
         msg.impl_->setRedeliveryCount(redeliveryCount);
+        msg.impl_->setTopicName(batchedMessage.getTopicName());
 
         if (startMessageId_.is_present()) {
             const MessageId& msgId = msg.getMessageId();
