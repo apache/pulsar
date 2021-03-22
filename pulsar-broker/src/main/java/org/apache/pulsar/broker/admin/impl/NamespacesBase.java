@@ -2549,8 +2549,8 @@ public abstract class NamespacesBase extends AdminResource {
    private void updatePolicies(String path, Function<Policies, Policies> updateFunction) {
        try {
            // Force to read the data s.t. the watch to the cache content is setup.
-           namespaceResources().set(path(POLICIES, namespaceName.toString()), updateFunction);
-           log.info("[{}] Successfully updated the on namespace {}", clientAppId(), path, namespaceName);
+           namespaceResources().set(path, updateFunction);
+           log.info("[{}] Successfully updated the {} on namespace {}", clientAppId(), path, namespaceName);
        } catch (NotFoundException e) {
            log.warn("[{}] Namespace {}: does not exist", clientAppId(), namespaceName);
            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
