@@ -132,7 +132,9 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                 int index = 0;
                 for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
                     KafkaRecord record = buildRecord(consumerRecord);
-                    LOG.info("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
+                    }
                     consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;

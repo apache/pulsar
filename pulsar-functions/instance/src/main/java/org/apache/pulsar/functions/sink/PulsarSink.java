@@ -107,7 +107,6 @@ public class PulsarSink<T> implements Sink<T> {
 
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
-            log.info("createProducer {} {} {}", topic, producerName, schema);
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
                     .enableBatching(true)
@@ -154,7 +153,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         protected Producer<T> getProducer(String producerId, String producerName, String topicName, Schema schema) {
-             return publishProducers.computeIfAbsent(producerId, s -> {
+            return publishProducers.computeIfAbsent(producerId, s -> {
                 try {
                     log.info("Initializing producer {} on topic {} with schema {}",
                         producerName, topicName, schema);
@@ -242,7 +241,6 @@ public class PulsarSink<T> implements Sink<T> {
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
-            log.info("newMessage, key {} value {} schema {}", record.getKey(), record.getValue(), record.getSchema());
 
             if (schemaToWrite != null) {
                 return getProducer(record
