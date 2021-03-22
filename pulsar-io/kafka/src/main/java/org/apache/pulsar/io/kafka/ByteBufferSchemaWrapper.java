@@ -69,14 +69,13 @@ class ByteBufferSchemaWrapper implements Schema<ByteBuffer> {
 
     static byte[] getBytes(ByteBuffer buffer) {
         int remaining = buffer.remaining();
-//        if (buffer.hasArray() && buffer.arrayOffset() == 0) {
-//            // do not copy data if the ByteBuffer is a simple wrapper over
-//            // and array
-//            byte[] array = buffer.array();
-//            if (array.length == remaining) {
-//                return array;
-//            }
-//        }
+        if (buffer.hasArray() && buffer.arrayOffset() == 0) {
+            // do not copy data if the ByteBuffer is a simple wrapper over an array
+            byte[] array = buffer.array();
+            if (array.length == remaining) {
+                return array;
+            }
+        }
         buffer.mark();
         byte[] avroEncodedData = new byte[remaining];
         buffer.get(avroEncodedData);
