@@ -1539,7 +1539,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             Assert.fail();
         } catch (PulsarClientException e) {
-            assertTrue(e instanceof PulsarClientException.NotAllowedException);
             log.info("Exception: ", e);
         }
 
