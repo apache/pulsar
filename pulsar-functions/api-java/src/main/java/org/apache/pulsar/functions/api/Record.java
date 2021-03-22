@@ -78,11 +78,11 @@ public interface Record<T> {
     }
 
     /**
-     * Retrieves the partition number if any of the record.
+     * Retrieves the partition index if any of the record.
      *
-     * @return The partition number
+     * @return The partition index
      */
-    default Optional<Integer> getPartitionNumber() {
+    default Optional<Integer> getPartitionIndex() {
         return Optional.empty();
     }
 

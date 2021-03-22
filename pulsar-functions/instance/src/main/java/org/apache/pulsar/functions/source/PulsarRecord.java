@@ -62,7 +62,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     }
 
     @Override
-    public Optional<Integer> getPartitionNumber() {
+    public Optional<Integer> getPartitionIndex() {
         return Optional.of(partition);
     }
 

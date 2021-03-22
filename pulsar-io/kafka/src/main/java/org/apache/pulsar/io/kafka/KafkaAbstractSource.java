@@ -179,7 +179,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
 
         @Override
-        public Optional<Integer> getPartitionNumber() {
+        public Optional<Integer> getPartitionIndex() {
             return Optional.of(record.partition());
         }
 
