@@ -32,13 +32,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.pulsar.proxy.server.util.ZookeeperCacheLoader;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +52,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class BrokerDiscoveryProvider implements Closeable {
 
-    final ZookeeperCacheLoader localZkCache;
+    final MetadataStoreCacheLoader metadataStoreCacheLoader;
     final PulsarResources pulsarResources;
 
     private final AtomicInteger counter = new AtomicInteger();
@@ -65,13 +64,12 @@ public class BrokerDiscoveryProvider implements Closeable {
 
     private static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
 
-    public BrokerDiscoveryProvider(ProxyConfiguration config, ZooKeeperClientFactory zkClientFactory,
-            PulsarResources pulsarResources)
+    public BrokerDiscoveryProvider(ProxyConfiguration config, PulsarResources pulsarResources)
             throws PulsarServerException {
         try {
-            localZkCache = new ZookeeperCacheLoader(zkClientFactory, config.getZookeeperServers(),
-                    config.getZookeeperSessionTimeoutMs());
             this.pulsarResources = pulsarResources;
+            this.metadataStoreCacheLoader = new MetadataStoreCacheLoader(pulsarResources,
+                    config.getZookeeperSessionTimeoutMs());
         } catch (Exception e) {
             LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
@@ -85,7 +83,7 @@ public class BrokerDiscoveryProvider implements Closeable {
      * @throws PulsarServerException
      */
     LoadManagerReport nextBroker() throws PulsarServerException {
-        List<LoadManagerReport> availableBrokers = localZkCache.getAvailableBrokers();
+        List<LoadManagerReport> availableBrokers = metadataStoreCacheLoader.getAvailableBrokers();
 
         if (availableBrokers.isEmpty()) {
             throw new PulsarServerException("No active broker is available");
@@ -165,7 +163,7 @@ public class BrokerDiscoveryProvider implements Closeable {
 
     @Override
     public void close() throws IOException {
-        localZkCache.close();
+        metadataStoreCacheLoader.close();
         orderedExecutor.shutdown();
         scheduledExecutorScheduler.shutdownNow();
     }

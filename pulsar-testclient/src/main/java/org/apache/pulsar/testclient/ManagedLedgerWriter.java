@@ -132,12 +132,12 @@ public class ManagedLedgerWriter {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
@@ -247,7 +247,7 @@ public class ManagedLedgerWriter {
                         @Override
                         public void addFailed(ManagedLedgerException exception, Object ctx) {
                             log.warn("Write error on message", exception);
-                            System.exit(-1);
+                            PerfClientUtils.exit(-1);
                         }
                     };
 
@@ -261,7 +261,7 @@ public class ManagedLedgerWriter {
                                     printAggregatedStats();
                                     isDone.set(true);
                                     Thread.sleep(5000);
-                                    System.exit(0);
+                                    PerfClientUtils.exit(0);
                                 }
                             }
 
@@ -271,7 +271,7 @@ public class ManagedLedgerWriter {
                                     printAggregatedStats();
                                     isDone.set(true);
                                     Thread.sleep(5000);
-                                    System.exit(0);
+                                    PerfClientUtils.exit(0);
                                 }
                             }
 

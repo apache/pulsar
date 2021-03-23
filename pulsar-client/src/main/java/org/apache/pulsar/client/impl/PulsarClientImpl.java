@@ -510,30 +510,52 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
-        return preProcessSchemaBeforeSubscribe(this, schema, conf.getTopicName())
-            .thenCompose(schemaClone -> doCreateReaderAsync(conf, schemaClone));
-    }
-
-    <T> CompletableFuture<Reader<T>> doCreateReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
-
         if (conf == null) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
         }
-
-        String topic = conf.getTopicName();
-
-        if (!TopicName.isValid(topic)) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+        for (String topic : conf.getTopicNames()) {
+            if (!TopicName.isValid(topic)) {
+                return FutureUtil.failedFuture(new PulsarClientException
+                        .InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+            }
         }
 
         if (conf.getStartMessageId() == null) {
             return FutureUtil
                     .failedFuture(new PulsarClientException.InvalidConfigurationException("Invalid startMessageId"));
         }
+
+        if (conf.getTopicNames().size() == 1) {
+            return preProcessSchemaBeforeSubscribe(this, schema, conf.getTopicName())
+                    .thenCompose(schemaClone -> createSingleTopicReaderAsync(conf, schemaClone));
+        }
+        return createMultiTopicReaderAsync(conf, schema);
+    }
+
+    protected <T> CompletableFuture<Reader<T>> createMultiTopicReaderAsync(
+            ReaderConfigurationData<T> conf, Schema<T> schema) {
+        CompletableFuture<Reader<T>> readerFuture = new CompletableFuture<>();
+        CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
+        MultiTopicsReaderImpl<T> reader = new MultiTopicsReaderImpl<>(this,
+                conf, externalExecutorProvider, consumerSubscribedFuture, schema);
+        ConsumerBase<T> consumer = reader.getMultiTopicsConsumer();
+        consumers.add(consumer);
+        consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader))
+                .exceptionally(ex -> {
+                    log.warn("Failed to create multiTopicReader", ex);
+                    readerFuture.completeExceptionally(ex);
+                    return null;
+                });
+        return readerFuture;
+    }
+
+    protected <T> CompletableFuture<Reader<T>> createSingleTopicReaderAsync(
+            ReaderConfigurationData<T> conf, Schema<T> schema) {
+        String topic = conf.getTopicName();
 
         CompletableFuture<Reader<T>> readerFuture = new CompletableFuture<>();
 
