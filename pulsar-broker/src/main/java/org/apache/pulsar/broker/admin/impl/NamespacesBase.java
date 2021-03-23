@@ -302,10 +302,10 @@ public abstract class NamespacesBase extends AdminResource {
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
                 final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
                 try {
-                    getLocalPolicies().delete(lcaolZkPolicyPath);
+                    getLocalPolicies().delete(localZkPolicyPath);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
@@ -454,11 +454,11 @@ public abstract class NamespacesBase extends AdminResource {
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
                 final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
 
                 try {
-                    getLocalPolicies().delete(lcaolZkPolicyPath);
+                    getLocalPolicies().delete(localZkPolicyPath);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
