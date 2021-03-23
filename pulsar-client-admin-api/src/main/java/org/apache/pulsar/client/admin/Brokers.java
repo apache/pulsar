@@ -274,4 +274,10 @@ public interface Brokers {
      * Run a healthcheck on the broker asynchronously.
      */
     CompletableFuture<Void> healthcheckAsync();
+
+    /**
+     * Get version of broker.
+     * @return version of broker.
+     */
+    String getVersion() throws PulsarAdminException;
 }
