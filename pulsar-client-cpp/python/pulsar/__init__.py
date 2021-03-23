@@ -406,7 +406,7 @@ class Client:
           endpoint, matches the common name on the TLS certificate presented by
           the endpoint.
         * `logger`:
-          Set a Python logger for this Pulsar client.
+          Set a Python logger for this Pulsar client. Should be an instance of `logging.Logger`.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
