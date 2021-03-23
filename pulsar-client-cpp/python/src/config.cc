@@ -89,7 +89,6 @@ static ProducerConfiguration& ProducerConfiguration_setCryptoKeyReader(ProducerC
 }
 
 class LoggerWrapper: public Logger {
-    std::string _logger;
     PyObject* _pyLogger;
     int _currentPythonLogLevel = _getLogLevelValue(Logger::LEVEL_INFO);
 
@@ -111,7 +110,7 @@ class LoggerWrapper: public Logger {
 
    public:
 
-    LoggerWrapper(const std::string &logger, PyObject* pyLogger) : _logger(logger) {
+    LoggerWrapper(const std::string &logger, PyObject* pyLogger) {
         _pyLogger = pyLogger;
         Py_XINCREF(_pyLogger);
 
