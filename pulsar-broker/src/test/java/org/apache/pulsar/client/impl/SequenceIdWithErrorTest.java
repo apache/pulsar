@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
 
     /**
@@ -79,12 +80,12 @@ public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
     }
 
     @Test(enabled = false)
-    public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
+    public void testCrashBrokerWithoutCursorLedgerLeak() {
         // Ignore test
     }
 
     @Test(enabled = false)
-    public void testSkipCorruptDataLedger() throws Exception {
+    public void testSkipCorruptDataLedger() {
         // Ignore test
     }
 }

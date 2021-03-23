@@ -57,11 +57,10 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.1.1</version>
         <executions>
           <execution>
             <id>unpack</id>
-            <phase>generate-sources</phase>
+            <phase>prepare-package</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
@@ -76,7 +75,37 @@
                   <includes>**/ProtobufSchema.class</includes>
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
+                <artifactItem>
+                  <groupId>org.asynchttpclient</groupId>
+                  <artifactId>async-http-client</artifactId>
+                  <version>${asynchttpclient.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <includes>org/asynchttpclient/config/ahc-default.properties</includes>
+                  <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                </artifactItem>
               </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>shade-ahc-properties</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <!-- shade the AsyncHttpClient ahc-default.properties files -->
+                <replace token= "org.asynchttpclient."
+                         value="org.apache.pulsar.shade.org.asynchttpclient."
+                         file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
+              </target>
             </configuration>
           </execution>
         </executions>
@@ -134,6 +163,7 @@
                   <include>org.glassfish.hk2*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.grpc:*</include>
+                  <include>io.perfmark:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>io.netty:*</include>
                   <include>com.squareup.*:*</include>

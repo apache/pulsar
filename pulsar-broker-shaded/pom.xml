@@ -46,6 +46,54 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>unpack</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.asynchttpclient</groupId>
+                  <artifactId>async-http-client</artifactId>
+                  <version>${asynchttpclient.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <includes>org/asynchttpclient/config/ahc-default.properties</includes>
+                  <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>shade-ahc-properties</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <!-- shade the AsyncHttpClient ahc-default.properties files -->
+                <replace token= "org.asynchttpclient."
+                         value="org.apache.pulsar.shade.org.asynchttpclient."
+                         file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
@@ -82,6 +130,7 @@
                   <include>net.java.dev.jna:*</include>
                   <include>com.carrotsearch:*</include>
                   <include>io.prometheus:*</include>
+                  <include>io.perfmark:*</include>
                   <include>com.github.ben-manes.caffeine:*</include>
                   <include>org.glassfish.jersey.*:*</include>
                   <include>org.rocksdb:*</include>

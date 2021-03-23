@@ -694,9 +694,11 @@ public class Commands {
                 .setType(getSchemaType(schemaInfo.getType()));
 
         schemaInfo.getProperties().entrySet().stream().forEach(entry -> {
-            schema.addProperty()
-                .setKey(entry.getKey())
-                .setValue(entry.getValue());
+            if (entry.getKey() != null && entry.getValue() != null) {
+                schema.addProperty()
+                        .setKey(entry.getKey())
+                        .setValue(entry.getValue());
+            }
         });
     }
 
@@ -1321,13 +1323,14 @@ public class Commands {
     }
 
     public static ByteBuf newEndTxnOnSubscription(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
-            String subscription, TxnAction txnAction) {
+            String subscription, TxnAction txnAction, long lowWaterMark) {
         BaseCommand cmd = localCmd(Type.END_TXN_ON_SUBSCRIPTION);
         cmd.setEndTxnOnSubscription()
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits)
                 .setTxnidMostBits(txnIdMostBits)
                 .setTxnAction(txnAction)
+                .setTxnidLeastBitsOfLowWatermark(lowWaterMark)
                 .setSubscription()
                 .setTopic(topic)
                 .setSubscription(subscription);

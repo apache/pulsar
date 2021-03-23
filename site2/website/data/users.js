@@ -322,5 +322,15 @@ module.exports = [
         name: 'Deposit-Solutions',
         url: 'https://www.deposit-solutions.com/',
         logo: 'https://www.deposit-solutions.com/wp-content/uploads/2017/05/ds_logo_light_horiz.png'
+    },
+    {
+        name: 'Macrometa',
+        url: 'https://macrometa.com',
+        logo: 'https://uploads-ssl.webflow.com/5fa9e94bc848ae335afdd627/602ae50ae801b44f15185683_logo-moc-blue.png',
+    },
+    {
+        name: 'Softtech',
+        url: 'https://softtech.com.tr/en/homepage/',
+        logo: 'https://softtech.com.tr/wp-content/uploads/2017/12/SOFTTECH-LOGO.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

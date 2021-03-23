@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
+import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -80,6 +81,7 @@ import org.testng.annotations.Test;
 
 @PrepareForTest({ ZooKeeperDataCache.class, BrokerService.class })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
+@Test(groups = "broker")
 public class PersistentSubscriptionTest {
 
     private PulsarService pulsarMock;
@@ -110,7 +112,7 @@ public class PersistentSubscriptionTest {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setTransactionCoordinatorEnabled(true);
         pulsarMock = spy(new PulsarService(svcConfig));
-        doReturn(new TopicTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
+        doReturn(new InMemTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
         doReturn(svcConfig).when(pulsarMock).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsarMock).getCompactor();
 
@@ -200,7 +202,7 @@ public class PersistentSubscriptionTest {
         persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
 
         // Commit txn
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE).get();
+        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
 
         List<PositionImpl> positions = new ArrayList<>();
         positions.add(new PositionImpl(3, 100));
@@ -216,7 +218,7 @@ public class PersistentSubscriptionTest {
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
 
         // Commit txn
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE).get();
+        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
     }
 
     @Test
@@ -283,7 +285,7 @@ public class PersistentSubscriptionTest {
         persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
 
         //Abort txn.
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID2.getLeastSigBits(), TxnAction.ABORT_VALUE);
+        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID2.getLeastSigBits(), TxnAction.ABORT_VALUE, -1);
 
         positions.clear();
         positions.add(new PositionImpl(2, 50));

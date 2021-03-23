@@ -25,6 +25,7 @@ import static org.testng.Assert.fail;
 import java.util.EnumSet;
 
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -36,6 +37,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
+@Test(groups = "flaky")
 public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
     public AuthorizationTest() {
@@ -46,10 +48,18 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setClusterName("c1");
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(
+                Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
-        conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
+        conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user", "pass.pass"));
         internalSetup();
+    }
+
+    @Override
+    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
+        pulsarAdminBuilder.authentication(new MockAuthentication("pass.pass"));
     }
 
     @AfterClass(alwaysRun = true)

@@ -61,6 +61,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -68,12 +70,14 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class PrometheusMetricsTest extends BrokerTestBase {
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
+        AuthenticationProviderToken.resetMetrics();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -83,7 +87,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
-    public void testMetricsTopicCount() throws Exception{
+    public void testMetricsTopicCount() throws Exception {
         String ns1 = "prop/ns-abc1";
         String ns2 = "prop/ns-abc2";
         admin.namespaces().createNamespace(ns1);
@@ -212,7 +216,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         admin.namespaces().createNamespace(ns);
         String topic1 = "persistent://" + ns + "/testPerTopicExpiredStat1";
         String topic2 = "persistent://" + ns + "/testPerTopicExpiredStat2";
-        List<String> topicList = Arrays.asList(topic2,topic1);
+        List<String> topicList = Arrays.asList(topic2, topic1);
         Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic1).create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic(topic2).create();
         final String subName = "test";
@@ -235,7 +239,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
         // Let the message expire
         for (String topic : topicList) {
-            PersistentTopic persistentTopic = (PersistentTopic)pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+            PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
             persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(-1);
         }
         pulsar.getBrokerService().forEachTopic(Topic::checkMessageExpiry);
@@ -295,7 +299,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("namespace"), ns);
         //check value
         for (int i = 0; i < topicList.size(); i++) {
-            assertEquals(messages, (long)cm.get(i).value);
+            assertEquals(messages, (long) cm.get(i).value);
         }
 
     }
@@ -330,7 +334,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
-        String metricsStr = new String(statsOut.toByteArray());
+        String metricsStr = statsOut.toString();
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
@@ -403,7 +407,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, true, statsOut);
-        String metricsStr = new String(statsOut.toByteArray());
+        String metricsStr = statsOut.toString();
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
@@ -553,8 +557,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
 
-        Map<String, String> typeDefs = new HashMap<String, String>();
-        Map<String, String> metricNames = new HashMap<String, String>();
+        Map<String, String> typeDefs = new HashMap<>();
+        Map<String, String> metricNames = new HashMap<>();
 
         Pattern typePattern = Pattern.compile("^#\\s+TYPE\\s+(\\w+)\\s+(\\w+)");
         Pattern metricNamePattern = Pattern.compile("^(\\w+)\\{.+");
@@ -599,7 +603,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
             if (!typeDefs.containsKey(metricName)) {
                 // This may be OK if this is a _sum or _count metric from a summary
-                if(metricName.endsWith("_sum")) {
+                if (metricName.endsWith("_sum")) {
                     String summaryMetricName = metricName.substring(0, metricName.indexOf("_sum"));
                     if (!typeDefs.containsKey(summaryMetricName)) {
                         fail("Metric " + metricName + " does not have a corresponding summary type definition");
@@ -681,8 +685,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 System.out.println(e.getKey() + ": " + e.getValue())
         );
 
-        Map<String, String> typeDefs = new HashMap<String, String>();
-        Map<String, String> metricNames = new HashMap<String, String>();
+        Map<String, String> typeDefs = new HashMap<>();
+        Map<String, String> metricNames = new HashMap<>();
 
         Pattern typePattern = Pattern.compile("^#\\s+TYPE\\s+(\\w+)\\s+(\\w+)");
         Pattern metricNamePattern = Pattern.compile("^(\\w+)\\{.+");
@@ -889,6 +893,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
+    // Investigate issue
+    // java.lang.AssertionError: line pulsar_broker_publish_latency{cluster="test",quantile="0.0"} +Inf does not match pattern
+    // ^(\w+)\{([^\}]+)\}\s(-?[\d\w\.-]+)(\s(\d+))?$ expected [true] but found [false]
     @Test
     public void testExpiringTokenMetrics() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -950,6 +957,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
+    // Investigate issue
+    // java.lang.AssertionError: line pulsar_broker_publish_latency{cluster="test",quantile="0.0"} +Inf does not match pattern
+    // ^(\w+)\{([^\}]+)\}\s(-?[\d\w\.-]+)(\s(\d+))?$ expected [true] but found [false]
     @Test
     public void testManagedCursorPersistStats() throws Exception {
         final String subName = "my-sub";
@@ -972,9 +982,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             consumer.acknowledge(consumer.receive().getMessageId());
         }
 
+        // enable ExposeManagedCursorMetricsInPrometheus
+        pulsar.getConfiguration().setExposeManagedCursorMetricsInPrometheus(true);
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
-        String metricsStr = new String(statsOut.toByteArray());
+        String metricsStr = statsOut.toString();
 
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
@@ -983,12 +995,97 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("cluster"), "test");
         assertEquals(cm.get(0).tags.get("cursor_name"), subName);
 
+        // disable ExposeManagedCursorMetricsInPrometheus
+        pulsar.getConfiguration().setExposeManagedCursorMetricsInPrometheus(false);
+        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut2);
+        String metricsStr2 = statsOut2.toString();
+        Multimap<String, Metric> metrics2 = parseMetrics(metricsStr2);
+        List<Metric> cm2 = (List<Metric>) metrics2.get("pulsar_ml_cursor_persistLedgerSucceed");
+        assertEquals(cm2.size(), 0);
+
         producer.close();
         consumer.close();
     }
 
+    @Test
+    public void testBrokerConnection() throws Exception {
+        final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
+        compareBrokerConnectionStateCount(cm, 0.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_active_connections");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        pulsarClient.close();
+        statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        metricsStr = statsOut.toString();
+
+        metrics = parseMetrics(metricsStr);
+        cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        pulsar.getConfiguration().setAuthenticationEnabled(true);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(1, TimeUnit.MILLISECONDS).build();
+
+        try {
+            pulsarClient.newProducer()
+                    .topic(topicName)
+                    .create();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.AuthenticationException);
+        }
+
+        pulsarClient.close();
+        statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        metricsStr = statsOut.toString();
+
+        metrics = parseMetrics(metricsStr);
+        cm = (List<Metric>) metrics.get("pulsar_connection_closed_total_count");
+        compareBrokerConnectionStateCount(cm, 2.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_create_fail_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_create_success_count");
+        compareBrokerConnectionStateCount(cm, 1.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_active_connections");
+        compareBrokerConnectionStateCount(cm, 0.0);
+
+        cm = (List<Metric>) metrics.get("pulsar_connection_created_total_count");
+        compareBrokerConnectionStateCount(cm, 2.0);
+    }
+
+    private void compareBrokerConnectionStateCount(List<Metric> cm, double count) {
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.get(0).tags.get("broker"), "localhost");
+        assertEquals(cm.get(0).value, count);
+    }
+
+
     /**
-     * Hacky parsing of Prometheus text format. Sould be good enough for unit tests
+     * Hacky parsing of Prometheus text format. Should be good enough for unit tests
      */
     private static Multimap<String, Metric> parseMetrics(String metrics) {
         Multimap<String, Metric> parsed = ArrayListMultimap.create();

@@ -54,6 +54,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "prop-xyz";
@@ -259,7 +260,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         testOffload(false);
     }
 
-    public void testOffload(boolean isPartitioned) throws Exception {
+    private void testOffload(boolean isPartitioned) throws Exception {
         String topicName = testTopic + UUID.randomUUID().toString();
         int partitionNum = 3;
         //1 create topic

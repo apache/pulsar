@@ -18,27 +18,22 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
-import static java.lang.String.format;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
-import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -52,7 +47,6 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
-import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -62,6 +56,7 @@ import org.testng.annotations.Test;
  * Unit tests for schema admin api.
  */
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     final String cluster = "test";
@@ -98,7 +93,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         String file1;
     }
 
-    private static Map<String, String> PROPS;
+    private static final Map<String, String> PROPS;
 
     static {
         PROPS = new HashMap<>();
@@ -147,7 +142,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
     public Object[][] versions() {
         return new Object[][] { { ApiVersion.V1 }, { ApiVersion.V2 } };
     }
-    
+
     @Test(dataProvider = "schemas")
     public void testSchemaInfoApi(Schema<?> schema) throws Exception {
         testSchemaInfoApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
@@ -167,12 +162,12 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfo readSi = admin.schemas().getSchemaInfo(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        assertEquals(si, readSi);
+        assertEquals(readSi, si);
 
         readSi = admin.schemas().getSchemaInfo(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        assertEquals(si, readSi);
+        assertEquals(readSi, si);
 
     }
 
@@ -220,14 +215,14 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfoWithVersion readSi = admin.schemas().getSchemaInfoWithVersion(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        assertEquals(si, readSi.getSchemaInfo());
-        assertEquals(0, readSi.getVersion());
+        assertEquals(readSi.getSchemaInfo(), si);
+        assertEquals(readSi.getVersion(), 0);
 
         readSi = admin.schemas().getSchemaInfoWithVersion(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
-        assertEquals(si, readSi.getSchemaInfo());
-        assertEquals(0, readSi.getVersion());
+        assertEquals(readSi.getSchemaInfo(), si);
+        assertEquals(readSi.getVersion(), 0);
 
     }
 
@@ -241,7 +236,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
                 keyValueSchema.getSchemaInfo());
         SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topicName);
 
-        assertEquals(schemaInfo, keyValueSchema.getSchemaInfo());
+        assertEquals(keyValueSchema.getSchemaInfo(), schemaInfo);
     }
 
     @Test
@@ -347,10 +342,10 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         })).when(mockBookKeeper).getLedgerMetadata(anyLong());
         PersistentTopicInternalStats persistentTopicInternalStats = admin.topics().getInternalStats(topicName);
         List<PersistentTopicInternalStats.LedgerInfo> list = persistentTopicInternalStats.schemaLedgers;
-        assertEquals(1, list.size());
+        assertEquals(list.size(), 1);
         PersistentTopicInternalStats.LedgerInfo ledgerInfo = list.get(0);
-        assertEquals(ledgerId, ledgerInfo.ledgerId);
-        assertEquals(entryId + 1, ledgerInfo.entries);
-        assertEquals(length, ledgerInfo.size);
+        assertEquals(ledgerInfo.ledgerId, ledgerId);
+        assertEquals(ledgerInfo.entries, entryId + 1);
+        assertEquals(ledgerInfo.size, length);
     }
 }

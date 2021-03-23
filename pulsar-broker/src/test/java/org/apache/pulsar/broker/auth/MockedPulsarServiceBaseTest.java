@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -56,6 +57,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
@@ -70,7 +72,7 @@ import org.slf4j.LoggerFactory;
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
  */
 @PowerMockIgnore(value = {"org.slf4j.*", "com.sun.org.apache.xerces.*" })
-public abstract class MockedPulsarServiceBaseTest {
+public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected final String DUMMY_VALUE = "DUMMY_VALUE";
     protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
@@ -102,6 +104,7 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected final void internalSetup() throws Exception {
+        incrementSetupNumber();
         init();
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
@@ -174,6 +177,7 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     protected final void internalCleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         // if init fails, some of these could be null, and if so would throw
         // an NPE in shutdown, obscuring the real error
         if (admin != null) {
@@ -188,6 +192,7 @@ public abstract class MockedPulsarServiceBaseTest {
             stopBroker();
             pulsar = null;
         }
+        resetConfig();
         if (mockBookKeeper != null) {
             mockBookKeeper.reallyShutdown();
             mockBookKeeper = null;
@@ -220,7 +225,6 @@ public abstract class MockedPulsarServiceBaseTest {
             }
             bkExecutor = null;
         }
-
     }
 
     protected abstract void setup() throws Exception;
@@ -253,21 +257,26 @@ public abstract class MockedPulsarServiceBaseTest {
         if (admin != null) {
             admin.close();
         }
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
+        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString());
+        customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
+        admin = spy(pulsarAdminBuilder.build());
+    }
+
+    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
+
     }
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
-        PulsarService pulsar = spy(new PulsarService(conf));
 
+        return startBrokerWithoutAuthorization(conf);
+    }
+
+    protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
+        PulsarService pulsar = spy(new PulsarService(conf));
         setupBrokerMocks(pulsar);
-        boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();
-        // enable authorization to initialize authorization service which is used by grant-permission
-        conf.setAuthorizationEnabled(true);
         pulsar.start();
-        conf.setAuthorizationEnabled(isAuthorizationEnabled);
         log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
-
         return pulsar;
     }
 
@@ -296,7 +305,7 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     }
 
-    public TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
+    protected TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
         // create local cluster if not exist
         if (!admin.clusters().getClusters().contains(configClusterName)) {
             admin.clusters().createCluster(configClusterName, new ClusterData());
@@ -412,7 +421,6 @@ public abstract class MockedPulsarServiceBaseTest {
         configuration.setAdvertisedAddress("localhost");
         configuration.setClusterName(configClusterName);
         // there are TLS tests in here, they need to use localhost because of the certificate
-        configuration.setAdvertisedAddress("localhost");
         configuration.setManagedLedgerCacheSizeMB(8);
         configuration.setActiveConsumerFailoverDelayTimeMillis(0);
         configuration.setDefaultNumberOfNamespaceBundles(1);

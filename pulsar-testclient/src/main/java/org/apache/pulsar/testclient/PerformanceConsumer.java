@@ -22,10 +22,9 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
-import java.nio.file.Paths;
 import java.text.DecimalFormat;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -87,6 +86,9 @@ public class PerformanceConsumer {
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
 
+        @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
+        public List<String> subscriptions = Collections.singletonList("sub");
+
         @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
@@ -105,7 +107,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
-        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowlegments grouping delay in millis")
+        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
         @Parameter(names = { "-c",
@@ -177,24 +179,51 @@ public class PerformanceConsumer {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
-        if (arguments.topic.size() != 1) {
-            System.out.println("Only one topic name is allowed");
-            jc.usage();
-            System.exit(-1);
+        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
+            // keep compatibility with the previous version
+            if (arguments.topic.size() == 1) {
+                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString();
+                List<String> defaultTopics = Lists.newArrayList();
+                for (int i = 0; i < arguments.numTopics; i++) {
+                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
+                }
+                arguments.topic = defaultTopics;
+            } else {
+                System.out.println("The size of topics list should be equal to --num-topics");
+                jc.usage();
+                PerfClientUtils.exit(-1);
+            }
         }
 
         if (arguments.subscriptionType == SubscriptionType.Exclusive && arguments.numConsumers > 1) {
             System.out.println("Only one consumer is allowed when subscriptionType is Exclusive");
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
+        }
+
+        if (arguments.subscriptionType != SubscriptionType.Exclusive &&
+                arguments.subscriptions != null &&
+                arguments.subscriptions.size() != arguments.numConsumers) {
+            // keep compatibility with the previous version
+            if (arguments.subscriptions.size() == 1) {
+                List<String> defaultSubscriptions = Lists.newArrayList();
+                for (int i = 0; i < arguments.numSubscriptions; i++) {
+                    defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
+                }
+                arguments.subscriptions = defaultSubscriptions;
+            } else {
+                System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
+                jc.usage();
+                PerfClientUtils.exit(-1);
+            }
         }
 
         if (arguments.confFile != null) {
@@ -233,11 +262,10 @@ public class PerformanceConsumer {
         }
 
         // Dump config variables
+        PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance consumer with config: {}", w.writeValueAsString(arguments));
-
-        final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
@@ -247,7 +275,7 @@ public class PerformanceConsumer {
                 if (System.nanoTime() > testEndTime) {
                     log.info("------------------- DONE -----------------------");
                     printAggregatedStats();
-                    System.exit(0);
+                    PerfClientUtils.exit(0);
                 }
             }
             messagesReceived.increment();
@@ -313,18 +341,12 @@ public class PerformanceConsumer {
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
-                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+            final TopicName topicName = TopicName.get(arguments.topic.get(i));
+
             log.info("Adding {} consumers per subscription on topic {}", arguments.numConsumers, topicName);
 
             for (int j = 0; j < arguments.numSubscriptions; j++) {
-                String subscriberName;
-                if (arguments.numSubscriptions > 1) {
-                    subscriberName = String.format("%s-%d", arguments.subscriberName, j);
-                } else {
-                    subscriberName = arguments.subscriberName;
-                }
-
+                String subscriberName = arguments.subscriptions.get(j);
                 for (int k = 0; k < arguments.numConsumers; k++) {
                     futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
                             .subscribeAsync());

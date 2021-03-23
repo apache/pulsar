@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 
 /**
@@ -71,6 +72,40 @@ public interface Brokers {
      * @return a list of (host:port)
      */
     CompletableFuture<List<String>> getActiveBrokersAsync(String cluster);
+
+    /**
+     * Get the information of the leader broker.
+     * <p/>
+     * Get the information of the leader broker.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{serviceUrl:"prod1-broker1.messaging.use.example.com:8080"}</code>
+     * </pre>
+     *
+     * @return the information of the leader broker.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    BrokerInfo getLeaderBroker() throws PulsarAdminException;
+
+    /**
+     * Get the service url of the leader broker asynchronously.
+     * <p/>
+     * Get the service url of the leader broker.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{serviceUrl:"prod1-broker1.messaging.use.example.com:8080"}</code>
+     * </pre>
+     *
+     * @return the service url of the leader broker
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    CompletableFuture<BrokerInfo> getLeaderBrokerAsync() throws PulsarAdminException;
 
     /**
      * Get the map of owned namespaces and their status from a single broker in the cluster.
@@ -239,4 +274,10 @@ public interface Brokers {
      * Run a healthcheck on the broker asynchronously.
      */
     CompletableFuture<Void> healthcheckAsync();
+
+    /**
+     * Get version of broker.
+     * @return version of broker.
+     */
+    String getVersion() throws PulsarAdminException;
 }

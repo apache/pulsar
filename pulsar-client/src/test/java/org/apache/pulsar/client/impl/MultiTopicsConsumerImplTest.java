@@ -39,7 +39,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createDelayedCompletedFuture;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createExceptionFuture;
@@ -65,7 +64,7 @@ public class MultiTopicsConsumerImplTest {
 
         ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
-        ExecutorProvider executorProvider = new ExecutorProvider(1, threadFactory);
+        ExecutorProvider executorProvider = new ExecutorProvider(1, "client-test-stats");
 
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
@@ -143,7 +142,7 @@ public class MultiTopicsConsumerImplTest {
     }
 
     @Test
-    public void testConsumerCleanupOnSubscribeFailure() throws InterruptedException, TimeoutException, ExecutionException {
+    public void testConsumerCleanupOnSubscribeFailure() {
         ExecutorProvider executorProvider = mock(ExecutorProvider.class);
         ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
         consumerConfData.setSubscriptionName("subscriptionName");
@@ -160,8 +159,8 @@ public class MultiTopicsConsumerImplTest {
         // indicating that closeAsync was called
         assertEquals(impl.getState(), HandlerState.State.Uninitialized);
         try {
-            completeFuture.get(15, TimeUnit.MILLISECONDS);
-        } catch (Throwable ex) {
+            completeFuture.get(2, TimeUnit.SECONDS);
+        } catch (Throwable ignore) {
             // just ignore the exception
         }
         assertTrue(completeFuture.isCompletedExceptionally());

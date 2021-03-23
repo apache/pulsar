@@ -24,6 +24,7 @@ import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +47,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializat
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Stat;
-import org.checkerframework.checker.nullness.Opt;
 
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
 
@@ -127,7 +127,14 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     long expectedVersion;
 
                     if (optEntry.isPresent()) {
-                        currentValue = Optional.of(optEntry.get().getKey());
+                        T clone;
+                        try {
+                            // Use clone and CAS zk to ensure thread safety
+                            clone = serde.deserialize(serde.serialize(optEntry.get().getKey()));
+                        } catch (IOException e) {
+                            return FutureUtils.exception(e);
+                        }
+                        currentValue = Optional.of(clone);
                         expectedVersion = optEntry.get().getValue().getVersion();
                     } else {
                         currentValue = Optional.empty();
@@ -166,6 +173,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     T newValueObj;
                     byte[] newValue;
                     try {
+                        // Use clone and CAS zk to ensure thread safety
+                        currentValue = serde.deserialize(serde.serialize(currentValue));
                         newValueObj = modifyFunction.apply(currentValue);
                         newValue = serde.serialize(newValueObj);
                     } catch (Throwable t) {

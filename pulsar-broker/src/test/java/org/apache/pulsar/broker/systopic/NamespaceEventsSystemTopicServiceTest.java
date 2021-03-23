@@ -37,6 +37,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicServiceTest.class);
@@ -62,7 +63,8 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
 
     @Test
     public void testSendAndReceiveNamespaceEvents() throws Exception {
-        SystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory.createSystemTopic(NamespaceName.get(NAMESPACE1), EventType.TOPIC_POLICY);
+        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
+                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
         TopicPolicies policies = TopicPolicies.builder()
             .maxProducerPerTopic(10)
             .build();

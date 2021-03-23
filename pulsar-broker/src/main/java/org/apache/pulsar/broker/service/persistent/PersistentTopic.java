@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -43,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
-import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -64,6 +64,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -132,7 +133,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
@@ -194,11 +194,13 @@ public class PersistentTopic extends AbstractTopic
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    private volatile int maxUnackedMessagesOnSubscription = -1;
+    private volatile int maxUnackedMessagesOnSubscriptionApplied;
     private volatile boolean isClosingOrDeleting = false;
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
 
+    // this future is for publish txn message in order.
+    private volatile CompletableFuture<Void> transactionCompletableFuture;
     protected final TransactionBuffer transactionBuffer;
 
     private static class TopicStatsHelper {
@@ -236,10 +238,9 @@ public class PersistentTopic extends AbstractTopic
                 brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-
+        this.transactionCompletableFuture = new CompletableFuture<>();
         initializeDispatchRateLimiterIfNeeded(Optional.empty());
         registerTopicPolicyListener();
-
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
 
@@ -280,13 +281,14 @@ public class PersistentTopic extends AbstractTopic
             if (policies.inactive_topic_policies != null) {
                 inactiveTopicPolicies = policies.inactive_topic_policies;
             }
-
+            updateUnackedMessagesAppliedOnSubscription(policies);
             updateUnackedMessagesExceededOnConsumer(policies);
-            maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(policies);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                     topic, e.getMessage());
             isEncryptionRequired = false;
+            updateUnackedMessagesAppliedOnSubscription(null);
+            updateUnackedMessagesExceededOnConsumer(null);
         }
 
         if (ledger.getProperties().containsKey(TOPIC_EPOCH_PROPERTY_NAME)) {
@@ -295,10 +297,13 @@ public class PersistentTopic extends AbstractTopic
 
         checkReplicatedSubscriptionControllerState();
 
-        if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+        if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && !checkTopicIsEventsNames(topic)
+                && !topic.contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())) {
             this.transactionBuffer = brokerService.getPulsar()
-                    .getTransactionBufferProvider().newTransactionBuffer(this);
+                    .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
         } else {
+            this.transactionCompletableFuture.complete(null);
             this.transactionBuffer = new TransactionBufferDisable();
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
@@ -316,10 +321,12 @@ public class PersistentTopic extends AbstractTopic
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
+        this.transactionCompletableFuture = new CompletableFuture<>();
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
             this.transactionBuffer = brokerService.getPulsar()
-                    .getTransactionBufferProvider().newTransactionBuffer(this);
+                    .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
         } else {
+            this.transactionCompletableFuture.complete(null);
             this.transactionBuffer = new TransactionBufferDisable();
         }
     }
@@ -745,19 +752,27 @@ public class PersistentTopic extends AbstractTopic
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
             decrementUsageCount();
-            future.completeExceptionally(new PersistenceException(ex));
+            if (ex.getCause() instanceof NotAllowedException) {
+                future.completeExceptionally(ex.getCause());
+            } else {
+                future.completeExceptionally(new PersistenceException(ex));
+            }
             return null;
         });
 
         return future;
     }
 
-    private int unackedMessagesExceededOnSubscription(Policies data) {
-        final int maxUnackedMessages = data.max_unacked_messages_per_subscription > -1
-                ? data.max_unacked_messages_per_subscription
-                : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription();
-
-        return maxUnackedMessages;
+    public void updateUnackedMessagesAppliedOnSubscription(Policies policies) {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
+            maxUnackedMessagesOnSubscriptionApplied = topicPolicies.getMaxUnackedMessagesOnSubscription();
+        } else {
+            maxUnackedMessagesOnSubscriptionApplied =
+                    policies != null && policies.max_unacked_messages_per_subscription != null
+                            ? policies.max_unacked_messages_per_subscription
+                            : brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription();
+        }
     }
 
     private void updateUnackedMessagesExceededOnConsumer(Policies data) {
@@ -785,9 +800,8 @@ public class PersistentTopic extends AbstractTopic
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
-
-        if (checkMaxSubscriptionsPerTopicExceed()) {
-            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+        if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
+            subscriptionFuture.completeExceptionally(new NotAllowedException(
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
         }
@@ -831,8 +845,8 @@ public class PersistentTopic extends AbstractTopic
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
-        if (checkMaxSubscriptionsPerTopicExceed()) {
-            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+        if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
+            subscriptionFuture.completeExceptionally(new NotAllowedException(
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
         }
@@ -1107,6 +1121,7 @@ public class PersistentTopic extends AbstractTopic
 
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
+        futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
@@ -1300,7 +1315,10 @@ public class PersistentTopic extends AbstractTopic
                     .orElseThrow(() -> new KeeperException.NoNodeException());
                 compactionThreshold = policies.compaction_threshold;
             }
-
+            if (compactionThreshold == null) {
+                compactionThreshold = brokerService.pulsar().getConfiguration()
+                        .getBrokerServiceCompactionThresholdInBytes();
+            }
 
             if (isSystemTopic() || compactionThreshold != 0
                 && currentCompaction.isDone()) {
@@ -1311,8 +1329,11 @@ public class PersistentTopic extends AbstractTopic
                 if (compactionSub != null) {
                     backlogEstimate = compactionSub.estimateBacklogSize();
                 } else {
-                    // compaction has never run, so take full backlog size
-                    backlogEstimate = ledger.getEstimatedBacklogSize();
+                    // compaction has never run, so take full backlog size,
+                    // or total size if we have no durable subs yet.
+                    backlogEstimate = subscriptions.isEmpty()
+                            ? ledger.getTotalSize()
+                            : ledger.getEstimatedBacklogSize();
                 }
 
                 if (backlogEstimate > compactionThreshold) {
@@ -1605,6 +1626,10 @@ public class PersistentTopic extends AbstractTopic
                 topicStatsHelper.aggMsgRateOut += subMsgRateOut;
                 topicStatsHelper.aggMsgThroughputOut += subMsgThroughputOut;
                 nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog(false);
+                // check stuck subscription
+                if (brokerService.getPulsar().getConfig().isUnblockStuckSubscriptionEnabled()) {
+                    subscription.checkAndUnblockIfStuck();
+                }
             } catch (Exception e) {
                 log.error("Got exception when creating consumer stats for subscription {}: {}", subscriptionName,
                         e.getMessage(), e);
@@ -1804,6 +1829,20 @@ public class PersistentTopic extends AbstractTopic
             cs.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
             cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
             cs.properties = cursor.getProperties();
+            // subscription metrics
+            PersistentSubscription sub = subscriptions.get(Codec.decode(c.getName()));
+            if (sub != null) {
+                if (sub.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
+                    PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) sub
+                            .getDispatcher();
+                    cs.subscriptionHavePendingRead = dispatcher.havePendingRead;
+                    cs.subscriptionHavePendingReplayRead = dispatcher.havePendingReplayRead;
+                } else if (sub.getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
+                    PersistentDispatcherSingleActiveConsumer dispatcher = (PersistentDispatcherSingleActiveConsumer) sub
+                            .getDispatcher();
+                    cs.subscriptionHavePendingRead = dispatcher.havePendingRead;
+                }
+            }
             stats.cursors.put(cursor.getName(), cs);
         });
 
@@ -2125,9 +2164,8 @@ public class PersistentTopic extends AbstractTopic
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
         schemaValidationEnforced = data.schema_validation_enforced;
-
+        updateUnackedMessagesAppliedOnSubscription(data);
         updateUnackedMessagesExceededOnConsumer(data);
-        maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
         maxSubscriptionsPerTopic = data.max_subscriptions_per_topic;
 
         if (data.delayed_delivery_policies != null) {
@@ -2490,8 +2528,13 @@ public class PersistentTopic extends AbstractTopic
     public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
             .thenCompose((hasSchema) -> {
-                if (hasSchema || isActive(InactiveTopicDeleteMode.delete_when_no_subscriptions)
-                        || ledger.getTotalSize() != 0) {
+                int numActiveConsumers = subscriptions.values().stream()
+                        .mapToInt(subscription -> subscription.getConsumers().size())
+                        .sum();
+                if (hasSchema
+                        || (!producers.isEmpty())
+                        || (numActiveConsumers != 0)
+                        || (ledger.getTotalSize() != 0)) {
                     return checkSchemaCompatibleForConsumer(schema);
                 } else {
                     return addSchema(schema).thenCompose(schemaVersion ->
@@ -2602,57 +2645,72 @@ public class PersistentTopic extends AbstractTopic
     @Override
     public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
         pendingWriteOps.incrementAndGet();
-        if (isFenced) {
-            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
-            decrementPendingWriteOpsAndCheck();
-            return;
-        }
-        if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
-            publishContext.completed(new NotAllowedException("Exceed maximum message size")
-                    , -1, -1);
-            decrementPendingWriteOpsAndCheck();
-            return;
-        }
+        // in order to avoid the opAddEntry retain
+        headersAndPayload.retain();
+        // in order to promise the publish txn message orderly, we should change the transactionCompletableFuture
+        this.transactionCompletableFuture = this.transactionCompletableFuture.thenAccept(v -> {
+            try {
+                if (isFenced) {
+                    publishContext.completed(new TopicFencedException("fenced"), -1, -1);
+                    decrementPendingWriteOpsAndCheck();
+                    return;
+                }
+                if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
+                    publishContext.completed(new NotAllowedException("Exceed maximum message size")
+                            , -1, -1);
+                    decrementPendingWriteOpsAndCheck();
+                    return;
+                }
 
-        MessageDeduplication.MessageDupStatus status =
-                messageDeduplication.isDuplicate(publishContext, headersAndPayload);
-        switch (status) {
-            case NotDup:
-                transactionBuffer.appendBufferToTxn(txnID, publishContext.getSequenceId(), headersAndPayload)
-                        .thenAccept(position -> {
-                            // Message has been successfully persisted
-                            messageDeduplication.recordMessagePersisted(publishContext, (PositionImpl) position);
-                            publishContext.completed(null, ((PositionImpl) position).getLedgerId(),
-                                    ((PositionImpl) position).getEntryId());
+                MessageDeduplication.MessageDupStatus status =
+                        messageDeduplication.isDuplicate(publishContext, headersAndPayload);
+                switch (status) {
+                    case NotDup:
+                        transactionBuffer.appendBufferToTxn(txnID, publishContext.getSequenceId(), headersAndPayload)
+                                .thenAccept(position -> {
+                                    // Message has been successfully persisted
+                                    messageDeduplication.recordMessagePersisted(publishContext,
+                                            (PositionImpl) position);
+                                    publishContext.completed(null, ((PositionImpl) position).getLedgerId(),
+                                            ((PositionImpl) position).getEntryId());
 
-                            decrementPendingWriteOpsAndCheck();
-                        })
-                        .exceptionally(throwable -> {
-                            addFailed((ManagedLedgerException) throwable, publishContext);
-                            return null;
-                        });
-                break;
-            case Dup:
-                // Immediately acknowledge duplicated message
-                publishContext.completed(null, -1, -1);
-                decrementPendingWriteOpsAndCheck();
-                break;
-            default:
-                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
-                decrementPendingWriteOpsAndCheck();
+                                    decrementPendingWriteOpsAndCheck();
+                                })
+                                .exceptionally(throwable -> {
+                                    addFailed((ManagedLedgerException) throwable, publishContext);
+                                    return null;
+                                });
+                        break;
+                    case Dup:
+                        // Immediately acknowledge duplicated message
+                        publishContext.completed(null, -1, -1);
+                        decrementPendingWriteOpsAndCheck();
+                        break;
+                    default:
+                        publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                        decrementPendingWriteOpsAndCheck();
 
-        }
+                }
+            } finally {
+                headersAndPayload.release();
+            }
+        }).exceptionally(e -> {
+            headersAndPayload.release();
+            return null;
+        });
     }
 
     @Override
     public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark) {
-        if (TxnAction.COMMIT_VALUE == txnAction) {
-            return transactionBuffer.commitTxn(txnID, lowWaterMark);
-        } else if (TxnAction.ABORT_VALUE == txnAction) {
-            return transactionBuffer.abortTxn(txnID, lowWaterMark);
-        } else {
-            return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
-        }
+        return this.transactionCompletableFuture.thenCompose(future -> {
+            if (TxnAction.COMMIT_VALUE == txnAction) {
+                return transactionBuffer.commitTxn(txnID, lowWaterMark);
+            } else if (TxnAction.ABORT_VALUE == txnAction) {
+                return transactionBuffer.abortTxn(txnID, lowWaterMark);
+            } else {
+                return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
+            }
+        });
     }
 
     public long getDelayedDeliveryTickTimeMillis() {
@@ -2678,12 +2736,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     public int getMaxUnackedMessagesOnSubscription() {
-        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
-        //Topic level setting has higher priority than namespace level
-        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
-            return topicPolicies.getMaxUnackedMessagesOnSubscription();
-        }
-        return maxUnackedMessagesOnSubscription;
+        return maxUnackedMessagesOnSubscriptionApplied;
     }
 
     @Override
@@ -2729,7 +2782,7 @@ public class PersistentTopic extends AbstractTopic
                     , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
                     cfg.isBrokerDeleteInactiveTopicsEnabled());
         }
-
+        updateUnackedMessagesAppliedOnSubscription(namespacePolicies.orElse(null));
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
@@ -2737,7 +2790,9 @@ public class PersistentTopic extends AbstractTopic
         }
         replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                 .ifPresent(DispatchRateLimiter::updateDispatchRate));
-        updateUnackedMessagesExceededOnConsumer(null);
+        updateUnackedMessagesExceededOnConsumer(namespacePolicies.orElse(null));
+
+        checkDeduplicationStatus();
     }
 
     private Optional<Policies> getNamespacePolicies() {
@@ -2783,7 +2838,11 @@ public class PersistentTopic extends AbstractTopic
         return messageDeduplication;
     }
 
-    private boolean checkMaxSubscriptionsPerTopicExceed() {
+    private boolean checkMaxSubscriptionsPerTopicExceed(String subscriptionName) {
+        //Existing subscriptions are not affected
+        if (StringUtils.isNotEmpty(subscriptionName) && getSubscription(subscriptionName) != null) {
+            return false;
+        }
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         Integer maxSubsPerTopic = null;
         if (topicPolicies != null && topicPolicies.isMaxSubscriptionsPerTopicSet()) {

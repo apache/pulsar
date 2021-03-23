@@ -86,6 +86,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+    <test.additional.args></test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
@@ -96,7 +97,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.12.1</bookkeeper.version>
+    <bookkeeper.version>4.13.0</bookkeeper.version>
     <zookeeper.version>3.6.2</zookeeper.version>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
@@ -124,7 +125,8 @@ flexible messaging model and an intuitive client API.</description>
     <typetools.version>0.5.0</typetools.version>
     <protobuf3.version>3.11.4</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.18.0</grpc.version>
+    <grpc.version>1.33.0</grpc.version>
+    <perfmark.version>0.19.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     <gson.version>2.8.6</gson.version>
     <sketches.version>0.8.3</sketches.version>
@@ -134,7 +136,7 @@ flexible messaging model and an intuitive client API.</description>
     <kafka-client.version>2.3.0</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.774</aws-sdk.version>
-    <avro.version>1.9.1</avro.version>
+    <avro.version>1.10.2</avro.version>
     <joda.version>2.10.1</joda.version>
     <jclouds.version>2.2.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
@@ -142,8 +144,7 @@ flexible messaging model and an intuitive client API.</description>
     <postgresql-jdbc.version>42.2.12</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
-    <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
-    <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
+    <hdfs-offload-version3>3.3.0</hdfs-offload-version3>
     <elasticsearch.version>7.9.1</elasticsearch.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.11</scala.binary.version>
@@ -156,11 +157,13 @@ flexible messaging model and an intuitive client API.</description>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.14.0</prometheus-jmx.version>
     <confluent.version>5.3.2</confluent.version>
+    <kafka.confluent.schemaregistryclient.version>5.3.0</kafka.confluent.schemaregistryclient.version>
+    <kafka.confluent.avroserializer.version>5.3.0</kafka.confluent.avroserializer.version>
     <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
     <aircompressor.version>0.16</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <jcommander.version>1.78</jcommander.version>
-    <commons-lang3.version>3.6</commons-lang3.version>
+    <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.5</commons-io.version>
     <commons-codec.version>1.10</commons-codec.version>
@@ -178,11 +181,13 @@ flexible messaging model and an intuitive client API.</description>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
     <jna.version>4.2.0</jna.version>
-    <kubernetesclient.version>9.0.2</kubernetesclient.version>
+    <kubernetesclient.version>10.0.0</kubernetesclient.version>
+    <sundr.version>0.21.0</sundr.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.3</cron-utils.version>
     <spring-context.version>5.3.1</spring-context.version>
     <docker-java.version>3.2.7</docker-java.version>
+    <apache-http-client.version>4.5.13</apache-http-client.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -190,7 +195,7 @@ flexible messaging model and an intuitive client API.</description>
     <testcontainers.version>1.15.1</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
-    <mockito.version>3.0.0</mockito.version>
+    <mockito.version>3.8.0</mockito.version>
     <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
@@ -208,7 +213,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
     <maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
     <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
-    <maven-dependency-plugin.version>2.10</maven-dependency-plugin.version>
+    <maven-dependency-plugin.version>3.1.2</maven-dependency-plugin.version>
     <maven-clean-plugin.version>2.4.1</maven-clean-plugin.version>
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
     <maven-shade-plugin>3.2.4</maven-shade-plugin>
@@ -839,6 +844,19 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>io.perfmark</groupId>
+        <artifactId>perfmark-api</artifactId>
+        <version>${perfmark.version}</version>
+        <scope>runtime</scope>
+        <exclusions>
+          <exclusion>
+            <artifactId>error_prone_annotations</artifactId>
+            <groupId>com.google.errorprone</groupId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-stub</artifactId>
         <version>${grpc.version}</version>
@@ -1012,6 +1030,12 @@ flexible messaging model and an intuitive client API.</description>
         <version>${objenesis.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>${apache-http-client.version}</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
@@ -1122,6 +1146,12 @@ flexible messaging model and an intuitive client API.</description>
           </annotationProcessorPaths>
           <compilerArgs>
             <arg>-parameters</arg>
+            <!-- enable 'all' lint warnings with some exclusions -->
+            <arg>-Xlint:all</arg>
+            <arg>-Xlint:-options</arg>
+            <arg>-Xlint:-serial</arg>
+            <arg>-Xlint:-classfile</arg>
+            <arg>-Xlint:-processing</arg>
           </compilerArgs>
         </configuration>
       </plugin>
@@ -1133,6 +1163,7 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.pooled=false
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
+            ${test.additional.args}
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
@@ -1221,7 +1252,6 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>logs/**</exclude>
                 <exclude>**/circe/**</exclude>
                 <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
-                <exclude>pulsar-client-cpp/include/gtest/gtest_prod.h</exclude>
                 <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
                 <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
                 <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
@@ -1350,6 +1380,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/test/resources/athenz.conf.test</exclude>
             <exclude>deployment/terraform-ansible/templates/myid</exclude>
             <exclude>certificate-authority/index.txt</exclude>
+            <exclude>certificate-authority/serial</exclude>
             <exclude>certificate-authority/README.md</exclude>
 
             <!-- Exclude ZK test data file -->
@@ -1365,6 +1396,51 @@ flexible messaging model and an intuitive client API.</description>
             <!-- helm files -->
             <exclude>**/.helmignore</exclude>
             <exclude>**/_helpers.tpl</exclude>
+
+            <!-- project ignored files -->
+            <exclude>*.md</exclude>
+            <exclude>.github/**</exclude>
+            <exclude>**/*.nar</exclude>
+            <exclude>**/.terraform/**</exclude>
+            <exclude>**/.gitignore</exclude>
+            <exclude>**/.svn</exclude>
+            <exclude>**/*.iws</exclude>
+            <exclude>**/*.ipr</exclude>
+            <exclude>**/*.iml</exclude>
+            <exclude>**/*.cbp</exclude>
+            <exclude>**/*.pyc</exclude>
+            <exclude>**/.classpath</exclude>
+            <exclude>**/.project</exclude>
+            <exclude>**/.settings</exclude>
+            <exclude>**/target/**</exclude>
+            <exclude>**/CMakeFiles/**</exclude>
+            <exclude>**/CMakeCache.txt</exclude>
+            <exclude>**/cmake_install.cmake</exclude>
+            <exclude>pulsar-client-cpp/**/Makefile</exclude>
+            <exclude>pulsar-client-cpp/tests/main</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleAsyncProducer</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleConsumer</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleConsumerListener</exclude>
+            <exclude>pulsar-client-cpp/examples/SampleProducer</exclude>
+            <exclude>pulsar-client-cpp/perf/perfProducer</exclude>
+            <exclude>pulsar-client-cpp/perf/perfConsumer</exclude>
+            <exclude>**/python/dist/**</exclude>
+            <exclude>**/pulsar-client-cpp/pkg/rpm/RPMS/**</exclude>
+            <exclude>**/pulsar-client-cpp/pkg/rpm/SOURCES/**</exclude>
+            <exclude>**/pulsar-client-cpp/pkg/deb/BUILD/**</exclude>
+            <exclude>**/python/wheelhouse/**</exclude>
+            <exclude>**/python/MANIFEST</exclude>
+            <exclude>**/*.egg-info/**</exclude>
+            <exclude>**/*.log</exclude>
+            <exclude>**/build/**</exclude>
+            <exclude>**/file:/**</exclude>
+            <exclude>**/SecurityAuth.audit*</exclude>
+            <exclude>**/site2/**</exclude>
+            <exclude>**/.idea/**</exclude>
+            <exclude>**/*.a</exclude>
+            <exclude>**/*.so</exclude>
+            <exclude>**/*.so.*</exclude>
+            <exclude>**/*.dylib</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -1440,7 +1516,7 @@ flexible messaging model and an intuitive client API.</description>
                 <include>${include}</include>
             </includes>
             <excludes>
-                <exclude>${exclude}</exclude>
+                <exclude>**/*$*,${exclude}</exclude>
             </excludes>
             <groups>${groups}</groups>
             <excludedGroups>${excludedGroups}</excludedGroups>
@@ -1561,6 +1637,15 @@ flexible messaging model and an intuitive client API.</description>
 
   <profiles>
     <profile>
+      <id>jdk11-tests</id>
+      <activation>
+        <jdk>[11,)</jdk>
+      </activation>
+      <properties>
+        <test.additional.args> --add-opens java.base/jdk.internal.loader=ALL-UNNAMED </test.additional.args>
+      </properties>
+    </profile>
+    <profile>
       <id>coverage</id>
       <build>
         <plugins>
@@ -1623,6 +1708,10 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
     <profile>
       <id>docker</id>
+      <modules>
+        <module>docker</module>
+        <module>tests</module>
+      </modules>
     </profile>
 
     <profile>
@@ -1687,6 +1776,7 @@ flexible messaging model and an intuitive client API.</description>
       <id>main</id>
       <activation>
         <activeByDefault>true</activeByDefault>
+        <jdk>[8,)</jdk>
       </activation>
       <modules>
         <module>buildtools</module>
@@ -1738,16 +1828,17 @@ flexible messaging model and an intuitive client API.</description>
 
         <module>pulsar-client-messagecrypto-bc</module>
 
-        <!-- all these 3 modules should be put at the end in this exact sequence -->
-        <module>distribution</module>
-        <module>docker</module>
-        <module>tests</module>
         <module>pulsar-metadata</module>
         <module>jclouds-shaded</module>
 
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
         <!-- package management releated modules (end) -->
+
+        <!-- all these 3 modules should be put at the end in this exact sequence -->
+        <module>distribution</module>
+        <module>docker</module>
+        <module>tests</module>
       </modules>
     </profile>
 

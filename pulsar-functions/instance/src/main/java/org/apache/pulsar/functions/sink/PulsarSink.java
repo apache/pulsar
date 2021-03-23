@@ -24,7 +24,6 @@ import java.nio.charset.StandardCharsets;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -39,12 +38,15 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 import org.apache.pulsar.functions.instance.SinkRecord;
@@ -93,10 +95,10 @@ public class PulsarSink<T> implements Sink<T> {
         void close() throws Exception;
     }
 
-    private abstract class PulsarSinkProcessorBase implements PulsarSinkProcessor<T> {
+    abstract class PulsarSinkProcessorBase implements PulsarSinkProcessor<T> {
         protected Map<String, Producer<T>> publishProducers = new ConcurrentHashMap<>();
         protected Schema schema;
-        protected  Crypto crypto;
+        protected Crypto crypto;
 
         protected PulsarSinkProcessorBase(Schema schema, Crypto crypto) {
             this.schema = schema;
@@ -153,11 +155,16 @@ public class PulsarSink<T> implements Sink<T> {
         protected Producer<T> getProducer(String producerId, String producerName, String topicName, Schema schema) {
             return publishProducers.computeIfAbsent(producerId, s -> {
                 try {
-                    return createProducer(
+                    log.info("Initializing producer {} on topic {} with schema {}",
+                        producerName, topicName, schema);
+                    Producer<T> producer = createProducer(
                             client,
                             topicName,
                             producerName,
                             schema != null ? schema : this.schema);
+                    log.info("Initialized producer {} on topic {} with schema {}: {} -> {}",
+                        producerName, topicName, schema, producerId, producer);
+                    return producer;
                 } catch (PulsarClientException e) {
                     log.error("Failed to create Producer while doing user publish", e);
                     throw new RuntimeException(e);
@@ -209,13 +216,21 @@ public class PulsarSink<T> implements Sink<T> {
     class PulsarSinkAtMostOnceProcessor extends PulsarSinkProcessorBase {
         public PulsarSinkAtMostOnceProcessor(Schema schema, Crypto crypto) {
             super(schema, crypto);
-            // initialize default topic
-            try {
-                publishProducers.put(pulsarSinkConfig.getTopic(),
+            if (!(schema instanceof AutoConsumeSchema)) {
+                // initialize default topic
+                try {
+                    publishProducers.put(pulsarSinkConfig.getTopic(),
                         createProducer(client, pulsarSinkConfig.getTopic(), null, schema));
-            } catch (PulsarClientException e) {
-                log.error("Failed to create Producer while doing user publish", e);
-                throw new RuntimeException(e);            }
+                } catch (PulsarClientException e) {
+                    log.error("Failed to create Producer while doing user publish", e);
+                    throw new RuntimeException(e);
+                }
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("The Pulsar producer is not initialized until the first record is"
+                        + " published for `AUTO_CONSUME` schema.");
+                }
+            }
         }
 
         @Override
@@ -400,7 +415,16 @@ public class PulsarSink<T> implements Sink<T> {
         ConsumerConfig consumerConfig = new ConsumerConfig();
         consumerConfig.setSchemaProperties(pulsarSinkConfig.getSchemaProperties());
         if (!StringUtils.isEmpty(pulsarSinkConfig.getSchemaType())) {
-            consumerConfig.setSchemaType(pulsarSinkConfig.getSchemaType());
+            if (GenericRecord.class.isAssignableFrom(typeArg)) {
+                consumerConfig.setSchemaType(SchemaType.AUTO_CONSUME.toString());
+                SchemaType configuredSchemaType = SchemaType.valueOf(pulsarSinkConfig.getSchemaType());
+                if (SchemaType.AUTO_CONSUME != configuredSchemaType) {
+                    log.info("The configured schema type {} is not able to write GenericRecords."
+                        + " So overwrite the schema type to be {}", configuredSchemaType, SchemaType.AUTO_CONSUME);
+                }
+            } else {
+                consumerConfig.setSchemaType(pulsarSinkConfig.getSchemaType());
+            }
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
                     consumerConfig, false);
         } else {

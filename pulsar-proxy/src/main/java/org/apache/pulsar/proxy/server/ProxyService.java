@@ -57,8 +57,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.proxy.stats.TopicStats;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +74,6 @@ public class ProxyService implements Closeable {
     private ConfigurationMetadataCacheService configurationCacheService;
     private final AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
-    private ZooKeeperClientFactory zkClientFactory = null;
     private MetadataStoreExtended localMetadataStore;
     private MetadataStoreExtended configMetadataStore;
     private PulsarResources pulsarResources;
@@ -163,12 +160,16 @@ public class ProxyService implements Closeable {
     }
 
     public void start() throws Exception {
+        if (proxyConfig.isAuthorizationEnabled() && !proxyConfig.isAuthenticationEnabled()) {
+            throw new IllegalStateException("Invalid proxy configuration. Authentication must be enabled with "
+                    + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
+        }
+
         if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getConfigurationStoreServers())) {
             localMetadataStore = createLocalMetadataStore();
             configMetadataStore = createConfigurationMetadataStore();
             pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
-            discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory(),
-                    pulsarResources);
+            discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, pulsarResources);
             this.configurationCacheService = new ConfigurationMetadataCacheService(pulsarResources, null);
             authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig),
                                                             configurationCacheService);
@@ -216,14 +217,6 @@ public class ProxyService implements Closeable {
         } else {
             this.serviceUrlTls = null;
         }
-    }
-
-    public ZooKeeperClientFactory getZooKeeperClientFactory() {
-        if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperClientFactoryImpl();
-        }
-        // Return default factory
-        return zkClientFactory;
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {

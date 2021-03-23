@@ -111,8 +111,13 @@ public class MessageIdImpl implements MessageId {
 
         MessageIdImpl messageId;
         if (idData.hasBatchIndex()) {
-            messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+            if (idData.hasBatchSize()) {
+                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+                    idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
+            } else {
+                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
                     idData.getBatchIndex());
+            }
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
@@ -147,7 +152,7 @@ public class MessageIdImpl implements MessageId {
         MessageId messageId;
         if (idData.hasBatchIndex()) {
             messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                    idData.getBatchIndex());
+                idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
         }
@@ -160,7 +165,7 @@ public class MessageIdImpl implements MessageId {
     }
 
     // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
-    protected byte[] toByteArray(int batchIndex) {
+    protected byte[] toByteArray(int batchIndex, int batchSize) {
         MessageIdData msgId = LOCAL_MESSAGE_ID.get()
                 .clear()
                 .setLedgerId(ledgerId)
@@ -173,6 +178,10 @@ public class MessageIdImpl implements MessageId {
             msgId.setBatchIndex(batchIndex);
         }
 
+        if (batchSize > -1) {
+            msgId.setBatchSize(batchSize);
+        }
+
         int size = msgId.getSerializedSize();
         ByteBuf serialized = Unpooled.buffer(size, size);
         msgId.writeTo(serialized);
@@ -183,7 +192,7 @@ public class MessageIdImpl implements MessageId {
     @Override
     public byte[] toByteArray() {
         // there is no message batch so we pass -1
-        return toByteArray(-1);
+        return toByteArray(-1, 0);
     }
 
     @Override

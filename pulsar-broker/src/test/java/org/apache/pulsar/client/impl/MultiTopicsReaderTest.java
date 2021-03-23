@@ -27,10 +27,10 @@ import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -47,14 +47,17 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-multi-topics-sub";
@@ -68,7 +71,11 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+        Policies policies = new Policies();
+        policies.replication_clusters = Sets.newHashSet("test");
+        // infinite retention
+        policies.retention_policies = new RetentionPolicies(-1, -1);
+        admin.namespaces().createNamespace("my-property/my-ns", policies);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -236,9 +243,48 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     public void testMultiReaderSeek() throws Exception {
         String topic = "persistent://my-property/my-ns/testKeyHashRangeReader";
         admin.topics().createPartitionedTopic(topic, 3);
-        Set<String> ids = publishMessages(topic,100,false);
-        List<String> idList = new ArrayList<>(ids);
-        Collections.sort(idList);
+        publishMessages(topic,100,false);
+    }
+
+    @Test(timeOut = 20000)
+    public void testMultiTopic() throws Exception {
+        final String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        final String topic2 = "persistent://my-property/my-ns/topic2" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic2, 3);
+        final String topic3 = "persistent://my-property/my-ns/topic3" + UUID.randomUUID();
+        List<String> topics = Arrays.asList(topic, topic2, topic3);
+        PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .startMessageId(MessageId.earliest)
+                .topics(topics).readerName("my-reader").create();
+        // create producer and send msg
+        List<Producer<String>> producerList = new ArrayList<>();
+        for (String topicName : topics) {
+            producerList.add(pulsarClient.newProducer(Schema.STRING).topic(topicName).create());
+        }
+        int msgNum = 10;
+        Set<String> messages = new HashSet<>();
+        for (int i = 0; i < producerList.size(); i++) {
+            Producer<String> producer = producerList.get(i);
+            for (int j = 0; j < msgNum; j++) {
+                String msg = i + "msg" + j;
+                producer.send(msg);
+                messages.add(msg);
+            }
+        }
+        // receive messages
+        while (reader.hasMessageAvailable()) {
+            Message<String> message = reader.readNext();
+            assertTrue(messages.remove(message.getValue()));
+        }
+        assertEquals(messages.size(), 0);
+        assertEquals(client.consumersCount(), 1);
+        // clean up
+        for (Producer<String> producer : producerList) {
+            producer.close();
+        }
+        reader.close();
+        Awaitility.await().untilAsserted(() -> assertEquals(client.consumersCount(), 0));
     }
 
     @Test(timeOut = 10000)
@@ -316,7 +362,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         assertTrue(expectedMessages > 0);
         assertEquals(receivedMessages.size(), expectedMessages);
         for (String receivedMessage : receivedMessages) {
-            assertTrue(Integer.valueOf(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
+            assertTrue(Integer.parseInt(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
         }
 
     }

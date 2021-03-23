@@ -70,6 +70,7 @@ import org.apache.pulsar.broker.admin.v2.SchemasResource;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
@@ -79,6 +80,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -102,6 +104,7 @@ import org.testng.annotations.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Test(groups = "broker")
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(AdminTest.class);
 
@@ -116,19 +119,19 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private BrokerStats brokerStats;
     private SchemasResource schemasResource;
     private Field uriField;
-    private Clock mockClock = Clock.fixed(
+    private final Clock mockClock = Clock.fixed(
         Instant.ofEpochSecond(365248800),
         ZoneId.of("-05:00")
     );
 
     public AdminTest() {
         super();
-        conf.setClusterName(configClusterName);
     }
 
     @Override
     @BeforeMethod
     public void setup() throws Exception {
+        conf.setClusterName(configClusterName);
         super.internalSetup();
 
         configurationCache = pulsar.getConfigurationCache();
@@ -194,6 +197,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
+        conf.setClusterName(configClusterName);
     }
 
     @Test
@@ -462,7 +466,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check deleting non-existing property
         try {
-            response = asynRequests(ctx -> properties.deleteTenant(ctx, "non-existing"));
+            response = asynRequests(ctx -> properties.deleteTenant(ctx, "non-existing", false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -521,7 +525,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         try {
             cache.invalidateAll();
             store.invalidateAll();
-            response = asynRequests(ctx -> properties.deleteTenant(ctx, "test-property"));
+            response = asynRequests(ctx -> properties.deleteTenant(ctx, "test-property", false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -533,14 +537,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             return op == MockZooKeeper.Op.DELETE && path.equals("/admin/policies/error-property");
         });
         try {
-            response = asynRequests(ctx -> properties.deleteTenant(ctx, "error-property"));
+            response = asynRequests(ctx -> properties.deleteTenant(ctx, "error-property", false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
         }
 
-        response = asynRequests(ctx -> properties.deleteTenant(ctx, "test-property"));
-        response = asynRequests(ctx -> properties.deleteTenant(ctx, "error-property"));
+        response = asynRequests(ctx -> properties.deleteTenant(ctx, "test-property", false));
+        response = asynRequests(ctx -> properties.deleteTenant(ctx, "error-property", false));
         response = Lists.newArrayList();
         response = asynRequests(ctx -> properties.getTenants(ctx));
         assertEquals(response, Lists.newArrayList());
@@ -552,7 +556,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         namespaces.createNamespace("my-tenant", "use", "my-namespace", new BundlesData());
 
         try {
-            response = asynRequests(ctx -> properties.deleteTenant(ctx, "my-tenant"));
+            response = asynRequests(ctx -> properties.deleteTenant(ctx, "my-tenant", false));
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -601,7 +605,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
         verify(response2, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
-        response = asynRequests(ctx -> properties.deleteTenant(ctx, "my-tenant"));
+        response = asynRequests(ctx -> properties.deleteTenant(ctx, "my-tenant", false));
     }
 
     @Test
@@ -620,6 +624,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Set<String> activeBrokers = brokers.getActiveBrokers("use");
         assertEquals(activeBrokers.size(), 1);
         assertEquals(activeBrokers, Sets.newHashSet(pulsar.getAdvertisedAddress() + ":" + pulsar.getListenPortHTTP().get()));
+
+        BrokerInfo leaderBroker = brokers.getLeaderBroker();
+        assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
     }
 
     @Test

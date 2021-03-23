@@ -86,18 +86,20 @@ public interface PendingAckHandle {
      * @param txnID      {@link TxnID} to identify the transaction.
      * @param properties Additional user-defined properties that can be
      *                   associated with a particular cursor position.
+     * @param lowWaterMark the low water mark of this transaction
      * @return the future of this operation.
      */
-    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties);
+    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark);
 
     /**
      * Abort a transaction.
      *
      * @param txnId  {@link TxnID} to identify the transaction.
      * @param consumer {@link Consumer} which aborting transaction.
+     * @param lowWaterMark the low water mark of this transaction
      * @return the future of this operation.
      */
-    CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer);
+    CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark);
 
     /**
      * Sync the position ack set, in order to clean up the cache of this position for pending ack handle.

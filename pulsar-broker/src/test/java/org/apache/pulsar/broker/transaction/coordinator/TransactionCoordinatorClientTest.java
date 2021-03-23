@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
 
-
+@Test(groups = "broker")
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
 
     @BeforeClass
@@ -51,9 +51,9 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
                     .thenReturn(CompletableFuture.completedFuture(null));
             Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(tbClient.abortTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.abortTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
 
             TransactionMetadataStoreService metadataStoreService = pulsarService.getTransactionMetadataStoreService();

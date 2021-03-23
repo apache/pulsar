@@ -52,11 +52,10 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.1.1</version>
         <executions>
           <execution>
             <id>unpack</id>
-            <phase>generate-sources</phase>
+            <phase>prepare-package</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
@@ -72,15 +71,36 @@
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
                 <artifactItem>
-                  <groupId>${project.groupId}</groupId>
-                  <artifactId>pulsar-client-original</artifactId>
-                  <version>${project.version}</version>
+                  <groupId>org.asynchttpclient</groupId>
+                  <artifactId>async-http-client</artifactId>
+                  <version>${asynchttpclient.version}</version>
                   <type>jar</type>
                   <overWrite>true</overWrite>
-                  <includes>**/ahc.properties</includes>
-                  <outputDirectory>${project.build.directory}/classes/org/asynchttpclient/config</outputDirectory>
+                  <includes>org/asynchttpclient/config/ahc-default.properties</includes>
+                  <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
               </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>shade-ahc-properties</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <!-- shade the AsyncHttpClient ahc-default.properties files -->
+                <replace token= "org.asynchttpclient."
+                         value="org.apache.pulsar.shade.org.asynchttpclient."
+                         file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
+              </target>
             </configuration>
           </execution>
         </executions>
@@ -123,6 +143,7 @@
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.fasterxml.jackson.dataformat</include>
                   <include>io.netty:*</include>
+                  <include>io.perfmark:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>commons-*:*</include>

@@ -23,7 +23,8 @@ set -e
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
+# ROOT_DIR should be an absolute path so that Docker accepts it as a valid volumes path
+ROOT_DIR=`cd $(dirname $0)/../..; pwd`
 cd $ROOT_DIR
 
 PYTHON_VERSIONS=(
@@ -33,7 +34,6 @@ PYTHON_VERSIONS=(
    '3.6 cp36-cp36m'
    '3.7 cp37-cp37m'
    '3.8 cp38-cp38'
-   '3.9 cp39-cp39'
 )
 
 function contains() {

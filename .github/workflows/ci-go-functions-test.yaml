@@ -33,7 +33,7 @@ on:
       - 'pulsar-function-go/**'
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
 
@@ -49,25 +49,31 @@ jobs:
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 100
-          ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
+      - name: Changed files check
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
         with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
+          filters: |
+            # pattern syntax: https://github.com/micromatch/picomatch
+            all:
+              - '**'
+            docs:
+              - 'site2/**'
+              - 'deployment/**'
+              - '.asf.yaml'
+              - '*.md'
+              - '**/*.md'
 
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: Run tests
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: |
           cd pulsar-function-go
           go test -v $(go list ./... | grep -v examples)

@@ -18,12 +18,18 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -32,18 +38,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.junit.Assert;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.awaitility.Awaitility;
 
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
-
+@Test(groups = "broker")
 public class TopicDuplicationTest extends ProducerConsumerBase {
     private final String testTenant = "my-property";
     private final String testNamespace = "my-ns";
@@ -78,12 +79,127 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         admin.topics().enableDeduplication(topicName, true);
         Awaitility.await().atMost(5, TimeUnit.SECONDS)
                 .until(()-> admin.topics().getDeduplicationEnabled(topicName) != null);
-        Assert.assertEquals(admin.topics().getDeduplicationEnabled(topicName), true);
+        assertTrue(admin.topics().getDeduplicationEnabled(topicName));
 
         admin.topics().disableDeduplication(topicName);
         Awaitility.await().atMost(5, TimeUnit.SECONDS)
                 .until(()-> admin.topics().getMaxUnackedMessagesOnSubscription(topicName) == null);
         assertNull(admin.topics().getDeduplicationEnabled(topicName));
+    }
+
+    @Test(timeOut = 10000)
+    public void testTopicDuplicationApi2() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topicName, 3);
+        waitCacheInit(topicName);
+        Boolean enabled = admin.topics().getDeduplicationStatus(topicName);
+        assertNull(enabled);
+
+        admin.topics().setDeduplicationStatus(topicName, true);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> admin.topics().getDeduplicationStatus(topicName) != null);
+        assertTrue(admin.topics().getDeduplicationStatus(topicName));
+
+        admin.topics().removeDeduplicationStatus(topicName);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> admin.topics().getMaxUnackedMessagesOnSubscription(topicName) == null);
+        assertNull(admin.topics().getDeduplicationStatus(topicName));
+    }
+
+    @Test(timeOut = 10000)
+    public void testTopicDuplicationAppliedApi() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        waitCacheInit(topicName);
+        assertNull(admin.namespaces().getDeduplicationStatus(myNamespace));
+        assertNull(admin.topics().getDeduplicationStatus(topicName));
+        assertEquals(admin.topics().getDeduplicationStatus(topicName, true).booleanValue(),
+                conf.isBrokerDeduplicationEnabled());
+
+        admin.namespaces().setDeduplicationStatus(myNamespace, false);
+        Awaitility.await().untilAsserted(() -> assertFalse(admin.topics().getDeduplicationStatus(topicName, true)));
+        admin.topics().setDeduplicationStatus(topicName, true);
+        Awaitility.await().untilAsserted(() -> assertTrue(admin.topics().getDeduplicationStatus(topicName, true)));
+
+        admin.topics().removeDeduplicationStatus(topicName);
+        Awaitility.await().untilAsserted(() -> assertFalse(admin.topics().getDeduplicationStatus(topicName, true)));
+        admin.namespaces().removeDeduplicationStatus(myNamespace);
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getDeduplicationStatus(topicName, true).booleanValue(),
+                conf.isBrokerDeduplicationEnabled()));
+    }
+
+    @Test(timeOut = 30000)
+    public void testDeduplicationPriority() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        final String producerName = "my-producer";
+        final int maxMsgNum = 5;
+        waitCacheInit(topicName);
+        //1) Start up producer and send msg.We specified the max sequenceId
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .producerName(producerName).create();
+        long maxSeq = sendMessageAndGetMaxSeq(maxMsgNum, producer);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        MessageDeduplication messageDeduplication = persistentTopic.getMessageDeduplication();
+        //broker-level deduplication is enabled in setup() by default
+        checkDeduplicationEnabled(producerName, messageDeduplication, maxSeq);
+        //disabled in namespace-level
+        admin.namespaces().setDeduplicationStatus(myNamespace, false);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getDeduplicationStatus(myNamespace)));
+        sendMessageAndGetMaxSeq(maxMsgNum, producer);
+        checkDeduplicationDisabled(producerName, messageDeduplication);
+        //enabled in topic-level
+        admin.topics().setDeduplicationStatus(topicName, true);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getDeduplicationStatus(topicName)));
+        Awaitility.await().untilAsserted(() -> assertTrue(messageDeduplication.isEnabled()));
+        long maxSeq2 = sendMessageAndGetMaxSeq(maxMsgNum, producer);
+        checkDeduplicationEnabled(producerName, messageDeduplication, maxSeq2);
+        //remove topic-level, use namespace-level
+        admin.topics().removeDeduplicationStatus(topicName);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getDeduplicationStatus(topicName)));
+        Awaitility.await().untilAsserted(() -> assertFalse(messageDeduplication.isEnabled()));
+        producer.newMessage().value("msg").sequenceId(1).send();
+        checkDeduplicationDisabled(producerName, messageDeduplication);
+        //remove namespace-level , use broker-level
+        admin.namespaces().removeDeduplicationStatus(myNamespace);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getDeduplicationStatus(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertTrue(messageDeduplication.isEnabled()));
+        long maxSeq3 = sendMessageAndGetMaxSeq(maxMsgNum, producer);
+        checkDeduplicationEnabled(producerName, messageDeduplication, maxSeq3);
+    }
+
+    private long sendMessageAndGetMaxSeq(int maxMsgNum, Producer producer) throws Exception{
+        long seq = System.nanoTime();
+        for (int i = 0; i <= maxMsgNum; i++) {
+            producer.newMessage().value("msg-" + i).sequenceId(seq + i).send();
+        }
+        return seq + maxMsgNum;
+    }
+
+    private void checkDeduplicationDisabled(String producerName, MessageDeduplication messageDeduplication) throws Exception {
+        messageDeduplication.checkStatus().whenComplete((res, ex) -> {
+            if (ex != null) {
+                fail("should not fail");
+            }
+            assertEquals(messageDeduplication.getLastPublishedSequenceId(producerName), -1);
+            assertEquals(messageDeduplication.highestSequencedPersisted.size(), 0);
+            assertEquals(messageDeduplication.highestSequencedPushed.size(), 0);
+        }).get();
+    }
+
+    private void checkDeduplicationEnabled(String producerName, MessageDeduplication messageDeduplication,
+                                           long maxSeq) throws Exception {
+        messageDeduplication.checkStatus().whenComplete((res, ex) -> {
+            if (ex != null) {
+                fail("should not fail");
+            }
+            assertNotNull(messageDeduplication.highestSequencedPersisted);
+            assertNotNull(messageDeduplication.highestSequencedPushed);
+            long seqId = messageDeduplication.getLastPublishedSequenceId(producerName);
+            assertEquals(seqId, maxSeq);
+            assertEquals(messageDeduplication.highestSequencedPersisted.get(producerName).longValue(), maxSeq);
+            assertEquals(messageDeduplication.highestSequencedPushed.get(producerName).longValue(), maxSeq);
+        }).get();
     }
 
     @Test(timeOut = 10000)
@@ -107,6 +223,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testTopicPolicyTakeSnapshot() throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
@@ -114,7 +231,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(7);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -192,27 +308,13 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
                 .producerName(producerName).create();
-        long seq = System.currentTimeMillis();
-        for (int i = 0; i <= maxMsgNum; i++) {
-            producer.newMessage().value("msg-" + i).sequenceId(seq + i).send();
-        }
-        long maxSeq = seq + maxMsgNum;
+        long maxSeq = sendMessageAndGetMaxSeq(maxMsgNum, producer);
         //2) Max sequenceId should be recorded correctly
         CompletableFuture<Optional<Topic>> completableFuture = pulsar.getBrokerService().getTopics().get(topicName);
         Topic topic = completableFuture.get(1, TimeUnit.SECONDS).get();
         PersistentTopic persistentTopic = (PersistentTopic) topic;
         MessageDeduplication messageDeduplication = persistentTopic.getMessageDeduplication();
-        messageDeduplication.checkStatus().whenComplete((res, ex) -> {
-            if (ex != null) {
-                fail("should not fail");
-            }
-            assertNotNull(messageDeduplication.highestSequencedPersisted);
-            assertNotNull(messageDeduplication.highestSequencedPushed);
-            long seqId = messageDeduplication.getLastPublishedSequenceId(producerName);
-            assertEquals(seqId, maxSeq);
-            assertEquals(messageDeduplication.highestSequencedPersisted.get(producerName).longValue(), maxSeq);
-            assertEquals(messageDeduplication.highestSequencedPushed.get(producerName).longValue(), maxSeq);
-        }).get();
+        checkDeduplicationEnabled(producerName, messageDeduplication, maxSeq);
         //3) disable the deduplication check
         admin.topics().enableDeduplication(topicName, false);
         Awaitility.await().atMost(5, TimeUnit.SECONDS)
@@ -221,14 +323,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             producer.newMessage().value("msg-" + i).sequenceId(maxSeq + i).send();
         }
         //4) Max sequenceId record should be clear
-        messageDeduplication.checkStatus().whenComplete((res, ex) -> {
-            if (ex != null) {
-                fail("should not fail");
-            }
-            assertEquals(messageDeduplication.getLastPublishedSequenceId(producerName), -1);
-            assertEquals(messageDeduplication.highestSequencedPersisted.size(), 0);
-            assertEquals(messageDeduplication.highestSequencedPushed.size(), 0);
-        }).get();
+        checkDeduplicationDisabled(producerName, messageDeduplication);
 
     }
 
@@ -239,12 +334,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     }
 
     private void testTakeSnapshot(boolean enabledSnapshot) throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(enabledSnapshot ? 1 : 0);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -315,13 +410,13 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    private void testNamespacePolicyTakeSnapshot() throws Exception {
+    public void testNamespacePolicyTakeSnapshot() throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(3);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 
@@ -367,13 +462,13 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    private void testDisableNamespacePolicyTakeSnapshot() throws Exception {
+    public void testDisableNamespacePolicyTakeSnapshot() throws Exception {
+        super.internalCleanup();
         resetConfig();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(1);
         conf.setBrokerDeduplicationEntriesInterval(20000);
-        super.internalCleanup();
         super.internalSetup();
         super.producerBaseSetup();
 

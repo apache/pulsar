@@ -130,18 +130,28 @@ public class PerformanceReader {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
-        if (arguments.topic.size() != 1) {
-            System.out.println("Only one topic name is allowed");
-            jc.usage();
-            System.exit(-1);
+        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
+            // keep compatibility with the previous version
+            if (arguments.topic.size() == 1) {
+                String prefixTopicName = arguments.topic.get(0);
+                List<String> defaultTopics = Lists.newArrayList();
+                for (int i = 0; i < arguments.numTopics; i++) {
+                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
+                }
+                arguments.topic = defaultTopics;
+            } else {
+                System.out.println("The size of topics list should be equal to --num-topics");
+                jc.usage();
+                PerfClientUtils.exit(-1);
+            }
         }
 
         if (arguments.confFile != null) {
@@ -184,11 +194,10 @@ public class PerformanceReader {
         }
 
         // Dump config variables
+        PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(arguments));
-
-        final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
@@ -197,7 +206,7 @@ public class PerformanceReader {
             if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
                     log.info("------------------- DONE -----------------------");
-                    System.exit(0);
+                    PerfClientUtils.exit(0);
                 }
             }
             messagesReceived.increment();
@@ -248,8 +257,7 @@ public class PerformanceReader {
                 .startMessageId(startMessageId);
 
         for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
-                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+            final TopicName topicName = TopicName.get(arguments.topic.get(i));
 
             futures.add(readerBuilder.clone().topic(topicName.toString()).createAsync());
         }

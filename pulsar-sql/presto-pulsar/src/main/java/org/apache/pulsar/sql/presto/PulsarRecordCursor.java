@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
@@ -64,6 +65,9 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.sql.presto.util.CacheSizeAllocator;
+import org.apache.pulsar.sql.presto.util.NoStrictCacheSizeAllocator;
+import org.apache.pulsar.sql.presto.util.NullCacheSizeAllocator;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -78,7 +82,9 @@ public class PulsarRecordCursor implements RecordCursor {
     private PulsarConnectorConfig pulsarConnectorConfig;
     private ReadOnlyCursor cursor;
     private SpscArrayQueue<RawMessage> messageQueue;
+    private CacheSizeAllocator messageQueueCacheSizeAllocator;
     private SpscArrayQueue<Entry> entryQueue;
+    private CacheSizeAllocator entryQueueCacheSizeAllocator;
     private RawMessage currentMessage;
     private int maxBatchSize;
     private long completedBytes = 0;
@@ -136,6 +142,7 @@ public class PulsarRecordCursor implements RecordCursor {
                         pulsarConnectorConfig),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
         this.decoderFactory = decoderFactory;
+        initEntryCacheSizeAllocator(pulsarConnectorConfig);
     }
 
     // Exposed for testing purposes
@@ -166,6 +173,7 @@ public class PulsarRecordCursor implements RecordCursor {
         this.metricsTracker = pulsarConnectorMetricsTracker;
         this.readOffloaded = pulsarConnectorConfig.getManagedLedgerOffloadDriver() != null;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
+        initEntryCacheSizeAllocator(pulsarConnectorConfig);
 
         try {
             this.schemaInfoProvider = new PulsarSqlSchemaInfoProvider(this.topicName,
@@ -221,7 +229,7 @@ public class PulsarRecordCursor implements RecordCursor {
     @VisibleForTesting
     class DeserializeEntries implements Runnable {
 
-    protected boolean isRunning = false;
+        protected boolean isRunning = false;
 
         private final Thread thread;
 
@@ -248,6 +256,8 @@ public class PulsarRecordCursor implements RecordCursor {
                     public void accept(Entry entry) {
 
                         try {
+                            entryQueueCacheSizeAllocator.release(entry.getLength());
+
                             long bytes = entry.getDataBuffer().readableBytes();
                             completedBytes += bytes;
                             // register stats for bytes read
@@ -268,9 +278,16 @@ public class PulsarRecordCursor implements RecordCursor {
                                                 // start time for message queue read
                                                 metricsTracker.start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
 
-                                                // enqueue deserialize message from this entry
-                                                while (!messageQueue.offer(message)) {
-                                                    Thread.sleep(1);
+                                                while (true) {
+                                                    if (!haveAvailableCacheSize(
+                                                            messageQueueCacheSizeAllocator, messageQueue)
+                                                            || !messageQueue.offer(message)) {
+                                                        Thread.sleep(1);
+                                                    } else {
+                                                        messageQueueCacheSizeAllocator.allocate(
+                                                                message.getData().readableBytes());
+                                                        break;
+                                                    }
                                                 }
 
                                                 // stats for how long a read from message queue took
@@ -334,7 +351,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
                         ReadOnlyCursorImpl readOnlyCursorImpl = ((ReadOnlyCursorImpl) cursor);
                         // check if ledger is offloaded
-                        if (!readOffloaded  && readOnlyCursorImpl.getCurrentLedgerInfo().hasOffloadContext()) {
+                        if (!readOffloaded && readOnlyCursorImpl.getCurrentLedgerInfo().hasOffloadContext()) {
                             log.warn(
                                 "Ledger %s is offloaded for topic %s. Ignoring it because offloader is not configured",
                                 readOnlyCursorImpl.getCurrentLedgerInfo().getLedgerId(), pulsarSplit.getTableName());
@@ -346,8 +363,14 @@ public class PulsarRecordCursor implements RecordCursor {
 
                             entriesProcessed += entriesToSkip;
                         } else {
+                            if (!haveAvailableCacheSize(entryQueueCacheSizeAllocator, entryQueue)) {
+                                metricsTracker.incr_READ_ATTEMPTS_FAIL();
+                                return;
+                            }
+                            // if the available size is invalid and the entry queue size is 0, read one entry
                             outstandingReadsRequests.decrementAndGet();
-                            cursor.asyncReadEntries(batchSize, this, System.nanoTime(), PositionImpl.latest);
+                            cursor.asyncReadEntries(batchSize, entryQueueCacheSizeAllocator.getAvailableCacheSize(),
+                                    this, System.nanoTime(), PositionImpl.latest);
                         }
 
                         // stats for successful read request
@@ -369,6 +392,7 @@ public class PulsarRecordCursor implements RecordCursor {
                 public Entry get() {
                     Entry entry = entries.get(i);
                     i++;
+                    entryQueueCacheSizeAllocator.allocate(entry.getLength());
                     return entry;
                 }
             }, entries.size());
@@ -396,6 +420,19 @@ public class PulsarRecordCursor implements RecordCursor {
             //stats for number of entries read failed
             metricsTracker.incr_NUM_ENTRIES_PER_BATCH_FAIL(maxBatchSize);
         }
+    }
+
+    /**
+     * Check the queue has available cache size quota or not.
+     * 1. If the CacheSizeAllocator is NullCacheSizeAllocator, return true.
+     * 2. If the available cache size > 0, return true.
+     * 3. If the available cache size is invalid and the queue size == 0, return true, ensure not block the query.
+     */
+    private boolean haveAvailableCacheSize(CacheSizeAllocator cacheSizeAllocator, SpscArrayQueue queue) {
+        if (cacheSizeAllocator instanceof NullCacheSizeAllocator) {
+            return true;
+        }
+        return cacheSizeAllocator.getAvailableCacheSize() > 0 || queue.size() == 0;
     }
 
     @Override
@@ -426,6 +463,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
             currentMessage = messageQueue.poll();
             if (currentMessage != null) {
+                messageQueueCacheSizeAllocator.release(currentMessage.getData().readableBytes());
                 break;
             } else {
                 try {
@@ -441,9 +479,11 @@ public class PulsarRecordCursor implements RecordCursor {
         //start time for deseralizing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
-        SchemaInfo schemaInfo;
+        SchemaInfo schemaInfo = getBytesSchemaInfo(pulsarSplit.getSchemaType(), pulsarSplit.getSchemaName());
         try {
-            schemaInfo =  schemaInfoProvider.getSchemaByVersion(this.currentMessage.getSchemaVersion()).get();
+            if (schemaInfo == null) {
+                schemaInfo =  schemaInfoProvider.getSchemaByVersion(this.currentMessage.getSchemaVersion()).get();
+            }
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
@@ -560,6 +600,18 @@ public class PulsarRecordCursor implements RecordCursor {
         return true;
     }
 
+    private SchemaInfo getBytesSchemaInfo(SchemaType schemaType, String schemaName) {
+        if (!schemaType.equals(SchemaType.BYTES) && !schemaType.equals(SchemaType.NONE)) {
+            return null;
+        }
+        if (schemaName.equals(Schema.BYTES.getSchemaInfo().getName())) {
+            return Schema.BYTES.getSchemaInfo();
+        } else if (schemaName.equals(Schema.BYTEBUFFER.getSchemaInfo().getName())) {
+            return Schema.BYTEBUFFER.getSchemaInfo();
+        } else {
+            return Schema.BYTES.getSchemaInfo();
+        }
+    }
 
     @Override
     public boolean getBoolean(int field) {
@@ -637,6 +689,21 @@ public class PulsarRecordCursor implements RecordCursor {
     private void checkFieldType(int field, Class<?> expected) {
         Class<?> actual = getType(field).getJavaType();
         checkArgument(actual == expected, "Expected field %s to be type %s but is %s", field, expected, actual);
+    }
+
+    private void initEntryCacheSizeAllocator(PulsarConnectorConfig connectorConfig) {
+        if (connectorConfig.getMaxSplitQueueSizeBytes() >= 0) {
+            this.entryQueueCacheSizeAllocator = new NoStrictCacheSizeAllocator(
+                    connectorConfig.getMaxSplitQueueSizeBytes() / 2);
+            this.messageQueueCacheSizeAllocator = new NoStrictCacheSizeAllocator(
+                    connectorConfig.getMaxSplitQueueSizeBytes() / 2);
+            log.info("Init cacheSizeAllocator with maxSplitEntryQueueSizeBytes {}.",
+                    connectorConfig.getMaxSplitQueueSizeBytes());
+        } else {
+            this.entryQueueCacheSizeAllocator = new NullCacheSizeAllocator();
+            this.messageQueueCacheSizeAllocator = new NullCacheSizeAllocator();
+            log.info("Init cacheSizeAllocator with NullCacheSizeAllocator.");
+        }
     }
 
 }
