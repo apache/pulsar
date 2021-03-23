@@ -1705,5 +1705,45 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(tenant, namespace);
         internalRemoveMaxTopicsPerNamespace();
     }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/property/{key}/{value}")
+    @ApiOperation(value = "Put a key value pair property on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void setProperty(@PathParam("tenant") String tenant,
+                                         @PathParam("namespace") String namespace,
+                                         @PathParam("key") String key,
+                                         @PathParam("value") String value) {
+        validateNamespaceName(tenant, namespace);
+        internalSetProperty(key, value);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/property/{key}")
+    @ApiOperation(value = "Get property value for a given key on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public String getProperty(@PathParam("tenant") String tenant,
+                            @PathParam("namespace") String namespace,
+                            @PathParam("key") String key) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetProperty(key);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/property/{key}")
+    @ApiOperation(value = "Get property value for a given key on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
+    public void removeProperty(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("key") String key) {
+        validateNamespaceName(tenant, namespace);
+        internalRemoveProperty(key, asyncResponse);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

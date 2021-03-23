@@ -30,6 +30,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -3339,6 +3340,96 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxTopicsPerNamespace");
         return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<Void> setPropertyAsync(String namespace, String key, String value) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "property", key, value);
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setProperty(String namespace, String key, String value) throws PulsarAdminException {
+        try {
+            setPropertyAsync(namespace, key, value)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<String> getPropertyAsync(String namespace, String key) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        WebTarget path = namespacePath(ns, "property", key);
+        asyncGetRequest(path, new InvocationCallback<String>() {
+            @Override
+            public void completed(String value) {
+                future.complete(StringUtils.isEmpty(value) ? null : value);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public String getProperty(String namespace, String key) throws PulsarAdminException {
+        try {
+            return getPropertyAsync(namespace, key)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<String> removePropertyAsync(String namespace, String key) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        WebTarget path = namespacePath(ns, "property", key);
+        asyncDeleteRequest(path, new InvocationCallback<String>() {
+            @Override
+            public void completed(String value) {
+                future.complete(StringUtils.isEmpty(value) ? null : value);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public String removeProperty(String namespace, String key) throws PulsarAdminException {
+        try {
+            return removePropertyAsync(namespace, key)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
     }
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {

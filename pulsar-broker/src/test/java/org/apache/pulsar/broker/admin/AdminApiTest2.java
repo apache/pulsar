@@ -1944,4 +1944,18 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         verify(mockTopic, times(2)).triggerCompaction();
     }
 
+    @Test
+    public void testProperties() throws Exception {
+        final String namespace = "prop-xyz/ns1";
+        admin.namespaces().setProperty(namespace, "a", "a");
+        assertEquals("a", admin.namespaces().getProperty(namespace, "a"));
+        assertNull(admin.namespaces().getProperty(namespace, "b"));
+        admin.namespaces().setProperty(namespace, "b", "b");
+        assertEquals("b", admin.namespaces().getProperty(namespace, "b"));
+        admin.namespaces().setProperty(namespace, "a", "a1");
+        assertEquals("a1", admin.namespaces().getProperty(namespace, "a"));
+        assertEquals("b", admin.namespaces().removeProperty(namespace, "b"));
+        assertNull(admin.namespaces().getProperty(namespace, "b"));
+    }
+
 }

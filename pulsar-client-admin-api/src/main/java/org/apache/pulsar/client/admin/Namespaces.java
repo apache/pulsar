@@ -3883,4 +3883,130 @@ public interface Namespaces {
      *              Unexpected error
      */
     CompletableFuture<Void> removeMaxTopicsPerNamespaceAsync(String namespace);
+
+    /**
+     * Set key value pair property for a namespace.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().setProperty("a", "a");
+     *     admin.namespaces().setProperty("b", "b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     * @param value
+     *              value of the property
+     */
+    CompletableFuture<Void> setPropertyAsync(String namespace, String key, String value);
+
+    /**
+     * Set key value pair property for a namespace.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().setProperty("a", "a");
+     *     admin.namespaces().setProperty("b", "b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     * @param value
+     *              value of the property
+     */
+    void setProperty(String namespace, String key, String value) throws PulsarAdminException;
+
+    /**
+     * Get property value for a given key.
+     * If the property absents, will return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getProperty("a");
+     *     admin.namespaces().getProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    CompletableFuture<String> getPropertyAsync(String namespace, String key);
+
+    /**
+     * Get property value for a given key.
+     * If the property absents, will return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getProperty("a");
+     *     admin.namespaces().getProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    String getProperty(String namespace, String key) throws PulsarAdminException;
+
+    /**
+     * Remove a property for a given key.
+     * Return value of the property if the property exists, otherwise return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().removeProperty("a");
+     *     admin.namespaces().removeProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    CompletableFuture<String> removePropertyAsync(String namespace, String key);
+
+    /**
+     * Remove a property for a given key.
+     * Return value of the property if the property exists, otherwise return null.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().removeProperty("a");
+     *     admin.namespaces().removeProperty("b");
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     * @param key
+     *              key of the property
+     *
+     * @return value of the property.
+     */
+    String removeProperty(String namespace, String key) throws PulsarAdminException;
 }

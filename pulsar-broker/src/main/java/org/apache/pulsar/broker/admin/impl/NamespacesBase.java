@@ -2546,6 +2546,45 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("max_topics_per_namespace", maxTopicsPerNamespace);
    }
 
+   protected void internalSetProperty(String key, String value) {
+       validatePoliciesReadOnlyAccess();
+       try {
+           final String path = path(POLICIES, namespaceName.toString());
+           updatePolicies(path, (policies) -> {
+               policies.properties.put(key, value);
+               return policies;
+           });
+           log.info("[{}] Successfully set property for key {} on namespace {}", clientAppId(), key,
+                   namespaceName);
+       } catch (Exception e) {
+           log.error("[{}] Failed to set property for key {} on namespace {}", clientAppId(), key,
+                   namespaceName, e);
+           throw new RestException(e);
+       }
+   }
+
+   protected String internalGetProperty(String key) {
+       return getNamespacePolicies(namespaceName).properties.get(key);
+   }
+
+   protected void internalRemoveProperty(String key, AsyncResponse asyncResponse) {
+       validatePoliciesReadOnlyAccess();
+
+       try {
+           final String path = path(POLICIES, namespaceName.toString());
+           updatePolicies(path, (policies) -> {
+               asyncResponse.resume(policies.properties.remove(key));
+               return policies;
+           });
+           log.info("[{}] Successfully remove property for key {} on namespace {}", clientAppId(), key,
+                   namespaceName);
+       } catch (Exception e) {
+           log.error("[{}] Failed to remove property for key {} on namespace {}", clientAppId(), key,
+                   namespaceName, e);
+           asyncResponse.resume(new RestException(e));
+       }
+   }
+
    private void updatePolicies(String path, Function<Policies, Policies> updateFunction) {
        try {
            // Force to read the data s.t. the watch to the cache content is setup.

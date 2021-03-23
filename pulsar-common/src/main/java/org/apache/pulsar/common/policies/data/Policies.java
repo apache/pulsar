@@ -124,6 +124,8 @@ public class Policies {
 
     public Set<SubType> subscription_types_enabled = Sets.newHashSet();
 
+    public Map<String, String> properties = Maps.newHashMap();
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -145,7 +147,8 @@ public class Policies {
                 schema_compatibility_strategy,
                 is_allow_auto_update_schema,
                 offload_policies,
-                subscription_types_enabled);
+                subscription_types_enabled,
+                properties);
     }
 
     @Override
@@ -177,9 +180,9 @@ public class Policies {
                     && Objects.equals(max_producers_per_topic, other.max_producers_per_topic)
                     && Objects.equals(max_consumers_per_topic, other.max_consumers_per_topic)
                     && Objects.equals(max_unacked_messages_per_consumer, other.max_unacked_messages_per_consumer)
-                    && Objects.equals(max_unacked_messages_per_subscription, max_unacked_messages_per_subscription)
+                    && Objects.equals(max_unacked_messages_per_subscription, other.max_unacked_messages_per_subscription)
                     && max_consumers_per_subscription == other.max_consumers_per_subscription
-                    && compaction_threshold == other.compaction_threshold
+                    && compaction_threshold.equals(other.compaction_threshold)
                     && offload_threshold == other.offload_threshold
                     && Objects.equals(offload_deletion_lag_ms, other.offload_deletion_lag_ms)
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
@@ -187,7 +190,8 @@ public class Policies {
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
                     && is_allow_auto_update_schema == other.is_allow_auto_update_schema
                     && Objects.equals(offload_policies, other.offload_policies)
-                    && Objects.equals(subscription_types_enabled, other.subscription_types_enabled);
+                    && Objects.equals(subscription_types_enabled, other.subscription_types_enabled)
+                    && Objects.equals(properties, other.properties);
         }
 
         return false;
@@ -247,7 +251,8 @@ public class Policies {
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
                 .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
                 .add("offload_policies", offload_policies)
-                .add("subscription_types_enabled", subscription_types_enabled).toString();
+                .add("subscription_types_enabled", subscription_types_enabled)
+                .add("properties", properties).toString();
     }
 
     private static final long MAX_BUNDLES = ((long) 1) << 32;
