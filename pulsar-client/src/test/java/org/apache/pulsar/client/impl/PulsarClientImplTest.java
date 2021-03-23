@@ -48,7 +48,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -93,7 +93,7 @@ public class PulsarClientImplTest {
         LookupService lookup = mock(LookupService.class);
         when(lookup.getTopicsUnderNamespace(
                 any(NamespaceName.class),
-                any(CommandGetTopicsOfNamespace.Mode.class)))
+                any(PulsarApi.CommandGetTopicsOfNamespace.Mode.class)))
                 .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class)))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
