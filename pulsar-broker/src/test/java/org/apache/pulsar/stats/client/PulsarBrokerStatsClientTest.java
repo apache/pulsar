@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.stats.client;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -27,6 +29,10 @@ import java.net.URL;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
+
+import com.google.common.collect.Lists;
+import org.apache.bookkeeper.client.BookKeeperAdmin;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -122,8 +128,22 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         }
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+
+        BookKeeperAdmin bookKeeperAdmin = mock(BookKeeperAdmin.class);
+        when(pulsar.getBookKeeperAdmin()).thenReturn(bookKeeperAdmin);
+        when(bookKeeperAdmin.getAllBookies()).thenReturn(Lists.newArrayList(BookieId.parse("192.0.2.1:1234"),
+                BookieId.parse("192.0.2.2:1234"), BookieId.parse("192.0.2.3:1234")));
+
         PersistentTopicInternalStats internalStats = topic.getInternalStats(true).get();
         assertNotNull(internalStats.ledgers.get(0).metadata);
+        assertFalse(internalStats.ledgers.get(0).underReplicated);
+
+        when(bookKeeperAdmin.getAllBookies()).thenReturn(Lists.newArrayList(BookieId.parse("192.0.2.1:1234"),
+                BookieId.parse("192.0.2.2:1234")));
+
+        internalStats = topic.getInternalStats(true).get();
+        assertTrue(internalStats.ledgers.get(0).underReplicated);
+
         CursorStats cursor = internalStats.cursors.get(subscriptionName);
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
         assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0

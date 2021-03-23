@@ -39,6 +39,7 @@ import io.netty.util.ReferenceCountUtil;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -122,6 +124,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
@@ -3731,4 +3734,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);
 
+    public CompletableFuture<Set<BookieId>> getEnsemblesAsync(long ledgerId) {
+        LedgerInfo ledgerInfo = ledgers.get(ledgerId);
+        if (ledgerInfo != null && ledgerInfo.hasOffloadContext()) {
+            return CompletableFuture.completedFuture(Collections.emptySet());
+        }
+
+        return getLedgerHandle(ledgerId).thenCompose(lh -> {
+            Set<BookieId> ensembles = new HashSet<>();
+            lh.getLedgerMetadata().getAllEnsembles().values().forEach(ensembles::addAll);
+            return CompletableFuture.completedFuture(ensembles);
+        });
+    }
 }

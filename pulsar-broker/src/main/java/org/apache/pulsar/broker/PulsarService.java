@@ -54,6 +54,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -239,6 +240,7 @@ public class PulsarService implements AutoCloseable {
     private final Condition isClosedCondition = mutex.newCondition();
     // key is listener name , value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
+    private BookKeeperAdmin bookKeeperAdmin;
 
     public PulsarService(ServiceConfiguration config) {
         this(config, Optional.empty(), (exitCode) -> {
@@ -541,6 +543,8 @@ public class PulsarService implements AutoCloseable {
             managedLedgerClientFactory = ManagedLedgerStorage.create(
                 config, getZkClient(), bkClientFactory
             );
+
+            this.bookKeeperAdmin = new BookKeeperAdmin(managedLedgerClientFactory.getBookKeeperClient());
 
             this.brokerService = new BrokerService(this);
 
@@ -1467,5 +1471,9 @@ public class PulsarService implements AutoCloseable {
                         + "-" + (workerConfig.getTlsEnabled()
                         ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
+    }
+
+    public BookKeeperAdmin getBookKeeperAdmin() {
+        return bookKeeperAdmin;
     }
 }

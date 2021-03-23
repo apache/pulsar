@@ -30,6 +30,7 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import javax.ws.rs.core.Response;
+
+import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -65,6 +68,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1772,6 +1776,15 @@ public class PersistentTopic extends AbstractTopic
 
         stats.ledgers = Lists.newArrayList();
         List<CompletableFuture<String>> futures = includeLedgerMetadata ? Lists.newArrayList() : null;
+        BookKeeperAdmin bookKeeperAdmin = brokerService.pulsar().getBookKeeperAdmin();
+        Collection<BookieId> allBookies;
+        try {
+            allBookies = bookKeeperAdmin.getAllBookies();
+        } catch (Throwable t) {
+            log.error("[{}] Failed to get all bookies.", topic, t);
+            statFuture.completeExceptionally(t);
+            return statFuture;
+        }
         ml.getLedgersInfo().forEach((id, li) -> {
             LedgerInfo info = new LedgerInfo();
             info.ledgerId = li.getLedgerId();
@@ -1783,6 +1796,12 @@ public class PersistentTopic extends AbstractTopic
                 futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
                     if (ex == null) {
                         info.metadata = lMetadata;
+                    }
+                    return null;
+                }));
+                futures.add(ml.getEnsemblesAsync(li.getLedgerId()).handle((ensembles, ex) -> {
+                    if (ex == null) {
+                        info.underReplicated = !allBookies.containsAll(ensembles);
                     }
                     return null;
                 }));
