@@ -81,6 +81,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.discovery.service.DiscoveryService;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
@@ -477,11 +478,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setBindOnLocalhost(true);
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(discoveryService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(discoveryService).createConfigurationMetadataStore();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
 
         // (2) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrl();
@@ -548,11 +545,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(discoveryService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(discoveryService).createConfigurationMetadataStore();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
 
         // (3) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrlTls();
@@ -610,11 +603,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setConfigurationStoreServers("localhost:3181");
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(discoveryService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(discoveryService).createConfigurationMetadataStore();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
 
         // (2) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrl();
@@ -688,11 +677,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setAuthorizationEnabled(true);
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(discoveryService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(discoveryService).createConfigurationMetadataStore();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
         // (2) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrl();
 
@@ -752,11 +737,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         config.setAuthorizationEnabled(true);
 
         @Cleanup
-        DiscoveryService discoveryService = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(discoveryService).getZooKeeperClientFactory();
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(discoveryService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(discoveryService).createConfigurationMetadataStore();
-        discoveryService.start();
+        DiscoveryService discoveryService = createAndStartDiscoveryService(config);
         // (2) lookup using discovery service
         final String discoverySvcUrl = discoveryService.getServiceUrl();
 
@@ -1210,5 +1191,17 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return "invalid";
         }
+    }
+
+    private DiscoveryService createAndStartDiscoveryService(ServiceConfig config) throws Exception {
+        MetadataStoreExtended localMetadatastore = new ZKMetadataStore(mockZooKeeper);
+        MetadataStoreExtended configMetadatastore = new ZKMetadataStore(mockZooKeeperGlobal);
+        DiscoveryService discoveryService = spy(new DiscoveryService(config));
+        doReturn(localMetadatastore).when(discoveryService).createLocalMetadataStore();
+        doReturn(configMetadatastore).when(discoveryService).createConfigurationMetadataStore();
+        doReturn(localMetadatastore).when(discoveryService).createLocalMetadataStore();
+        doReturn(configMetadatastore).when(discoveryService).createConfigurationMetadataStore();
+        discoveryService.start();
+        return discoveryService;
     }
 }

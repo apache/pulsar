@@ -126,6 +126,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("healthcheck"));
         verify(mockBrokers).healthcheck();
+
+        brokers.run(split("version"));
+        verify(mockBrokers).getVersion();
     }
 
     @Test
@@ -593,6 +596,9 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-compaction-threshold myprop/clust/ns1"));
         verify(mockNamespaces).getCompactionThreshold("myprop/clust/ns1");
+
+        namespaces.run(split("remove-compaction-threshold myprop/clust/ns1"));
+        verify(mockNamespaces).removeCompactionThreshold("myprop/clust/ns1");
 
         namespaces.run(split("set-compaction-threshold myprop/clust/ns1 -t 1G"));
         verify(mockNamespaces).setCompactionThreshold("myprop/clust/ns1", 1024 * 1024 * 1024);
