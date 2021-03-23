@@ -46,6 +46,16 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+* Resource Usage Transport Manager
+* 
+* <P>Module to exchange usage information with other brokers. Implements a task to periodically.
+* <P>publish the usage as well as handlers to process the usage info from other brokers.
+*
+* @see <a href="https://github.com/apache/pulsar/wiki/PIP-82%3A-Tenant-and-namespace-level-rate-limiting">Global-quotas</a>
+*  
+* @author Bharani Chadalavada
+*/
 public class ResourceUsageTransportManager implements AutoCloseable {
 
     private class ResourceUsageWriterTask implements Runnable, AutoCloseable {
@@ -200,7 +210,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
      *
      * @param resource usage publisher
      */
-    public void unregisterResourceUsageConsumer(ResourceUsagePublisher r) {
+    public void unregisterResourceUsageProducer(ResourceUsagePublisher r) {
         publisherMap.remove(r.getID());
     }
 
