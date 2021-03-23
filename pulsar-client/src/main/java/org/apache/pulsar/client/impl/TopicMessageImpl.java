@@ -33,7 +33,7 @@ public class TopicMessageImpl<T> implements Message<T> {
     private final Message<T> msg;
     private final TopicMessageIdImpl messageId;
     // consumer if this message is received by that consumer
-    ConsumerImpl receivedByconsumer;
+    final ConsumerImpl receivedByconsumer;
 
     TopicMessageImpl(String topicPartitionName,
                      String topicName,
