@@ -44,7 +44,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     private String certFilePath;
     private String keyFilePath;
-    private transient Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
+    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
     public AuthenticationTls() {
     }
@@ -130,4 +130,18 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         return keyFilePath;
     }
 
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getCertStreamProvider() {
+        return certStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getKeyStreamProvider() {
+        return keyStreamProvider;
+    }
+
+    @VisibleForTesting
+    Supplier<ByteArrayInputStream> getTrustStoreStreamProvider() {
+        return trustStoreStreamProvider;
+    }
 }
