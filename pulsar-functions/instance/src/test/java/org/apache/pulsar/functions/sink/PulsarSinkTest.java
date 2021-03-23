@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -344,6 +345,11 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                public Schema getSchema() {
+                    return Schema.STRING;
+                }
+
+                @Override
                 public String getValue() {
                     return "in1";
                 }
@@ -393,6 +399,11 @@ public class PulsarSinkTest {
                 @Override
                 public String getValue() {
                     return "in1";
+                }
+
+                @Override
+                public Schema getSchema() {
+                    return Schema.STRING;
                 }
 
                 @Override
@@ -449,6 +460,11 @@ public class PulsarSinkTest {
                     } else {
                         return Optional.of(defaultTopic + "-id-1");
                     }
+                }
+
+                @Override
+                public Schema getSchema() {
+                    return Schema.STRING;
                 }
 
                 @Override
@@ -574,11 +590,11 @@ public class PulsarSinkTest {
             verify(client.newProducer(), times(1))
                 .topic(argThat(
                     otherTopic -> topic != null ? topic.equals(otherTopic) : defaultTopic.equals(otherTopic)));
-
-            verify(client, times(1))
-                .newProducer(argThat(
-                    otherSchema -> Objects.equals(otherSchema, schema)));
         }
+
+        verify(client, times(topics.length))
+                .newProducer(argThat(
+                        otherSchema -> otherSchema instanceof AutoProduceBytesSchema));
     }
 
     private Optional<String> getTopicOptional(String topic) {

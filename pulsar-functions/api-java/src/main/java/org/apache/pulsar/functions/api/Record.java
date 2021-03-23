@@ -48,7 +48,7 @@ public interface Record<T> {
         return Optional.empty();
     }
 
-    default Schema<T> getSchema() {
+    default Schema getSchema() {
         return null;
     }
 

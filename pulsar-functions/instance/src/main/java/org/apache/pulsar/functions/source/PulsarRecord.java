@@ -42,7 +42,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     private final int partition;
 
     private final Message<T> message;
-    private final Schema<T> schema;
+    private final Schema<?> schema;
 
     private final Runnable failFunction;
     private final Runnable ackFunction;
@@ -77,7 +77,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     }
 
     @Override
-    public Schema<T> getSchema() {
+    public Schema<?> getSchema() {
         return schema;
     }
 

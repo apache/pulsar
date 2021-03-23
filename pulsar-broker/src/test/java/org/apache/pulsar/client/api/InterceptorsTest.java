@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -35,6 +36,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.FileAssert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -105,15 +107,25 @@ public class InterceptorsTest extends ProducerConsumerBase {
         BaseInterceptor interceptor2 = new BaseInterceptor("int2") {
             @Override
             public boolean eligible(Message message) {
-                return SchemaType.STRING.equals(
-                        ((MessageImpl)message).getCurrentSchema().getSchemaInfo().getType());
+                try {
+                    return SchemaType.STRING.equals(
+                            ((MessageImpl<?>)message).getSchema().get().getSchemaInfo().getType());
+                } catch (InterruptedException | ExecutionException e) {
+                    FileAssert.fail();
+                    return false;
+                }
             }
         };
         BaseInterceptor interceptor3 = new BaseInterceptor("int3") {
             @Override
             public boolean eligible(Message message) {
-                return SchemaType.INT32.equals(
-                        ((MessageImpl)message).getCurrentSchema().getSchemaInfo().getType());
+                try {
+                    return SchemaType.INT32.equals(
+                            ((MessageImpl<?>)message).getSchema().get().getSchemaInfo().getType());
+                } catch (InterruptedException | ExecutionException e) {
+                    FileAssert.fail();
+                    return false;
+                }
             }
         };
 

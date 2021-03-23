@@ -286,9 +286,12 @@ public class PulsarSourceTest {
         Consumer consumer = mock(Consumer.class);
         MessageImpl messageImpl = mock(MessageImpl.class);
         Schema schema = mock(Schema.class);
-        when(messageImpl.getCurrentSchema()).thenReturn(schema);
-        pulsarSource.received(consumer, (Message) messageImpl);
-        verify(messageImpl.getCurrentSchema(), times(1));
+        CompletableFuture<Schema> originalSchemaFuture = new CompletableFuture<>();
+        originalSchemaFuture.complete(schema);
+        CompletableFuture<Schema> completableFuture = spy(originalSchemaFuture);
+        when(messageImpl.getSchema()).thenReturn(completableFuture);
+        pulsarSource.received(consumer, messageImpl);
+        verify(messageImpl.getSchema(), times(1)).thenAccept(anyObject());
         Record<GenericRecord> pushed = pulsarSource.read();
         assertSame(pushed.getSchema(), schema);
     }

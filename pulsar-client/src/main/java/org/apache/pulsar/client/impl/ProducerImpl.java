@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -425,46 +426,58 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
 
-        if (!populateMessageSchema(msg, callback)) {
-            compressedPayload.release();
-            return;
-        }
+        ByteBuf finalCompressedPayload = compressedPayload;
+        boolean finalCompressed = compressed;
+        populateMessageSchema(msg, callback).thenAccept(flag -> {
+            if (!flag) {
+                finalCompressedPayload.release();
+            } else {
 
-        // send in chunks
-        int totalChunks = canAddToBatch(msg) ? 1
-                : Math.max(1, compressedPayload.readableBytes()) / ClientCnx.getMaxMessageSize()
-                        + (Math.max(1, compressedPayload.readableBytes()) % ClientCnx.getMaxMessageSize() == 0 ? 0 : 1);
-        // chunked message also sent individually so, try to acquire send-permits
-        for (int i = 0; i < (totalChunks - 1); i++) {
-            if (!canEnqueueRequest(callback, message.getSequenceId(), 0 /* The memory was already reserved */)) {
-                return;
-            }
-        }
+                // send in chunks
+                int totalChunks = canAddToBatch(msg) ? 1
+                        : Math.max(1, finalCompressedPayload.readableBytes()) / ClientCnx.getMaxMessageSize()
+                        + (Math.max(1, finalCompressedPayload.readableBytes())
+                        % ClientCnx.getMaxMessageSize() == 0 ? 0 : 1);
+                // chunked message also sent individually so, try to acquire send-permits
+                for (int i = 0; i < (totalChunks - 1); i++) {
+                    if (!canEnqueueRequest(callback, message.getSequenceId(), 0 /* The memory was already reserved */)) {
+                        return;
+                    }
+                }
 
-        try {
-            synchronized (this) {
-                int readStartIndex = 0;
-                long sequenceId;
-                if (!msgMetadata.hasSequenceId()) {
-                    sequenceId = msgIdGeneratorUpdater.getAndIncrement(this);
-                    msgMetadata.setSequenceId(sequenceId);
-                } else {
-                    sequenceId = msgMetadata.getSequenceId();
+                try {
+                    synchronized (this) {
+                        int readStartIndex = 0;
+                        long sequenceId;
+                        if (!msgMetadata.hasSequenceId()) {
+                            sequenceId = msgIdGeneratorUpdater.getAndIncrement(this);
+                            msgMetadata.setSequenceId(sequenceId);
+                        } else {
+                            sequenceId = msgMetadata.getSequenceId();
+                        }
+                        String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
+                        for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
+                            serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
+                                    readStartIndex, ClientCnx.getMaxMessageSize(), finalCompressedPayload,
+                                    finalCompressed, finalCompressedPayload.readableBytes(),
+                                    uncompressedSize, callback);
+                            readStartIndex = ((chunkId + 1) * ClientCnx.getMaxMessageSize());
+                        }
+                    }
+                } catch (PulsarClientException e) {
+                    e.setSequenceId(msg.getSequenceId());
+                    completeCallbackAndReleaseSemaphore(uncompressedSize, callback, e);
+                } catch (Throwable t) {
+                    completeCallbackAndReleaseSemaphore(uncompressedSize, callback,
+                            new PulsarClientException(t, msg.getSequenceId()));
                 }
-                String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
-                for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
-                    serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
-                            readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload, compressed,
-                            compressedPayload.readableBytes(), uncompressedSize, callback);
-                    readStartIndex = ((chunkId + 1) * ClientCnx.getMaxMessageSize());
-                }
+
             }
-        } catch (PulsarClientException e) {
-            e.setSequenceId(msg.getSequenceId());
-            completeCallbackAndReleaseSemaphore(uncompressedSize, callback, e);
-        } catch (Throwable t) {
-            completeCallbackAndReleaseSemaphore(uncompressedSize, callback, new PulsarClientException(t, msg.getSequenceId()));
-        }
+        }).exceptionally(ex -> {
+            log.error("populateMessageSchema fail!", ex);
+            finalCompressedPayload.release();
+            return null;
+        });
     }
 
     private void serializeAndSendMessage(MessageImpl<?> msg, ByteBuf payload,
@@ -570,69 +583,75 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private boolean populateMessageSchema(MessageImpl msg, SendCallback callback) {
+    private CompletableFuture<Boolean> populateMessageSchema(MessageImpl<?> msg, SendCallback callback) {
         MessageMetadata msgMetadataBuilder = msg.getMessageBuilder();
-        if (msg.getCurrentSchema() == schema) {
-            schemaVersion.ifPresent(v -> msgMetadataBuilder.setSchemaVersion(v));
-            msg.setSchemaState(MessageImpl.SchemaState.Ready);
-            return true;
-        }
-        if (!isMultiSchemaEnabled(true)) {
-            PulsarClientException.InvalidMessageException e = new PulsarClientException.InvalidMessageException(
-                    format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic)
-                    , msg.getSequenceId());
-            completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback, e);
-            return false;
-        }
-        SchemaHash schemaHash = SchemaHash.of(msg.getCurrentSchema());
-        byte[] schemaVersion = schemaCache.get(schemaHash);
-        if (schemaVersion != null) {
-            msgMetadataBuilder.setSchemaVersion(schemaVersion);
-            msg.setSchemaState(MessageImpl.SchemaState.Ready);
-        }
-        return true;
+        return msg.getSchema().thenCompose(originalSchema -> {
+            if (originalSchema == schema) {
+                schemaVersion.ifPresent(msgMetadataBuilder::setSchemaVersion);
+                msg.setSchemaState(MessageImpl.SchemaState.Ready);
+                return CompletableFuture.completedFuture(true);
+            }
+            if (!isMultiSchemaEnabled(true)) {
+                PulsarClientException.InvalidMessageException e = new PulsarClientException.InvalidMessageException(
+                        format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic)
+                        , msg.getSequenceId());
+                completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback, e);
+                return CompletableFuture.completedFuture(false);
+            }
+            SchemaHash schemaHash = SchemaHash.of(originalSchema);
+            byte[] schemaVersion = schemaCache.get(schemaHash);
+            if (schemaVersion != null) {
+                msgMetadataBuilder.setSchemaVersion(schemaVersion);
+                msg.setSchemaState(MessageImpl.SchemaState.Ready);
+            }
+            return CompletableFuture.completedFuture(true);
+        });
     }
 
-    private boolean rePopulateMessageSchema(MessageImpl msg) {
-        SchemaHash schemaHash = SchemaHash.of(msg.getCurrentSchema());
-        byte[] schemaVersion = schemaCache.get(schemaHash);
-        if (schemaVersion == null) {
-            return false;
-        }
-        msg.getMessageBuilder().setSchemaVersion(schemaVersion);
-        msg.setSchemaState(MessageImpl.SchemaState.Ready);
-        return true;
+    private CompletableFuture<Boolean> rePopulateMessageSchema(MessageImpl<?> msg) {
+        return msg.getSchema().thenCompose(originalSchema -> {
+            SchemaHash schemaHash = SchemaHash.of(originalSchema);
+            byte[] schemaVersion = schemaCache.get(schemaHash);
+            if (schemaVersion == null) {
+                return CompletableFuture.completedFuture(false);
+            }
+            msg.getMessageBuilder().setSchemaVersion(schemaVersion);
+            msg.setSchemaState(MessageImpl.SchemaState.Ready);
+            return CompletableFuture.completedFuture(true);
+        });
     }
 
     private void tryRegisterSchema(ClientCnx cnx, MessageImpl msg, SendCallback callback) {
         if (!changeToRegisteringSchemaState()) {
             return;
         }
-        SchemaInfo schemaInfo = Optional.ofNullable(msg.getCurrentSchema())
-                                        .map(Schema::getSchemaInfo)
-                                        .filter(si -> si.getType().getValue() > 0)
-                                        .orElse(Schema.BYTES.getSchemaInfo());
-        getOrCreateSchemaAsync(cnx, schemaInfo).handle((v, ex) -> {
-            if (ex != null) {
-                Throwable t = FutureUtil.unwrapCompletionException(ex);
-                log.warn("[{}] [{}] GetOrCreateSchema error", topic, producerName, t);
-                if (t instanceof PulsarClientException.IncompatibleSchemaException) {
-                    msg.setSchemaState(MessageImpl.SchemaState.Broken);
-                    callback.sendComplete((PulsarClientException.IncompatibleSchemaException) t);
+        msg.getSchema().thenAccept(originalSchema -> {
+            SchemaInfo schemaInfo = Optional.ofNullable((Schema<?>) originalSchema)
+                    .map(Schema::getSchemaInfo)
+                    .filter(si -> si.getType().getValue() > 0)
+                    .orElse(Schema.BYTES.getSchemaInfo());
+            getOrCreateSchemaAsync(cnx, schemaInfo).handle((v, ex) -> {
+                if (ex != null) {
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    log.warn("[{}] [{}] GetOrCreateSchema error", topic, producerName, t);
+                    if (t instanceof PulsarClientException.IncompatibleSchemaException) {
+                        msg.setSchemaState(MessageImpl.SchemaState.Broken);
+                        callback.sendComplete((PulsarClientException.IncompatibleSchemaException) t);
+                    }
+                } else {
+                    log.warn("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
+                    SchemaHash schemaHash = SchemaHash.of((Schema<?>) originalSchema);
+                    schemaCache.putIfAbsent(schemaHash, v);
+                    msg.getMessageBuilder().setSchemaVersion(v);
+                    msg.setSchemaState(MessageImpl.SchemaState.Ready);
                 }
-            } else {
-                log.warn("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
-                SchemaHash schemaHash = SchemaHash.of(msg.getCurrentSchema());
-                schemaCache.putIfAbsent(schemaHash, v);
-                msg.getMessageBuilder().setSchemaVersion(v);
-                msg.setSchemaState(MessageImpl.SchemaState.Ready);
-            }
-            cnx.ctx().channel().eventLoop().execute(() -> {
-                synchronized (ProducerImpl.this) {
-                    recoverProcessOpSendMsgFrom(cnx, msg);
-                }
+                cnx.ctx().channel().eventLoop().execute(() -> {
+                    synchronized (ProducerImpl.this) {
+                        recoverProcessOpSendMsgFrom(cnx, msg);
+                    }
+                });
+                return null;
             });
-            return null;
         });
     }
 
@@ -1770,7 +1789,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             if (op.msg != null) {
                 if (op.msg.getSchemaState() == None) {
-                    if (!rePopulateMessageSchema(op.msg)) {
+                    try {
+                        if (!rePopulateMessageSchema(op.msg).get()) {
+                            pendingRegisteringOp = op;
+                            break;
+                        }
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.error("rePopulateMessageSchema fail!");
                         pendingRegisteringOp = op;
                         break;
                     }

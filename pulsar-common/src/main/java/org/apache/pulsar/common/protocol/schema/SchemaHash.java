@@ -40,7 +40,7 @@ public class SchemaHash {
         this.hash = hash;
     }
 
-    public static SchemaHash of(Schema schema) {
+    public static SchemaHash of(Schema<?> schema) {
         return of(Optional.ofNullable(schema)
                           .map(Schema::getSchemaInfo)
                           .map(SchemaInfo::getSchema).orElse(new byte[0]));

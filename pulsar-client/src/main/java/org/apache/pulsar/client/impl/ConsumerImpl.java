@@ -75,7 +75,6 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
-import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -589,10 +588,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     initDeadLetterProducerIfNeeded();
                     MessageId finalMessageId = messageId;
                     deadLetterProducer.thenAccept(dlqProducer -> {
-                        retryMessage.getOriginalSchema().thenAccept(originalSchema -> {
-                            TypedMessageBuilder<T> typedMessageBuilderNew =
-                                    dlqProducer.newMessage(retryMessage.getCurrentSchema())
-                                            .value(retryMessage.getValue())
+                        retryMessage.getSchema().thenAccept(originalSchema -> {
+                            TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                                    dlqProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(originalSchema))
+                                            .value(retryMessage.getData())
                                             .properties(propertiesMap);
                             typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
                                 doAcknowledge(finalMessageId, ackType, properties, null).thenAccept(v -> {
@@ -1686,7 +1685,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 for (MessageImpl<T> message : finalDeadLetterMessages) {
                     String originMessageIdStr = getOriginMessageIdStr(message);
                     String originTopicNameStr = getOriginTopicNameStr(message);
-                    message.getOriginalSchema().thenAccept(originalSchema ->
+                    message.getSchema().thenAccept(originalSchema ->
                             producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(originalSchema))
                                     .value(message.getData())
                                     .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr))

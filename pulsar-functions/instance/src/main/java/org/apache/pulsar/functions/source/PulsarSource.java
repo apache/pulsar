@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.security.Security;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -128,31 +129,37 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
     @Override
     public void received(Consumer<T> consumer, Message<T> message) {
-        Schema<T> schema = null;
+        CompletableFuture<Schema<?>> schema = new CompletableFuture<>();
         if (message instanceof MessageImpl) {
-            MessageImpl impl = (MessageImpl) message;
-            schema = impl.getCurrentSchema();
+            MessageImpl<?> impl = (MessageImpl<?>) message;
+            schema = impl.getSchema();
         }
-        Record<T> record = PulsarRecord.<T>builder()
-                .message(message)
-                .schema(schema)
-                .topicName(message.getTopicName())
-                .ackFunction(() -> {
-                    if (pulsarSourceConfig
-                            .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        consumer.acknowledgeCumulativeAsync(message);
-                    } else {
-                        consumer.acknowledgeAsync(message);
-                    }
-                }).failFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        throw new RuntimeException("Failed to process message: " + message.getMessageId());
-                    }
-                    consumer.negativeAcknowledge(message);
-                })
-                .build();
 
-        consume(record);
+        schema.thenAccept(originalSchema -> {
+            Record<T> record = PulsarRecord.<T>builder()
+                    .message(message)
+                    .schema(originalSchema)
+                    .topicName(message.getTopicName())
+                    .ackFunction(() -> {
+                        if (pulsarSourceConfig
+                                .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                            consumer.acknowledgeCumulativeAsync(message);
+                        } else {
+                            consumer.acknowledgeAsync(message);
+                        }
+                    }).failFunction(() -> {
+                        if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                            throw new RuntimeException("Failed to process message: " + message.getMessageId());
+                        }
+                        consumer.negativeAcknowledge(message);
+                    })
+                    .build();
+
+            consume(record);
+        }).exceptionally(ex -> {
+            consumer.negativeAcknowledge(message);
+            return null;
+        });
     }
 
     @Override
