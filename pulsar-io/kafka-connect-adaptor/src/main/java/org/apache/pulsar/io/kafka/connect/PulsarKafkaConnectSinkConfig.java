@@ -38,7 +38,7 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
 
     @FieldDoc(
             defaultValue = "1",
-            help = "The batch size that Kafka producer will attempt to batch records together.")
+            help = "Number of messages the sink processes before flush.")
     private int batchSize = 1;
 
     @FieldDoc(
@@ -61,16 +61,6 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
             defaultValue = "",
             help = "Config properties to pass to the kafka connector.")
     private Map<String, String> kafkaConnectorConfigProperties;
-
-    @FieldDoc(
-            defaultValue = "STRING_SCHEMA",
-            help = "Default Kafka Connect Key Schema to use if record does not specify one.")
-    private String defaultKeySchema = "STRING_SCHEMA";
-
-    @FieldDoc(
-            defaultValue = "BYTES_SCHEMA",
-            help = "Default Kafka Connect Value Schema to use if record does not specify one.")
-    private String defaultValueSchema = "BYTES_SCHEMA";
 
     @FieldDoc(
             defaultValue = "kafka-adaptor-sink-offsets",

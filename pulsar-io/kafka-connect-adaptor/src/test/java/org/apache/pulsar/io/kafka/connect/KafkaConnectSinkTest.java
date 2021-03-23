@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
@@ -42,8 +43,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -77,7 +81,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        if (file != null) {
+        if (file != null && Files.exists(file)) {
             Files.delete(file);
         }
 
@@ -91,6 +95,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         Message msg = mock(MessageImpl.class);
         when(msg.getValue()).thenReturn("value");
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, 0));
 
         final AtomicInteger status = new AtomicInteger(0);
         Record<Object> record = PulsarRecord.<String>builder()
@@ -118,9 +123,6 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     private void recordSchemaTest(Object value, Object expectedKey, String expectedKeySchema,
                                   Object expected, String expectedSchema) throws Exception {
-        // configure with wrong default schema, schema should be detected
-        props.put("defaultKeySchema", "INT8_SCHEMA");
-        props.put("defaultValueSchema", "BOOLEAN_SCHEMA");
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
 
         KafkaConnectSink sink = new KafkaConnectSink();
@@ -130,6 +132,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         when(msg.getValue()).thenReturn(value);
         when(msg.getKey()).thenReturn("key");
         when(msg.hasKey()).thenReturn(true);
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, 0));
 
         final AtomicInteger status = new AtomicInteger(0);
         Record<Object> record = PulsarRecord.<String>builder()
@@ -206,10 +209,32 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     @Test
     public void unknownRecordSchemaTest() throws Exception {
-        Map<String,String> map = Maps.newHashMap();
-        map.put("key", "value");
-        // default schema is used
-        recordSchemaTest(map, map, "BOOLEAN");
+        Object obj = new Object();
+        props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+        sink.open(props, null);
+
+        Message msg = mock(MessageImpl.class);
+        when(msg.getValue()).thenReturn(obj);
+        when(msg.getKey()).thenReturn("key");
+        when(msg.hasKey()).thenReturn(true);
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, 0));
+
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<Object> record = PulsarRecord.<String>builder()
+                .topicName("fake-topic")
+                .message(msg)
+                .ackFunction(() -> status.incrementAndGet())
+                .failFunction(() -> status.decrementAndGet())
+                .build();
+
+        sink.write(record);
+        sink.flush();
+
+        assertEquals("write should fail for unsupported schema",-1, status.get());
+
+        sink.close();
     }
 
     @Test
@@ -220,8 +245,10 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     @Test
     public void offsetTest() throws Exception {
+        AtomicLong entryId = new AtomicLong(0L);
         Message msg = mock(MessageImpl.class);
         when(msg.getValue()).thenReturn("value");
+        when(msg.getMessageId()).then(x -> new MessageIdImpl(0, entryId.getAndIncrement(), 0));
 
         final AtomicInteger status = new AtomicInteger(0);
         Record<Object> record = PulsarRecord.<String>builder()

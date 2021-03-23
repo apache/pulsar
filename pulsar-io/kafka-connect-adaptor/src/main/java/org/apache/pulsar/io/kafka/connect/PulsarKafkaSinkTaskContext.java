@@ -27,6 +27,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.apache.kafka.connect.storage.OffsetBackingStore;
+import org.apache.pulsar.io.core.SinkContext;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
@@ -56,6 +57,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     private final ConcurrentHashMap<TopicPartition, AtomicLong> currentOffsets = new ConcurrentHashMap<>();
 
     public PulsarKafkaSinkTaskContext(Map<String, String> config,
+                                      SinkContext ctx,
                                       Consumer<Collection<TopicPartition>> onPartitionChange) {
         this.config = config;
 

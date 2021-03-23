@@ -27,7 +27,7 @@ public class PulsarKafkaSinkContext implements ConnectorContext {
 
     @Override
     public void requestTaskReconfiguration() {
-        // noop;
+        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override

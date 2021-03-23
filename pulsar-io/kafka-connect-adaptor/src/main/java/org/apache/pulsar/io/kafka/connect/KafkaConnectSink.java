@@ -33,6 +33,9 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkConnector;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
@@ -42,11 +45,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG;
 import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG;
@@ -57,6 +59,8 @@ public class KafkaConnectSink implements Sink<Object> {
     private boolean unwrapKeyValueIfAvailable;
 
     private final static ImmutableMap<Class<?>, Schema> primitiveTypeToSchema;
+    private final static ImmutableMap<SchemaType, Schema> pulsarSchemaTypeTypeToKafkaSchema;
+
     static {
         primitiveTypeToSchema = ImmutableMap.<Class<?>, Schema>builder()
                 .put(Boolean.class, Schema.BOOLEAN_SCHEMA)
@@ -69,6 +73,17 @@ public class KafkaConnectSink implements Sink<Object> {
                 .put(String.class, Schema.STRING_SCHEMA)
                 .put(byte[].class, Schema.BYTES_SCHEMA)
                 .build();
+        pulsarSchemaTypeTypeToKafkaSchema = ImmutableMap.<SchemaType, Schema>builder()
+                .put(SchemaType.BOOLEAN, Schema.BOOLEAN_SCHEMA)
+                .put(SchemaType.INT8, Schema.INT8_SCHEMA)
+                .put(SchemaType.INT16, Schema.INT16_SCHEMA)
+                .put(SchemaType.INT32, Schema.INT32_SCHEMA)
+                .put(SchemaType.INT64, Schema.INT64_SCHEMA)
+                .put(SchemaType.FLOAT, Schema.FLOAT32_SCHEMA)
+                .put(SchemaType.DOUBLE, Schema.FLOAT64_SCHEMA)
+                .put(SchemaType.STRING, Schema.STRING_SCHEMA)
+                .put(SchemaType.BYTES, Schema.BYTES_SCHEMA)
+                .build();
     }
 
     private PulsarKafkaSinkContext sinkContext;
@@ -76,19 +91,13 @@ public class KafkaConnectSink implements Sink<Object> {
     private SinkConnector connector;
     private SinkTask task;
 
-    private Schema defaultKeySchema;
-    private Schema defaultValueSchema;
-
-
     private int batchSize;
     private long lingerMs;
     private final ScheduledExecutorService scheduledExecutor =
             Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
                     .setNameFormat("pulsar-io-kafka-adaptor-sink-flush-%d")
                     .build());
-    private final AtomicInteger numPendingRecords = new AtomicInteger(0);
-
-    private volatile CompletableFuture<Void> pendingFlush = new CompletableFuture<>();
+    private final ConcurrentLinkedDeque<Record<Object>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
     private volatile boolean isRunning = false;
 
     private Properties props = new Properties();
@@ -116,16 +125,7 @@ public class KafkaConnectSink implements Sink<Object> {
             sourceRecord.fail();
             return;
         }
-        pendingFlush.whenComplete((ignore, ex) -> {
-            if (ex == null) {
-                sourceRecord.ack();
-            } else {
-                log.error("Error sending the record {}", sourceRecord, ex);
-                sourceRecord.fail();
-            }
-            throw new IllegalArgumentException();
-        });
-        numPendingRecords.incrementAndGet();
+        pendingFlushQueue.add(sourceRecord);
         flushIfNeeded(false);
     }
 
@@ -156,11 +156,6 @@ public class KafkaConnectSink implements Sink<Object> {
         kafkaSinkConfig.getKafkaConnectorConfigProperties().entrySet()
                 .forEach(kv -> props.put(kv.getKey(), kv.getValue()));
 
-        defaultKeySchema = (Schema)Schema.class
-                .getField(kafkaSinkConfig.getDefaultKeySchema()).get(null);
-        defaultValueSchema = (Schema)Schema.class
-                .getField(kafkaSinkConfig.getDefaultValueSchema()).get(null);
-
         Class<?> clazz = Class.forName(kafkaConnectorFQClassName);
         connector = (SinkConnector) clazz.getConstructor().newInstance();
 
@@ -176,7 +171,7 @@ public class KafkaConnectSink implements Sink<Object> {
         });
         task = (SinkTask) taskClass.getConstructor().newInstance();
         taskContext =
-                new PulsarKafkaSinkTaskContext(configs.get(0), task::open);
+                new PulsarKafkaSinkTaskContext(configs.get(0), ctx, task::open);
         task.initialize(taskContext);
         task.start(configs.get(0));
 
@@ -185,40 +180,48 @@ public class KafkaConnectSink implements Sink<Object> {
         scheduledExecutor.scheduleAtFixedRate(() ->
                 this.flushIfNeeded(true), lingerMs, lingerMs, TimeUnit.MILLISECONDS);
 
+
         isRunning = true;
         log.info("Kafka sink started : {}.", props);
     }
 
     private void flushIfNeeded(boolean force) {
-        if (force || numPendingRecords.get() >= batchSize) {
+        if (force || pendingFlushQueue.stream().limit(batchSize).count() >= batchSize) {
             scheduledExecutor.submit(this::flush);
         }
     }
 
+    // flush always happens on the same thread
     public void flush() {
         if (log.isDebugEnabled()) {
             log.debug("flush requested, pending: {}, batchSize: {}",
-                    numPendingRecords.get(), batchSize);
+                    pendingFlushQueue.size(), batchSize);
         }
 
-        if (numPendingRecords.getAndSet(0) == 0) {
+        if (pendingFlushQueue.isEmpty()) {
             return;
         }
 
+        final Record<Object> lastNotFlushed = pendingFlushQueue.getLast();
         Map<TopicPartition, OffsetAndMetadata> currentOffsets = taskContext.currentOffsets();
-        CompletableFuture<Void> flushCf;
-        synchronized (this) {
-            flushCf = pendingFlush;
-            pendingFlush = new CompletableFuture<>();
-        }
 
         try {
             task.flush(currentOffsets);
             taskContext.flushOffsets(currentOffsets);
-            flushCf.complete(null);
+            ackUntil(lastNotFlushed, Record::ack);
         } catch (Throwable t) {
             log.error("error flushing pending records", t);
-            flushCf.completeExceptionally(t);
+            ackUntil(lastNotFlushed, Record::fail);
+        }
+    }
+
+    private void ackUntil(Record<Object> lastNotFlushed, java.util.function.Consumer<Record<Object>> cb) {
+        while (!pendingFlushQueue.isEmpty()) {
+            Record<Object> r = pendingFlushQueue.pollFirst();
+            cb.accept(r);
+            if (r == lastNotFlushed) {
+                break;
+            }
         }
     }
 
@@ -227,36 +230,90 @@ public class KafkaConnectSink implements Sink<Object> {
      * @param obj
      * @return org.apache.kafka.connect.data.Schema
      */
-    public static Schema getKafkaConnectSchemaForObject(Object obj, Schema defaultSchema) {
-        if (obj == null) {
-            return defaultSchema;
-        }
-
-        if (primitiveTypeToSchema.containsKey(obj.getClass())) {
+    private static Schema getKafkaConnectSchemaForObject(Object obj) {
+        if (obj != null && primitiveTypeToSchema.containsKey(obj.getClass())) {
             return primitiveTypeToSchema.get(obj.getClass());
         }
-
-        // Other types are not supported yet.
-        // Will fallback to defaults provided.
-        return defaultSchema;
+        return null;
     }
 
+    public static Schema getKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema, Object obj) {
+        if (pulsarSchema != null
+                && pulsarSchemaTypeTypeToKafkaSchema.containsKey(pulsarSchema.getSchemaInfo().getType())) {
+            return pulsarSchemaTypeTypeToKafkaSchema.get(pulsarSchema.getSchemaInfo().getType());
+        }
+
+        Schema result = getKafkaConnectSchemaForObject(obj);
+        if (result == null) {
+            throw new IllegalStateException("Unsupported kafka schema for Pulsar Schema "
+                    + (pulsarSchema == null ? "null" : pulsarSchema.getSchemaInfo().toString())
+                    + " object class "
+                    + (obj == null ? "null" : obj.getClass().getCanonicalName()));
+        }
+        return result;
+    }
+
+
+    @SuppressWarnings("rawtypes")
     private SinkRecord toSinkRecord(Record<Object> sourceRecord) {
         final int partition = 0;
         final Object key;
         final Object value;
-        if (unwrapKeyValueIfAvailable && sourceRecord.getValue() instanceof KeyValue) {
-            KeyValue<Object, Object> kv = (KeyValue<Object, Object>) sourceRecord.getValue();
+        final Schema keySchema;
+        final Schema valueSchema;
+
+        if (sourceRecord instanceof KVRecord) {
+            KVRecord kvr = (KVRecord) sourceRecord;
+            if (kvr.getValue() instanceof KeyValue) {
+                key = ((KeyValue)kvr.getValue()).getKey();
+                value = ((KeyValue)kvr.getValue()).getValue();
+            } else {
+                key = kvr.getKey().orElse(null);
+                value = kvr.getValue();
+            }
+
+            keySchema = getKafkaConnectSchema(kvr.getKeySchema(), key);
+            valueSchema = getKafkaConnectSchema(kvr.getValueSchema(), value);
+        } else if (unwrapKeyValueIfAvailable && sourceRecord.getValue() instanceof KeyValue) {
+            KeyValue kv = (KeyValue) sourceRecord.getValue();
             key = kv.getKey();
             value = kv.getValue();
+            if (sourceRecord.getSchema() instanceof KeyValueSchema) {
+                keySchema = getKafkaConnectSchema(((KeyValueSchema)sourceRecord.getSchema()).getKeySchema(),
+                            key);
+                valueSchema = getKafkaConnectSchema(((KeyValueSchema)sourceRecord.getSchema()).getValueSchema(),
+                        key);
+            } else {
+                keySchema = getKafkaConnectSchema(null, key);
+                valueSchema = getKafkaConnectSchema(null, value);
+            }
         } else {
             key = sourceRecord.getKey().orElse(null);
             value = sourceRecord.getValue();
+            keySchema = Schema.STRING_SCHEMA;
+            valueSchema = getKafkaConnectSchema(sourceRecord.getSchema(), value);
         }
-        final Schema keySchema = getKafkaConnectSchemaForObject(key, defaultKeySchema);
-        final Schema valueSchema = getKafkaConnectSchemaForObject(value, defaultValueSchema);
 
-        long offset = taskContext.currentOffset(topicName, partition).incrementAndGet();
+        long offset = sourceRecord.getRecordSequence()
+                .orElse(-1L);
+        if (offset < 0) {
+            offset = taskContext.currentOffset(topicName, partition)
+                    .incrementAndGet();
+        } else {
+            final long curr = offset;
+            taskContext.currentOffset(topicName, partition)
+                    .updateAndGet(curMax -> Math.max(curr, curMax));
+        }
+
+        Long timestamp = null;
+        TimestampType timestampType = TimestampType.NO_TIMESTAMP_TYPE;
+        if (sourceRecord.getEventTime().isPresent()) {
+            timestamp = sourceRecord.getEventTime().get();
+            timestampType = TimestampType.CREATE_TIME;
+        } else if (sourceRecord.getMessage().isPresent()) {
+            timestamp = sourceRecord.getMessage().get().getPublishTime();
+            timestampType = TimestampType.LOG_APPEND_TIME;
+        }
         SinkRecord sinkRecord = new SinkRecord(topicName,
                 partition,
                 keySchema,
@@ -264,8 +321,8 @@ public class KafkaConnectSink implements Sink<Object> {
                 valueSchema,
                 value,
                 offset,
-                sourceRecord.getEventTime().orElse(null),
-                TimestampType.NO_TIMESTAMP_TYPE);
+                timestamp,
+                timestampType);
         return sinkRecord;
     }
 
