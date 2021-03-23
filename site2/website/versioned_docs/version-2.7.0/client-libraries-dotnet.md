@@ -5,7 +5,7 @@ sidebar_label: C#
 original_id: client-libraries-dotnet
 ---
 
-You can use the Pulsar C# client (DotPulsar) to create Pulsar producers and consumers in C#. All the methods in the producer, consumer, and reader of a C# client are thread-safe. The official documentation for DotPulsar is available [here](https://github.com/apache/pulsar-dotpulsar/wiki)
+You can use the Pulsar C# client (DotPulsar) to create Pulsar producers and consumers in C#. All the methods in the producer, consumer, and reader of a C# client are thread-safe. The official documentation for DotPulsar is available [here](https://github.com/apache/pulsar-dotpulsar/wiki).
 
 ## Installation
 
@@ -35,13 +35,13 @@ To install the Pulsar C# client library, following these steps:
 
 2. Add the DotPulsar NuGet package.
 
-   1. Use the following command to install the `DotPulsar` package:
+   1. Use the following command to install the `DotPulsar` package.
 
         ```
         dotnet add package DotPulsar
         ```
 
-   2. After the command completes, open the `.csproj` file to see the added reference:
+   2. After the command completes, open the `.csproj` file to see the added reference.
 
         ```xml
         <ItemGroup>
@@ -61,7 +61,7 @@ This example shows how to create a Pulsar C# client connected to localhost.
 var client = PulsarClient.Builder().Build();
 ```
 
-To create a Pulsar C# client by using the builder, you can specify the following options:
+To create a Pulsar C# client by using the builder, you can specify the following options.
 
 | Option | Description | Default |
 | ---- | ---- | ---- |
