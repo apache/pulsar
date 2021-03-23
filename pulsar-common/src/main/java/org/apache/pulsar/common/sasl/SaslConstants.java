@@ -65,6 +65,7 @@ public class SaslConstants {
     public static final String SASL_AUTH_ROLE_TOKEN = "SaslAuthRoleToken";
     public static final String SASL_AUTH_ROLE_TOKEN_EXPIRED = "SaslAuthRoleTokenExpired";
 
+    public static final String HMAC_AUTH_ROLE_TOKEN = "HmacAuthRoleToken";
     /**
      * HTTP header used by the SASL client/server during an authentication sequence.
      */

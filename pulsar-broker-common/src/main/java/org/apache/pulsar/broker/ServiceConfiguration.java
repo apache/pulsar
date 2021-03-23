@@ -306,6 +306,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long topicLoadTimeoutSeconds = 60;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            required = false,
+            doc = "defined your own decryption interface"
+    )
+    private String decryptionInterface;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
