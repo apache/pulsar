@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * PersistentTopicE2ETest with {@link StreamingDispatcher}
  */
-@Test(groups = "flaky")
+@Test(groups = "flaky", singleThreaded = true)
 public class PersistentTopicStreamingDispatcherE2ETest extends PersistentTopicE2ETest {
 
     @BeforeMethod

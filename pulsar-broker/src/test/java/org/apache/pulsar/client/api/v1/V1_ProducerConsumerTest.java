@@ -86,7 +86,7 @@ import org.testng.annotations.Test;
 /**
  * Basic tests using the deprecated client APIs from Pulsar-1.x
  */
-@Test(groups = "flaky")
+@Test(groups = "flaky", singleThreaded = true)
 public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(V1_ProducerConsumerTest.class);

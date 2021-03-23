@@ -45,7 +45,7 @@ function broker_client_impl() {
 }
 
 function broker_flaky() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=1 -DtestReuseFork=false
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='flaky'
 }
 
 function proxy() {
