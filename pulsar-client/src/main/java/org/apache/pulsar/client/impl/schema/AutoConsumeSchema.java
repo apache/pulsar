@@ -120,10 +120,13 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     @Override
     public CompletableFuture<SchemaInfo> getSchemaInfo(byte[] schemaVersion) {
         ensureSchemaInitialized();
+        if (schemaVersion == null) {
+            return FutureUtil.failedFuture(new PulsarClientException
+                    .NotAllowedException("Schema version is null when message get schemaInfo by schema version!"));
+        }
         if (schema.supportSchemaVersioning()) {
-            if (schemaVersion == null) {
-                return FutureUtil.failedFuture(new PulsarClientException
-                        .NotAllowedException("Schema version is null when message get schemaInfo by schema version!"));
+            if (schemaInfoProvider == null) {
+                return FutureUtil.failedFuture(new PulsarClientException("SchemaInfoProvider don't initialized"));
             } else {
                 return schemaInfoProvider.getSchemaByVersion(schemaVersion);
             }

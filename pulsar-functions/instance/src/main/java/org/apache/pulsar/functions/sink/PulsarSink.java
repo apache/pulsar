@@ -92,6 +92,8 @@ public class PulsarSink<T> implements Sink<T> {
 
         void sendOutputMessage(TypedMessageBuilder<byte[]> msg, SinkRecord<T> record);
 
+        Schema<T> getSchema();
+
         void close() throws Exception;
     }
 
@@ -146,6 +148,10 @@ public class PulsarSink<T> implements Sink<T> {
                 }
             }
             return builder.properties(properties).create();
+        }
+
+        public Schema<T> getSchema() {
+            return schema;
         }
 
         protected Producer<byte[]> getProducer(String destinationTopic, Schema<?> schema) {
@@ -372,7 +378,11 @@ public class PulsarSink<T> implements Sink<T> {
             msg.key(record.getKey().get());
         }
 
-        msg.value(record.getSchema().encode(record.getValue()));
+        if (record.getSchema() == null) {
+            msg.value(pulsarSinkProcessor.getSchema().encode(record.getValue()));
+        } else {
+            msg.value(record.getSchema().encode(record.getValue()));
+        }
 
         if (!record.getProperties().isEmpty() && pulsarSinkConfig.isForwardSourceMessageProperty()) {
             msg.properties(record.getProperties());

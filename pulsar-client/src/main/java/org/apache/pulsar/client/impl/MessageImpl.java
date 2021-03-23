@@ -322,7 +322,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public CompletableFuture<Schema<?>> getSchema() {
-        if (this.schema.supportSchemaVersioning() && getSchemaVersion()!= null) {
+        if (this.schema.supportSchemaVersioning() && getSchemaVersion() != null) {
             return schema.getSchemaInfo(getSchemaVersion()).thenApply(AutoConsumeSchema::getSchema);
         }
         return CompletableFuture.completedFuture(this.schema);
