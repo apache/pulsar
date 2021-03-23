@@ -207,7 +207,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 synchronized (TopicTransactionBuffer.this) {
                     updateMaxReadPosition(txnID);
                     handleLowWaterMark(txnID, lowWaterMark);
-                    clearAbortTransaction();
+                    clearAbortedTransactions();
                     takeSnapshotByChangeTimes();
                 }
                 completableFuture.complete(null);
@@ -238,7 +238,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     updateMaxReadPosition(txnID);
                     handleLowWaterMark(txnID, lowWaterMark);
                     changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
-                    clearAbortTransaction();
+                    clearAbortedTransactions();
                     takeSnapshotByChangeTimes();
                 }
                 completableFuture.complete(null);
@@ -322,9 +322,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         });
     }
 
-    private void clearAbortTransaction() {
+    private void clearAbortedTransactions() {
         while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
                 .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
+            if (log.isDebugEnabled()) {
+                aborts.firstKey();
+                log.debug("[{}] Topic transaction buffer clear aborted transaction, TxnId : {}, Position : {}",
+                        topic.getName(), aborts.firstKey(), aborts.get(aborts.firstKey()));
+            }
             aborts.remove(aborts.firstKey());
         }
     }
