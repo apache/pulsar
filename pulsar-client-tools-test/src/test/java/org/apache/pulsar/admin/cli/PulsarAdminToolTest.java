@@ -120,6 +120,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("healthcheck"));
         verify(mockBrokers).healthcheck();
+
+        brokers.run(split("version"));
+        verify(mockBrokers).getVersion();
     }
 
     @Test
