@@ -32,6 +32,9 @@ public class HmacRoleToken implements Principal {
      */
     public static final HmacRoleToken ANONYMOUS = new HmacRoleToken();
 
+    // 1 hour
+    private static final long MAX_EXPIRE_TIME_MS = 3600000;
+
     private static final String ATTR_SEPARATOR = "&";
     private static final String USER_ROLE = "u";
     private static final String EXPIRES = "e";
@@ -152,12 +155,21 @@ public class HmacRoleToken implements Principal {
     }
 
     /**
-     * Returns if the token has expired.
+     * Returns if the token has expired or invalid expire time.
      *
-     * @return if the token has expired.
+     * @return if the token has expired or invalid expire time.
      */
     public boolean isExpired() {
-        return getExpires() != -1 && System.currentTimeMillis() > getExpires();
+
+        if (getExpires() == -1) {
+            return true;
+        }
+
+        if (getExpires() - System.currentTimeMillis() > MAX_EXPIRE_TIME_MS) {
+            return true;
+        }
+
+        return System.currentTimeMillis() > getExpires();
     }
 
     /**

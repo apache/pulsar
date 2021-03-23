@@ -379,6 +379,42 @@ public class SaslSCRAMAuthenticateTest extends ProducerConsumerBase {
         log.info("-- {} -- end", methodName);
     }
 
+    @Test
+    public void testSaslHmacAdminAuthExpiredToolong() throws Exception {
+        log.info("-- {} -- start", methodName);
+        String hostName = "localhost";
+
+        // prepare client and server side resource
+        AuthenticationDataProvider dataProvider = authSasl.getAuthData(hostName);
+
+        AuthenticationProviderList providerList = (AuthenticationProviderList)
+                (pulsar.getBrokerService().getAuthenticationService()
+                        .getAuthenticationProvider("scram"));
+        AuthenticationProviderSaslScramImpl saslServer =
+                (AuthenticationProviderSaslScramImpl) providerList.getProviders().get(0);
+
+
+        AuthenticationDataSource spy = Mockito.spy(new AuthenticationDataSource() {
+        });
+        SocketAddress clientAddress = new InetSocketAddress("127.0.0.1", 1234);
+        Mockito.when(spy.hasDataFromHttp()).thenReturn(true);
+        Mockito.when(spy.getPeerAddress()).thenReturn(clientAddress);
+
+
+//        "u=pulsarAdmin&i=scram&e=1616416871193&s=C4681422F1C98DB5C02F7E5812D54E61AB5219841CC1BA3ECEF89E31FA60105"
+        String signval = "u=" + username + "&i=scram&e=" + (System.currentTimeMillis() + 3700000);
+        String sg = new HmacRoleTokenSigner(password).sign(signval);
+        Mockito.when(spy.getHttpHeader("HmacAuthRoleToken")).thenReturn(sg);
+
+        try {
+            String role = saslServer.authenticate(spy);
+            fail("invalid");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("token expired"));
+        }
+
+        log.info("-- {} -- end", methodName);
+    }
 
     @Test
     public void testSaslHmacAdminAuthInvalidUser() throws Exception {

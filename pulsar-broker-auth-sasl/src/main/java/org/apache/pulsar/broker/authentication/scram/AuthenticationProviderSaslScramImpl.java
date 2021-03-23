@@ -157,8 +157,8 @@ public class AuthenticationProviderSaslScramImpl implements AuthenticationProvid
         HmacRoleToken hmacRoleToken = HmacRoleToken.parse(rawValue);
 
         if (hmacRoleToken.isExpired()) {
-            log.info("SASL-SCRAM-SERVER Admin client Auth (HTTP) token expired");
-            throw new AuthenticationException("token expired");
+            log.info("SASL-SCRAM-SERVER Admin client Auth (HTTP) token expired or expire time invalid");
+            throw new AuthenticationException("token expired or expire time invalid");
         }
 
         if (!getScramUsers().containsKey(hmacRoleToken.getUserRole())) {
