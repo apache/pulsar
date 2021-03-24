@@ -179,12 +179,12 @@ public class PerformanceConsumer {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
@@ -199,14 +199,14 @@ public class PerformanceConsumer {
             } else {
                 System.out.println("The size of topics list should be equal to --num-topics");
                 jc.usage();
-                System.exit(-1);
+                PerfClientUtils.exit(-1);
             }
         }
 
         if (arguments.subscriptionType == SubscriptionType.Exclusive && arguments.numConsumers > 1) {
             System.out.println("Only one consumer is allowed when subscriptionType is Exclusive");
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.subscriptionType != SubscriptionType.Exclusive &&
@@ -222,7 +222,7 @@ public class PerformanceConsumer {
             } else {
                 System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
                 jc.usage();
-                System.exit(-1);
+                PerfClientUtils.exit(-1);
             }
         }
 
@@ -275,7 +275,7 @@ public class PerformanceConsumer {
                 if (System.nanoTime() > testEndTime) {
                     log.info("------------------- DONE -----------------------");
                     printAggregatedStats();
-                    System.exit(0);
+                    PerfClientUtils.exit(0);
                 }
             }
             messagesReceived.increment();

@@ -55,13 +55,12 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
             subscription = readerConfiguration.getSubscriptionName();
         }
         ConsumerConfigurationData<T> consumerConfiguration = new ConsumerConfigurationData<>();
-        consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());
+        consumerConfiguration.getTopicNames().addAll(readerConfiguration.getTopicNames());
         consumerConfiguration.setSubscriptionName(subscription);
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setSubscriptionMode(SubscriptionMode.NonDurable);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
-        consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());
 
         if (readerConfiguration.getReaderListener() != null) {
             ReaderListener<T> readerListener = readerConfiguration.getReaderListener();

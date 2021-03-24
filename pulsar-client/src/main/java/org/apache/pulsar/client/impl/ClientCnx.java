@@ -1080,6 +1080,7 @@ public class ClientCnx extends PulsarHandler {
         this.remoteHostName = remoteHostName;
     }
 
+
     private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:
@@ -1116,8 +1117,6 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.TransactionConflictException(errorMsg);
         case ProducerFenced:
             return new PulsarClientException.ProducerFencedException(errorMsg);
-        case PendingAckNotRecover:
-            return new PulsarClientException.PendingAckNotRecoverException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);

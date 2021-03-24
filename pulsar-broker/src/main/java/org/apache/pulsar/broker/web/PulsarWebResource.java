@@ -257,7 +257,7 @@ public abstract class PulsarWebResource {
     protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
                                                        String originalPrincipal, String tenant,
                                                        AuthenticationDataSource authenticationData)
-            throws RestException, Exception {
+            throws Exception {
         if (log.isDebugEnabled()) {
             log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
                     (isClientAuthenticated(clientAppId)), clientAppId);
@@ -778,12 +778,12 @@ public abstract class PulsarWebResource {
         return null;
     }
 
-    protected void checkConnect(TopicName topicName) throws RestException, Exception {
+    protected void checkConnect(TopicName topicName) throws Exception {
         checkAuthorization(pulsar(), topicName, clientAppId(), clientAuthData());
     }
 
     protected static void checkAuthorization(PulsarService pulsarService, TopicName topicName, String role,
-            AuthenticationDataSource authenticationData) throws RestException, Exception {
+            AuthenticationDataSource authenticationData) throws Exception {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return;
@@ -1018,10 +1018,8 @@ public abstract class PulsarWebResource {
      *
      * @param broker
      *            Broker name
-     * @throws MalformedURLException
-     *             In case the redirect happens
      */
-    protected void validateBrokerName(String broker) throws MalformedURLException {
+    protected void validateBrokerName(String broker) {
         String brokerUrl = String.format("http://%s", broker);
         String brokerUrlTls = String.format("https://%s", broker);
         if (!brokerUrl.equals(pulsar().getSafeWebServiceAddress())
@@ -1089,8 +1087,8 @@ public abstract class PulsarWebResource {
 
     public static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)
             throws MetadataStoreException {
-        Deque<String> queue = new LinkedList<String>();
-        List<String> tree = new ArrayList<String>();
+        Deque<String> queue = new LinkedList<>();
+        List<String> tree = new ArrayList<>();
         queue.add(pathRoot);
         tree.add(pathRoot);
         while (true) {

@@ -20,7 +20,9 @@ package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -35,7 +37,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
 
-    private String topicName;
+    private Set<String> topicNames = new HashSet<>();
 
     @JsonIgnore
     private MessageId startMessageId;
@@ -59,10 +61,27 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private transient List<Range> keyHashRanges;
 
+    @JsonIgnore
+    public String getTopicName() {
+        if (topicNames.size() > 1) {
+            throw new IllegalArgumentException("topicNames needs to be = 1");
+        }
+        return topicNames.iterator().next();
+    }
+
+    @JsonIgnore
+    public void setTopicName(String topicNames) {
+        //Compatible with a single topic
+        this.topicNames.clear();
+        this.topicNames.add(topicNames);
+    }
+
     @SuppressWarnings("unchecked")
     public ReaderConfigurationData<T> clone() {
         try {
-            return (ReaderConfigurationData<T>) super.clone();
+            ReaderConfigurationData<T> clone = (ReaderConfigurationData<T>) super.clone();
+            clone.setTopicNames(new HashSet<>(clone.getTopicNames()));
+            return clone;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ReaderConfigurationData");
         }

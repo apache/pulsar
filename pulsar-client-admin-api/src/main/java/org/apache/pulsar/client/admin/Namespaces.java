@@ -3160,7 +3160,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    long getCompactionThreshold(String namespace) throws PulsarAdminException;
+    Long getCompactionThreshold(String namespace) throws PulsarAdminException;
 
     /**
      * Get the compactionThreshold for a namespace asynchronously. The maximum number of bytes topics in the namespace
@@ -3217,6 +3217,20 @@ public interface Namespaces {
      *            maximum number of backlog bytes before compaction is triggered
      */
     CompletableFuture<Void> setCompactionThresholdAsync(String namespace, long compactionThreshold);
+
+    /**
+     * Delete the compactionThreshold for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeCompactionThreshold(String namespace) throws PulsarAdminException;
+
+    /**
+     * Delete the compactionThreshold for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeCompactionThresholdAsync(String namespace);
 
     /**
      * Get the offloadThreshold for a namespace. The maximum number of bytes stored on the pulsar cluster for topics

@@ -66,17 +66,18 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 
+@Test(groups = "flaky")
 public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(DispatcherBlockConsumerTest.class);
 
-    @BeforeMethod
+    @BeforeMethod(groups = { "broker" })
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterMethod(alwaysRun = true, groups = { "broker" })
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -391,7 +392,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5438
-    public void testRedeliveryOnBlockedDistpatcher() throws Exception {
+    public void testRedeliveryOnBlockedDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
@@ -620,7 +621,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         int receivedMsgCount = 0;
         for (int i = 0; i < totalProducedMsgs; i++) {
             Message<?> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
-            assertTrue(msg != null);
+            assertNotNull(msg);
             if (!unackMessages.contains(i)) {
                 consumer.acknowledge(msg);
             }
@@ -673,10 +674,9 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * produced messages
      * </pre>
      *
-     * @throws Exception
      */
     @Test(timeOut = 10000)
-    public void testBlockBrokerDispatching() throws Exception {
+    public void testBlockBrokerDispatching() {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
@@ -701,8 +701,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Field field = BrokerService.class.getDeclaredField("blockedDispatchers");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
-            ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers = (ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers>) field
-                    .get(pulsar.getBrokerService());
+            ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers =
+                    (ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers>) field.get(pulsar.getBrokerService());
 
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = maxUnAckPerBroker * 3;
@@ -863,7 +863,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(unAckedMessages);
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscriptionOnBrokerBlocked(unAckedMessagePercentage);
-
             executor.shutdownNow();
         }
     }
@@ -906,8 +905,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             Field field = BrokerService.class.getDeclaredField("blockedDispatchers");
             field.setAccessible(true);
-            ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers = (ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers>) field
-                    .get(pulsar.getBrokerService());
+            ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers =
+                    (ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers>) field.get(pulsar.getBrokerService());
 
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = maxUnAckPerBroker * 3;

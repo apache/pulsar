@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link ProtocolHandlerWithClassLoader}.
  */
+@Test(groups = "broker")
 public class ProtocolHandlerWithClassLoaderTest {
 
     @Test

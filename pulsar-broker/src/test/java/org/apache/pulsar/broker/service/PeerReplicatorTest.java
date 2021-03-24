@@ -46,6 +46,7 @@ import org.testng.collections.Lists;
 
 import com.google.common.collect.Sets;
 
+@Test(groups = "broker")
 public class PeerReplicatorTest extends ReplicatorTestBase {
 
     @Override
@@ -188,7 +189,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(groups = "broker")
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
         // clean up peer-clusters

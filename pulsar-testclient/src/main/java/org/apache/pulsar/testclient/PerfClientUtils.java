@@ -23,12 +23,25 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import java.lang.management.ManagementFactory;
+import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 
 /**
  * Utility for test clients
  */
 @UtilityClass
 public class PerfClientUtils {
+
+    private static volatile  Consumer<Integer> exitProcedure = System::exit;
+
+    public static void setExitProcedure(Consumer<Integer> exitProcedure) {
+        PerfClientUtils.exitProcedure = Objects.requireNonNull(exitProcedure);
+    }
+
+    public static void exit(int code) {
+        exitProcedure.accept(code);
+    }
 
     /**
      * Print useful JVM information, you need this information in order to be able
@@ -40,4 +53,6 @@ public class PerfClientUtils {
         log.info("Netty max memory (PlatformDependent.maxDirectMemory()) {}", FileUtils.byteCountToDisplaySize(PlatformDependent.maxDirectMemory()));
         log.info("JVM max heap memory (Runtime.getRuntime().maxMemory()) {}", FileUtils.byteCountToDisplaySize(Runtime.getRuntime().maxMemory()));
     }
+
+
 }

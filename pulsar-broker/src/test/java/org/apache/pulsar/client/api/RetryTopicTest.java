@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertNull;
 
+@Test(groups = "broker-api")
 public class RetryTopicTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(RetryTopicTest.class);

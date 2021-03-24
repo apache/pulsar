@@ -87,6 +87,7 @@ import org.testng.annotations.Test;
 
 @PrepareForTest({ ZooKeeperDataCache.class, BrokerService.class })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
+@Test(groups = "broker")
 public class PersistentSubscriptionTest {
 
     private PulsarService pulsarMock;

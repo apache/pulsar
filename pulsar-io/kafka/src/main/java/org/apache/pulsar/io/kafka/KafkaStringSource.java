@@ -19,8 +19,8 @@
 
 package org.apache.pulsar.io.kafka;
 
+import org.apache.pulsar.client.api.Schema;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -28,8 +28,14 @@ import java.nio.charset.StandardCharsets;
  * as Strings
  */
 public class KafkaStringSource extends KafkaAbstractSource<String> {
+
     @Override
-    public String extractValue(ConsumerRecord<String, byte[]> record) {
-        return new String(record.value(), StandardCharsets.UTF_8);
+    public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
+        return new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8);
+    }
+
+    @Override
+    public Schema<String> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
+        return Schema.STRING;
     }
 }

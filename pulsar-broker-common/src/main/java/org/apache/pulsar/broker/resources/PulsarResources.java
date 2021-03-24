@@ -36,6 +36,7 @@ public class PulsarResources {
     private NamespaceResources namespaceResources;
     private DynamicConfigurationResources dynamicConfigResources;
     private LocalPoliciesResources localPolicies;
+    private LoadManagerReportResources loadReportResources;
     private Optional<MetadataStoreExtended> localMetadataStore;
     private Optional<MetadataStoreExtended> configurationMetadataStore;
 
@@ -52,6 +53,7 @@ public class PulsarResources {
         if (localMetadataStore != null) {
             dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore, operationTimeoutSec);
             localPolicies = new LocalPoliciesResources(localMetadataStore, operationTimeoutSec);
+            loadReportResources = new LoadManagerReportResources(localMetadataStore, operationTimeoutSec);
         }
         this.localMetadataStore = Optional.ofNullable(localMetadataStore);
         this.configurationMetadataStore = Optional.ofNullable(configurationMetadataStore);

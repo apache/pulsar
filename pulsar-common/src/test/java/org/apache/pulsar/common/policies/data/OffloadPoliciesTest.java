@@ -268,7 +268,7 @@ public class OffloadPoliciesTest {
 
         final String brokerDriver = "aws-s3";
         final Long brokerOffloadThreshold = 0L;
-        final Long brokerDeletionLag = 1000L;
+        final long brokerDeletionLag = 1000L;
         final Integer brokerOffloadMaxThreads = 2;
         Properties brokerProperties = new Properties();
         brokerProperties.setProperty("managedLedgerOffloadDriver", brokerDriver);

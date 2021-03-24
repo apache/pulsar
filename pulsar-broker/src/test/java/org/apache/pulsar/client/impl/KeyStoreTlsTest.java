@@ -26,6 +26,7 @@ import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.common.util.keystoretls.SSLContextValidatorEngine;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class KeyStoreTlsTest {
 
     protected final String BROKER_KEYSTORE_FILE_PATH =

@@ -72,11 +72,11 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-
 /**
  * End to end transaction test.
  */
 @Slf4j
+@Test(groups = "flaky")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
     private final static int TOPIC_PARTITION = 3;
@@ -487,7 +487,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         txnCumulativeAckTest(false, 1, SubscriptionType.Failover);
     }
 
-    public void txnCumulativeAckTest(boolean batchEnable, int maxBatchSize, SubscriptionType subscriptionType)
+    private void txnCumulativeAckTest(boolean batchEnable, int maxBatchSize, SubscriptionType subscriptionType)
             throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
 

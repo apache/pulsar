@@ -47,7 +47,7 @@ public class DefaultCryptoKeyReaderConfigurationDataTest {
     }
 
     @Test
-    public void testToString() throws Exception {
+    public void testToString() {
         DefaultCryptoKeyReaderConfigurationData conf = new DefaultCryptoKeyReaderConfigurationData();
         assertEquals(conf.toString(),
                 "DefaultCryptoKeyReaderConfigurationData(defaultPublicKey=null, defaultPrivateKey=null, publicKeys={}, privateKeys={})");

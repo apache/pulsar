@@ -86,7 +86,6 @@ enum Result
     ResultTransactionConflict,                       /// Transaction ack conflict
     ResultTransactionNotFound,                       /// Transaction not found
     ResultProducerFenced,                            /// Producer was fenced by broker
-    ResultPendingAckNotRecover,                      /// When pending ack not recover completely
     ResultMemoryBufferIsFull,  /// Client-wide memory limit has been reached
 };
 

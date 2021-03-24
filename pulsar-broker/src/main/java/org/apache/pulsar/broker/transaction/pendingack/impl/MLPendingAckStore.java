@@ -281,12 +281,9 @@ public class MLPendingAckStore implements PendingAckStore {
 
         private final FillEntryQueueCallback fillEntryQueueCallback;
         private final PendingAckReplyCallBack pendingAckReplyCallBack;
-        private final AtomicLong exceptionNumber = new AtomicLong();
-        // TODO: MAX_EXCEPTION_NUMBER can config
-        private static final int MAX_EXCEPTION_NUMBER = 500;
 
         PendingAckReplay(PendingAckReplyCallBack pendingAckReplyCallBack) {
-            this.fillEntryQueueCallback = new FillEntryQueueCallback(exceptionNumber);
+            this.fillEntryQueueCallback = new FillEntryQueueCallback();
             this.pendingAckReplyCallBack = pendingAckReplyCallBack;
         }
 
@@ -323,11 +320,6 @@ public class MLPendingAckStore implements PendingAckStore {
                     }
                     entry.release();
                 } else {
-                    if (exceptionNumber.get() > MAX_EXCEPTION_NUMBER) {
-                        log.error("[{}]Transaction pending ack recover fail when "
-                                + "replay message error number > {}!", managedLedger.getName(), MAX_EXCEPTION_NUMBER);
-                        return;
-                    }
                     try {
                         Thread.sleep(1);
                     } catch (InterruptedException e) {
@@ -345,10 +337,6 @@ public class MLPendingAckStore implements PendingAckStore {
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
-        private final AtomicLong exceptionNumber;
-        public FillEntryQueueCallback(AtomicLong exceptionNumber) {
-            this.exceptionNumber = exceptionNumber;
-        }
 
         void fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
@@ -378,7 +366,6 @@ public class MLPendingAckStore implements PendingAckStore {
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             log.error("MLPendingAckStore stat reply fail!", exception);
             outstandingReadsRequests.decrementAndGet();
-            exceptionNumber.getAndIncrement();
         }
 
     }

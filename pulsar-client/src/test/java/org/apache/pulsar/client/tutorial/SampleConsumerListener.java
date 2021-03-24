@@ -27,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SampleConsumerListener {
-    public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
+    public static void main(String[] args) throws InterruptedException, IOException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
         pulsarClient.newConsumer() //

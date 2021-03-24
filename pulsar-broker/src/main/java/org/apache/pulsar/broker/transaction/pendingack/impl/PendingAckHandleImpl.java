@@ -100,6 +100,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     private final CompletableFuture<PendingAckStore> pendingAckStoreFuture;
 
+    private final CompletableFuture<PendingAckHandle> pendingAckHandleCompletableFuture = new CompletableFuture<>();
+
     public PendingAckHandleImpl(PersistentSubscription persistentSubscription) {
         super(State.None);
         this.topicName = persistentSubscription.getTopicName();
@@ -114,11 +116,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
         this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
             changeToInitializingState();
-            ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService().getPulsar()
-                    .getTransactionReplayExecutor().execute(() ->
-                    pendingAckStore.replayAsync(this,
-                            ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService()
-                                    .getPulsar().getTransactionReplayExecutor()));
+            pendingAckStore.replayAsync(this,
+                    ((PersistentTopic) persistentSubscription.getTopic()).getBrokerService()
+                            .getPulsar().getTransactionReplayExecutor());
         }).exceptionally(e -> {
             log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
             return null;
@@ -661,6 +661,15 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (position instanceof PositionImpl) {
             individualAckPositions.remove(position);
         }
+    }
+
+    @Override
+    public CompletableFuture<PendingAckHandle> pendingAckHandleFuture() {
+        return pendingAckHandleCompletableFuture;
+    }
+
+    public void completeHandleFuture() {
+        this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
     }
 
     @Override

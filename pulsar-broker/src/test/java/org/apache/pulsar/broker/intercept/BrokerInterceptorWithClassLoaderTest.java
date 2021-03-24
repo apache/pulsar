@@ -30,9 +30,9 @@ import static org.mockito.Mockito.verify;
 /**
  * Unit test {@link BrokerInterceptorWithClassLoader}.
  */
+@Test(groups = "broker")
 public class BrokerInterceptorWithClassLoaderTest {
 
-    @Test
     public void testWrapper() throws Exception {
         BrokerInterceptor h = mock(BrokerInterceptor.class);
         NarClassLoader loader = mock(NarClassLoader.class);

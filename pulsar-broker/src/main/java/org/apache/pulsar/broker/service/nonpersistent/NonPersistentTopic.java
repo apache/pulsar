@@ -265,13 +265,23 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                 name -> new NonPersistentSubscription(this, subscriptionName));
-
-        try {
-            Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
-                    cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-            addConsumerToSubscription(subscription, consumer);
+        Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
+                cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+        addConsumerToSubscription(subscription, consumer).thenAccept(v -> {
             if (!cnx.isActive()) {
-                consumer.close();
+                try {
+                    consumer.close();
+                } catch (BrokerServiceException e) {
+                    if (e instanceof ConsumerBusyException) {
+                        log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
+                                consumerName);
+                    } else if (e instanceof SubscriptionBusyException) {
+                        log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                    }
+
+                    decrementUsageCount();
+                    future.completeExceptionally(e);
+                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
                             consumer.consumerName(), currentUsageCount());
@@ -282,7 +292,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                 future.complete(consumer);
             }
-        } catch (BrokerServiceException e) {
+        }).exceptionally(e -> {
             if (e instanceof ConsumerBusyException) {
                 log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                         consumerName);
@@ -292,7 +302,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
             decrementUsageCount();
             future.completeExceptionally(e);
-        }
+            return null;
+        });
 
         return future;
     }

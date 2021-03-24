@@ -71,6 +71,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
+@Test(groups = "broker-impl")
 public class TopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(TopicsConsumerImplTest.class);
@@ -606,7 +607,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-
     @Test
     public void testResubscribeSameTopic() throws Exception {
         final String localTopicName = "TopicsConsumerResubscribeSameTopicTest";
@@ -752,8 +752,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             })
             .subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
-
-        MultiTopicsConsumerImpl topicsConsumer = (MultiTopicsConsumerImpl) consumer;
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -1156,7 +1154,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             try {
                 client.newConsumer(Schema.STRING)
                         .subscriptionName("subName")
-                        .topics(Lists.<String>newArrayList(topic0, topic1))
+                        .topics(Lists.newArrayList(topic0, topic1))
                         .receiverQueueSize(2)
                         .subscriptionType(SubscriptionType.Shared)
                         .ackTimeout(365, TimeUnit.DAYS)

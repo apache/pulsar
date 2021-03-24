@@ -157,9 +157,6 @@ const char* strResult(Result result) {
         case ResultProducerFenced:
             return "ResultProducerFenced";
 
-        case ResultPendingAckNotRecover:
-            return "ResultPendingAckNotRecover";
-
         case ResultMemoryBufferIsFull:
             return "ResultMemoryBufferIsFull";
     };

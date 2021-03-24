@@ -44,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
-import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -134,7 +133,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
@@ -717,16 +715,25 @@ public class PersistentTopic extends AbstractTopic
                 : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
-            try {
-                Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                        maxUnackedMessages, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, initialPosition, keySharedMeta);
-                addConsumerToSubscription(subscription, consumer);
-
+            Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
+                    maxUnackedMessages, cnx, cnx.getAuthRole(), metadata,
+                    readCompacted, initialPosition, keySharedMeta);
+            addConsumerToSubscription(subscription, consumer).thenAccept(v -> {
                 checkBackloggedCursors();
-
                 if (!cnx.isActive()) {
-                    consumer.close();
+                    try {
+                        consumer.close();
+                    } catch (BrokerServiceException e) {
+                        if (e instanceof ConsumerBusyException) {
+                            log.warn("[{}][{}] Consumer {} {} already connected",
+                                    topic, subscriptionName, consumerId, consumerName);
+                        } else if (e instanceof SubscriptionBusyException) {
+                            log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                        }
+
+                        decrementUsageCount();
+                        future.completeExceptionally(e);
+                    }
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
                                 consumer.consumerName(), currentUsageCount());
@@ -740,7 +747,7 @@ public class PersistentTopic extends AbstractTopic
                     log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                     future.complete(consumer);
                 }
-            } catch (BrokerServiceException e) {
+            }).exceptionally(e -> {
                 if (e instanceof ConsumerBusyException) {
                     log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                             consumerName);
@@ -750,7 +757,8 @@ public class PersistentTopic extends AbstractTopic
 
                 decrementUsageCount();
                 future.completeExceptionally(e);
-            }
+                return null;
+            });
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
             decrementUsageCount();
@@ -799,7 +807,7 @@ public class PersistentTopic extends AbstractTopic
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
-            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+            subscriptionFuture.completeExceptionally(new NotAllowedException(
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
         }
@@ -844,7 +852,7 @@ public class PersistentTopic extends AbstractTopic
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
-            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+            subscriptionFuture.completeExceptionally(new NotAllowedException(
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
         }
@@ -1313,7 +1321,10 @@ public class PersistentTopic extends AbstractTopic
                     .orElseThrow(() -> new KeeperException.NoNodeException());
                 compactionThreshold = policies.compaction_threshold;
             }
-
+            if (compactionThreshold == null) {
+                compactionThreshold = brokerService.pulsar().getConfiguration()
+                        .getBrokerServiceCompactionThresholdInBytes();
+            }
 
             if (isSystemTopic() || compactionThreshold != 0
                 && currentCompaction.isDone()) {

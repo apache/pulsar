@@ -57,11 +57,11 @@ public abstract class BkEnsemblesTestBase {
         this.numberOfBookies = numberOfBookies;
     }
 
-    protected void configurePulsar(ServiceConfiguration config) throws Exception {
+    protected void configurePulsar(ServiceConfiguration config) {
         //overridable by subclasses
     }
 
-    @BeforeMethod
+    @BeforeMethod(groups = {"broker-impl", "broker"})
     protected void setup() throws Exception {
         try {
             // start local bookie and zookeeper
@@ -98,7 +98,7 @@ public abstract class BkEnsemblesTestBase {
         }
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterMethod(alwaysRun = true, groups = {"broker-impl", "broker"})
     protected void shutdown() throws Exception {
         admin.close();
         pulsar.close();

@@ -37,7 +37,7 @@ public interface Subscription {
 
     String getName();
 
-    void addConsumer(Consumer consumer) throws BrokerServiceException;
+    CompletableFuture<Void> addConsumer(Consumer consumer);
 
     default void removeConsumer(Consumer consumer) throws BrokerServiceException {
         removeConsumer(consumer, false);

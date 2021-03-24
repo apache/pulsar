@@ -123,11 +123,11 @@ public interface PendingAckHandle {
     void clearIndividualPosition(Position position);
 
     /**
-     * Check the pending ack handle is ready.
+     * Pending ack recover whether ready future.
      *
-     * @return the ready or not.
+     * @return the future of result.
      */
-    boolean checkIfReady();
+    CompletableFuture<PendingAckHandle> pendingAckHandleFuture();
 
     /**
      * Close the pending ack handle.

@@ -24,7 +24,8 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.annotations.Test;
 
-public class MessageIdSerialization {
+@Test(groups = "broker")
+public class MessageIdSerializationTest {
 
     @Test
     public void testProtobufSerialization1() throws Exception {

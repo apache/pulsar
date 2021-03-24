@@ -33,6 +33,7 @@ import org.testng.annotations.Test;
 /**
  * Test for the broker entry metadata.
  */
+@Test(groups = "broker")
 public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
 
     @DataProvider(name = "subscriptionTypes")
