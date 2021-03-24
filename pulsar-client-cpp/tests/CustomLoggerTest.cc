@@ -17,9 +17,9 @@
  * under the License.
  */
 #include <pulsar/Client.h>
+#include <pulsar/Logger.h>
 #include <LogUtils.h>
 #include <gtest/gtest.h>
-#include <lib/SimpleLoggerImpl.h>
 #include <thread>
 
 using namespace pulsar;
