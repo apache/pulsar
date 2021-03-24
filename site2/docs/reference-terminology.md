@@ -41,8 +41,8 @@ An administrative unit for allocating capacity and enforcing an authentication/a
 
 #### Subscription
 
-A lease on a [topic](#topic) established by a group of [consumers](#consumer). Pulsar has three subscription
-modes (exclusive, shared, and failover).
+A lease on a [topic](#topic) established by a group of [consumers](#consumer). Pulsar has four subscription
+modes (exclusive, shared, failover and key_shared).
 
 #### Pub-Sub
 
