@@ -63,7 +63,7 @@ public class MessageTest {
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
         msg.setMessageId(new MessageIdImpl(-1, -1, -1));
-        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg);
+        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg, null);
 
         assertTrue(topicMessage.isReplicated());
         assertEquals(msg.getReplicatedFrom(), from);
@@ -76,7 +76,7 @@ public class MessageTest {
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
         msg.setMessageId(new MessageIdImpl(-1, -1, -1));
-        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg);
+        TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg, null);
 
         assertFalse(topicMessage.isReplicated());
         assertNull(topicMessage.getReplicatedFrom());

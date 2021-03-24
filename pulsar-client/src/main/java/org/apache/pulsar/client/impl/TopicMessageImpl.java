@@ -32,11 +32,15 @@ public class TopicMessageImpl<T> implements Message<T> {
 
     private final Message<T> msg;
     private final TopicMessageIdImpl messageId;
+    // consumer if this message is received by that consumer
+    final ConsumerImpl receivedByconsumer;
 
     TopicMessageImpl(String topicPartitionName,
                      String topicName,
-                     Message<T> msg) {
+                     Message<T> msg,
+                     ConsumerImpl receivedByConsumer) {
         this.topicPartitionName = topicPartitionName;
+        this.receivedByconsumer = receivedByConsumer;
 
         this.msg = msg;
         this.messageId = new TopicMessageIdImpl(topicPartitionName, topicName, msg.getMessageId());

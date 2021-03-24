@@ -258,7 +258,7 @@ public class AcknowledgementsGroupingTrackerTest {
     }
 
     @Test(dataProvider = "isNeedReceipt")
-    public void testAckTrackerMultiAck(boolean isNeedReceipt) throws Exception {
+    public void testAckTrackerMultiAck(boolean isNeedReceipt) {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
         conf.setAckReceiptEnabled(isNeedReceipt);

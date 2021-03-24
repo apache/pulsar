@@ -32,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker-api")
 public class ConsumerAckListTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -60,18 +61,20 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         ackListMessage(false,true, ackReceiptEnabled);
     }
 
-    public void ackListMessage(boolean isBatch, boolean isPartitioned, boolean ackReceiptEnabled) throws Exception {
+    private void ackListMessage(boolean isBatch, boolean isPartitioned, boolean ackReceiptEnabled) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
         final String subName = "testBatchAck-sub" + UUID.randomUUID();
         final int messageNum = ThreadLocalRandom.current().nextInt(50, 100);
         if (isPartitioned) {
             admin.topics().createPartitionedTopic(topic, 3);
         }
+
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(isBatch)
                 .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
                 .topic(topic).create();
+
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionType(SubscriptionType.Shared)
@@ -81,6 +84,7 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
                 .enableBatchIndexAcknowledgment(ackReceiptEnabled)
                 .isAckReceiptEnabled(ackReceiptEnabled)
                 .subscribe();
+
         sendMessagesAsyncAndWait(producer, messageNum);
         List<MessageId> messages = new ArrayList<>();
         for (int i = 0; i < messageNum; i++) {

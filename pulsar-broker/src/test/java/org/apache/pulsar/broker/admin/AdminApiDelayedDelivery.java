@@ -172,7 +172,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         assertEquals(policyFromBroker.getTickTime(), 200);
         assertTrue(policyFromBroker.isActive());
         //remove topic-level policy
-        admin.topics().removeDelayedDeliveryPolicy(topic); ;
+        admin.topics().removeDelayedDeliveryPolicy(topic);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
                 -> assertEquals(admin.topics().getDelayedDeliveryPolicy(topic, true), namespaceLevelPolicy));
         //remove namespace-level policy

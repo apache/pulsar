@@ -353,7 +353,7 @@ public class ReplicatorTestBase extends TestRetrySupport {
         void produce(int messages, TypedMessageBuilder<byte[]> messageBuilder) throws Exception {
             log.info("Start sending messages");
             for (int i = 0; i < messages; i++) {
-                final String m = new String("test-" + i);
+                final String m = "test-" + i;
                 messageBuilder.value(m.getBytes()).send();
                 log.info("Sent message {}", m);
             }

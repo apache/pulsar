@@ -21,12 +21,14 @@ package org.apache.pulsar.broker.service.persistent;
 import org.apache.pulsar.broker.service.PersistentDispatcherFailoverConsumerTest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * PersistentDispatcherFailoverConsumerTest with {@link StreamingDispatcher}
  */
-public class PersistentDispatcherFailoverConsumerStreamingDispatcherTest extends
-        PersistentDispatcherFailoverConsumerTest {
+@Test(groups = "broker")
+public class PersistentDispatcherFailoverConsumerStreamingDispatcherTest extends PersistentDispatcherFailoverConsumerTest {
+    
     @BeforeMethod
     public void setup() throws Exception {
         super.setup();

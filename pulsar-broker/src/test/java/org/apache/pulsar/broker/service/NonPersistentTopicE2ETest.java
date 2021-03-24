@@ -47,12 +47,9 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-
 public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentTopicE2ETest.class);
-
-    @BeforeMethod
+    @BeforeMethod(groups = "broker")
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -82,7 +79,7 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         return result != null && !result.schema.isDeleted();
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testGCWillDeleteSchema() throws Exception {
         // 1. Simple successful GC
         String topicName = "non-persistent://prop/ns-abc/topic-1";
@@ -154,7 +151,7 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         assertFalse(topicHasSchema(topicName));
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testPatternTopic() throws PulsarClientException, InterruptedException {
         final String topic1 = "non-persistent://prop/ns-abc/testPatternTopic1-" + UUID.randomUUID().toString();
         final String topic2 = "non-persistent://prop/ns-abc/testPatternTopic2-" + UUID.randomUUID().toString();
@@ -191,7 +188,7 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         producer2.close();
     }
 
-    @Test
+    @Test(groups = "broker")
     public void testGC() throws Exception {
         // 1. Simple successful GC
         String topicName = "non-persistent://prop/ns-abc/topic-10";

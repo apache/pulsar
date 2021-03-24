@@ -44,6 +44,7 @@ import org.testng.annotations.Test;
     ProtocolHandlerUtils.class, NarClassLoader.class
 })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
+@Test(groups = "broker")
 public class ProtocolHandlerUtilsTest {
 
     // Necessary to make PowerMockito.mockStatic work with TestNG.

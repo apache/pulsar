@@ -33,12 +33,12 @@ import org.testng.annotations.BeforeMethod;
 public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod(groups = { "broker", "websocket", "broker-api", "broker-discovery", "broker-impl", "extra", "flaky" })
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
     }
 
-    public void producerBaseSetup() throws Exception {
+    protected void producerBaseSetup() throws Exception {
         admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         admin.tenants().createTenant("my-property",
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));

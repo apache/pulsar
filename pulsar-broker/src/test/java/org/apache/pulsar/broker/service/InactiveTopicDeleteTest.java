@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -54,6 +53,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
+@Test(groups = "flaky")
 public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @BeforeMethod

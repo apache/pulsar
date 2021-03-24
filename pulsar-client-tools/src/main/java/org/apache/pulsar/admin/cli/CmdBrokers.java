@@ -146,6 +146,15 @@ public class CmdBrokers extends CmdBase {
 
     }
 
+    @Parameters(commandDescription = "Get the version of the currently connected broker")
+    private class PulsarVersion extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            System.out.println(getAdmin().brokers().getVersion());
+        }
+    }
+
     public CmdBrokers(Supplier<PulsarAdmin> admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
@@ -159,5 +168,6 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("get-runtime-config", new GetRuntimeConfigCmd());
         jcommander.addCommand("healthcheck", new HealthcheckCmd());
         jcommander.addCommand("backlog-quota-check", new BacklogQuotaCheckCmd());
+        jcommander.addCommand("version", new PulsarVersion());
     }
 }

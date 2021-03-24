@@ -36,7 +36,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class ConsumerDedupPermitsUpdate extends ProducerConsumerBase {
+@Test(groups = "broker-impl")
+public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {

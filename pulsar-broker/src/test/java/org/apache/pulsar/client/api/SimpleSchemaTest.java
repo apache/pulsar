@@ -61,6 +61,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker-api")
 public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @DataProvider(name = "batchingModes")
@@ -431,7 +432,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void newConsumerWithSchemaOnExistingTopicWithoutSchema() throws Exception {
+    public void newConsumerWithSchemaOnExistingTopicWithoutSchema() {
         String topic = "my-property/my-ns/schema-test";
 
         try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create();

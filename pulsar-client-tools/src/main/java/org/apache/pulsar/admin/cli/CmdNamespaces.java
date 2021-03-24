@@ -1568,6 +1568,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove compactionThreshold for a namespace")
+    private class RemoveCompactionThreshold extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeCompactionThreshold(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set compactionThreshold for a namespace")
     private class SetCompactionThreshold extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -2184,12 +2196,12 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("remove-max-unacked-messages-per-subscription",
                 new RemoveMaxUnackedMessagesPerSubscription());
 
-
         jcommander.addCommand("get-max-unacked-messages-per-consumer", new GetMaxUnackedMessagesPerConsumer());
         jcommander.addCommand("set-max-unacked-messages-per-consumer", new SetMaxUnackedMessagesPerConsumer());
 
         jcommander.addCommand("get-compaction-threshold", new GetCompactionThreshold());
         jcommander.addCommand("set-compaction-threshold", new SetCompactionThreshold());
+        jcommander.addCommand("remove-compaction-threshold", new RemoveCompactionThreshold());
 
         jcommander.addCommand("get-offload-threshold", new GetOffloadThreshold());
         jcommander.addCommand("set-offload-threshold", new SetOffloadThreshold());

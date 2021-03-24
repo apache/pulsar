@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -86,12 +87,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final int takeSnapshotIntervalTime;
 
-    private final CompletableFuture<Void> transactionBufferFuture;
-
     public TopicTransactionBuffer(PersistentTopic topic, CompletableFuture<Void> transactionBufferFuture) {
         super(State.None);
         this.topic = topic;
-        this.transactionBufferFuture = transactionBufferFuture;
         this.changeToInitializingState();
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
@@ -209,6 +207,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 synchronized (TopicTransactionBuffer.this) {
                     updateMaxReadPosition(txnID);
                     handleLowWaterMark(txnID, lowWaterMark);
+                    clearAbortedTransactions();
                     takeSnapshotByChangeTimes();
                 }
                 completableFuture.complete(null);
@@ -239,6 +238,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     updateMaxReadPosition(txnID);
                     handleLowWaterMark(txnID, lowWaterMark);
                     changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
+                    clearAbortedTransactions();
                     takeSnapshotByChangeTimes();
                 }
                 completableFuture.complete(null);
@@ -322,8 +322,17 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         });
     }
 
-
-
+    private void clearAbortedTransactions() {
+        while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
+                .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
+            if (log.isDebugEnabled()) {
+                aborts.firstKey();
+                log.debug("[{}] Topic transaction buffer clear aborted transaction, TxnId : {}, Position : {}",
+                        topic.getName(), aborts.firstKey(), aborts.get(aborts.firstKey()));
+            }
+            aborts.remove(aborts.firstKey());
+        }
+    }
     void updateMaxReadPosition(TxnID txnID) {
         PositionImpl preMaxReadPosition = this.maxReadPosition;
         ongoingTxns.remove(txnID);

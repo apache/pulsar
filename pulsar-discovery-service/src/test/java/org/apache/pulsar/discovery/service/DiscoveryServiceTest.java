@@ -18,37 +18,31 @@
  */
 package org.apache.pulsar.discovery.service;
 
-import static org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.apache.pulsar.broker.resources.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
-import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
-import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
-import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -108,10 +102,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         assertEquals(m.partitions, 0);
 
         // Simulate ZK error
-        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
-                return op == MockZooKeeper.Op.GET
-                    && path.equals("/admin/partitioned-topics/test/local/ns/persistent/my-topic-2");
-            });
+        simulateStoreError("/admin/partitioned-topics/test/local/ns/persistent/my-topic-2", Code.SESSIONEXPIRED);
         TopicName topic2 = TopicName.get("persistent://test/local/ns/my-topic-2");
         CompletableFuture<PartitionedTopicMetadata> future = service.getDiscoveryProvider()
                 .getPartitionedTopicMetadata(service, topic2, "role", null);
@@ -236,17 +227,9 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         for (int i = 0; i < number; i++) {
             LoadReport report = new LoadReport(null, null, "pulsar://broker-:15000" + i, null);
             String reportData = ObjectMapperFactory.getThreadLocal().writeValueAsString(report);
-            ZkUtils.createFullPathOptimistic(mockZooKeeper, LOADBALANCE_BROKERS_ROOT + "/" + "broker-" + i,
-                    reportData.getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                    CreateMode.PERSISTENT);
+            zkStore.put(LOADBALANCE_BROKERS_ROOT + "/" + "broker-" + i,
+                    reportData.getBytes(StandardCharsets.UTF_8), Optional.of(-1L)).get();
         }
-
-        // sometimes test-environment takes longer time to trigger async mockZK-watch: so reload cache explicitly
-        Field field = ZookeeperCacheLoader.class.getDeclaredField("availableBrokersCache");
-        field.setAccessible(true);
-        ZooKeeperChildrenCache availableBrokersCache = (ZooKeeperChildrenCache) field
-                .get(service.getDiscoveryProvider().localZkCache);
-        availableBrokersCache.reloadCache(LOADBALANCE_BROKERS_ROOT);
 
         Awaitility.await().until(()
                 -> service.getDiscoveryProvider().getAvailableBrokers().size() == number);
