@@ -89,12 +89,17 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             ReaderBuilder<byte[]> builder = service.getPulsarClient().newReader()
                     .topic(topic.toString())
                     .startMessageId(getMessageId())
-                    .cryptoFailureAction(
-                            // default disable message decryption and let websocket pass decrypted message to client
-                            ConsumerCryptoFailureAction.CONSUME)
                     .receiverQueueSize(receiverQueueSize);
             if (queryParams.containsKey("readerName")) {
                 builder.readerName(queryParams.get("readerName"));
+            }
+            if (queryParams.containsKey("cryptoFailureAction")) {
+                String action = queryParams.get("cryptoFailureAction");
+                try {
+                    builder.cryptoFailureAction(ConsumerCryptoFailureAction.valueOf(action));
+                } catch (Exception e) {
+                    log.warn("Failed to configure cryptoFailureAction {} , {}", action, e.getMessage());
+                }
             }
 
             this.reader = builder.create();
