@@ -597,10 +597,7 @@ Result ConsumerImpl::fetchSingleMessageFromBroker(Message& msg) {
     waitingForZeroQueueSizeMessage = true;
     localLock.unlock();
 
-    if (currentCnx) {
-        LOG_DEBUG(getName() << "Send more permits: " << 1);
-        sendFlowPermitsToBroker(currentCnx, 1);
-    }
+    sendFlowPermitsToBroker(currentCnx, 1);
 
     while (true) {
         incomingMessages_.pop(msg);
@@ -647,11 +644,7 @@ void ConsumerImpl::receiveAsync(ReceiveCallback& callback) {
         lock.unlock();
 
         if (config_.getReceiverQueueSize() == 0) {
-            ClientConnectionPtr currentCnx = getCnx().lock();
-            if (currentCnx) {
-                LOG_DEBUG(getName() << "Send more permits: " << 1);
-                sendFlowPermitsToBroker(currentCnx, 1);
-            }
+            sendFlowPermitsToBroker(getCnx().lock(), 1);
         }
     }
 }
