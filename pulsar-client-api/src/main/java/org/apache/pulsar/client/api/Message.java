@@ -81,7 +81,8 @@ public interface Message<T> {
      *
      * <p>Only messages received from the consumer will have a message id assigned.
      *
-     * @return the message id null if this message was not received by this client instance
+     * @return the message id
+     * @throws NullPointerException if the message is null (message was not received by this client instance)
      */
     MessageId getMessageId();
 
