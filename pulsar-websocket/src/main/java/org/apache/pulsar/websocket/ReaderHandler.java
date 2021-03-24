@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
@@ -88,6 +89,9 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             ReaderBuilder<byte[]> builder = service.getPulsarClient().newReader()
                     .topic(topic.toString())
                     .startMessageId(getMessageId())
+                    .cryptoFailureAction(
+                            // default disable message decryption and let websocket pass decrypted message to client
+                            ConsumerCryptoFailureAction.CONSUME)
                     .receiverQueueSize(receiverQueueSize);
             if (queryParams.containsKey("readerName")) {
                 builder.readerName(queryParams.get("readerName"));

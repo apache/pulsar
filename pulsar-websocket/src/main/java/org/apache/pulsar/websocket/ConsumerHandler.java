@@ -40,6 +40,7 @@ import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -387,6 +388,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             }
             builder.deadLetterPolicy(dlpBuilder.build());
         }
+
+        // default disable message decryption and let websocket pass decrypted message to client
+        builder.cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME);
 
         return builder;
     }
