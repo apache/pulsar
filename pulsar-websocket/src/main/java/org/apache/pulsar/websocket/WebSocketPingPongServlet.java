@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.websocket;
 
-import org.eclipse.jetty.websocket.servlet.*;
+import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
+import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 
 public class WebSocketPingPongServlet extends WebSocketServlet {
     private static final long serialVersionUID = 1L;
