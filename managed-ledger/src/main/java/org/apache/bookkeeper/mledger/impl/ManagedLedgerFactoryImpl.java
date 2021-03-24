@@ -145,7 +145,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 zkc, config, NullStatsLogger.INSTANCE);
     }
 
-    private ManagedLedgerFactoryImpl(ClientConfiguration clientConfiguration, String zkConnection, ManagedLedgerFactoryConfig config) throws Exception {
+    public ManagedLedgerFactoryImpl(ClientConfiguration clientConfiguration, String zkConnection, ManagedLedgerFactoryConfig config) throws Exception {
         this(new DefaultBkFactory(clientConfiguration),
             true,
             ZooKeeperClient.newBuilder()
