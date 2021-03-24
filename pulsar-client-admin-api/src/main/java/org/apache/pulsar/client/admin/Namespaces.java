@@ -3897,4 +3897,95 @@ public interface Namespaces {
      *              Unexpected error
      */
     CompletableFuture<Void> removeMaxTopicsPerNamespaceAsync(String namespace);
+
+    /**
+     * Get the ResourceGroup for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     * @return
+     */
+    String getNamespaceResourceGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the ResourceGroup for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<String> getNamespaceResourceGroupAsync(String namespace);
+
+    /**
+     * Set the ResourceGroup for a namespace.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param resourcegroupname
+     *            ResourceGroup name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setNamespaceResourceGroup(String namespace, String resourcegroupname) throws PulsarAdminException;
+
+    /**
+     * Set the ResourceGroup for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param resourcegroupname
+     *            TTL values for all messages for all topics in this namespace
+     */
+    CompletableFuture<Void> setNamespaceResourceGroupAsync(String namespace, String resourcegroupname);
+
+    /**
+     * Remove the ResourceGroup on  a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeNamespaceResourceGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the ResourceGroup on a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeNamespaceResourceGroupAsync(String namespace);
+
+
 }
