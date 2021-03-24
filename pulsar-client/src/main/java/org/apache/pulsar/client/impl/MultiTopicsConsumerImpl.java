@@ -671,6 +671,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     public CompletableFuture<Void> seekAsync(Function<String, MessageId> function) {
         List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(function)));
+        unAckedMessageTracker.clear();
+        incomingMessages.clear();
+        resetIncomingMessageSize();
         return FutureUtil.waitForAll(futures);
     }
 
