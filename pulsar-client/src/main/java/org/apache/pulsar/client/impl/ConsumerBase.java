@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -56,7 +57,6 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -233,7 +233,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void completePendingReceive(CompletableFuture<Message<T>> receivedFuture, Message<T> message) {
-        pinnedExecutor.execute(() -> {
+        getExecutor(message).execute(() -> {
             if (!receivedFuture.complete(message)) {
                 log.warn("Race condition detected. receive future was already completed (cancelled={}) and message was dropped. message={}",
                         receivedFuture.isCancelled(), message);
@@ -857,7 +857,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         executorProvider.getExecutor(peekMessageKey(finalMsg)).execute(() ->
                                 callMessageListener(finalMsg));
                     } else {
-                        pinnedExecutor.execute(() -> callMessageListener(finalMsg));
+                        getExecutor(msg).execute(() -> callMessageListener(finalMsg));
                     }
                 }
             } catch (PulsarClientException e) {
@@ -924,6 +924,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);
+
+    private ExecutorService getExecutor(Message<T> msg) {
+        ConsumerImpl receivedConsumer = (msg instanceof TopicMessageImpl) ? ((TopicMessageImpl) msg).receivedByconsumer
+                : null;
+        ExecutorService executor = receivedConsumer != null && receivedConsumer.pinnedExecutor != null
+                ? receivedConsumer.pinnedExecutor
+                : pinnedExecutor;
+        return executor;
+    }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);
 }
