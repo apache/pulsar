@@ -149,7 +149,7 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
                 "--name", sourceName
         );
         assertTrue(result.getStdout().contains("Delete source successfully"));
-        result.assertNoStderr();
+        assertTrue(StringUtils.isEmpty(result.getStderr()));
     }
 
     private void getSourceInfoNotFound(String sourceName) throws Exception {
