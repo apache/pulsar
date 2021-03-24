@@ -142,43 +142,49 @@ public class PulsarClientImpl implements PulsarClient {
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool, Timer timer)
             throws PulsarClientException {
-        if (conf == null || isBlank(conf.getServiceUrl()) || eventLoopGroup == null) {
-            throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
-        }
-        this.eventLoopGroup = eventLoopGroup;
-        setAuth(conf);
-        this.conf = conf;
-        this.clientClock = conf.getClock();
-        conf.getAuthentication().start();
-        this.cnxPool = cnxPool;
-        externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
-        internalExecutorService = new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
-        if (conf.getServiceUrl().startsWith("http")) {
-            lookup = new HttpLookupService(conf, eventLoopGroup);
-        } else {
-            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(), conf.isUseTls(), externalExecutorProvider.getExecutor());
-        }
-        if (timer == null) {
-            this.timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
-            needStopTimer = true;
-        } else {
-            this.timer = timer;
-        }
-        producers = Collections.newSetFromMap(new ConcurrentHashMap<>());
-        consumers = Collections.newSetFromMap(new ConcurrentHashMap<>());
-
-        if (conf.isEnableTransaction()) {
-            tcClient = new TransactionCoordinatorClientImpl(this);
-            try {
-                tcClient.start();
-            } catch (Throwable e) {
-                log.error("Start transactionCoordinatorClient error.", e);
-                throw new PulsarClientException(e);
+        try {
+            if (conf == null || isBlank(conf.getServiceUrl()) || eventLoopGroup == null) {
+                throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
             }
-        }
+            this.eventLoopGroup = eventLoopGroup;
+            setAuth(conf);
+            this.conf = conf;
+            this.clientClock = conf.getClock();
+            conf.getAuthentication().start();
+            this.cnxPool = cnxPool;
+            externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
+            internalExecutorService = new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
+            if (conf.getServiceUrl().startsWith("http")) {
+                lookup = new HttpLookupService(conf, eventLoopGroup);
+            } else {
+                lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(), conf.isUseTls(), externalExecutorProvider.getExecutor());
+            }
+            if (timer == null) {
+                this.timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
+                needStopTimer = true;
+            } else {
+                this.timer = timer;
+            }
+            producers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+            consumers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-        memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes());
-        state.set(State.Open);
+                if (conf.isEnableTransaction()) {
+                    tcClient = new TransactionCoordinatorClientImpl(this);
+                    try {
+                        tcClient.start();
+                    } catch (Throwable e) {
+                        log.error("Start transactionCoordinatorClient error.", e);
+                        throw new PulsarClientException(e);
+                    }
+                }
+
+                memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes());
+                state.set(State.Open);
+        } catch (Throwable t) {
+            shutdown();
+            shutdownEventLoopGroup(eventLoopGroup);
+            throw t;
+        }
     }
 
     private void setAuth(ClientConfigurationData conf) throws PulsarClientException {
@@ -245,8 +251,9 @@ public class PulsarClientImpl implements PulsarClient {
         return createProducerAsync(conf, schema, null);
     }
 
+    @SuppressWarnings("rawtypes")
     public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema,
-          ProducerInterceptors interceptors) {
+                                                                  ProducerInterceptors interceptors) {
         if (conf == null) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
@@ -353,7 +360,8 @@ public class PulsarClientImpl implements PulsarClient {
      * @param interceptors producer interceptors
      * @param producerCreatedFuture future for signaling completion of async producer creation
      * @param <T> message type class
-     * @return
+     *
+     * @return a producer instance
      */
     protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex,
                                                   ProducerConfigurationData conf,
@@ -485,12 +493,12 @@ public class PulsarClientImpl implements PulsarClient {
 
                 List<String> topicsList = topicsPatternFilter(topics, conf.getTopicsPattern());
                 conf.getTopicNames().addAll(topicsList);
-                ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<T>(conf.getTopicsPattern(),
-                    PulsarClientImpl.this,
-                    conf,
-                    externalExecutorProvider,
-                    consumerSubscribedFuture,
-                    schema, subscriptionMode, interceptors);
+                ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(conf.getTopicsPattern(),
+                        PulsarClientImpl.this,
+                        conf,
+                        externalExecutorProvider,
+                        consumerSubscribedFuture,
+                        schema, subscriptionMode, interceptors);
 
                 consumers.add(consumer);
             })
@@ -593,9 +601,7 @@ public class PulsarClientImpl implements PulsarClient {
 
             consumers.add(consumer);
 
-            consumerSubscribedFuture.thenRun(() -> {
-                readerFuture.complete(reader);
-            }).exceptionally(ex -> {
+            consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader)).exceptionally(ex -> {
                 log.warn("[{}] Failed to get create topic reader", topic, ex);
                 readerFuture.completeExceptionally(ex);
                 return null;
@@ -680,17 +686,102 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public void shutdown() throws PulsarClientException {
         try {
-            lookup.close();
-            cnxPool.close();
-            if (needStopTimer) {
-                timer.stop();
+            // We will throw the last thrown exception only, though logging all of them.
+            Throwable throwable = null;
+            if (lookup != null) {
+                try {
+                    lookup.close();
+                } catch (Throwable t) {
+                    log.warn("Failed to shutdown lookup", t);
+                    throwable = t;
+                }
             }
-            externalExecutorProvider.shutdownNow();
-            internalExecutorService.shutdownNow();
-            conf.getAuthentication().close();
+            try {
+                // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
+                // eventLoopGroup.
+                shutdownEventLoopGroup(eventLoopGroup);
+            } catch (Throwable t) {
+                log.warn("Failed to shutdown eventLoopGroup", t);
+                throwable = t;
+            }
+            if (cnxPool != null) {
+                try {
+                    cnxPool.close();
+                } catch (Throwable t) {
+                    log.warn("Failed to shutdown cnxPool", t);
+                    throwable = t;
+                }
+            }
+            if (timer != null && needStopTimer) {
+                try {
+                    timer.stop();
+                } catch (Throwable t) {
+                    log.warn("Failed to shutdown timer", t);
+                    throwable = t;
+                }
+            }
+            try {
+                shutdownExecutors();
+            } catch (Throwable t) {
+                throwable = t;
+            }
+            if (conf != null && conf.getAuthentication() != null) {
+                try {
+                    conf.getAuthentication().close();
+                } catch (Throwable t) {
+                    log.warn("Failed to close authentication", t);
+                    throwable = t;
+                }
+            }
+            if (tcClient != null) {
+                try {
+                    tcClient.close();
+                } catch (Throwable t) {
+                    log.warn("Failed to close tcClient");
+                    throwable = t;
+                }
+            }
+            if (throwable != null) {
+                throw throwable;
+            }
         } catch (Throwable t) {
             log.warn("Failed to shutdown Pulsar client", t);
             throw PulsarClientException.unwrap(t);
+        }
+    }
+
+    private void shutdownEventLoopGroup(EventLoopGroup eventLoopGroup) throws PulsarClientException {
+        if (eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
+            try {
+                eventLoopGroup.shutdownGracefully().get();
+            } catch (Throwable t) {
+                throw PulsarClientException.unwrap(t);
+            }
+        }
+    }
+
+    private void shutdownExecutors() throws PulsarClientException {
+        PulsarClientException pulsarClientException = null;
+
+        if (externalExecutorProvider != null && !externalExecutorProvider.isShutdown()) {
+            try {
+                externalExecutorProvider.shutdownNow();
+            } catch (Throwable t) {
+                log.warn("Failed to shutdown externalExecutorProvider", t);
+                pulsarClientException = PulsarClientException.unwrap(t);
+            }
+        }
+        if (internalExecutorService != null && !internalExecutorService.isShutdown()) {
+            try {
+                internalExecutorService.shutdownNow();
+            } catch (Throwable t) {
+                log.warn("Failed to shutdown internalExecutorService", t);
+                pulsarClientException = PulsarClientException.unwrap(t);
+            }
+        }
+
+        if (pulsarClientException != null) {
+            throw pulsarClientException;
         }
     }
 
@@ -895,7 +986,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
             schema = schema.clone();
             if (schema.requireFetchingSchemaInfo()) {
-                Schema finalSchema = schema;
+                @SuppressWarnings("rawtypes") Schema finalSchema = schema;
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
                     if (null == schemaInfo) {
                         if (!(finalSchema instanceof AutoConsumeSchema)) {
