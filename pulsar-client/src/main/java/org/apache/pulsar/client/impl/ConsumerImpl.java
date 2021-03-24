@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -1744,6 +1745,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
+    }
+
+    @Override
+    public void seek(Function<String, MessageId> function) throws PulsarClientException {
+        try {
+            seekAsync(function).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(Function<String, MessageId> function) {
+        if (function == null) {
+            return FutureUtil.failedFuture(new PulsarClientException("Function must be set"));
+        }
+        MessageId messageId = function.apply(topic);
+        if (messageId == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return seekAsync(messageId);
     }
 
     private Optional<CompletableFuture<Void>> seekAsyncCheckState(String seekBy) {
