@@ -46,8 +46,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -245,14 +243,17 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     @Test
     public void offsetTest() throws Exception {
-        AtomicLong entryId = new AtomicLong(0L);
+        final AtomicLong entryId = new AtomicLong(0L);
         Message msg = mock(MessageImpl.class);
         when(msg.getValue()).thenReturn("value");
         when(msg.getMessageId()).then(x -> new MessageIdImpl(0, entryId.getAndIncrement(), 0));
 
+        final String topicName = "testTopic";
+        final int partition = 1;
         final AtomicInteger status = new AtomicInteger(0);
         Record<Object> record = PulsarRecord.<String>builder()
-                .topicName("fake-topic")
+                .topicName(topicName)
+                .partition(partition)
                 .message(msg)
                 .ackFunction(() -> status.incrementAndGet())
                 .failFunction(() -> status.decrementAndGet())
@@ -263,18 +264,18 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.open(props, null);
 
         // offset is -1 before any data is written
-        assertEquals(-1L, sink.currentOffset());
+        assertEquals(-1L, sink.currentOffset(topicName, partition));
 
         sink.write(record);
         sink.flush();
 
         // offset is 0 for the first written record
-        assertEquals(0L, sink.currentOffset());
+        assertEquals(0, sink.currentOffset(topicName, partition));
 
         sink.write(record);
         sink.flush();
         // offset is 1 for the second written record
-        assertEquals(1L, sink.currentOffset());
+        assertEquals(1, sink.currentOffset(topicName, partition));
 
         sink.close();
 
@@ -282,13 +283,13 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink = new KafkaConnectSink();
         sink.open(props, null);
 
-        // offset is 1 after reopening teh producer
-        assertEquals(1L, sink.currentOffset());
+        // offset is 1 after reopening the producer
+        assertEquals(1, sink.currentOffset(topicName, partition));
 
         sink.write(record);
         sink.flush();
         // offset is 2 for the next written record
-        assertEquals(2L, sink.currentOffset());
+        assertEquals(2, sink.currentOffset(topicName, partition));
 
         sink.close();
     }

@@ -256,7 +256,8 @@ public class KafkaConnectSink implements Sink<Object> {
 
     @SuppressWarnings("rawtypes")
     private SinkRecord toSinkRecord(Record<Object> sourceRecord) {
-        final int partition = 0;
+        final int partition = sourceRecord.getPartitionIndex().orElse(0);
+        final String topic = sourceRecord.getTopicName().orElse(topicName);
         final Object key;
         final Object value;
         final Schema keySchema;
@@ -297,11 +298,11 @@ public class KafkaConnectSink implements Sink<Object> {
         long offset = sourceRecord.getRecordSequence()
                 .orElse(-1L);
         if (offset < 0) {
-            offset = taskContext.currentOffset(topicName, partition)
+            offset = taskContext.currentOffset(topic, partition)
                     .incrementAndGet();
         } else {
             final long curr = offset;
-            taskContext.currentOffset(topicName, partition)
+            taskContext.currentOffset(topic, partition)
                     .updateAndGet(curMax -> Math.max(curr, curMax));
         }
 
@@ -314,7 +315,7 @@ public class KafkaConnectSink implements Sink<Object> {
             timestamp = sourceRecord.getMessage().get().getPublishTime();
             timestampType = TimestampType.LOG_APPEND_TIME;
         }
-        SinkRecord sinkRecord = new SinkRecord(topicName,
+        SinkRecord sinkRecord = new SinkRecord(topic,
                 partition,
                 keySchema,
                 key,
@@ -327,8 +328,8 @@ public class KafkaConnectSink implements Sink<Object> {
     }
 
     @VisibleForTesting
-    protected long currentOffset() {
-        return taskContext.currentOffset(topicName, 0).get();
+    protected long currentOffset(String topic, int partition) {
+        return taskContext.currentOffset(topic, partition).get();
     }
 
 }
