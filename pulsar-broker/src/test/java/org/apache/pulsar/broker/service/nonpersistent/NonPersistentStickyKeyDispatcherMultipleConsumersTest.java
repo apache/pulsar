@@ -32,7 +32,7 @@ import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -131,7 +131,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 assertEquals(entry.getLedgerId(), 1);
                 assertEquals(entry.getEntryId(), index);
                 ByteBuf byteBuf = entry.getDataBuffer();
-                MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
+                PulsarApi.MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
                 assertEquals(byteBuf.toString(UTF_8), "message" + index);
             };
             return mockPromise;
@@ -151,12 +151,12 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     private ByteBuf createMessage(String message, int sequenceId, String key) {
-        MessageMetadata messageMetadata = new MessageMetadata()
+        PulsarApi.MessageMetadata messageMetadata = PulsarApi.MessageMetadata.newBuilder()
                 .setSequenceId(sequenceId)
                 .setProducerName("testProducer")
                 .setPartitionKey(key)
                 .setPartitionKeyB64Encoded(false)
-                .setPublishTime(System.currentTimeMillis());
+                .setPublishTime(System.currentTimeMillis()).build();
         return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 
