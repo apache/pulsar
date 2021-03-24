@@ -101,8 +101,9 @@ To install the Python bindings:
 
 import _pulsar
 
-from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode, BatchingType, \
-    PulsarException  # noqa: F401
+from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode, BatchingType  # noqa: F401
+
+from pulsar.exceptions import *
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context

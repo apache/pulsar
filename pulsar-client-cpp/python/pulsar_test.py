@@ -96,6 +96,16 @@ class PulsarTest(TestCase):
         conf.consumer_name("my-name")
         self.assertEqual(conf.consumer_name(), "my-name")
 
+    def test_connect_error(self):
+        with self.assertRaises(pulsar.ConnectError):
+            client = Client('fakeServiceUrl')
+            client.create_producer('connect-error-topic')
+            client.close()
+
+    def test_exception_inheritance(self):
+        assert issubclass(pulsar.ConnectError, pulsar.PulsarException)
+        assert issubclass(pulsar.PulsarException, Exception)
+
     def test_simple_producer(self):
         client = Client(self.serviceUrl)
         producer = client.create_producer('my-python-topic')
