@@ -42,6 +42,7 @@ except ImportError:
 
 TM = 10000  # Do not wait forever in tests
 
+
 def doHttpPost(url, data):
     req = Request(url, data.encode())
     req.add_header('Content-Type', 'application/json')
@@ -66,6 +67,7 @@ def doHttpGet(url):
     req = Request(url)
     req.add_header('Accept', 'application/json')
     return urlopen(req).read()
+
 
 class PulsarTest(TestCase):
 
@@ -157,11 +159,8 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        try:
-            msg = consumer.receive(100)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
 
         consumer.unsubscribe()
         client.close()
@@ -199,11 +198,8 @@ class PulsarTest(TestCase):
         producer.send(b'hello', deliver_at=int(round(time.time() * 1000)) + 1100)
 
         # Message should not be available in the next second
-        try:
-            msg = consumer.receive(1000)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            consumer.receive(1000)
 
         # Message should be published now
         msg = consumer.receive(TM)
@@ -223,11 +219,8 @@ class PulsarTest(TestCase):
         producer.send(b'hello', deliver_after=timedelta(milliseconds=1100))
 
         # Message should not be available in the next second
-        try:
-            msg = consumer.receive(1000)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            consumer.receive(1000)
 
         # Message should be published in the next 500ms
         msg = consumer.receive(TM)
@@ -239,14 +232,14 @@ class PulsarTest(TestCase):
 
     def test_consumer_initial_position(self):
         client = Client(self.serviceUrl)
-        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer = client.create_producer('consumer-initial-position')
 
         # Sending 5 messages before consumer creation.
         # These should be received with initial_position set to Earliest but not with Latest.
         for i in range(5):
             producer.send(b'hello-%d' % i)
 
-        consumer = client.subscribe('my-python-topic-producer-consumer',
+        consumer = client.subscribe('consumer-initial-position',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared,
                                     initial_position=InitialPosition.Earliest)
@@ -260,11 +253,8 @@ class PulsarTest(TestCase):
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
 
-        try:
-            msg = consumer.receive(100)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
 
         consumer.unsubscribe()
         client.close()
@@ -320,21 +310,18 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=AuthenticationTLS(certs_dir + 'client-cert.pem', certs_dir + 'client-key.pem'))
 
-        consumer = client.subscribe('my-python-topic-producer-consumer',
+        consumer = client.subscribe('my-python-topic-tls-auth',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer = client.create_producer('my-python-topic-tls-auth')
         producer.send(b'hello')
 
         msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        try:
-            msg = consumer.receive(100)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
 
         client.close()
 
@@ -350,21 +337,18 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=Authentication(authPlugin, authParams))
 
-        consumer = client.subscribe('my-python-topic-producer-consumer',
+        consumer = client.subscribe('my-python-topic-tls-auth-2',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer = client.create_producer('my-python-topic-tls-auth-2')
         producer.send(b'hello')
 
         msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        try:
-            msg = consumer.receive(100)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
 
         client.close()
 
@@ -399,21 +383,18 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=Authentication(authPlugin, authParams))
 
-        consumer = client.subscribe('my-python-topic-producer-consumer',
+        consumer = client.subscribe('my-python-topic-tls-auth-3',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-producer-consumer')
+        producer = client.create_producer('my-python-topic-tls-auth-3')
         producer.send(b'hello')
 
         msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        try:
-            msg = consumer.receive(100)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
 
         client.close()
 
@@ -427,12 +408,11 @@ class PulsarTest(TestCase):
                         tls_trust_certs_file_path=certs_dir + 'cacert.pem',
                         tls_allow_insecure_connection=False,
                         authentication=Authentication(authPlugin, authParams))
-        try:
-            client.subscribe('my-python-topic-producer-consumer',
+
+        with self.assertRaises(PulsarException):
+            client.subscribe('my-python-topic-auth-junk-params',
                              'my-sub',
                              consumer_type=ConsumerType.Shared)
-        except PulsarException:
-            pass  # Exception is expected
 
     def test_message_listener(self):
         client = Client(self.serviceUrl)
@@ -472,11 +452,8 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        try:
-            msg = reader.read_next(100)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            reader.read_next(100)
 
         reader.close()
         client.close()
@@ -628,13 +605,8 @@ class PulsarTest(TestCase):
             self.assertEqual(msg.data(), b'hello-%d' % i)
             consumer.acknowledge(msg)
 
-        try:
-            # No other messages should be received
-            consumer.receive(timeout_millis=1000)
-            self.assertTrue(False)
-        except PulsarException:
-            # Exception is expected
-            pass
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
 
         producer.close()
 
@@ -646,13 +618,8 @@ class PulsarTest(TestCase):
         producer.send(b'hello-2', sequence_id=2)
         self.assertEqual(producer.last_sequence_id(), 2)
 
-        try:
-            # No other messages should be received
-            consumer.receive(timeout_millis=1000)
-            self.assertTrue(False)
-        except PulsarException:
-            # Exception is expected
-            pass
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
 
         doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
                    'false')
@@ -883,11 +850,8 @@ class PulsarTest(TestCase):
 
         # repeat with reader
         reader = client.create_reader('my-python-topic-seek', MessageId.latest)
-        try:
-            msg = reader.read_next(100)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            reader.read_next(100)
 
         # earliest
         reader.seek(MessageId.earliest)
@@ -935,11 +899,8 @@ class PulsarTest(TestCase):
         self.assertEqual(msg.data(), b'hello')
         consumer.acknowledge(msg)
 
-        try:
-            msg = consumer.receive(100)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
 
         client.close()
 
@@ -982,14 +943,8 @@ class PulsarTest(TestCase):
             msg = consumer.receive(TM)
             consumer.acknowledge(msg)
 
-        try:
-        # No other messages should be received
-            consumer.receive(timeout_millis=500)
-            self.assertTrue(False)
-        except Exception:
-            # Exception is expected
-            # Also checks that PulsarException inherits Exception
-            pass
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
         client.close()
 
     def test_topics_pattern_consumer(self):
@@ -1038,14 +993,8 @@ class PulsarTest(TestCase):
             msg = consumer.receive(TM)
             consumer.acknowledge(msg)
 
-        try:
-            # No other messages should be received
-            consumer.receive(timeout_millis=500)
-            self.assertTrue(False)
-        except Exception:
-            # Exception is expected
-            # Also checks that PulsarException inherits Exception
-            pass
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
         client.close()
 
     def test_message_id(self):
@@ -1122,11 +1071,8 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        try:
-            msg = consumer.receive(100)
-            self.assertTrue(False)  # Should not reach this point
-        except PulsarException:
-            pass  # Exception is expected
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
 
         consumer.unsubscribe()
         client.close()
@@ -1170,7 +1116,8 @@ class PulsarTest(TestCase):
         client = Client(self.serviceUrl)
         consumer = client.subscribe('test_negative_acks',
                                     'test',
-                                    schema=pulsar.schema.StringSchema())
+                                    schema=pulsar.schema.StringSchema(),
+                                    negative_ack_redelivery_delay_ms=1000)
         producer = client.create_producer('test_negative_acks',
                                           schema=pulsar.schema.StringSchema())
         for i in range(10):
@@ -1188,31 +1135,17 @@ class PulsarTest(TestCase):
             self.assertEqual(msg.value(), "hello-%d" % i)
             consumer.acknowledge(msg)
 
-        try:
-            # No more messages expected
-            msg = consumer.receive(100)
-            self.assertTrue(False)
-        except Exception:
-            # Exception is expected
-            # Also checks that PulsarException inherits Exception
-            pass
+        with self.assertRaises(PulsarException):
+            consumer.receive(100)
         client.close()
 
     def _check_value_error(self, fun):
-        try:
+        with self.assertRaises(ValueError):
             fun()
-            # Should throw exception
-            self.assertTrue(False)
-        except ValueError:
-            pass  # Expected
 
     def _check_type_error(self, fun):
-        try:
+        with self.assertRaises(TypeError):
             fun()
-            # Should throw exception
-            self.assertTrue(False)
-        except TypeError:
-            pass  # Expected
 
 
 if __name__ == '__main__':
