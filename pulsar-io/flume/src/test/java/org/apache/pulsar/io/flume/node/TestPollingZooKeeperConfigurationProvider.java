@@ -70,7 +70,7 @@ public class TestPollingZooKeeperConfigurationProvider extends
     }
 
     @Override
-    protected void doTearDown() throws Exception {
+    protected void doTearDown() {
         // do nothing
     }
 

@@ -40,6 +40,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class ExclusiveProducerTest extends BrokerTestBase {
 
     @BeforeClass
@@ -193,7 +194,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topics")
-    public void topicDeleted(String type, boolean partitioned) throws Exception {
+    public void topicDeleted(String ignored, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)

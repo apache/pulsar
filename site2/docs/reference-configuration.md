@@ -138,7 +138,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |Name|Description|Default|
 |---|---|---|
 |advertisedListeners|Specify multiple advertised listeners for the broker.<br><br>The format is `<listener_name>:pulsar://<host>:<port>`.<br><br>If there are multiple listeners, separate them with commas.<br><br>**Note**: do not use this configuration with `advertisedAddress` and `brokerServicePort`. If the value of this configuration is empty, the broker uses `advertisedAddress` and `brokerServicePort`|/|
-internalListenerName|Specify the internal listener name for the broker.<br><br>**Note**: the listener name must be contained in `advertisedListeners`.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/|
+|internalListenerName|Specify the internal listener name for the broker.<br><br>**Note**: the listener name must be contained in `advertisedListeners`.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/|
 |authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
 |enablePersistentTopics|  Whether persistent topics are enabled on the broker |true|
 |enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true|
@@ -147,7 +147,7 @@ internalListenerName|Specify the internal listener name for the broker.<br><br>*
 |statsUpdateFrequencyInSecs||60|
 |statsUpdateInitialDelayInSecs||60|
 |zookeeperServers|  Zookeeper quorum connection string  ||
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| Broker data port  |6650|
 |brokerServicePortTls|  Broker data port for TLS  |6651|
@@ -201,8 +201,7 @@ internalListenerName|Specify the internal listener name for the broker.<br><br>*
 |tlsCertificateFilePath|  Path for the TLS certificate file ||
 |tlsKeyFilePath|  Path for the TLS private key file ||
 |tlsTrustCertsFilePath| Path for the trusted TLS certificate file. This cert is used to verify that any certs presented by connecting clients are signed by a certificate authority. If this verification fails, then the certs are untrusted and the connections are dropped. ||
-|tlsAllowInsecureConnection| Accept untrusted TLS certificate from client. If it is set to `true`, a client with a cert which cannot be verified with the
-'tlsTrustCertsFilePath' cert will be allowed to connect to the server, though the cert will not be used for client authentication. |false|
+|tlsAllowInsecureConnection| Accept untrusted TLS certificate from client. If it is set to `true`, a client with a cert which cannot be verified with the 'tlsTrustCertsFilePath' cert will be allowed to connect to the server, though the cert will not be used for client authentication. |false|
 |tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.2```, ```TLSv1.1```, ```TLSv1``` ||
 |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
 |tlsEnabledWithKeyStore| Enable TLS with KeyStore type configuration in broker |false|
@@ -227,7 +226,7 @@ internalListenerName|Specify the internal listener name for the broker.<br><br>*
 |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000|
 |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000|
 |subscriptionRedeliveryTrackerEnabled| Enable subscription message redelivery tracker |true|
-subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value **greater than 0** deletes inactive subscriptions automatically.<br/>Setting this configuration to **0** does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each **namespace** using the [`pulsar-admin namespaces set-subscription-expiration-time options` command](http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-). | 0 |
+|subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value **greater than 0** deletes inactive subscriptions automatically.<br/>Setting this configuration to **0** does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each **namespace** using the [`pulsar-admin namespaces set-subscription-expiration-time options` command](http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-). | 0 |
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
 |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000|
 |authenticationEnabled| Enable authentication |false|
@@ -314,8 +313,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
 |supportedNamespaceBundleSplitAlgorithms| Supported algorithms name for namespace bundle split |[range_equally_divide,topic_count_equally_divide]|
 |defaultNamespaceBundleSplitAlgorithm| Default algorithm name for namespace bundle split |range_equally_divide|
-|managedLedgerOffloadDriver| The directory for all the offloader implementations
-`offloadersDirectory=./offloaders`. Driver to use to offload old data to long term storage (Possible values: S3, aws-s3, google-cloud-storage). When using google-cloud-storage, Make sure both Google Cloud Storage and Google Cloud Storage JSON API are enabled for the project (check from Developers Console -> Api&auth -> APIs). ||
+|managedLedgerOffloadDriver| The directory for all the offloader implementations `offloadersDirectory=./offloaders`. Driver to use to offload old data to long term storage (Possible values: S3, aws-s3, google-cloud-storage). When using google-cloud-storage, Make sure both Google Cloud Storage and Google Cloud Storage JSON API are enabled for the project (check from Developers Console -> Api&auth -> APIs). ||
 |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2|
 |managedLedgerOffloadPrefetchRounds|The maximum prefetch rounds for ledger reading for offloading.|1|
 |managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true|
@@ -375,7 +373,7 @@ You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool
 |Name|Description|Default|
 |---|---|---|
 |zookeeperServers|  Zookeeper quorum connection string (comma-separated)  ||
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |zookeeperSessionTimeoutMs| ZooKeeper session timeout |30000|
 |servicePort| Port to use to server binary-proto request  |6650|
@@ -443,7 +441,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |---|---|---|
 |authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
 |zookeeperServers|  The quorum connection string for local ZooKeeper  ||
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
 |webServicePort|  THe port used by the standalone broker for HTTP requests  |8080|
@@ -499,8 +497,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | dispatchThrottlingRatePerTopicInByte | Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled. | 0|
 | dispatchThrottlingRateRelativeToPublishRate | Enable dispatch rate-limiting relative to publish rate. | false |
 |dispatchThrottlingRatePerSubscriptionInMsg|The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.|0|
-|dispatchThrottlingRatePerSubscriptionInByte|The default number of message-bytes dispatching throttling-limit for a subscription.
-The value of 0 disables message-byte dispatch-throttling.|0|
+|dispatchThrottlingRatePerSubscriptionInByte|The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.|0|
 | dispatchThrottlingOnNonBacklogConsumerEnabled | Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs. | true |
 |dispatcherMaxReadBatchSize|The maximum number of entries to read from BookKeeper. By default, it is 100 entries.|100|
 |dispatcherMaxReadSizeBytes|The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.|5242880|
@@ -540,7 +537,7 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 | brokerClientTlsTrustStore | TLS TrustStore path for the internal client to authenticate with Pulsar brokers. | |
 | brokerClientTlsTrustStorePassword | TLS TrustStore password for the internal client to authenticate with Pulsar brokers. | |
 | brokerClientTlsCiphers | Specify the TLS cipher that the internal client uses to negotiate during TLS Handshake. | |
-| brokerClientTlsProtocols | Specify the TLS protocols that the broker uses to negotiate during TLS handshake. |
+| brokerClientTlsProtocols | Specify the TLS protocols that the broker uses to negotiate during TLS handshake. | |
 | systemTopicEnabled | Enable/Disable system topics. | false |
 | topicLevelPoliciesEnabled | Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first. | false |
 | proxyRoles | Role names that are treated as "proxy roles". If the broker sees a request with role as proxyRoles, it demands to see a valid original principal. | |
@@ -589,7 +586,8 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 | bookkeeperTLSClientAuthentication | Enable TLS authentication with bookie. | false |
 | bookkeeperTLSKeyFileType | Supported type: PEM, JKS, PKCS12.  | PEM |
 | bookkeeperTLSTrustCertTypes | Supported type: PEM, JKS, PKCS12.  | PEM |
-| bookkeeperTLSKeyStorePasswordPath | Path to file containing keystore password, if the client keystore is password protected. | | bookkeeperTLSTrustStorePasswordPath | Path to file containing truststore password, if the client truststore is password protected. | |
+| bookkeeperTLSKeyStorePasswordPath | Path to file containing keystore password, if the client keystore is password protected. | |
+| bookkeeperTLSTrustStorePasswordPath | Path to file containing truststore password, if the client truststore is password protected. | |
 | bookkeeperTLSKeyFilePath | Path for the TLS private key file. | |
 | bookkeeperTLSCertificateFilePath | Path for the TLS certificate file. | |
 | bookkeeperTLSTrustCertsFilePath | Path for the trusted TLS certificate file. | |
@@ -645,14 +643,14 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 |loadBalancerNamespaceBundleMaxMsgRate|   |1000|
 |loadBalancerNamespaceBundleMaxBandwidthMbytes|   |100|
 |loadBalancerNamespaceMaximumBundles|   |128|
-| loadBalancerBrokerThresholdShedderPercentage | The broker resource usage threshold. When the broker resource usage is greater than the pulsar cluster average resource usage, the threshold shedder is triggered to offload bundles from the broker. It only takes effect in the ThresholdSheddler strategy. | 10 |
-| loadBalancerHistoryResourcePercentage | The history usage when calculating new resource usage. It only takes effect in the ThresholdSheddler strategy. | 0.9 |
-| loadBalancerBandwithInResourceWeight | The BandWithIn usage weight when calculating new resource usage. It only takes effect in the ThresholdSheddler strategy. | 1.0 |
-| loadBalancerBandwithOutResourceWeight | The BandWithOut usage weight when calculating new resource usage. It only takes effect in the ThresholdSheddler strategy. | 1.0 |
-| loadBalancerCPUResourceWeight | The CPU usage weight when calculating new resource usage. It only takes effect in the ThresholdSheddler strategy. | 1.0 |
-| loadBalancerMemoryResourceWeight | The heap memory usage weight when calculating new resource usage. It only takes effect in the ThresholdSheddler strategy. | 1.0 |
-| loadBalancerDirectMemoryResourceWeight | The direct memory usage weight when calculating new resource usage. It only takes effect in the ThresholdSheddler strategy. | 1.0 |
-| loadBalancerBundleUnloadMinThroughputThreshold | Bundle unload minimum throughput threshold. Avoid bundle unload frequently. It only takes effect in the ThresholdSheddler strategy. | 10 |
+| loadBalancerBrokerThresholdShedderPercentage | The broker resource usage threshold. When the broker resource usage is greater than the pulsar cluster average resource usage, the threshold shedder is triggered to offload bundles from the broker. It only takes effect in the ThresholdShedder strategy. | 10 |
+| loadBalancerHistoryResourcePercentage | The history usage when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 0.9 |
+| loadBalancerBandwithInResourceWeight | The BandWithIn usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerBandwithOutResourceWeight | The BandWithOut usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerCPUResourceWeight | The CPU usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerMemoryResourceWeight | The heap memory usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerDirectMemoryResourceWeight | The direct memory usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerBundleUnloadMinThroughputThreshold | Bundle unload minimum throughput threshold. Avoid bundle unload frequently. It only takes effect in the ThresholdShedder strategy. | 10 |
 |replicationMetricsEnabled|   |true|
 |replicationConnectionsPerBroker|   |16|
 |replicationProducerQueueSize|    |1000|
@@ -660,8 +658,8 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
-haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
-bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br><br>Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br><br> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
+|haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+|bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br><br>Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br><br> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
 
 ## WebSocket
@@ -670,7 +668,7 @@ bookieId | If you want to custom a bookie ID or use a dynamic network address fo
 |---|---|---|
 |configurationStoreServers    |||
 |zooKeeperSessionTimeoutMillis|   |30000|
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |serviceUrl|||
 |serviceUrlTls|||
 |brokerServiceUrl|||
@@ -714,7 +712,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |functionWorkerWebServiceURL|If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.|N/A|
 |functionWorkerWebServiceURLTLS|If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.|N/A|
 |zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds) |30000|
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |advertisedAddress|Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostname()` is used.|N/A|
 |servicePort| The port to use for server binary Protobuf requests |6650|
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
@@ -753,7 +751,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 | proxyLogLevel | Set the Pulsar Proxy log level. <li> If the value is set to 0, no TCP channel information is logged. <li> If the value is set to 1, only the TCP channel information and command information (without message body) are parsed and logged. <li> If the value is set to 2, all TCP channel information, command information, and message body are parsed and logged. | 0 |
-haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+|haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 
 ## ZooKeeper
 

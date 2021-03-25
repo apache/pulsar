@@ -63,6 +63,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
     private static String getTLSFile(String name) {

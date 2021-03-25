@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

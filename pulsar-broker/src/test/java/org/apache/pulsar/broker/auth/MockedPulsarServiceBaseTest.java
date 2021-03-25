@@ -103,7 +103,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         this.conf = getDefaultConf();
     }
 
-
     protected final void internalSetup() throws Exception {
         incrementSetupNumber();
         init();
@@ -269,9 +268,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
 
-        PulsarService pulsar = startBrokerWithoutAuthorization(conf);
-
-        return pulsar;
+        return startBrokerWithoutAuthorization(conf);
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
@@ -308,7 +305,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
     }
 
-    public TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
+    protected TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
         // create local cluster if not exist
         if (!admin.clusters().getClusters().contains(configClusterName)) {
             admin.clusters().createCluster(configClusterName, new ClusterData());
@@ -424,7 +421,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setAdvertisedAddress("localhost");
         configuration.setClusterName(configClusterName);
         // there are TLS tests in here, they need to use localhost because of the certificate
-        configuration.setAdvertisedAddress("localhost");
         configuration.setManagedLedgerCacheSizeMB(8);
         configuration.setActiveConsumerFailoverDelayTimeMillis(0);
         configuration.setDefaultNumberOfNamespaceBundles(1);

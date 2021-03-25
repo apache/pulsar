@@ -83,9 +83,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Test Pulsar function state
- *
  */
 @Slf4j
+@Test(groups = "functions-worker")
 public class PulsarFunctionPublishTest {
     LocalBookkeeperEnsemble bkEnsemble;
 

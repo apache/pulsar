@@ -42,6 +42,7 @@ import java.nio.charset.Charset;
 /**
  * Tests for the the interceptor filter out.
  */
+@Test(groups = "broker")
 public class InterceptFilterOutTest {
 
     private static final String[] shouldBeFilterOutContentTypes = new String[] {
@@ -146,7 +147,7 @@ public class InterceptFilterOutTest {
         private final byte[] body;
 
         @Override
-        public ServletInputStream getInputStream() throws IOException {
+        public ServletInputStream getInputStream() {
             final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(body);
             return new ServletInputStream() {
                 @Override
@@ -164,7 +165,7 @@ public class InterceptFilterOutTest {
 
                 }
 
-                public int read() throws IOException {
+                public int read() {
                     return byteArrayInputStream.read();
                 }
             };

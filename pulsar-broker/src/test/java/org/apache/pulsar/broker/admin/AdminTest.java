@@ -104,6 +104,7 @@ import org.testng.annotations.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Test(groups = "broker")
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(AdminTest.class);
 
@@ -118,7 +119,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private BrokerStats brokerStats;
     private SchemasResource schemasResource;
     private Field uriField;
-    private Clock mockClock = Clock.fixed(
+    private final Clock mockClock = Clock.fixed(
         Instant.ofEpochSecond(365248800),
         ZoneId.of("-05:00")
     );

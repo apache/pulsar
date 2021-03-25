@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.common.api.raw;
 
-import static org.testng.Assert.assertEquals;
-import java.util.Map;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.testng.annotations.Test;
+
+import java.util.Map;
+
+import static org.testng.Assert.assertEquals;
 
 public class RawMessageImplTest {
 
@@ -42,5 +44,7 @@ public class RawMessageImplTest {
         Map<String, String> properties = msg.getProperties();
         assertEquals(properties.get(HARD_CODE_KEY), KEY_VALUE_SECOND);
         assertEquals(properties.get(HARD_CODE_KEY_ID), HARD_CODE_KEY_ID_VALUE);
+        assertEquals(KEY_VALUE_SECOND, properties.get(HARD_CODE_KEY));
+        assertEquals(HARD_CODE_KEY_ID_VALUE, properties.get(HARD_CODE_KEY_ID));
     }
 }

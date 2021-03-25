@@ -40,6 +40,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+@Test(groups = "flaky")
 public class DeadLetterTopicTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(DeadLetterTopicTest.class);

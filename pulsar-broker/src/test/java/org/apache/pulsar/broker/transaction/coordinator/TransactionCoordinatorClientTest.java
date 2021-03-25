@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
 
-
+@Test(groups = "broker")
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
 
     @BeforeClass

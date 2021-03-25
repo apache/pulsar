@@ -86,6 +86,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+    <test.additional.args></test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
@@ -135,7 +136,7 @@ flexible messaging model and an intuitive client API.</description>
     <kafka-client.version>2.3.0</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.774</aws-sdk.version>
-    <avro.version>1.9.1</avro.version>
+    <avro.version>1.10.2</avro.version>
     <joda.version>2.10.1</joda.version>
     <jclouds.version>2.2.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
@@ -143,8 +144,7 @@ flexible messaging model and an intuitive client API.</description>
     <postgresql-jdbc.version>42.2.12</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
-    <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
-    <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
+    <hdfs-offload-version3>3.3.0</hdfs-offload-version3>
     <elasticsearch.version>7.9.1</elasticsearch.version>
     <presto.version>332</presto.version>
     <scala.binary.version>2.11</scala.binary.version>
@@ -157,6 +157,8 @@ flexible messaging model and an intuitive client API.</description>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.14.0</prometheus-jmx.version>
     <confluent.version>5.3.2</confluent.version>
+    <kafka.confluent.schemaregistryclient.version>5.3.0</kafka.confluent.schemaregistryclient.version>
+    <kafka.confluent.avroserializer.version>5.3.0</kafka.confluent.avroserializer.version>
     <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
     <aircompressor.version>0.16</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
@@ -174,7 +176,7 @@ flexible messaging model and an intuitive client API.</description>
     <hppc.version>0.7.3</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.18.1</assertj-core.version>
-    <lombok.version>1.18.16</lombok.version>
+    <lombok.version>1.18.18</lombok.version>
     <javax.annotation-api.version>1.2</javax.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
@@ -185,6 +187,7 @@ flexible messaging model and an intuitive client API.</description>
     <cron-utils.version>9.1.3</cron-utils.version>
     <spring-context.version>5.3.1</spring-context.version>
     <docker-java.version>3.2.7</docker-java.version>
+    <apache-http-client.version>4.5.13</apache-http-client.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -192,7 +195,7 @@ flexible messaging model and an intuitive client API.</description>
     <testcontainers.version>1.15.1</testcontainers.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
-    <mockito.version>3.0.0</mockito.version>
+    <mockito.version>3.8.0</mockito.version>
     <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
@@ -1027,6 +1030,12 @@ flexible messaging model and an intuitive client API.</description>
         <version>${objenesis.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>${apache-http-client.version}</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
@@ -1154,6 +1163,7 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.pooled=false
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
+            ${test.additional.args}
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
@@ -1627,6 +1637,15 @@ flexible messaging model and an intuitive client API.</description>
 
   <profiles>
     <profile>
+      <id>jdk11-tests</id>
+      <activation>
+        <jdk>[11,)</jdk>
+      </activation>
+      <properties>
+        <test.additional.args> --add-opens java.base/jdk.internal.loader=ALL-UNNAMED </test.additional.args>
+      </properties>
+    </profile>
+    <profile>
       <id>coverage</id>
       <build>
         <plugins>
@@ -1757,6 +1776,7 @@ flexible messaging model and an intuitive client API.</description>
       <id>main</id>
       <activation>
         <activeByDefault>true</activeByDefault>
+        <jdk>[8,)</jdk>
       </activation>
       <modules>
         <module>buildtools</module>

@@ -48,6 +48,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+@Test(groups = "broker-api")
 public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerStatTest.class);
 
@@ -296,7 +297,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/tp1/my-ns/my-topic5").sendTimeout(1, TimeUnit.SECONDS);
         if (batchMessageDelayMs != 0) {
-            producerBuilder.enableBatching(true).batchingMaxPublishDelay(2 * batchMessageDelayMs, TimeUnit.MILLISECONDS)
+            producerBuilder.enableBatching(true).batchingMaxPublishDelay(2L * batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
         }
 
@@ -361,7 +362,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    public void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount)
+    private void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount)
             throws InterruptedException {
         // Waiting for recording last stat info
         Thread.sleep(1000);

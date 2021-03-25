@@ -41,6 +41,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-impl")
 public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Override

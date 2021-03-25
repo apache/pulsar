@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.*;
 
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
