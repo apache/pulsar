@@ -102,12 +102,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int zooKeeperCacheExpirySeconds = 300;
 
     @FieldContext(
-            category = CATEGORY_BROKER_DISCOVERY,
-            doc = "Enable share timer for pulsar client"
-    )
-    private boolean enableShareTimer;
-
-    @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         doc = "The service url points to the broker cluster"
     )

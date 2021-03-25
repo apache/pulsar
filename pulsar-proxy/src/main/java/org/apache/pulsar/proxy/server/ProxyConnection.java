@@ -58,9 +58,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.util.HashedWheelTimer;
-import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 import lombok.Getter;
@@ -71,7 +68,6 @@ import lombok.Getter;
  */
 public class ProxyConnection extends PulsarHandler implements FutureListener<Void> {
     // ConnectionPool is used by the proxy to issue lookup requests
-    private static volatile Timer shareTimer = null;
     private PulsarClientImpl client;
     private ProxyService service;
     private Authentication clientAuthentication;
@@ -123,9 +119,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         this.service = proxyService;
         this.state = State.Init;
         this.sslHandlerSupplier = sslHandlerSupplier;
-        if (proxyService.getConfiguration().isEnableShareTimer()) {
-            shareTimer = getShareTimer();
-        }
     }
 
     @Override
@@ -306,7 +299,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             if (!service.getConfiguration().isAuthenticationEnabled()) {
                 this.client = new PulsarClientImpl(clientConf, service.getWorkerGroup(),
                     new ProxyConnectionPool(clientConf, service.getWorkerGroup(),
-                        () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersion)), shareTimer);
+                        () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersion)), service.getShareTimer());
 
                 completeConnect();
                 return;
@@ -353,17 +346,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             close();
             return;
         }
-    }
-
-    private Timer getShareTimer() {
-        if (shareTimer == null) {
-            synchronized (ProxyConnection.class) {
-                if (shareTimer == null) {
-                    shareTimer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-share-timer", Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
-                }
-            }
-        }
-        return shareTimer;
     }
 
     @Override
@@ -454,7 +436,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             final String clientAuthMethod, final int protocolVersion) throws PulsarClientException {
         return new PulsarClientImpl(clientConf, service.getWorkerGroup(),
                 new ProxyConnectionPool(clientConf, service.getWorkerGroup(), () -> new ProxyClientCnx(clientConf,
-                        service.getWorkerGroup(), clientAuthRole, clientAuthData, clientAuthMethod, protocolVersion)), shareTimer);
+                        service.getWorkerGroup(), clientAuthRole, clientAuthData, clientAuthMethod, protocolVersion)), service.getShareTimer());
     }
 
     private static int getProtocolVersionToAdvertise(CommandConnect connect) {
