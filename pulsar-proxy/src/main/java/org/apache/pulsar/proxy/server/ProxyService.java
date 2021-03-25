@@ -73,7 +73,7 @@ import com.google.common.collect.Sets;
 public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
-    private Timer shareTimer;
+    private final Timer timer;
     private String serviceUrl;
     private String serviceUrlTls;
     private ConfigurationMetadataCacheService configurationCacheService;
@@ -134,7 +134,7 @@ public class ProxyService implements Closeable {
                         AuthenticationService authenticationService) throws IOException {
         checkNotNull(proxyConfig);
         this.proxyConfig = proxyConfig;
-        this.shareTimer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-share-timer", Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
+        this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
         this.clientCnxs = Sets.newConcurrentHashSet();
         this.topicStats = Maps.newConcurrentMap();
 
@@ -277,8 +277,8 @@ public class ProxyService implements Closeable {
         }
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
-        if (shareTimer != null) {
-            shareTimer.stop();
+        if (timer != null) {
+            timer.stop();
         }
     }
 
@@ -294,8 +294,8 @@ public class ProxyService implements Closeable {
         return proxyConfig;
     }
 
-    public Timer getShareTimer() {
-        return shareTimer;
+    public Timer getTimer() {
+        return timer;
     }
 
     public AuthenticationService getAuthenticationService() {
