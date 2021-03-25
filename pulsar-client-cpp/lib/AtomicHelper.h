@@ -22,8 +22,11 @@
 
 namespace pulsar {
 
-template <typename T>
-inline T addAndGet(std::atomic<T>& value, T delta) {
+// `AtomicType` must be `std::atomic<T>` or `std::atomic_xxx,` which could be the typedef or base class
+// of `std::atomic<T>` in C++11.
+// See http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3690.pdf chapter 29.5.7 for reference.
+template <typename AtomicType, typename T>
+inline T addAndGet(AtomicType& value, T delta) {
     while (true) {
         T oldValue = value.load();
         T newValue = oldValue + delta;
@@ -32,16 +35,5 @@ inline T addAndGet(std::atomic<T>& value, T delta) {
         }
     }
 }
-
-// GCC (>= 4.8) supports C++11, but it doesn't follow the C++ standard completely before GCC 5.
-// For example, in C++11 standard, `std::atomic_int` is the typedef of `std::atomic<int>`.
-// However, before GCC 5, `std::atomic<int>` derives from `std::atomic_int`, so here we add the template
-// specification to make the API compatible with older GCC compiler (< 5).
-#if __GNUC__ < 5
-template <typename AtomicType, typename T>
-inline T addAndGet(AtomicType& value, T delta) {
-    return addAndGet(static_cast<std::atomic<T>&>(value), delta);
-}
-#endif
 
 }  // namespace pulsar
