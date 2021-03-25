@@ -33,4 +33,15 @@ inline T addAndGet(std::atomic<T>& value, T delta) {
     }
 }
 
+// GCC (>= 4.8) supports C++11, but it doesn't follow the C++ standard completely before GCC 5.
+// For example, in C++11 standard, `std::atomic_int` is the typedef of `std::atomic<int>`.
+// However, before GCC 5, `std::atomic<int>` derives from `std::atomic_int`, so here we add the template
+// specification to make the API compatible with older GCC compiler (< 5).
+#if __GNUC__ < 5
+template <typename AtomicType, typename T>
+inline T addAndGet(AtomicType& value, T delta) {
+    return addAndGet(static_cast<std::atomic<T>&>(value), delta);
+}
+#endif
+
 }  // namespace pulsar
