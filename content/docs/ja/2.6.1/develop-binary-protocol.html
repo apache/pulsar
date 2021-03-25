@@ -284,7 +284,7 @@
 <ul>
 <li><code>topic</code> → Complete topic name to where you want to create the consumer on</li>
 <li><code>subscription</code> → Subscription name</li>
-<li><code>subType</code> → Subscription type: Exclusive, Shared, Failover</li>
+<li><code>subType</code> → Subscription type: Exclusive, Shared, Failover, Key_Shared</li>
 <li><code>consumer_id</code> → Client generated consumer identifier. Needs to be unique within the same connection</li>
 <li><code>request_id</code> → Identifier for this request. Used to match the response with the originating request. Needs to be unique within the same connection</li>
 <li><code>consumer_name</code> → <em>(optional)</em> Clients can specify a consumer name. This name can be used to track a particular consumer in the stats. Also, in Failover subscription type, the name is used to decide which consumer is elected as <em>master</em> (the one receiving messages): consumers are sorted by their consumer name and the first one is elected master.</li>
