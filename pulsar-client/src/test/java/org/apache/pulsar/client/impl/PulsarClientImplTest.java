@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
 import io.netty.buffer.ByteBuf;
@@ -73,9 +74,13 @@ public class PulsarClientImplTest {
     public void setup() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+    }
+
+    private void initializeEventLoopGroup(ClientConfigurationData conf) {
         ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
         eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
-        clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
     }
 
     @AfterMethod
@@ -191,5 +196,35 @@ public class PulsarClientImplTest {
             e.printStackTrace();
         }
         pulsarClient.newTransaction();
+    }
+
+    @Test
+    public void testResourceCleanup() throws PulsarClientException {
+        // 1. A case when resources are initialised but constructor errors out
+        // before getting completed.
+        assertFalse(eventLoopGroup.isShutdown());
+        assertFalse(clientImpl.externalExecutorProvider().isShutdown());
+        assertFalse(clientImpl.getInternalExecutorService().isShutdown());
+
+        try {
+            clientImpl.updateServiceUrl("localhost");
+        } finally {
+            // All the resources should have been released.
+            assertTrue(eventLoopGroup.isShutdown());
+            assertTrue(clientImpl.externalExecutorProvider().isShutdown());
+            assertTrue(clientImpl.getInternalExecutorService().isShutdown());
+        }
+
+        // 2. A case when initialisation fails immediately.
+
+        ClientConfigurationData conf = clientImpl.conf;
+        conf.setServiceUrl("");
+        initializeEventLoopGroup(conf);
+        assertFalse(eventLoopGroup.isShutdown());
+        try {
+            assertThrows(() -> new PulsarClientImpl(conf, eventLoopGroup));
+        } finally {
+            assertTrue(eventLoopGroup.isShutdown());
+        }
     }
 }
