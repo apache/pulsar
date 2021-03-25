@@ -8,6 +8,8 @@ The Pulsar Node.js client can be used to create Pulsar [producers](#producers), 
 
 All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Node.js client are thread-safe.
 
+With version 1.3.0 or later, [type definitions](https://github.com/apache/pulsar-client-node/blob/master/index.d.ts) for use in TypeScript are available.
+
 ## Installation
 
 You can install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
@@ -25,6 +27,7 @@ Compatibility between each version of the Node.js client and the C++ client is a
 | 1.0.0          | 2.3.0 or later |
 | 1.1.0          | 2.4.0 or later |
 | 1.2.0          | 2.5.0 or later |
+| 1.3.0          | 2.7.0 or later |
 
 If an incompatible version of the C++ client is installed, you may fail to build or run this library.
 
@@ -125,9 +128,11 @@ Pulsar Node.js producers have the following methods available:
 
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
-| `send(Object)` | Publishes a [message](#messages) to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function. | `Promise<null>` |
-| `flush()` | Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function. | `Promise<null>` |
-| `close()` | Closes the producer and releases all resources allocated to it. If `close()` is called then no more messages will be accepted from the publisher. This method will return Promise object, and when all pending publish requests have been persisted by Pulsar then run executor function. If an error is thrown, no pending writes will be retried. | `Promise<null>` |
+| `send(Object)` | Publishes a [message](#messages) to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object whose result is the message ID runs executor function. | `Promise<Object>` |
+| `flush()` | Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object runs executor function. | `Promise<null>` |
+| `close()` | Closes the producer and releases all resources allocated to it. If `close()` is called then no more messages will be accepted from the publisher. This method will return Promise object, and when all pending publish requests have been persisted by Pulsar then runs executor function. If an error is thrown, no pending writes will be retried. | `Promise<null>` |
+| `getProducerName()` | Getter method of the name of the producer. | `string` |
+| `getTopic()` | Getter method of the name of the topic. | `string` |
 
 ### Producer configuration
 
@@ -142,7 +147,7 @@ Pulsar Node.js producers have the following methods available:
 | `blockIfQueueFull` | If set to `true`, the producer's `send` method will wait when the outgoing message queue is full rather than failing and throwing an error (the size of that queue is dictated by the `maxPendingMessages` parameter); if set to `false` (the default), `send` operations will fail and throw a error when the queue is full. | `false` |
 | `messageRoutingMode` | The message routing logic (for producers on [partitioned topics](concepts-messaging.md#partitioned-topics)). This logic is applied only when no key is set on messages. The available options are: round robin (`RoundRobinDistribution`), or publishing all messages to a single partition (`UseSinglePartition`, the default). | `UseSinglePartition` |
 | `hashingScheme` | The hashing function that determines the partition on which a particular message is published (partitioned topics only). The available options are: `JavaStringHash` (the equivalent of `String.hashCode()` in Java), `Murmur3_32Hash` (applies the [Murmur3](https://en.wikipedia.org/wiki/MurmurHash) hashing function), or `BoostHash` (applies the hashing function from C++'s [Boost](https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html) library). | `BoostHash` |
-| `compressionType` | The message data compression type used by the producer. The available options are [`LZ4`](https://github.com/lz4/lz4), and [`Zlib`](https://zlib.net/). | Compression None |
+| `compressionType` | The message data compression type used by the producer. The available options are [`LZ4`](https://github.com/lz4/lz4), and [`Zlib`](https://zlib.net/), [ZSTD](https://github.com/facebook/zstd/), [SNAPPY](https://github.com/google/snappy/). | Compression None |
 | `batchingEnabled` | If set to `true`, the producer send message as batch. | `true` |
 | `batchingMaxPublishDelayMs` | The maximum time of delay sending message in batching. | 10 |
 | `batchingMaxMessages` | The maximum size of sending message in each time of batching. | 1000 |
@@ -219,12 +224,15 @@ Pulsar Node.js consumers have the following methods available:
 | `negativeAcknowledge(Message)`| [Negatively acknowledges](reference-terminology.md#negative-acknowledgment-nack)  a message to the Pulsar broker by message object. | `void` |
 | `negativeAcknowledgeId(MessageId)` | [Negatively acknowledges](reference-terminology.md#negative-acknowledgment-nack) a message to the Pulsar broker by message ID object. | `void` |
 | `close()` | Closes the consumer, disabling its ability to receive messages from the broker. | `Promise<null>` |
+| `unsubscribe()` | Unsubscribes the subscription. | `Promise<null>` |
 
 ### Consumer configuration
 
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
-| `topic` | The Pulsar [topic](reference-terminology.md#topic) on which the consumer will establish a subscription and listen for messages. | |
+| `topic` | The Pulsar topic on which the consumer will establish a subscription and listen for messages. | |
+| `topics` | The array of topics. | |
+| `topicsPattern` | The regular expression for topics. | |
 | `subscription` | The subscription name for this consumer. | |
 | `subscriptionType` | Available options are `Exclusive`, `Shared`, `Key_Shared`, and `Failover`. | `Exclusive` |
 | `subscriptionInitialPosition` | Initial position at which to set cursor when subscribing to a topic at first time. | `SubscriptionInitialPosition.Latest` |
@@ -389,6 +397,8 @@ The following keys are available for producer message objects:
 | `sequenceId` | The sequence ID of the message. |
 | `partitionKey` | The optional key associated with the message (particularly useful for things like topic compaction). |
 | `replicationClusters` | The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default. |
+| `deliverAt` | The absolute timestamp at or after which the message is delivered. | |
+| `deliverAfter` | The relative delay after which the message is delivered. | |
 
 ### Message object operations
 
