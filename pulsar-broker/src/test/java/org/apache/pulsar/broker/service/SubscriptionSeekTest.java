@@ -688,5 +688,12 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             assertTrue(e.getMessage().contains("Function must be set"));
         }
         assertNull(consumer.seekAsync((topic)-> null).get());
+        try {
+            assertNull(consumer.seekAsync((topic)-> new Object()).get());
+            fail("should fail");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof PulsarClientException);
+            assertTrue(e.getCause().getMessage().contains("Only support seek by messageId or timestamp"));
+        }
     }
 }

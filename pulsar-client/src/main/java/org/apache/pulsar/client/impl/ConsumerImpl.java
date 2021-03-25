@@ -1771,7 +1771,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 .equals(Long.class.getTypeName())) {
             return seekAsync((long) seekPosition);
         }
-        return CompletableFuture.completedFuture(null);
+        return FutureUtil.failedFuture(
+                new PulsarClientException("Only support seek by messageId or timestamp"));
     }
 
     private Optional<CompletableFuture<Void>> seekAsyncCheckState(String seekBy) {
