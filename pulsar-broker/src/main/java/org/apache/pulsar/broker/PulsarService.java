@@ -304,15 +304,13 @@ public class PulsarService implements AutoCloseable {
     public void close() throws PulsarServerException {
         try {
             closeAsync().get();
-        } catch (PulsarServerException e) {
-            throw e;
         } catch (ExecutionException e) {
             if (e.getCause() instanceof PulsarServerException) {
                 throw (PulsarServerException) e.getCause();
             } else {
                 throw new PulsarServerException(e.getCause());
             }
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             throw new PulsarServerException(e);
         }
     }
@@ -320,7 +318,7 @@ public class PulsarService implements AutoCloseable {
     /**
      * Close the current pulsar service. All resources are released.
      */
-    public CompletableFuture<Void> closeAsync() throws PulsarServerException {
+    public CompletableFuture<Void> closeAsync() {
         mutex.lock();
         try {
             if (closeFutureReference.get() != null) {
@@ -454,14 +452,16 @@ public class PulsarService implements AutoCloseable {
             closeFutureReference.set(shutdownFuture);
             return shutdownFuture;
         } catch (Exception e) {
+            PulsarServerException pse;
             if (e instanceof CompletionException && e.getCause() instanceof MetadataStoreException) {
-                throw new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e));
+                pse = new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e));
             } else if (e.getCause() instanceof CompletionException
                     && e.getCause().getCause() instanceof MetadataStoreException) {
-                throw new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e.getCause()));
+                pse = new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e.getCause()));
             } else {
-                throw new PulsarServerException(e);
+                pse = new PulsarServerException(e);
             }
+            return FutureUtil.failedFuture(pse);
         } finally {
             mutex.unlock();
         }

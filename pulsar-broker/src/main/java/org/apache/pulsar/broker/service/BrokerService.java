@@ -649,16 +649,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         } catch (ExecutionException e) {
             if (e.getCause() instanceof IOException) {
                 throw (IOException) e.getCause();
+            } else {
+                throw new PulsarServerException(e.getCause());
             }
-            throw new PulsarServerException(e.getCause());
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             throw new PulsarServerException(e);
         }
     }
 
-    public CompletableFuture<Void> closeAsync() throws IOException {
+    public CompletableFuture<Void> closeAsync() {
         log.info("Shutting down Pulsar Broker service");
 
         if (pulsar.getConfigurationCache() != null) {
@@ -711,12 +710,20 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         messagePublishBufferMonitor.shutdown();
         consumedLedgersMonitor.shutdown();
         backlogQuotaChecker.shutdown();
-        authenticationService.close();
+        try {
+            authenticationService.close();
+        } catch (IOException e) {
+            return FutureUtil.failedFuture(e);
+        }
         pulsarStats.close();
         ClientCnxnAspect.removeListener(zkStatsListener);
         ClientCnxnAspect.registerExecutor(null);
         topicOrderedExecutor.shutdown();
-        delayedDeliveryTrackerFactory.close();
+        try {
+            delayedDeliveryTrackerFactory.close();
+        } catch (IOException e) {
+            return FutureUtil.failedFuture(e);
+        }
         if (topicPublishRateLimiterMonitor != null) {
             topicPublishRateLimiterMonitor.shutdown();
         }
