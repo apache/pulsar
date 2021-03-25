@@ -57,6 +57,7 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -133,7 +134,8 @@ public class PersistentSubscription implements Subscription {
         this.setReplicated(replicated);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(topic.getName())
-                && !topic.getName().contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())) {
+                && !topic.getName().contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
+                && !topic.getName().contains(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
