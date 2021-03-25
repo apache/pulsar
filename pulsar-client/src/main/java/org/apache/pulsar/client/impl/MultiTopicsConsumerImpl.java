@@ -659,7 +659,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    public void seek(Function<String, MessageId> function) throws PulsarClientException {
+    public void seek(Function<String, Object> function) throws PulsarClientException {
         try {
             seekAsync(function).get();
         } catch (Exception e) {
@@ -668,7 +668,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    public CompletableFuture<Void> seekAsync(Function<String, MessageId> function) {
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
         List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(function)));
         unAckedMessageTracker.clear();

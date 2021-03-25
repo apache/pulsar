@@ -1748,7 +1748,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void seek(Function<String, MessageId> function) throws PulsarClientException {
+    public void seek(Function<String, Object> function) throws PulsarClientException {
         try {
             seekAsync(function).get();
         } catch (Exception e) {
@@ -1757,15 +1757,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public CompletableFuture<Void> seekAsync(Function<String, MessageId> function) {
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
         if (function == null) {
             return FutureUtil.failedFuture(new PulsarClientException("Function must be set"));
         }
-        MessageId messageId = function.apply(topic);
-        if (messageId == null) {
+        Object seekPosition = function.apply(topic);
+        if (seekPosition == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return seekAsync(messageId);
+        if (seekPosition instanceof MessageId) {
+            return seekAsync((MessageId) seekPosition);
+        } else if (seekPosition.getClass().getTypeName()
+                .equals(Long.class.getTypeName())) {
+            return seekAsync((long) seekPosition);
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     private Optional<CompletableFuture<Void>> seekAsyncCheckState(String seekBy) {

@@ -364,6 +364,52 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     }
 
     @Test
+    public void testSeekTimeByFunction() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
+        int partitionNum = 4;
+        int msgNum = 20;
+        admin.topics().createPartitionedTopic(topicName, partitionNum);
+        creatProducerAndSendMsg(topicName, msgNum);
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING).startMessageIdInclusive()
+                .topic(topicName).subscriptionName("my-sub").subscribe();
+        long now = System.currentTimeMillis();
+        consumer.seek((topic) -> now);
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        consumer.seek((topic) -> {
+            TopicName name = TopicName.get(topic);
+            switch (name.getPartitionIndex()) {
+                case 0:
+                    return MessageId.latest;
+                case 1:
+                    return MessageId.earliest;
+                case 2:
+                    return now;
+                case 3:
+                    return now - 999999;
+                default:
+                    return null;
+            }
+        });
+        int count = 0;
+        while (true) {
+            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+        }
+        int msgNumInPartition0 = 0;
+        int msgNumInPartition1 = msgNum / partitionNum;
+        int msgNumInPartition2 = 0;
+        int msgNumInPartition3 = msgNum / partitionNum;
+
+        assertEquals(count, msgNumInPartition0 + msgNumInPartition1 + msgNumInPartition2 + msgNumInPartition3);
+
+    }
+
+    @Test
     public void testSeekTimeOnPartitionedTopic() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeekTimePartitions";
         final String resetTimeStr = "100s";

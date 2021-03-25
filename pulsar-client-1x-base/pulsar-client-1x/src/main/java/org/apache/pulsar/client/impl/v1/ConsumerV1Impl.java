@@ -143,7 +143,7 @@ public class ConsumerV1Impl implements Consumer {
         consumer.seek(arg0);
     }
 
-    public void seek(Function<String, MessageId> function) throws PulsarClientException {
+    public void seek(Function<String, Object> function) throws PulsarClientException {
         consumer.seek(function);
     }
 
@@ -155,7 +155,7 @@ public class ConsumerV1Impl implements Consumer {
         return consumer.seekAsync(arg0);
     }
 
-    public CompletableFuture<Void> seekAsync(Function<String, MessageId> function) {
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
         return consumer.seekAsync(function);
     }
 

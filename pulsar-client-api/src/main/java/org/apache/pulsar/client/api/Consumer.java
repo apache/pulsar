@@ -604,26 +604,26 @@ public interface Consumer<T> extends Closeable {
      * <p>
      * The Function input is topic+partition.
      * <p>
-     * The return value is the seek position of the current partition.
+     * The return value is the seek position/timestamp of the current partition.
      * <p>
      * If returns null, the current partition will not do any processing.
      * @param function
      * @throws PulsarClientException
      */
-    void seek(Function<String, MessageId> function) throws PulsarClientException;
+    void seek(Function<String, Object> function) throws PulsarClientException;
 
     /**
      * Reset the subscription associated with this consumer to a specific message id asynchronously.
      * <p>
      * The Function input is topic+partition.
      * <p>
-     * The return value is the seek position of the current partition.
+     * The return value is the seek position/timestamp of the current partition.
      * <p>
      * If returns null, the current partition will not do any processing.
      * @param function
      * @return
      */
-    CompletableFuture<Void> seekAsync(Function<String, MessageId> function);
+    CompletableFuture<Void> seekAsync(Function<String, Object> function);
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.
