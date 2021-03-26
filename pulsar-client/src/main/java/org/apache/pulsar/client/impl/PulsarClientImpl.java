@@ -793,16 +793,11 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public synchronized void updateServiceUrl(String serviceUrl) throws PulsarClientException {
-        try {
-            log.info("Updating service URL to {}", serviceUrl);
+        log.info("Updating service URL to {}", serviceUrl);
 
-            conf.setServiceUrl(serviceUrl);
-            lookup.updateServiceUrl(serviceUrl);
-            cnxPool.closeAllConnections();
-        } catch (Throwable t) {
-            log.warn("Failed to update service URL.");
-            close();
-        }
+        conf.setServiceUrl(serviceUrl);
+        lookup.updateServiceUrl(serviceUrl);
+        cnxPool.closeAllConnections();
     }
 
     protected CompletableFuture<ClientCnx> getConnection(final String topic) {

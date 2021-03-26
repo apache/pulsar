@@ -200,23 +200,6 @@ public class PulsarClientImplTest {
 
     @Test
     public void testResourceCleanup() throws PulsarClientException {
-        // 1. A case when resources are initialised but constructor errors out
-        // before getting completed.
-        assertFalse(eventLoopGroup.isShutdown());
-        assertFalse(clientImpl.externalExecutorProvider().isShutdown());
-        assertFalse(clientImpl.getInternalExecutorService().isShutdown());
-
-        try {
-            clientImpl.updateServiceUrl("localhost");
-        } finally {
-            // All the resources should have been released.
-            assertTrue(eventLoopGroup.isShutdown());
-            assertTrue(clientImpl.externalExecutorProvider().isShutdown());
-            assertTrue(clientImpl.getInternalExecutorService().isShutdown());
-        }
-
-        // 2. A case when initialisation fails immediately.
-
         ClientConfigurationData conf = clientImpl.conf;
         conf.setServiceUrl("");
         initializeEventLoopGroup(conf);
