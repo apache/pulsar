@@ -20,7 +20,12 @@
 #include <pulsar/Client.h>
 #include <lib/Latch.h>
 #include "ConsumerTest.h"
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <functional>
+#include <memory>
+#include <mutex>
 
 DECLARE_LOG_OBJECT()
 
@@ -114,5 +119,107 @@ TEST(ZeroQueueSizeTest, testMessageListener) {
     consumer.unsubscribe();
     consumer.close();
     producer.close();
+    client.close();
+}
+
+static ConsumerConfiguration zeroQueueSharedConsumerConf(
+    const std::string& name, std::function<void(Consumer, const Message&)> callback) {
+    ConsumerConfiguration conf;
+    conf.setConsumerType(ConsumerShared);
+    conf.setReceiverQueueSize(0);
+    conf.setSubscriptionInitialPosition(InitialPositionEarliest);
+    conf.setMessageListener([name, callback](Consumer consumer, const Message& msg) {
+        LOG_INFO(name << " received " << msg.getDataAsString() << " from " << msg.getMessageId());
+        callback(consumer, msg);
+    });
+    return conf;
+}
+
+class IntVector {
+   public:
+    size_t add(int i) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        data_.emplace_back(i);
+        return data_.size();
+    }
+
+    std::vector<int> data() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return data_;
+    }
+
+   private:
+    std::vector<int> data_;
+    mutable std::mutex mutex_;
+};
+
+TEST(ZeroQueueSizeTest, testPauseResume) {
+    Client client(lookupUrl);
+    const auto topic = "ZeroQueueSizeTestPauseListener-" + std::to_string(time(nullptr));
+    const auto subscription = "my-sub";
+
+    auto intToMessage = [](int i) { return MessageBuilder().setContent(std::to_string(i)).build(); };
+    auto messageToInt = [](const Message& msg) { return std::stoi(msg.getDataAsString()); };
+
+    // 1. Produce 10 messages
+    Producer producer;
+    const auto producerConf = ProducerConfiguration().setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producerConf, producer));
+    for (int i = 0; i < 10; i++) {
+        MessageId id;
+        ASSERT_EQ(ResultOk, producer.send(intToMessage(i), id));
+        LOG_INFO("Send " << i << " to " << id);
+    }
+
+    // 2. consumer-1 receives 1 message and pause
+    std::mutex mtx;
+    std::condition_variable condConsumer1FirstMessage;
+    std::condition_variable condConsumer1Completed;
+    IntVector messages1;
+    const auto conf1 = zeroQueueSharedConsumerConf("consumer-1", [&](Consumer consumer, const Message& msg) {
+        const auto numReceived = messages1.add(messageToInt(msg));
+        if (numReceived == 1) {
+            ASSERT_EQ(ResultOk, consumer.pauseMessageListener());
+            condConsumer1FirstMessage.notify_all();
+        } else if (numReceived == 5) {
+            ASSERT_EQ(ResultOk, consumer.pauseMessageListener());
+            condConsumer1Completed.notify_all();
+        }
+    });
+    Consumer consumer1;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, subscription, conf1, consumer1));
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+        ASSERT_EQ(condConsumer1FirstMessage.wait_for(lock, std::chrono::seconds(3)),
+                  std::cv_status::no_timeout);
+        ASSERT_EQ(messages1.data(), (std::vector<int>{0}));
+    }
+
+    // 3. consumer-2 receives 5 messages and pause
+    std::condition_variable condConsumer2Completed;
+    IntVector messages2;
+    const auto conf2 = zeroQueueSharedConsumerConf("consumer-2", [&](Consumer consumer, const Message& msg) {
+        const int numReceived = messages2.add(messageToInt(msg));
+        if (numReceived == 5) {
+            ASSERT_EQ(ResultOk, consumer.pauseMessageListener());
+            condConsumer2Completed.notify_all();
+        }
+    });
+    Consumer consumer2;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, subscription, conf2, consumer2));
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+        ASSERT_EQ(condConsumer2Completed.wait_for(lock, std::chrono::seconds(3)), std::cv_status::no_timeout);
+        ASSERT_EQ(messages2.data(), (std::vector<int>{1, 2, 3, 4, 5}));
+    }
+
+    // 4. consumer-1 resumes listening, and receives last 4 messages
+    ASSERT_EQ(ResultOk, consumer1.resumeMessageListener());
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+        ASSERT_EQ(condConsumer1Completed.wait_for(lock, std::chrono::seconds(3)), std::cv_status::no_timeout);
+        ASSERT_EQ(messages1.data(), (std::vector<int>{0, 6, 7, 8, 9}));
+    }
+
     client.close();
 }
