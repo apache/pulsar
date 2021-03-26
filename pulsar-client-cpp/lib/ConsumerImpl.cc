@@ -28,7 +28,6 @@
 #include "AckGroupingTracker.h"
 #include "AckGroupingTrackerEnabled.h"
 #include "AckGroupingTrackerDisabled.h"
-#include "AtomicHelper.h"
 #include <exception>
 #include <algorithm>
 
@@ -747,7 +746,7 @@ Optional<MessageId> ConsumerImpl::clearReceiveQueue() {
 }
 
 void ConsumerImpl::increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int delta) {
-    int newAvailablePermits = addAndGet(availablePermits_, delta);
+    int newAvailablePermits = availablePermits_.fetch_add(delta) + delta;
 
     while (newAvailablePermits >= receiverQueueRefillThreshold_ && messageListenerRunning_) {
         if (availablePermits_.compare_exchange_weak(newAvailablePermits, 0)) {
