@@ -66,7 +66,7 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
                             future.complete(result);
                         }
                     });
-                } catch (Exception e) {
+                } catch (RuntimeException e) {
                     future.completeExceptionally(e);
                 }
             });
