@@ -29,10 +29,10 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
-
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
-
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sources;
@@ -46,6 +46,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
@@ -81,6 +82,8 @@ public class TestCmdSources {
     private CmdSources.UpdateSource updateSource;
     private CmdSources.LocalSourceRunner localSourceRunner;
     private CmdSources.DeleteSource deleteSource;
+    private ClassLoader oldContextClassLoader;
+    private ClassLoader jarClassLoader;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -98,7 +101,21 @@ public class TestCmdSources {
         mockStatic(CmdFunctions.class);
         PowerMockito.doNothing().when(localSourceRunner).runCmd();
         JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
-        Thread.currentThread().setContextClassLoader(ClassLoaderUtils.loadJar(new File(JAR_FILE_PATH)));
+        jarClassLoader = ClassLoaderUtils.loadJar(new File(JAR_FILE_PATH));
+        oldContextClassLoader = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(jarClassLoader);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() throws IOException {
+        if (jarClassLoader != null && jarClassLoader instanceof Closeable) {
+            ((Closeable) jarClassLoader).close();
+            jarClassLoader = null;
+        }
+        if (oldContextClassLoader != null) {
+            Thread.currentThread().setContextClassLoader(oldContextClassLoader);
+            oldContextClassLoader = null;
+        }
     }
 
     public SourceConfig getSourceConfig() {
