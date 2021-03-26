@@ -61,6 +61,7 @@ var searchData=
   ['setsequenceid',['setSequenceId',['../classpulsar_1_1_message_builder.html#ae1c62a5fb7a064714b615be585d5bf92',1,'pulsar::MessageBuilder']]],
   ['settopicname',['setTopicName',['../classpulsar_1_1_message_id.html#a3d84665dab3feb64ed00183a322b92f2',1,'pulsar::MessageId']]],
   ['setunackedmessagestimeoutms',['setUnAckedMessagesTimeoutMs',['../classpulsar_1_1_consumer_configuration.html#ad55a4f0187517c984de8d01f8660fb8f',1,'pulsar::ConsumerConfiguration::setUnAckedMessagesTimeoutMs()'],['../classpulsar_1_1_reader_configuration.html#a11da218b52a8936415029509b9c707e9',1,'pulsar::ReaderConfiguration::setUnAckedMessagesTimeoutMs()']]],
+  ['simpleloggerfactory',['SimpleLoggerFactory',['../classpulsar_1_1_simple_logger_factory.html',1,'pulsar']]],
   ['sticky',['STICKY',['../namespacepulsar.html#a499d1327931169d068b9b353f106dd04aed98d14aabee0f3bc70a0cc7723e5b16',1,'pulsar']]],
   ['string',['STRING',['../namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305ab936a9dad2cbb5fca28fc477ff39fb70',1,'pulsar']]],
   ['subscribe',['subscribe',['../classpulsar_1_1_client.html#aea2d7918286ecd127751d06e191a5471',1,'pulsar::Client']]],

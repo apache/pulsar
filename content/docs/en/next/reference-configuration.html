@@ -259,6 +259,7 @@
 <tr><td>forceDeleteNamespaceAllowed</td><td>Enable you to delete a namespace forcefully.</td><td>false</td></tr>
 <tr><td>messageExpiryCheckIntervalInMinutes</td><td>The frequency of proactively checking and purging expired messages.</td><td>5</td></tr>
 <tr><td>brokerServiceCompactionMonitorIntervalInSeconds</td><td>Interval between checks to determine whether topics with compaction policies need compaction.</td><td>60</td></tr>
+<tr><td>brokerServiceCompactionThresholdInBytes</td><td>If the estimated backlog size is greater than this threshold, compression is triggered.<br><br>Set this threshold to 0 means disabling the compression check.</td><td>N/A</td></tr>
 <tr><td>delayedDeliveryEnabled</td><td>Whether to enable the delayed delivery for messages. If disabled, messages will be immediately delivered and there will be no tracking overhead.</td><td>true</td></tr>
 <tr><td>delayedDeliveryTickTimeMillis</td><td>Control the tick time for retrying on delayed delivery, which affects the accuracy of the delivery time compared to the scheduled time. By default, it is 1 second.</td><td>1000</td></tr>
 <tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>
