@@ -795,6 +795,8 @@ You can configure parameters if you do not want to use the default configuration
   
   L'exemple de code ci-dessus montre l'objet `Reader`pointant vers un message spécifique (identifié par un ID), mais vous pouvez également utiliser `MessageId.earliest` pour pointer vers le message disponible le plus ancien sur le topic ou `MessageId.latest` pour pointer vers le message disponible le plus récent.
   
+  ### Configure reader
+  
   When you create a reader, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
   
   | Type | Name |
@@ -806,7 +808,7 @@ You can configure parameters if you do not want to use the default configuration
     
   For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.  
     
-  A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000 ReaderListener&lt;T&gt;|`readerListener`|A listener that is called for message received.|None String|`readerName`|Read name.|null String|`subscriptionRolePrefix`|Prefix of subscription role. |null CryptoKeyReader|`cryptoKeyReader`|Interface that abstracts the access to a key store.|null ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not be decrypted.  
+  A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000 ReaderListener&lt;T&gt;|`readerListener`|A listener that is called for message received.|None String|`readerName`|Read name.|null String| `subscriptionName`|Subscription name|When there is a single topic, the default subscription name is `&quot;reader-&quot; + 10-digit UUID`. When there are multiple topics, the default subscription name is `&quot;multiTopicsReader-&quot; + 10-digit UUID`. String|`subscriptionRolePrefix`|Prefix of subscription role. |null CryptoKeyReader|`cryptoKeyReader`|Interface that abstracts the access to a key store.|null ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not be decrypted.  
     
   
   
