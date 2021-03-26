@@ -311,7 +311,7 @@ public class PulsarService implements AutoCloseable {
                 throw new PulsarServerException(e.getCause());
             }
         } catch (InterruptedException e) {
-            throw new PulsarServerException(e);
+            Thread.currentThread().interrupt();
         }
     }
 

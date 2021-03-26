@@ -653,7 +653,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 throw new PulsarServerException(e.getCause());
             }
         } catch (InterruptedException e) {
-            throw new PulsarServerException(e);
+            Thread.currentThread().interrupt();
         }
     }
 
