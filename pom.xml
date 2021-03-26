@@ -1038,6 +1038,14 @@ flexible messaging model and an intuitive client API.</description>
         <version>${apache-http-client.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-annotations</artifactId>
+        <version>${spotbugs.version}</version>
+        <scope>provided</scope>
+        <optional>true</optional>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
