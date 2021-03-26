@@ -3798,8 +3798,19 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected Optional<Long> internalGetCompactionThreshold() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getCompactionThreshold);
+    protected CompletableFuture<Long> internalGetCompactionThreshold(boolean applied) {
+        Long threshold = getTopicPolicies(topicName)
+                .map(TopicPolicies::getCompactionThreshold)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Long namespacePolicy = getNamespacePolicies(namespaceName).compaction_threshold;
+                        return namespacePolicy == null
+                                ? pulsar().getConfiguration().getBrokerServiceCompactionThresholdInBytes()
+                                : namespacePolicy;
+                    }
+                    return null;
+                });
+        return CompletableFuture.completedFuture(threshold);
     }
 
     protected CompletableFuture<Void> internalSetCompactionThreshold(Long compactionThreshold) {
