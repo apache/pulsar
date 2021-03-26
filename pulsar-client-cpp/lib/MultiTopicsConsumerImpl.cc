@@ -613,7 +613,7 @@ void MultiTopicsConsumerImpl::receiveMessages() {
     for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
          consumer++) {
         ConsumerImplPtr consumerPtr = consumer->second;
-        consumerPtr->receiveMessages(consumerPtr->getCnx().lock(), conf_.getReceiverQueueSize());
+        consumerPtr->sendFlowPermitsToBroker(consumerPtr->getCnx().lock(), conf_.getReceiverQueueSize());
         LOG_DEBUG("Sending FLOW command for consumer - " << consumerPtr->getConsumerId());
     }
 }
