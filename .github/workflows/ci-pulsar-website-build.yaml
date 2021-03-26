@@ -27,6 +27,7 @@ env:
 
 jobs:
   build-website:
+    if: ${{ github.repository == 'apache/pulsar' }}
     name: Build and publish pulsar website
     runs-on: ubuntu-latest
     timeout-minutes: 120
