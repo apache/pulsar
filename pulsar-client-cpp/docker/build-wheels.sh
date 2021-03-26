@@ -76,8 +76,8 @@ for line in "${PYTHON_VERSIONS[@]}"; do
 
     VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
     COMMAND="/pulsar/pulsar-client-cpp/docker/build-wheel-file-within-docker.sh"
-    DOCKER_CMD="docker run -i ${VOLUME_OPTION} ${IMAGE}"
+    DOCKER_CMD="docker run -i ${VOLUME_OPTION} -e USE_FULL_POM_NAME='${USE_FULL_POM_NAME}' -e NAME_POSTFIX='${NAME_POSTFIX}' ${IMAGE}"
 
-    $DOCKER_CMD bash -c "${COMMAND}" -e USE_FULL_POM_NAME='${USE_FULL_POM_NAME}' -e NAME_POSTFIX='${NAME_POSTFIX}'
+    $DOCKER_CMD bash -c "${COMMAND}"
 
 done
