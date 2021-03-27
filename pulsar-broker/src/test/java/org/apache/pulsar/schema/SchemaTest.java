@@ -46,7 +46,6 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -189,29 +188,17 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .subscribe();
 
-        Consumer<Object> consumer2 = pulsarClient.newConsumer(Schema.OBJECT())
-                .subscriptionName("test-sub2")
-                .topic(topic)
-                .subscribe();
-
         producer.send(bytesRecord);
 
         Message<GenericRecord> message = consumer.receive();
         Message<Schemas.BytesRecord> message1 = consumer1.receive();
-        Message<Object> message2 = consumer2.receive();
 
         assertEquals(message.getValue().getField("address").getClass(),
                 message1.getValue().getAddress().getClass());
 
-        GenericRecord value2 = (GenericRecord) message2.getValue();
-        assertEquals(value2.getField("address").getClass(),
-                message1.getValue().getAddress().getClass());
-
-
         producer.close();
         consumer.close();
         consumer1.close();
-        consumer2.close();
     }
 
     @Test
@@ -242,14 +229,9 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .subscribe();
 
-        Consumer<Object> consumer2 = pulsarClient.newConsumer(Schema.OBJECT())
-                .subscriptionName("test-sub2")
-                .topic(topic)
-                .subscribe();
-
         // use GenericRecord even for primitive types
         // it will be a PrimitiveRecord
-        Consumer<GenericRecord> consumer3 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+        Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .subscriptionName("test-sub3")
                 .topic(topic)
                 .subscribe();
@@ -257,14 +239,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.send("foo");
 
         Message<String> message = consumer.receive();
-        Message<Object> message2 = consumer2.receive();
-        Message<GenericRecord> message3 = consumer3.receive();
+        Message<GenericRecord> message3 = consumer2.receive();
 
         assertEquals("foo", message.getValue());
-        assertEquals("foo", message2.getValue());
         assertTrue(message3.getValue() instanceof PrimitiveRecord);
         assertEquals(SchemaType.STRING, message3.getValue().getSchemaType());
-        assertEquals("foo", message3.getValue().getNativeRecord());
+        assertEquals("foo", message3.getValue().getNativeObject());
 
         producer.close();
         consumer.close();

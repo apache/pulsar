@@ -39,7 +39,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.schema.AbstractAutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
@@ -216,7 +216,7 @@ public class PulsarSink<T> implements Sink<T> {
     class PulsarSinkAtMostOnceProcessor extends PulsarSinkProcessorBase {
         public PulsarSinkAtMostOnceProcessor(Schema schema, Crypto crypto) {
             super(schema, crypto);
-            if (!(schema instanceof AbstractAutoConsumeSchema)) {
+            if (!(schema instanceof AutoConsumeSchema)) {
                 // initialize default topic
                 try {
                     publishProducers.put(pulsarSinkConfig.getTopic(),

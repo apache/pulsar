@@ -69,7 +69,6 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
-import org.apache.pulsar.client.impl.schema.AbstractAutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
@@ -242,7 +241,7 @@ public class PulsarClientImpl implements PulsarClient {
                 new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
         }
 
-        if (schema instanceof AbstractAutoConsumeSchema) {
+        if (schema instanceof AutoConsumeSchema) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidConfigurationException("AutoConsumeSchema is only used by consumers to detect schemas automatically"));
         }
@@ -886,7 +885,7 @@ public class PulsarClientImpl implements PulsarClient {
                 Schema finalSchema = schema;
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
                     if (null == schemaInfo) {
-                        if (!(finalSchema instanceof AbstractAutoConsumeSchema)) {
+                        if (!(finalSchema instanceof AutoConsumeSchema)) {
                             // no schema info is found
                             return FutureUtil.failedFuture(
                                     new PulsarClientException.NotFoundException(

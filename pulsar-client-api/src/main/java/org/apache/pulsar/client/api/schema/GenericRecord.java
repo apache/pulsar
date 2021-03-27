@@ -28,14 +28,7 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface GenericRecord {
-
-    /**
-     * Return schema version.
-     *
-     * @return schema version, or null if the information is not available.
-     */
-    byte[] getSchemaVersion();
+public interface GenericRecord extends PulsarObject {
 
     /**
      * Returns the list of fields associated with the record.
@@ -71,6 +64,7 @@ public interface GenericRecord {
      * @see SchemaType#PROTOBUF_NATIVE
      * @see SchemaType#JSON
      */
+    @Override
     default SchemaType getSchemaType() {
         throw new UnsupportedOperationException();
     }
@@ -82,7 +76,8 @@ public interface GenericRecord {
      * @return the internal representation of the record
      * @throws UnsupportedOperationException if the operation is not supported
      */
-    default Object getNativeRecord() {
+    @Override
+    default Object getNativeObject() {
         throw new UnsupportedOperationException();
     }
 

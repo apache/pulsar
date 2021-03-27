@@ -61,7 +61,7 @@ public class PrimitiveRecord implements GenericRecord {
         return schemaType;
     }
 
-    public Object getNativeRecord() {
+    public Object getNativeObject() {
         return nativeRecord;
     }
 
