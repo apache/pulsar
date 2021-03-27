@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -240,7 +241,7 @@ public class PulsarService implements AutoCloseable {
 
     private final ReentrantLock mutex = new ReentrantLock();
     private final Condition isClosedCondition = mutex.newCondition();
-    private final AtomicReference<CompletableFuture<Void>> closeFutureReference = new AtomicReference<>();
+    private volatile CompletableFuture<Void> closeFuture;
     // key is listener name , value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
 
@@ -321,8 +322,8 @@ public class PulsarService implements AutoCloseable {
     public CompletableFuture<Void> closeAsync() {
         mutex.lock();
         try {
-            if (closeFutureReference.get() != null) {
-                return closeFutureReference.get();
+            if (closeFuture != null) {
+                return closeFuture;
             }
 
             // close the service in reverse order v.s. in which they are started
@@ -449,7 +450,7 @@ public class PulsarService implements AutoCloseable {
 
             CompletableFuture<Void> shutdownFuture =
                     CompletableFuture.allOf(asyncCloseFutures.toArray(new CompletableFuture[0]));
-            closeFutureReference.set(shutdownFuture);
+            closeFuture = shutdownFuture;
             return shutdownFuture;
         } catch (Exception e) {
             PulsarServerException pse;

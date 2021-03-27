@@ -658,86 +658,82 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<Void> closeAsync() {
-        log.info("Shutting down Pulsar Broker service");
-
-        if (pulsar.getConfigurationCache() != null) {
-            pulsar.getConfigurationCache().policiesCache().unregisterListener(this);
-        }
-
-        // unloads all namespaces gracefully without disrupting mutually
-        unloadNamespaceBundlesGracefully();
-
-        // close replication clients
-        replicationClients.forEach((cluster, client) -> {
-            try {
-                client.shutdown();
-            } catch (PulsarClientException e) {
-                log.warn("Error shutting down repl client for cluster {}", cluster, e);
-            }
-        });
-
-        // close replication admins
-        clusterAdmins.forEach((cluster, admin) -> {
-            try {
-                admin.close();
-            } catch (Exception e) {
-                log.warn("Error shutting down repl admin for cluster {}", cluster, e);
-            }
-        });
-
-        List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
-
-        if (listenChannel != null) {
-            asyncCloseFutures.add(closeChannel(listenChannel));
-        }
-
-        if (listenChannelTls != null) {
-            asyncCloseFutures.add(closeChannel(listenChannelTls));
-        }
-
-        acceptorGroup.shutdownGracefully();
-        workerGroup.shutdownGracefully();
-
-        if (interceptor != null) {
-            interceptor.close();
-            interceptor = null;
-        }
-
-        statsUpdater.shutdown();
-        inactivityMonitor.shutdown();
-        messageExpiryMonitor.shutdown();
-        compactionMonitor.shutdown();
-        messagePublishBufferMonitor.shutdown();
-        consumedLedgersMonitor.shutdown();
-        backlogQuotaChecker.shutdown();
         try {
+            log.info("Shutting down Pulsar Broker service");
+
+            if (pulsar.getConfigurationCache() != null) {
+                pulsar.getConfigurationCache().policiesCache().unregisterListener(this);
+            }
+
+            // unloads all namespaces gracefully without disrupting mutually
+            unloadNamespaceBundlesGracefully();
+
+            // close replication clients
+            replicationClients.forEach((cluster, client) -> {
+                try {
+                    client.shutdown();
+                } catch (PulsarClientException e) {
+                    log.warn("Error shutting down repl client for cluster {}", cluster, e);
+                }
+            });
+
+            // close replication admins
+            clusterAdmins.forEach((cluster, admin) -> {
+                try {
+                    admin.close();
+                } catch (Exception e) {
+                    log.warn("Error shutting down repl admin for cluster {}", cluster, e);
+                }
+            });
+
+            List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
+
+            if (listenChannel != null) {
+                asyncCloseFutures.add(closeChannel(listenChannel));
+            }
+
+            if (listenChannelTls != null) {
+                asyncCloseFutures.add(closeChannel(listenChannelTls));
+            }
+
+            acceptorGroup.shutdownGracefully();
+            workerGroup.shutdownGracefully();
+
+            if (interceptor != null) {
+                interceptor.close();
+                interceptor = null;
+            }
+
+            statsUpdater.shutdown();
+            inactivityMonitor.shutdown();
+            messageExpiryMonitor.shutdown();
+            compactionMonitor.shutdown();
+            messagePublishBufferMonitor.shutdown();
+            consumedLedgersMonitor.shutdown();
+            backlogQuotaChecker.shutdown();
             authenticationService.close();
-        } catch (IOException e) {
-            return FutureUtil.failedFuture(e);
-        }
-        pulsarStats.close();
-        ClientCnxnAspect.removeListener(zkStatsListener);
-        ClientCnxnAspect.registerExecutor(null);
-        topicOrderedExecutor.shutdown();
-        try {
+            pulsarStats.close();
+            ClientCnxnAspect.removeListener(zkStatsListener);
+            ClientCnxnAspect.registerExecutor(null);
+            topicOrderedExecutor.shutdown();
             delayedDeliveryTrackerFactory.close();
-        } catch (IOException e) {
+            if (topicPublishRateLimiterMonitor != null) {
+                topicPublishRateLimiterMonitor.shutdown();
+            }
+            if (brokerPublishRateLimiterMonitor != null) {
+                brokerPublishRateLimiterMonitor.shutdown();
+            }
+            if (deduplicationSnapshotMonitor != null) {
+                deduplicationSnapshotMonitor.shutdown();
+            }
+
+            CompletableFuture<Void> shutdownFuture =
+                    CompletableFuture.allOf(asyncCloseFutures.toArray(new CompletableFuture[0]))
+                            .thenAccept(__ -> log.info("Broker service completely shut down"));
+            return shutdownFuture;
+        } catch (Exception e) {
             return FutureUtil.failedFuture(e);
         }
-        if (topicPublishRateLimiterMonitor != null) {
-            topicPublishRateLimiterMonitor.shutdown();
-        }
-        if (brokerPublishRateLimiterMonitor != null) {
-            brokerPublishRateLimiterMonitor.shutdown();
-        }
-        if (deduplicationSnapshotMonitor != null) {
-            deduplicationSnapshotMonitor.shutdown();
-        }
-
-        CompletableFuture<Void> shutdownFuture =
-                CompletableFuture.allOf(asyncCloseFutures.toArray(new CompletableFuture[0]))
-                        .thenAccept(__ -> log.info("Broker service completely shut down"));
-        return shutdownFuture;
     }
 
     private CompletableFuture<Void> closeChannel(Channel channel) {
