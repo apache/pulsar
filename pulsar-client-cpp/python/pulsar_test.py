@@ -27,7 +27,7 @@ from datetime import timedelta
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
             AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition, \
-            CryptoKeyReader, PulsarException
+            CryptoKeyReader
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -159,7 +159,7 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
 
         consumer.unsubscribe()
@@ -198,7 +198,7 @@ class PulsarTest(TestCase):
         producer.send(b'hello', deliver_at=int(round(time.time() * 1000)) + 1100)
 
         # Message should not be available in the next second
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(1000)
 
         # Message should be published now
@@ -219,7 +219,7 @@ class PulsarTest(TestCase):
         producer.send(b'hello', deliver_after=timedelta(milliseconds=1100))
 
         # Message should not be available in the next second
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(1000)
 
         # Message should be published in the next 500ms
@@ -253,7 +253,7 @@ class PulsarTest(TestCase):
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
 
         consumer.unsubscribe()
@@ -320,7 +320,7 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
 
         client.close()
@@ -347,7 +347,7 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
 
         client.close()
@@ -393,7 +393,7 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
 
         client.close()
@@ -409,7 +409,7 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=Authentication(authPlugin, authParams))
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.ConnectError):
             client.subscribe('my-python-topic-auth-junk-params',
                              'my-sub',
                              consumer_type=ConsumerType.Shared)
@@ -452,7 +452,7 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             reader.read_next(100)
 
         reader.close()
@@ -605,7 +605,7 @@ class PulsarTest(TestCase):
             self.assertEqual(msg.data(), b'hello-%d' % i)
             consumer.acknowledge(msg)
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
 
         producer.close()
@@ -618,7 +618,7 @@ class PulsarTest(TestCase):
         producer.send(b'hello-2', sequence_id=2)
         self.assertEqual(producer.last_sequence_id(), 2)
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
 
         doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
@@ -850,7 +850,7 @@ class PulsarTest(TestCase):
 
         # repeat with reader
         reader = client.create_reader('my-python-topic-seek', MessageId.latest)
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             reader.read_next(100)
 
         # earliest
@@ -899,7 +899,7 @@ class PulsarTest(TestCase):
         self.assertEqual(msg.data(), b'hello')
         consumer.acknowledge(msg)
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
 
         client.close()
@@ -943,7 +943,7 @@ class PulsarTest(TestCase):
             msg = consumer.receive(TM)
             consumer.acknowledge(msg)
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
         client.close()
 
@@ -993,7 +993,7 @@ class PulsarTest(TestCase):
             msg = consumer.receive(TM)
             consumer.acknowledge(msg)
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
         client.close()
 
@@ -1135,7 +1135,7 @@ class PulsarTest(TestCase):
             self.assertEqual(msg.value(), "hello-%d" % i)
             consumer.acknowledge(msg)
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
         client.close()
 
