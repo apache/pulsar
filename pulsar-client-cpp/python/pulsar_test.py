@@ -1071,7 +1071,7 @@ class PulsarTest(TestCase):
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
-        with self.assertRaises(PulsarException):
+        with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
 
         consumer.unsubscribe()
