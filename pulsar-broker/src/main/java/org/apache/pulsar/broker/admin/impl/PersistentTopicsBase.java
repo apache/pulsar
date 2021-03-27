@@ -2561,7 +2561,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName);
+            log.error("Topic {} policies cache have not init.", topicName);
             asyncResponse.resume(new RestException(e));
             return;
         }
@@ -2642,7 +2642,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName);
+            log.error("Topic {} policies cache have not init.", topicName);
             asyncResponse.resume(new RestException(e));
             return;
         }

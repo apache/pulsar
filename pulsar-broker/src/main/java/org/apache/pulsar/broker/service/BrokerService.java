@@ -1228,7 +1228,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
                     }
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                    log.warn("Topic {} policies cache have not init.", topicName);
+                    log.debug("Topic {} policies cache have not init.", topicName);
                 }
             }
 
@@ -2534,10 +2534,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             checkTopicLevelPolicyEnable();
             return pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            log.debug("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
             return null;
         } catch (RestException | NullPointerException e) {
-            log.warn("Topic level policies are not enabled. "
+            log.debug("Topic level policies are not enabled. "
                     + "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
             return null;
         }
