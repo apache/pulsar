@@ -27,17 +27,17 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
-
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -58,9 +58,10 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.apache.pulsar.functions.worker.PulsarFunctionTestTemporaryDirectory;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.PulsarWorkerService.PulsarClientCreator;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -95,6 +96,7 @@ public class PulsarFunctionTlsTest {
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionTlsTest.class);
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod
     void setup(Method method) throws Exception {
@@ -168,15 +170,23 @@ public class PulsarFunctionTlsTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        functionAdmin.close();
-        bkEnsemble.stop();
-        workerServer.stop();
-        functionsWorkerService.stop();
+        try {
+            functionAdmin.close();
+            bkEnsemble.stop();
+            workerServer.stop();
+            functionsWorkerService.stop();
+        } finally {
+            if (tempDirectory != null) {
+                tempDirectory.delete();
+            }
+        }
     }
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
                                                            PulsarAdmin mockPulsarAdmin) {
         workerConfig = new WorkerConfig();
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -263,9 +273,12 @@ public class PulsarFunctionTlsTest {
 
         File file = new File(jarFile);
         try {
-            ClassLoaderUtils.loadJar(file);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Failed to load user jar " + file, e);
+            ClassLoader classLoader = ClassLoaderUtils.loadJar(file);
+            if (classLoader instanceof Closeable) {
+                ((Closeable) classLoader).close();
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to load user jar " + file, e);
         }
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 

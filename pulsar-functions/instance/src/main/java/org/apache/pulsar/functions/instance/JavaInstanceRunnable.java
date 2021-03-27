@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -362,7 +361,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             record = this.source.read();
         } catch (Exception e) {
-            stats.incrSourceExceptions(e);
+            if (stats != null) {
+                stats.incrSourceExceptions(e);
+            }
             log.error("Encountered exception in source read", e);
             throw e;
         } finally {

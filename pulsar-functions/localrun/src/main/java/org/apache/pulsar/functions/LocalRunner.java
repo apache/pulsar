@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions;
 
 import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
+
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -28,6 +29,8 @@ import com.google.gson.JsonParser;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
@@ -50,7 +53,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaults;
@@ -82,6 +85,8 @@ public class LocalRunner implements AutoCloseable {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final List<RuntimeSpawner> spawners = new LinkedList<>();
     private final String narExtractionDirectory;
+    private final File narExtractionDirectoryCreated;
+    private final String connectorsDir;
     private final Thread shutdownHook;
     private ClassLoader userCodeClassLoader;
     private boolean userCodeClassLoaderCreated;
@@ -202,7 +207,8 @@ public class LocalRunner implements AutoCloseable {
             stateStorageServiceUrl, String brokerServiceUrl, String clientAuthPlugin, String clientAuthParams,
                        boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
                        String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
-                       String secretsProviderClassName, String secretsProviderConfig, String narExtractionDirectory) {
+                       String secretsProviderClassName, String secretsProviderConfig, String narExtractionDirectory,
+                       String connectorsDirectory) {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
@@ -218,8 +224,22 @@ public class LocalRunner implements AutoCloseable {
         this.runtimeEnv = runtimeEnv;
         this.secretsProviderClassName = secretsProviderClassName;
         this.secretsProviderConfig = secretsProviderConfig;
-        this.narExtractionDirectory = narExtractionDirectory != null ? narExtractionDirectory
-                : NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+        if (narExtractionDirectory != null) {
+            this.narExtractionDirectoryCreated = null;
+            this.narExtractionDirectory = narExtractionDirectory;
+        } else {
+            this.narExtractionDirectoryCreated = createNarExtractionTempDirectory();
+            this.narExtractionDirectory = this.narExtractionDirectoryCreated.getAbsolutePath();
+        }
+        if (connectorsDirectory != null) {
+            this.connectorsDir = connectorsDirectory;
+        } else {
+            String pulsarHome = System.getenv("PULSAR_HOME");
+            if (pulsarHome == null) {
+                pulsarHome = Paths.get("").toAbsolutePath().toString();
+            }
+            this.connectorsDir = Paths.get(pulsarHome, "connectors").toString();
+        }
         shutdownHook = new Thread() {
             public void run() {
                 LocalRunner.this.stop();
@@ -227,9 +247,23 @@ public class LocalRunner implements AutoCloseable {
         };
     }
 
+    private static File createNarExtractionTempDirectory() {
+        try {
+            return Files.createTempDirectory("pulsar_localrunner_nars_").toFile();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot create temp directory", e);
+        }
+    }
+
     @Override
     public void close() throws Exception {
-        stop();
+        try {
+            stop();
+        } finally {
+            if (narExtractionDirectoryCreated != null) {
+                FileUtils.deleteFile(narExtractionDirectoryCreated, true);
+            }
+        }
     }
 
     public synchronized void stop() {
@@ -283,7 +317,7 @@ public class LocalRunner implements AutoCloseable {
                         String functionType = functionConfig.getJar().replaceFirst("^builtin://", "");
                         userCodeFile = functions.getFunctions().get(functionType).toString();
                     }
-                     
+
                     if (Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                         File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
                         userCodeClassLoader = FunctionConfigUtils.validate(functionConfig, file);
@@ -618,12 +652,6 @@ public class LocalRunner implements AutoCloseable {
     }
 
     private TreeMap<String, Connector> getConnectors() throws IOException {
-        // Validate the connector source type from the locally available connectors
-        String pulsarHome = System.getenv("PULSAR_HOME");
-        if (pulsarHome == null) {
-            pulsarHome = Paths.get("").toAbsolutePath().toString();
-        }
-        String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
         return ConnectorUtils.searchForConnectors(connectorsDir, narExtractionDirectory);
     }
 

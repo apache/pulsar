@@ -25,7 +25,9 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+
 import static org.mockito.Mockito.*;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -458,12 +460,18 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                public Optional<Integer> getPartitionIndex() {
+                    return Optional.of(1);
+                }
+
+                @Override
                 public Optional<Long> getRecordSequence() {
                     return Optional.of(1L);
                 }
             }, "out1");
 
 
+            assertEquals(1, record.getPartitionIndex().get().intValue());
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkEffectivelyOnceProcessor);

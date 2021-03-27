@@ -298,6 +298,7 @@ Options
 |`--auth-plugin`|Authentication plugin class name|org.apache.pulsar.client.impl.auth.AuthenticationSasl|
 |`--listener-name`|Listener name for the broker||
 |`--url`|Broker URL to which to connect|pulsar://localhost:6650/ </br> ws://localhost:8080 |
+| `-v`, `--version` | Get the version of the Pulsar client
 
 
 ### `produce`

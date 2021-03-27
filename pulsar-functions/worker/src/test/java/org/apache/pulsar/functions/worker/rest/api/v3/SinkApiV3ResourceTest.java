@@ -78,6 +78,7 @@ import org.apache.pulsar.functions.worker.LeaderService;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.rest.api.PulsarFunctionTestTemporaryDirectory;
 import org.apache.pulsar.functions.worker.rest.api.SinksImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.mockito.Mockito;
@@ -85,6 +86,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
@@ -134,6 +136,7 @@ public class SinkApiV3ResourceTest {
     private FunctionMetaData mockedFunctionMetaData;
     private LeaderService mockedLeaderService;
     private Packages mockedPackages;
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     private static final String SYSTEM_PROPERTY_NAME_CASSANDRA_NAR_FILE_PATH = "pulsar-io-cassandra.nar.path";
 
@@ -203,15 +206,23 @@ public class SinkApiV3ResourceTest {
         WorkerConfig workerConfig = new WorkerConfig()
                 .setWorkerId("test")
                 .setWorkerPort(8080)
-                .setDownloadDirectory("/tmp/pulsar/functions")
                 .setFunctionMetadataTopicName("pulsar/functions")
                 .setNumFunctionPackageReplicas(3)
                 .setPulsarServiceUrl("pulsar://localhost:6650/");
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new SinksImpl(() -> mockedWorkerService));
         mockStatic(InstanceUtils.class);
         PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(FunctionDetails.ComponentType.SINK);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (tempDirectory != null) {
+            tempDirectory.delete();
+        }
     }
 
     //

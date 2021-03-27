@@ -50,6 +50,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.IObjectFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
@@ -122,6 +123,7 @@ public class FunctionsImplTest {
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private Function.FunctionMetaData mockedFunctionMetadata;
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -185,16 +187,25 @@ public class FunctionsImplTest {
         WorkerConfig workerConfig = new WorkerConfig()
                 .setWorkerId(workerId)
                 .setWorkerPort(8080)
-                .setDownloadDirectory("/tmp/pulsar/functions")
                 .setFunctionMetadataTopicName("pulsar/functions")
                 .setNumFunctionPackageReplicas(3)
                 .setPulsarServiceUrl("pulsar://localhost:6650/");
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
         this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
 
         mockStatic(InstanceUtils.class);
-        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(Function.FunctionDetails.ComponentType.FUNCTION);    }
+        PowerMockito.when(InstanceUtils.calculateSubjectType(any())).thenReturn(Function.FunctionDetails.ComponentType.FUNCTION);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (tempDirectory != null) {
+            tempDirectory.delete();
+        }
+    }
 
     @Test
     public void testStatusEmpty() {

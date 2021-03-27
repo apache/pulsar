@@ -33,6 +33,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -49,7 +50,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -60,7 +60,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
 import lombok.ToString;
-import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -101,6 +100,7 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FileServer;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.PulsarFunctionTestTemporaryDirectory;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -133,6 +133,7 @@ public class PulsarFunctionE2ETest {
     String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
     String primaryHost;
     String workerId;
+    PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
@@ -150,15 +151,6 @@ public class PulsarFunctionE2ETest {
 
     @BeforeMethod
     void setup(Method method) throws Exception {
-
-        // delete all function temp files
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
-
-        for (File file : foundFiles) {
-            file.delete();
-        }
-
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
@@ -206,19 +198,11 @@ public class PulsarFunctionE2ETest {
         if (Arrays.asList(method.getAnnotation(Test.class).groups()).contains("builtin")) {
             File connectorsDir = new File(workerConfig.getConnectorsDirectory());
 
-            if (connectorsDir.exists()) {
-                FileUtils.deleteDirectory(connectorsDir);
-            }
+            File file = getPulsarIODataGeneratorNar();
+            Files.copy(file.toPath(), new File(connectorsDir, file.getName()).toPath());
 
-            if (connectorsDir.mkdir()) {
-                File file = getPulsarIODataGeneratorNar();
-                Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
-
-                file = getPulsarIOBatchDataGeneratorNar();
-                Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
-            } else {
-                throw new RuntimeException("Failed to create builtin connectors directory");
-            }
+            file = getPulsarIOBatchDataGeneratorNar();
+            Files.copy(file.toPath(), new File(connectorsDir, file.getName()).toPath());
         }
 
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
@@ -278,16 +262,17 @@ public class PulsarFunctionE2ETest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        fileServer.stop();
-        pulsarClient.close();
-        admin.close();
-        functionsWorkerService.stop();
-        pulsar.close();
-        bkEnsemble.stop();
-
-        File connectorsDir = new File(workerConfig.getConnectorsDirectory());
-        if (connectorsDir.exists()) {
-            FileUtils.deleteDirectory(connectorsDir);
+        try {
+            fileServer.stop();
+            pulsarClient.close();
+            admin.close();
+            functionsWorkerService.stop();
+            pulsar.close();
+            bkEnsemble.stop();
+        } finally {
+            if (tempDirectory != null) {
+                tempDirectory.delete();
+            }
         }
     }
 
@@ -297,6 +282,8 @@ public class PulsarFunctionE2ETest {
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
         workerConfig = new WorkerConfig();
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -325,8 +312,6 @@ public class PulsarFunctionE2ETest {
 
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
-
-        workerConfig.setConnectorsDirectory(Files.createTempDirectory("tempconnectorsdir").toFile().getAbsolutePath());
 
         PulsarWorkerService workerService = new PulsarWorkerService();
         workerService.init(workerConfig, null, false);
@@ -458,11 +443,7 @@ public class PulsarFunctionE2ETest {
             assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
         });
 
-        // make sure all temp files are deleted
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
-
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
     @Test(timeOut = 20000)
@@ -900,11 +881,7 @@ public class PulsarFunctionE2ETest {
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
 
-        // make sure all temp files are deleted
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
-
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
     @Test(timeOut = 20000, groups = "builtin")
@@ -1053,11 +1030,7 @@ public class PulsarFunctionE2ETest {
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
         assertTrue(m.value > 0.0);
 
-        // make sure all temp files are deleted
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
-
-        Assert.assertEquals(Objects.requireNonNull(foundFiles).length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
         admin.sources().deleteSource(tenant, namespacePortion, sourceName);
     }
 
@@ -1203,11 +1176,7 @@ public class PulsarFunctionE2ETest {
         assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
         assertTrue(m.value > 0.0);
 
-        // make sure all temp files are deleted
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
-
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
         admin.sources().deleteSource(tenant, namespacePortion, sourceName);
     }
 
@@ -1557,11 +1526,7 @@ public class PulsarFunctionE2ETest {
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
 
-        // make sure all temp files are deleted
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
-
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
     @Test(timeOut = 20000)

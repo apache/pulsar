@@ -71,39 +71,11 @@ final class AvroSchemaCache {
                     .properties(Collections.emptyMap())
                     .schema(definition.getBytes(StandardCharsets.UTF_8)
                     ).build();
-            return new Schema<ByteBuffer>() {
-                @Override
-                public byte[] encode(ByteBuffer message) {
-                    return getBytes(message);
-                }
-
-                @Override
-                public SchemaInfo getSchemaInfo() {
-                    return schemaInfo;
-                }
-
-                @Override
-                public Schema<ByteBuffer> clone() {
-                    return this;
-                }
-
-                @Override
-                public ByteBuffer decode(byte[] bytes, byte[] schemaVersion) {
-                    throw new UnsupportedOperationException();
-                }
-            };
+            return new ByteBufferSchemaWrapper(schemaInfo);
         } catch (IOException | RestClientException e) {
             throw new RuntimeException(e);
         }
     }
 
-
-    private static byte[] getBytes(ByteBuffer buffer) {
-        buffer.mark();
-        byte[] avroEncodedData = new byte[buffer.remaining()];
-        buffer.get(avroEncodedData);
-        buffer.reset();
-        return avroEncodedData;
-    }
 
 }

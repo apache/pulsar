@@ -36,13 +36,16 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 
 
@@ -51,145 +54,21 @@ public class KafkaAbstractSourceTest {
     private static class DummySource extends KafkaAbstractSource<String> {
 
         @Override
-        public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
-            return new String((byte[]) consumerRecord.value());
+        public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
+            KafkaRecord record = new KafkaRecord(consumerRecord,
+                    new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
+                    Schema.STRING);
+            return record;
         }
 
-        @Override
-        public Schema<String> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
-            return Schema.STRING;
-        }
-    }
-
-    @FunctionalInterface
-    public interface ThrowingRunnable {
-        void run() throws Throwable;
-    }
-
-    private static <T extends Exception> void expectThrows(Class<T> expectedType, String expectedMessage, ThrowingRunnable runnable) {
-        try {
-            runnable.run();
-            Assert.fail();
-        } catch (Throwable e) {
-            if (expectedType.isInstance(e)) {
-                T ex = expectedType.cast(e);
-                assertEquals(expectedMessage, ex.getMessage());
-                return;
-            }
-            throw new AssertionError("Unexpected exception type, expected " + expectedType.getSimpleName() + " but got " + e);
-        }
-        throw new AssertionError("Expected exception");
     }
 
     @Test
     public void testInvalidConfigWillThrownException() throws Exception {
         KafkaAbstractSource source = new DummySource();
-        SourceContext ctx = new SourceContext() {
-            @Override
-            public int getInstanceId() {
-                return 0;
-            }
-
-            @Override
-            public int getNumInstances() {
-                return 0;
-            }
-
-            @Override
-            public void recordMetric(String metricName, double value) {
-
-            }
-
-            @Override
-            public String getOutputTopic() {
-                return null;
-            }
-
-            @Override
-            public String getTenant() {
-                return null;
-            }
-
-            @Override
-            public String getNamespace() {
-                return null;
-            }
-
-            @Override
-            public String getSourceName() {
-                return null;
-            }
-
-            @Override
-            public Logger getLogger() {
-                return null;
-            }
-
-            @Override
-            public String getSecret(String key) { return null; }
-
-            @Override
-            public void incrCounter(String key, long amount) {
-                
-            }
-
-            @Override
-            public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
-                return null;
-            }
-
-            @Override
-            public long getCounter(String key) {
-                return 0;
-            }
-
-            @Override
-            public CompletableFuture<Long> getCounterAsync(String key) {
-                return null;
-            }
-
-            @Override
-            public void putState(String key, ByteBuffer value) {
-
-            }
-
-            @Override
-            public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
-                return null;
-            }
-
-            @Override
-            public ByteBuffer getState(String key) {
-                return null;
-            }
-
-            @Override
-            public CompletableFuture<ByteBuffer> getStateAsync(String key) {
-                return null;
-            }
-            
-            @Override
-            public void deleteState(String key) {
-            	
-            }
-            
-            @Override
-            public CompletableFuture<Void> deleteStateAsync(String key) {
-            	return null;
-            }
-
-            @Override
-            public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
-                return null;
-            }
-
-            @Override
-            public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
-                return null;
-            }
-        };
+        SourceContext ctx = mock(SourceContext.class);
         Map<String, Object> config = new HashMap<>();
-        ThrowingRunnable openAndClose = ()->{
+        Assert.ThrowingRunnable openAndClose = ()->{
             try {
                 source.open(config, ctx);
                 fail();
@@ -197,29 +76,29 @@ public class KafkaAbstractSourceTest {
                 source.close();
             }
         };
-        expectThrows(NullPointerException.class, "Kafka topic is not set", openAndClose);
+        expectThrows(NullPointerException.class, openAndClose);
         config.put("topic", "topic_1");
-        expectThrows(NullPointerException.class, "Kafka bootstrapServers is not set", openAndClose);
+        expectThrows(NullPointerException.class, openAndClose);
         config.put("bootstrapServers", "localhost:8080");
-        expectThrows(NullPointerException.class, "Kafka consumer group id is not set", openAndClose);
+        expectThrows(NullPointerException.class, openAndClose);
         config.put("groupId", "test-group");
         config.put("fetchMinBytes", -1);
-        expectThrows(IllegalArgumentException.class, "Invalid Kafka Consumer fetchMinBytes : -1", openAndClose);
+        expectThrows(IllegalArgumentException.class, openAndClose);
         config.put("fetchMinBytes", 1000);
         config.put("autoCommitEnabled", true);
         config.put("autoCommitIntervalMs", -1);
-        expectThrows(IllegalArgumentException.class, "Invalid Kafka Consumer autoCommitIntervalMs : -1", openAndClose);
+        expectThrows(IllegalArgumentException.class, openAndClose);
         config.put("autoCommitIntervalMs", 100);
         config.put("sessionTimeoutMs", -1);
-        expectThrows(IllegalArgumentException.class, "Invalid Kafka Consumer sessionTimeoutMs : -1", openAndClose);
+        expectThrows(IllegalArgumentException.class, openAndClose);
         config.put("sessionTimeoutMs", 10000);
         config.put("heartbeatIntervalMs", -100);
-        expectThrows(IllegalArgumentException.class, "Invalid Kafka Consumer heartbeatIntervalMs : -100", openAndClose);
+        expectThrows(IllegalArgumentException.class, openAndClose);
         config.put("heartbeatIntervalMs", 20000);
-        expectThrows(IllegalArgumentException.class, "Unable to instantiate Kafka consumer", openAndClose);
+        expectThrows(IllegalArgumentException.class, openAndClose);
         config.put("heartbeatIntervalMs", 5000);
         config.put("autoOffsetReset", "some-value");
-        expectThrows(IllegalArgumentException.class, "Unable to instantiate Kafka consumer", openAndClose);
+        expectThrows(IllegalArgumentException.class, openAndClose);
         config.put("autoOffsetReset", "earliest");
         source.open(config, ctx);
         source.close();

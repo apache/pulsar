@@ -54,6 +54,9 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -66,6 +69,8 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
+
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,6 +122,9 @@ public class PerformanceProducer {
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
         public String serviceURL;
 
+        @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
+        public String adminURL;
+
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
@@ -139,6 +147,9 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
         public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+
+        @Parameter(names = { "-np", "--partitions" }, description = "Create partitioned topics with the given number of partitions, set 0 to not try to create the topic")
+        public Integer partitions = null;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -229,12 +240,12 @@ public class PerformanceProducer {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
@@ -249,7 +260,7 @@ public class PerformanceProducer {
             } else {
                 System.out.println("The size of topics list should be equal to --num-topic");
                 jc.usage();
-                System.exit(-1);
+                PerfClientUtils.exit(-1);
             }
         }
 
@@ -268,6 +279,13 @@ public class PerformanceProducer {
             // fallback to previous-version serviceUrl property to maintain backward-compatibility
             if (arguments.serviceURL == null) {
                 arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
+            }
+
+            if (arguments.adminURL == null) {
+                arguments.adminURL = prop.getProperty("webServiceUrl");
+            }
+            if (arguments.adminURL == null) {
+                arguments.adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
             }
 
             if (arguments.authPluginClassName == null) {
@@ -324,6 +342,39 @@ public class PerformanceProducer {
             printAggregatedThroughput(start);
             printAggregatedStats();
         }));
+
+        if (arguments.partitions  != null) {
+            PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
+                    .serviceHttpUrl(arguments.adminURL)
+                    .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+
+            if (isNotBlank(arguments.authPluginClassName)) {
+                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+            }
+
+            if (arguments.tlsAllowInsecureConnection != null) {
+                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
+            }
+
+            try (PulsarAdmin client = clientBuilder.build();) {
+                for (String topic : arguments.topics) {
+                    log.info("Creating partitioned topic {} with {} partitions", topic, arguments.partitions);
+                    try {
+                        client.topics().createPartitionedTopic(topic, arguments.partitions);
+                    } catch (PulsarAdminException.ConflictException alreadyExists) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Topic {} already exists: {}", topic, alreadyExists);
+                        }
+                        PartitionedTopicMetadata partitionedTopicMetadata = client.topics().getPartitionedTopicMetadata(topic);
+                        if (partitionedTopicMetadata.partitions != arguments.partitions) {
+                            log.error("Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
+                                    topic, partitionedTopicMetadata.partitions, arguments.partitions);
+                            PerfClientUtils.exit(-1);
+                        }
+                    }
+                }
+            }
+        }
 
         CountDownLatch doneLatch = new CountDownLatch(arguments.numTestThreads);
 
@@ -507,7 +558,7 @@ public class PerformanceProducer {
                             printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            System.exit(0);
+                            PerfClientUtils.exit(0);
                         }
                     }
 
@@ -517,7 +568,7 @@ public class PerformanceProducer {
                             printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            System.exit(0);
+                            PerfClientUtils.exit(0);
                         }
                     }
                     rateLimiter.acquire();
@@ -565,7 +616,7 @@ public class PerformanceProducer {
                         log.warn("Write error on message", ex);
                         messagesFailed.increment();
                         if (arguments.exitOnFailure) {
-                            System.exit(-1);
+                            PerfClientUtils.exit(-1);
                         }
                         return null;
                     });

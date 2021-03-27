@@ -28,6 +28,19 @@ import static org.testng.Assert.assertNotEquals;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.io.File;
+import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.URL;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -50,7 +63,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -66,21 +78,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.lang.reflect.Method;
-import java.net.URI;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Test Pulsar function state
@@ -108,6 +105,7 @@ public class PulsarFunctionPublishTest {
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
     private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
@@ -116,15 +114,6 @@ public class PulsarFunctionPublishTest {
 
     @BeforeMethod
     void setup(Method method) throws Exception {
-
-        // delete all function temp files
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((ignoredDir, name) -> name.startsWith("function"));
-
-        for (File file : foundFiles) {
-            file.delete();
-        }
-
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
@@ -215,17 +204,25 @@ public class PulsarFunctionPublishTest {
 
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
-        log.info("--- Shutting down ---");
-        pulsarClient.close();
-        admin.close();
-        functionsWorkerService.stop();
-        pulsar.close();
-        bkEnsemble.stop();
+        try {
+            log.info("--- Shutting down ---");
+            pulsarClient.close();
+            admin.close();
+            functionsWorkerService.stop();
+            pulsar.close();
+            bkEnsemble.stop();
+        } finally {
+            if (tempDirectory != null) {
+                tempDirectory.delete();
+            }
+        }
     }
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) throws InvalidWorkerConfigDefaultException {
 
         workerConfig = new WorkerConfig();
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -367,11 +364,7 @@ public class PulsarFunctionPublishTest {
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
 
-        // make sure all temp files are deleted
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
-
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
     @Test
@@ -508,11 +501,7 @@ public class PulsarFunctionPublishTest {
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
 
-        // make sure all temp files are deleted
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((dir1, name) -> name.startsWith("function"));
-
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
 
         DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(workerConfig);
 
