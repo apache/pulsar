@@ -479,7 +479,7 @@ public class BrokerMonitor {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
         final ZooKeeper zkClient = new ZooKeeper(arguments.connectString, ZOOKEEPER_TIMEOUT_MILLIS, null);
         final BrokerMonitor monitor = new BrokerMonitor(zkClient);

@@ -133,7 +133,8 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                     ContainerExecResult r = execQuery(
                             String.format("show tables in pulsar.\"%s\";", topicName.getNamespace()));
                     assertThat(r.getExitCode()).isEqualTo(0);
-                    assertThat(r.getStdout()).contains(topicName.getLocalName());
+                    // the show tables query return lowercase table names, so ignore case
+                    assertThat(r.getStdout()).containsIgnoringCase(topicName.getLocalName());
                 }
         );
     }

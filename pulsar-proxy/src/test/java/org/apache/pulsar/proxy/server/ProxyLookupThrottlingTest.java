@@ -60,7 +60,6 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
         proxyService = Mockito.spy(new ProxyService(proxyConfig, authenticationService));
-        doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 

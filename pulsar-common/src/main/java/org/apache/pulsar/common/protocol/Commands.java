@@ -694,9 +694,11 @@ public class Commands {
                 .setType(getSchemaType(schemaInfo.getType()));
 
         schemaInfo.getProperties().entrySet().stream().forEach(entry -> {
-            schema.addProperty()
-                .setKey(entry.getKey())
-                .setValue(entry.getValue());
+            if (entry.getKey() != null && entry.getValue() != null) {
+                schema.addProperty()
+                        .setKey(entry.getKey())
+                        .setValue(entry.getValue());
+            }
         });
     }
 

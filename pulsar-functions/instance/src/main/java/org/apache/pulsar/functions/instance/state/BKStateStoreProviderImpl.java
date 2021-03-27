@@ -77,6 +77,7 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
 
         StorageClientSettings settings = StorageClientSettings.newBuilder()
             .serviceUri(stateStorageServiceUrl)
+            .enableServerSideRouting(true)
             .clientName("function-" + tableNs)
             // configure a maximum 2 minutes jitter backoff for accessing table service
             .backoffPolicy(Jitter.of(

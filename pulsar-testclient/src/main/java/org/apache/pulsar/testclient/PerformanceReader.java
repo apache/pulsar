@@ -130,12 +130,12 @@ public class PerformanceReader {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
@@ -150,7 +150,7 @@ public class PerformanceReader {
             } else {
                 System.out.println("The size of topics list should be equal to --num-topics");
                 jc.usage();
-                System.exit(-1);
+                PerfClientUtils.exit(-1);
             }
         }
 
@@ -206,7 +206,7 @@ public class PerformanceReader {
             if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
                     log.info("------------------- DONE -----------------------");
-                    System.exit(0);
+                    PerfClientUtils.exit(0);
                 }
             }
             messagesReceived.increment();

@@ -253,4 +253,9 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
             }
         });
     }
+
+    @Override
+    public String toString() {
+        return "KeyValueSchema(" + keyValueEncodingType + "," + keySchema + "," + valueSchema + ")";
+    }
 }

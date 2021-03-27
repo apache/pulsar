@@ -160,7 +160,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.internalConfig = getInternalConsumerConfig();
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStatsRecorderImpl(this) : null;
 
-        // start track and auto subscribe partition increasement
+        // start track and auto subscribe partition increment
         if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
             partitionsAutoUpdateTimeout = client.timer()
@@ -265,8 +265,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private void messageReceived(ConsumerImpl<T> consumer, Message<T> message) {
         checkArgument(message instanceof MessageImpl);
-        TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(
-                consumer.getTopic(), consumer.getTopicNameWithoutPartition(), message);
+        TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(),
+                consumer.getTopicNameWithoutPartition(), message, consumer);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message from topics-consumer {}",

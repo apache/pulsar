@@ -41,6 +41,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
@@ -417,6 +418,16 @@ public class BrokersBase extends PulsarWebResource {
             LOG.error("[{}] Failed to update configuration {}, {}", clientAppId(), configName, ie.getMessage(), ie);
             throw new RestException(ie);
         }
+    }
+
+    @GET
+    @Path("/version")
+    @ApiOperation(value = "Get version of current broker")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public String version() throws Exception {
+        return PulsarVersion.getVersion();
     }
 }
 
