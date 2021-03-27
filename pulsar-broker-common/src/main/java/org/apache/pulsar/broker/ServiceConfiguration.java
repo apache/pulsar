@@ -151,6 +151,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The network interface that the bookie should listen on."
+                    + " If not set, the broker will listen on all interfaces."
+    )
+    private String listeningInterface;
+
     @FieldContext(category=CATEGORY_SERVER,
             doc = "Used to specify multiple advertised listeners for the broker."
                     + " The value must format as <listener_name>:pulsar://<host>:<port>,"
