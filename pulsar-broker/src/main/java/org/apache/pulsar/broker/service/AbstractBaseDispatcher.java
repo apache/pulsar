@@ -19,11 +19,11 @@
 
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -41,8 +41,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
-
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 @Slf4j
 public abstract class AbstractBaseDispatcher implements Dispatcher {
@@ -157,7 +155,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     }
 
     /**
-     * Determine whether the number of consumers on the subscription reaches the threshold
+     * Determine whether the number of consumers on the subscription reaches the threshold.
      * @return
      */
     protected abstract boolean isConsumersExceededOnSubscription();
