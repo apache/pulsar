@@ -27,52 +27,57 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * An interface represents a message with schema.
+ * An interface represents a message with schema for non Struct types.
  */
-@InterfaceAudience.Public
+@InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class PrimitiveRecord implements GenericRecord {
 
-    private final Object nativeRecord;
+    private final Object nativeObject;
     private final SchemaType schemaType;
 
     public static PrimitiveRecord of(Object nativeRecord, SchemaType schemaType) {
         return new PrimitiveRecord(nativeRecord, schemaType);
     }
 
-    private PrimitiveRecord(Object nativeRecord, SchemaType schemaType) {
-        this.nativeRecord = nativeRecord;
+    private PrimitiveRecord(Object nativeObject, SchemaType schemaType) {
+        this.nativeObject = nativeObject;
         this.schemaType = schemaType;
     }
 
+    @Override
     public byte[] getSchemaVersion() {
         return null;
     }
 
+    @Override
     public List<Field> getFields() {
         return Collections.emptyList();
     }
 
+    @Override
     public Object getField(String fieldName) {
         return null;
     }
 
+    @Override
     public SchemaType getSchemaType() {
         return schemaType;
     }
 
+    @Override
     public Object getNativeObject() {
-        return nativeRecord;
+        return nativeObject;
     }
 
     @Override
     public String toString() {
-        return Objects.toString(nativeRecord);
+        return Objects.toString(nativeObject);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(nativeRecord);
+        return Objects.hashCode(nativeObject);
     }
 
     @Override
@@ -80,6 +85,6 @@ public class PrimitiveRecord implements GenericRecord {
         if (! (other instanceof PrimitiveRecord)) {
             return false;
         }
-        return Objects.equals(nativeRecord, ((PrimitiveRecord) other).nativeRecord);
+        return Objects.equals(nativeObject, ((PrimitiveRecord) other).nativeObject);
     }
 }
