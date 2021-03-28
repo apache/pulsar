@@ -31,6 +31,13 @@ import org.apache.pulsar.common.schema.SchemaType;
 public interface GenericRecord extends GenericObject {
 
     /**
+     * Return schema version.
+     *
+     * @return schema version, or null if the information is not available.
+     */
+    byte[] getSchemaVersion();
+
+    /**
      * Returns the list of fields associated with the record.
      *
      * @return the list of fields associated with the record.
