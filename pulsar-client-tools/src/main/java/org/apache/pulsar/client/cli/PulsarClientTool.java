@@ -119,7 +119,7 @@ public class PulsarClientTool {
         commandParser.addObject(this);
         commandParser.addCommand("produce", produceCommand);
         commandParser.addCommand("consume", consumeCommand);
-        commandParser.addCommand("document", generateDocument);
+        commandParser.addCommand("generate_documentation", generateDocument);
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {
@@ -186,7 +186,7 @@ public class PulsarClientTool {
                 return produceCommand.run();
             } else if ("consume".equals(chosenCommand)) {
                 return consumeCommand.run();
-            } else if ("document".equals(chosenCommand)) {
+            } else if ("generate_documentation".equals(chosenCommand)) {
                 return generateDocument.run();
             } else {
                 commandParser.usage();

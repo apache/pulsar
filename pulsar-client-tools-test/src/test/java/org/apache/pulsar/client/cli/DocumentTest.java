@@ -52,8 +52,8 @@ public class DocumentTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
         PulsarClientTool tool = new PulsarClientTool(properties);
-        String[] args = new String[]{"document", "-n", "produce", "-n", "consume"};
-        tool.run(args);
+        String[] args = new String[]{"generate_documentation", "-n", "produce", "-n", "consume"};
+        assertEquals(tool.run(args), 0);
         assertEquals(tool.generateDocument.getCommandNames().size(), 2);
     }
 
