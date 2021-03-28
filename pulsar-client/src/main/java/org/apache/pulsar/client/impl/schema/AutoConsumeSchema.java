@@ -39,13 +39,13 @@ import static com.google.common.base.Preconditions.checkState;
 @Slf4j
 public class AutoConsumeSchema implements Schema<GenericRecord> {
 
-    protected Schema<?> schema;
+    private Schema<?> schema;
 
-    protected String topicName;
+    private String topicName;
 
-    protected String componentName;
+    private String componentName;
 
-    protected SchemaInfoProvider schemaInfoProvider;
+    private SchemaInfoProvider schemaInfoProvider;
 
     public void setSchema(Schema<?> schema) {
         this.schema = schema;
