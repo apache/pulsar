@@ -419,7 +419,7 @@ public abstract class AdminResource extends PulsarWebResource {
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
         }
-        if (quota.getLimit() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
+        if (quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
             return false;
         }
         return true;

@@ -626,14 +626,14 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> seekAsync(long timestamp);
 
     /**
-     * Get the last message id available available for consume.
+     * Get the last message id available for consume.
      *
      * @return the last message id.
      */
     MessageId getLastMessageId() throws PulsarClientException;
 
     /**
-     * Get the last message id available available for consume.
+     * Get the last message id available for consume.
      *
      * @return a future that can be used to track the completion of the operation.
      */

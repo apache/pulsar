@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -52,6 +53,7 @@ public class BacklogQuotaManager {
         this.isTopicLevelPoliciesEnable = pulsar.getConfiguration().isTopicLevelPoliciesEnabled();
         this.defaultQuota = new BacklogQuota(
                 pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024,
+                pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond(),
                 pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy());
         this.zkCache = pulsar.getConfigurationCache().policiesCache();
         this.pulsar = pulsar;
@@ -90,23 +92,36 @@ public class BacklogQuotaManager {
         return getBacklogQuota(topicName.getNamespace(), policyPath);
     }
 
-    public long getBacklogQuotaLimit(TopicName topicName) {
-        return getBacklogQuota(topicName).getLimit();
+    public long getBacklogQuotaLimitInSize(TopicName topicName) {
+        return getBacklogQuota(topicName).getLimitSize();
+    }
+
+    public int getBacklogQuotaLimitInTime(TopicName topicName) {
+        return getBacklogQuota(topicName).getLimitTime();
     }
 
     /**
-     * Handle exceeded backlog by using policies set in the zookeeper for given topic.
+     * Handle exceeded size backlog by using policies set in the zookeeper for given topic.
      *
      * @param persistentTopic Topic on which backlog has been exceeded
      */
-    public void handleExceededBacklogQuota(PersistentTopic persistentTopic) {
+    public void handleExceededBacklogQuota(PersistentTopic persistentTopic, BacklogQuotaType backlogQuotaType) {
         TopicName topicName = TopicName.get(persistentTopic.getName());
         BacklogQuota quota = getBacklogQuota(topicName);
-        log.info("Backlog quota exceeded for topic [{}]. Applying [{}] policy", persistentTopic.getName(),
-                quota.getPolicy());
+        log.info("Backlog quota type {} exceeded for topic [{}]. Applying [{}] policy", backlogQuotaType,
+                persistentTopic.getName(), quota.getPolicy());
         switch (quota.getPolicy()) {
         case consumer_backlog_eviction:
-            dropBacklog(persistentTopic, quota);
+            switch (backlogQuotaType) {
+                case destination_storage:
+                        dropBacklogForSizeLimit(persistentTopic, quota);
+                        break;
+                case message_age:
+                        dropBacklogForTimeLimit(persistentTopic, quota);
+                        break;
+                default:
+                    break;
+            }
             break;
         case producer_exception:
         case producer_request_hold:
@@ -125,10 +140,10 @@ public class BacklogQuotaManager {
      * @param quota
      *            Backlog quota set for the topic
      */
-    private void dropBacklog(PersistentTopic persistentTopic, BacklogQuota quota) {
+    private void dropBacklogForSizeLimit(PersistentTopic persistentTopic, BacklogQuota quota) {
         // Set the reduction factor to 90%. The aim is to drop down the backlog to 90% of the quota limit.
         double reductionFactor = 0.9;
-        double targetSize = reductionFactor * quota.getLimit();
+        double targetSize = reductionFactor * quota.getLimitSize();
 
         // Get estimated unconsumed size for the managed ledger associated with this topic. Estimated size is more
         // useful than the actual storage size. Actual storage size gets updated only when managed ledger is trimmed.
@@ -188,7 +203,28 @@ public class BacklogQuotaManager {
                         backlogSize, messageSkipFactor);
             }
         }
+    }
 
+    /**
+     * Drop the backlog on the topic.
+     *
+     * @param persistentTopic
+     *            The topic from which backlog should be dropped
+     * @param quota
+     *            Backlog quota set for the topic
+     */
+    private void dropBacklogForTimeLimit(PersistentTopic persistentTopic, BacklogQuota quota) {
+        // Set the reduction factor to 90%. The aim is to drop down the backlog to 90% of the quota limit.
+        double reductionFactor = 0.9;
+        int target = (int) (reductionFactor * quota.getLimitTime());
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] target backlog expire time is [{}]", persistentTopic.getName(), target);
+        }
+
+        for (PersistentSubscription subscription : persistentTopic.getSubscriptions().values()) {
+            subscription.getExpiryMonitor().expireMessages(target);
+        }
     }
 
     /**

@@ -318,10 +318,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int backlogQuotaCheckIntervalInSeconds = 60;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default per-topic backlog quota limit, less than 0 means no limitation. default is -1."
+        doc = "Default per-topic backlog quota limit by size, less than 0 means no limitation. default is -1."
                 + " Increase it if you want to allow larger msg backlog"
     )
     private long backlogQuotaDefaultLimitGB = -1;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Default per-topic backlog quota limit by time  in second, less than 0 means no limitation. " +
+                    "default is -1. Increase it if you want to allow larger msg backlog"
+    )
+    private int backlogQuotaDefaultLimitSecond = -1;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default backlog quota retention policy. Default is producer_request_hold\n\n"
