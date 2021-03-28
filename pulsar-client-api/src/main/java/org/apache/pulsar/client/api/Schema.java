@@ -28,7 +28,7 @@ import java.time.LocalTime;
 import java.util.Date;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
-import org.apache.pulsar.client.api.schema.PulsarObject;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -363,7 +363,7 @@ public interface Schema<T> extends Cloneable{
      * based on the current topic schema.
      *
      * <p>The messages values are deserialized into a {@link GenericRecord} object,
-     * that extends the {@link PulsarObject} interface.
+     * that extends the {@link GenericObject} interface.
      *
      * @return the auto schema instance
      */

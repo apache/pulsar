@@ -20,19 +20,19 @@ package org.apache.pulsar.client.api.schema;
 
 import org.apache.pulsar.common.schema.SchemaType;
 
-public interface PulsarObject {
-    /**
-     * Return schema version.
-     *
-     * @return schema version, or null if the information is not available.
-     */
-    byte[] getSchemaVersion();
+/**
+ * This is an abstraction over the logical value that is store into a Message.
+ * Pulsar decodes the payload of the Message using the Schema that is configured for the topic.
+ */
+public interface GenericObject {
 
     /**
      * Return the schema tyoe.
      *
      * @return the schema type
      * @throws UnsupportedOperationException if this feature is not implemented
+     * @see SchemaType#BYTES when the topic has no schema information
+     * @see SchemaType#STRING
      * @see SchemaType#AVRO
      * @see SchemaType#PROTOBUF_NATIVE
      * @see SchemaType#JSON
@@ -40,10 +40,10 @@ public interface PulsarObject {
     SchemaType getSchemaType();
 
     /**
-     * Return the internal native representation of the Record,
-     * like a AVRO GenericRecord.
+     * Return the internal native representation of the Object,
+     * like a AVRO GenericRecord, a String or a byte[].
      *
-     * @return the internal representation of the record
+     * @return the decoded object
      * @throws UnsupportedOperationException if the operation is not supported
      */
     Object getNativeObject();

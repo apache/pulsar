@@ -23,7 +23,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.PrimitiveRecord;
-import org.apache.pulsar.client.api.schema.PulsarObject;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
@@ -81,6 +80,10 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             SchemaInfo schemaInfo = null;
             try {
                 schemaInfo = schemaInfoProvider.getLatestSchema().get();
+                if (schemaInfo == null) {
+                    // schemaless topic
+                    schemaInfo = BytesSchema.of().getSchemaInfo();
+                }
             } catch (InterruptedException | ExecutionException e ) {
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
@@ -130,9 +133,6 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     private Schema<?> generateSchema(SchemaInfo schemaInfo) {
-        if (schemaInfo == null) {
-            return BytesSchema.of();
-        }
 
         // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
         // to decode the messages.

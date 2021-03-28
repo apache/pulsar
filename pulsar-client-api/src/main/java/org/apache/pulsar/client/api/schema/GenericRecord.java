@@ -28,7 +28,7 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface GenericRecord extends PulsarObject {
+public interface GenericRecord extends GenericObject {
 
     /**
      * Returns the list of fields associated with the record.
