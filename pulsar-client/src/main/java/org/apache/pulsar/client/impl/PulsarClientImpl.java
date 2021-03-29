@@ -94,6 +94,7 @@ public class PulsarClientImpl implements PulsarClient {
     private LookupService lookup;
     private final ConnectionPool cnxPool;
     private final Timer timer;
+    private boolean needStopTimer;
     private final ExecutorProvider externalExecutorProvider;
     private final ExecutorProvider internalExecutorService;
 
@@ -131,10 +132,15 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup));
+        this(conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup), null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool)
+            throws PulsarClientException {
+        this(conf, eventLoopGroup, cnxPool, null);
+    }
+
+    public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool, Timer timer)
             throws PulsarClientException {
         if (conf == null || isBlank(conf.getServiceUrl()) || eventLoopGroup == null) {
             throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
@@ -152,7 +158,12 @@ public class PulsarClientImpl implements PulsarClient {
         } else {
             lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(), conf.isUseTls(), externalExecutorProvider.getExecutor());
         }
-        timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
+        if (timer == null) {
+            this.timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
+            needStopTimer = true;
+        } else {
+            this.timer = timer;
+        }
         producers = Collections.newSetFromMap(new ConcurrentHashMap<>());
         consumers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
@@ -671,7 +682,9 @@ public class PulsarClientImpl implements PulsarClient {
         try {
             lookup.close();
             cnxPool.close();
-            timer.stop();
+            if (needStopTimer) {
+                timer.stop();
+            }
             externalExecutorProvider.shutdownNow();
             internalExecutorService.shutdownNow();
             conf.getAuthentication().close();
