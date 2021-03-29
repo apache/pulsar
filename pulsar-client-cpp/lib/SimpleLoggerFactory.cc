@@ -17,7 +17,7 @@
  * under the License.
  */
 
-#include "SimpleLoggerImpl.h"
+#include <pulsar/SimpleLoggerFactory.h>
 
 #include <iostream>
 #include <sstream>
@@ -47,18 +47,16 @@ inline std::ostream &operator<<(std::ostream &s, Logger::Level level) {
 }
 
 class SimpleLogger : public Logger {
-    std::string _logger;
-
    public:
-    SimpleLogger(const std::string &logger) : _logger(logger) {}
+    SimpleLogger(const std::string &filename, Level level) : filename_(filename), level_(level) {}
 
-    bool isEnabled(Level level) { return level >= Logger::LEVEL_INFO; }
+    bool isEnabled(Level level) { return level >= level_; }
 
     void log(Level level, int line, const std::string &message) {
         std::stringstream ss;
 
         printTimestamp(ss);
-        ss << " " << level << " [" << std::this_thread::get_id() << "] " << _logger << ":" << line << " | "
+        ss << " " << level << " [" << std::this_thread::get_id() << "] " << filename_ << ":" << line << " | "
            << message << "\n";
 
         std::cout << ss.str();
@@ -66,6 +64,9 @@ class SimpleLogger : public Logger {
     }
 
    private:
+    const std::string filename_;
+    const Level level_;
+
     static std::ostream &printTimestamp(std::ostream &s) {
         boost::posix_time::ptime now = boost::posix_time::microsec_clock::local_time();
 
@@ -80,9 +81,6 @@ class SimpleLogger : public Logger {
     }
 };
 
-Logger *SimpleLoggerFactory::getLogger(const std::string &file) { return new SimpleLogger(file); }
+Logger *SimpleLoggerFactory::getLogger(const std::string &file) { return new SimpleLogger(file, level_); }
 
-std::unique_ptr<LoggerFactory> SimpleLoggerFactory::create() {
-    return std::unique_ptr<LoggerFactory>(new SimpleLoggerFactory());
-}
 }  // namespace pulsar

@@ -1804,6 +1804,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int brokerServiceCompactionMonitorIntervalInSeconds = 60;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "The estimated backlog size is greater than this threshold, compression will be triggered.\n"
+            + "Using a value of 0, is disabling compression check."
+    )
+    private long brokerServiceCompactionThresholdInBytes = 0;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"

@@ -27,12 +27,17 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -40,6 +45,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -204,5 +210,31 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 assertFalse(SchemaRegistryServiceImpl.isUsingAvroSchemaParser(value));
             }
         }
+    }
+
+    @Test
+    public void testNullKeyValueProperty() throws PulsarAdminException, PulsarClientException {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test";
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        final Map<String, String> map = new HashMap<>();
+        map.put("key", null);
+        map.put(null, "value"); // null key is not allowed for JSON, it's only for test here
+        Schema.INT32.getSchemaInfo().setProperties(map);
+
+        final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32).topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        consumer.close();
     }
 }

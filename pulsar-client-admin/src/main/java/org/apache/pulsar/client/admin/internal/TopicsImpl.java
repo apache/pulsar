@@ -2566,8 +2566,18 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public Long getCompactionThreshold(String topic) throws PulsarAdminException {
+        return getCompactionThreshold(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<Long> getCompactionThresholdAsync(String topic) {
+        return getCompactionThresholdAsync(topic, false);
+    }
+
+    @Override
+    public Long getCompactionThreshold(String topic, boolean applied) throws PulsarAdminException {
         try {
-            return getCompactionThresholdAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getCompactionThresholdAsync(topic, applied).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -2579,9 +2589,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Long> getCompactionThresholdAsync(String topic) {
+    public CompletableFuture<Long> getCompactionThresholdAsync(String topic, boolean applied) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "compactionThreshold");
+        path = path.queryParam("applied", applied);
         final CompletableFuture<Long> future = new CompletableFuture<>();
         asyncGetRequest(path,
             new InvocationCallback<Long>() {

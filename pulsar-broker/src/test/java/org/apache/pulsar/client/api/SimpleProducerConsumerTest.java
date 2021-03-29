@@ -3954,4 +3954,68 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         assertEquals(1, res.getFields().size());
     }
+
+    /**
+     * Test validates that consumer of partitioned-topic utilizes threads of all partitioned-consumers and slow-listener
+     * of one of the partition doesn't impact listener-processing of other partition.
+     * <p>
+     * Test starts consumer with 10 partitions where one of the partition listener gets blocked but that will not impact
+     * processing of other 9 partitions and they will be processed successfully.
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 20000)
+    public void testPartitionTopicsOnSeparateListner() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topicName = "persistent://my-property/my-ns/one-partitioned-topic";
+        final String subscriptionName = "my-sub-";
+
+        PulsarClient pulsarClient = PulsarClient.builder().listenerThreads(10).serviceUrl(lookupUrl.toString()).build();
+
+        // create partitioned topic
+        int partitions = 10;
+        admin.topics().createPartitionedTopic(topicName, partitions);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, partitions);
+
+        // each partition
+        int totalMessages = partitions * 2;
+        CountDownLatch latch = new CountDownLatch(totalMessages - 2);
+        CountDownLatch blockedMessageLatch = new CountDownLatch(1);
+        AtomicInteger count = new AtomicInteger();
+
+        Set<String> listenerThreads = Sets.newConcurrentHashSet();
+        MessageListener<byte[]> messageListener = (c, m) -> {
+            if (count.incrementAndGet() == 1) {
+                try {
+                    // blocking one of the partition's listener thread will not impact other topics
+                    blockedMessageLatch.await();
+                } catch (InterruptedException e) {
+                    // Ok
+                }
+            } else {
+                latch.countDown();
+            }
+            listenerThreads.add(Thread.currentThread().getName());
+        };
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).messageListener(messageListener)
+                .subscriptionName(subscriptionName + 1).consumerName("aaa").subscribe();
+        log.info("Consumer1 created. topic: {}", consumer1.getTopic());
+
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).enableBatching(false).create();
+        log.info("Producer1 created. topic: {}", producer1.getTopic());
+
+        for (int i = 0; i < totalMessages; i++) {
+            producer1.newMessage().value(("one-partitioned-topic-value-producer1-" + i).getBytes(UTF_8)).send();
+        }
+        latch.await();
+        assertEquals(listenerThreads.size(), partitions - 1);
+        // unblock the listener thread
+        blockedMessageLatch.countDown();
+        pulsarClient.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
 }

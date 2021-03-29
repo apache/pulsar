@@ -22,9 +22,11 @@ import com.google.common.collect.Lists;
 
 import io.netty.channel.EventLoopGroup;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -32,6 +34,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
@@ -41,8 +44,10 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,7 +160,21 @@ public class HttpLookupService implements LookupService {
                     ByteBuffer.wrap(version).getLong());
         }
         httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
-            future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
+            if (response.getType() == SchemaType.KEY_VALUE) {
+                try {
+                    SchemaData data = SchemaData
+                            .builder()
+                            .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(response.getData().getBytes(StandardCharsets.UTF_8)))
+                            .type(response.getType())
+                            .props(response.getProperties())
+                            .build();
+                    future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
+                } catch (IOException err) {
+                    future.completeExceptionally(err);
+                }
+            } else {
+                future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
+            }
         }).exceptionally(ex -> {
             if (ex.getCause() instanceof NotFoundException) {
                 future.complete(Optional.empty());

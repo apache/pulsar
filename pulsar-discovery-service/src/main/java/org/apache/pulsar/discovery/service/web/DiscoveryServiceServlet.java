@@ -33,6 +33,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException;

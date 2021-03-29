@@ -26,6 +26,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
@@ -317,5 +318,14 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getProperties(), Maps.newHashMap(map));
         }
 
+        @Test
+        public void testNullPropertyValue() {
+            final Map<String, String> map = new HashMap<>();
+            map.put("key", null);
+            final IntSchema schema = new IntSchema();
+            schema.getSchemaInfo().setProperties(map);
+            // null key will be skipped by Gson when serializing JSON to String
+            assertEquals(schema.getSchemaInfo().toString(), INT32_SCHEMA_INFO);
+        }
     }
 }
