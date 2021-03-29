@@ -120,7 +120,7 @@ public class StringSchema extends AbstractSchema<String> {
                 bytes = new byte[size * 2];
                 tmpBuffer.set(bytes);
             }
-            byteBuf.readBytes(bytes, 0, size);
+            byteBuf.getBytes(byteBuf.readerIndex(), bytes, 0, size);
 
             return new String(bytes, 0, size, charset);
         }

@@ -184,6 +184,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final BlockingQueue<String> pendingChunkedMessageUuidQueue;
 
     private final boolean createTopicIfDoesNotExist;
+    private final boolean poolMessages;
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
 
@@ -252,6 +253,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.pendingChunkedMessageUuidQueue = new GrowableArrayBlockingQueue<>();
         this.expireTimeOfIncompleteChunkedMessageMillis = conf.getExpireTimeOfIncompleteChunkedMessageMillis();
         this.autoAckOldestChunkedMessageOnQueueFull = conf.isAutoAckOldestChunkedMessageOnQueueFull();
+        this.poolMessages = conf.isPoolMessages();
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -835,7 +837,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 previousMessage = new BatchMessageIdImpl(nextMessageInQueue.getLedgerId(),
                         nextMessageInQueue.getEntryId() - 1, nextMessageInQueue.getPartitionIndex(), -1);
             }
-
+            // release messages if they are pooled messages
+            currentMessageQueue.forEach(Message::release);
             return previousMessage;
         } else if (!lastDequeuedMessageId.equals(MessageId.earliest)) {
             // If the queue was empty we need to restart from the message just after the last one that has been dequeued
@@ -1044,8 +1047,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
-                    uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
+            final MessageImpl<T> message =  MessageImpl.create(topicName.toString(), msgId, msgMetadata,
+                    uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount,
+                    poolMessages);
             uncompressedPayload.release();
 
             // Enqueue the message so that it can be retrieved when application calls receive()
@@ -1264,9 +1268,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i, batchSize, acker);
-                final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
+                final MessageImpl<T> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadata, singleMessagePayload,
-                        createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
+                        createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount, poolMessages);
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
                 }
@@ -1542,8 +1546,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             int currentSize = 0;
             synchronized (this) {
                 currentSize = incomingMessages.size();
-                incomingMessages.clear();
-                resetIncomingMessageSize();
+                clearIncomingMessages();
                 unAckedMessageTracker.clear();
             }
             cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
@@ -1566,8 +1569,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     public int clearIncomingMessagesAndGetMessageNumber() {
         int messagesNumber = incomingMessages.size();
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+        incomingMessages.forEach(Message::release);
+        clearIncomingMessages();
         unAckedMessageTracker.clear();
         return messagesNumber;
     }
@@ -1789,8 +1792,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             duringSeek.set(true);
             lastDequeuedMessageId = MessageId.earliest;
 
-            incomingMessages.clear();
-            resetIncomingMessageSize();
+            clearIncomingMessages();
             seekFuture.complete(null);
         }).exceptionally(e -> {
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
@@ -2113,6 +2115,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     messageIds.add(id);
                     break;
                 }
+                message.release();
                 message = incomingMessages.poll();
             }
         }

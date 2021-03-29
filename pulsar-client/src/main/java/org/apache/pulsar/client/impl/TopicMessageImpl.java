@@ -94,6 +94,11 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public int size() {
+        return msg.size();
+    }
+
+    @Override
     public long getPublishTime() {
         return msg.getPublishTime();
     }
@@ -183,5 +188,10 @@ public class TopicMessageImpl<T> implements Message<T> {
             return message.getSchema();
         }
         return null;
+    }
+
+    @Override
+    public void release() {
+        msg.release();
     }
 }

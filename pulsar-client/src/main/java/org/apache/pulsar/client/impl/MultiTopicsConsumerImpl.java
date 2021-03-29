@@ -602,8 +602,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             consumer.redeliverUnacknowledgedMessages();
             consumer.unAckedChunkedMessageIdSequenceMap.clear();
         });
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+        clearIncomingMessages();
         unAckedMessageTracker.clear();
 
         resumeReceivingFromPausedConsumersIfNeeded();
@@ -687,8 +686,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(targetMessageId)));
 
         unAckedMessageTracker.clear();
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+        clearIncomingMessages();
 
         return FutureUtil.waitForAll(futures);
     }
@@ -777,6 +775,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     messageIds.add(messageId);
                     break;
                 }
+                message.release();
                 message = incomingMessages.poll();
             }
         }
