@@ -895,7 +895,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         commandGenerator.setAdminUrl("pulsar://pulsar-broker-0:6650");
         commandGenerator.setSourceTopic(inputTopicName);
         commandGenerator.setSinkTopic(outputTopicName);
-        commandGenerator.setFunctionName("localRunTest");
+        commandGenerator.setFunctionName("localRunTest-" + randomName(8));
         commandGenerator.setRuntime(runtime);
         switch (runtime) {
             case JAVA:
@@ -2228,7 +2228,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info("testAvroSchemaFunction start ...");
         final String inputTopic = "test-avroschema-input-" + randomName(8);
         final String outputTopic = "test-avroschema-output-" + randomName(8);
-        final String functionName = "test-avroschema-fn-202003241756";
+        final String functionName = "test-avroschema-fn-" + randomName(8);
         final int numMessages = 10;
 
         if (pulsarCluster == null) {
