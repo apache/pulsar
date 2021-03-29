@@ -115,8 +115,9 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
     }
 
     private void prepareData() throws PulsarAdminException {
-        this.conf.setResourceUsagePublishTopicName(INTERNAL_TOPIC);
-        this.conf.setResourceUsagePublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
+        this.conf.setResourceUsageTransportClassName("org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager");
+        this.conf.setResourceUsageTransportPublishTopicName(INTERNAL_TOPIC);
+        this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
         admin.clusters().createCluster("test", new ClusterData(pulsar.getBrokerServiceUrl()));
     }
 }

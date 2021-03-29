@@ -30,6 +30,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.util.Collections;
@@ -707,8 +708,12 @@ public class PulsarService implements AutoCloseable {
             }
 
             // Start the task to publish resource usage, if necessary
-            if (config.isResourceUsagePublishToTopic()) {
-                this.resourceUsageTransportManager = new ResourceUsageTransportManager(this);
+            if (config.getResourceUsageTransportClassName() != null
+              && config.getResourceUsageTransportClassName() != "") {
+                Class<?> clazz = Class.forName(config.getResourceUsageTransportClassName());
+                Constructor<?> ctor = clazz.getConstructor(PulsarService.class);
+                Object object = ctor.newInstance(new Object[] { this });
+                this.resourceUsageTransportManager = (ResourceUsageTransportManager) object;
             }
 
             final String bootstrapMessage = "bootstrap service "

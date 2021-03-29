@@ -66,7 +66,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
             final int sendTimeoutSecs = 10;
 
             return pulsarClient.newProducer()
-                    .topic(pulsarService.getConfig().getResourceUsagePublishTopicName())
+                    .topic(pulsarService.getConfig().getResourceUsageTransportPublishTopicName())
                     .batchingMaxPublishDelay(publishDelayMilliSecs, TimeUnit.MILLISECONDS)
                     .sendTimeout(sendTimeoutSecs, TimeUnit.SECONDS)
                     .blockIfQueueFull(false)
@@ -78,8 +78,8 @@ public class ResourceUsageTransportManager implements AutoCloseable {
             producer = createProducer();
             resourceUsagePublishTask = pulsarService.getExecutor().scheduleAtFixedRate(
                     this,
-                    pulsarService.getConfig().getResourceUsagePublishIntervalInSecs(),
-                    pulsarService.getConfig().getResourceUsagePublishIntervalInSecs(),
+                    pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),
+                    pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs(),
                     TimeUnit.SECONDS);
         }
 
@@ -117,7 +117,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
 
         public ResourceUsageReader() throws PulsarClientException {
             consumer =  pulsarClient.newReader()
-                    .topic(pulsarService.getConfig().getResourceUsagePublishTopicName())
+                    .topic(pulsarService.getConfig().getResourceUsageTransportPublishTopicName())
                     .startMessageId(MessageId.latest)
                     .readerListener(this)
                     .create();
@@ -161,7 +161,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
 
     private void createTenantAndNamespace() throws PulsarServerException, PulsarAdminException {
         // Create a public tenant and default namespace
-        TopicName topicName = TopicName.get(pulsarService.getConfig().getResourceUsagePublishTopicName());
+        TopicName topicName = TopicName.get(pulsarService.getConfig().getResourceUsageTransportPublishTopicName());
 
         PulsarAdmin admin = pulsarService.getAdminClient();
         ServiceConfiguration config = pulsarService.getConfig();

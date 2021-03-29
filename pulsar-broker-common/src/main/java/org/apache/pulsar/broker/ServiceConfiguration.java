@@ -685,20 +685,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Default policy for publishing usage reports to system topic is disabled."
             + "This enables publishing of usage reports"
     )
-    private boolean resourceUsagePublishToTopic = false;
+    private String resourceUsageTransportClassName = "";
 
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Topic to publish usage reports to if resourceUsagePublishToTopic is enabled."
     )
-    private String resourceUsagePublishTopicName = "non-persistent://pulsar/system/resource-usage";
+    private String resourceUsageTransportPublishTopicName = "non-persistent://pulsar/system/resource-usage";
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
             doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
     )
-    private int resourceUsagePublishIntervalInSecs = 60;
+    private int resourceUsageTransportPublishIntervalInSecs = 60;
 
     // <-- dispatcher read settings -->
     @FieldContext(
