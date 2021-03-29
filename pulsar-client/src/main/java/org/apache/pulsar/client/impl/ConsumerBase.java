@@ -273,17 +273,34 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     abstract protected CompletableFuture<Messages<T>> internalBatchReceiveAsync();
 
+    private static void validateMessageId(Message<?> message) throws PulsarClientException {
+        if (message == null) {
+            throw new PulsarClientException.InvalidMessageException("Non-null message is required");
+        }
+        if (message.getMessageId() == null) {
+            throw new PulsarClientException.InvalidMessageException("Cannot handle message with null messageId");
+        }
+    }
+
+    private static void validateMessageId(MessageId messageId) throws PulsarClientException {
+        if (messageId == null) {
+            throw new PulsarClientException.InvalidMessageException("Cannot handle message with null messageId");
+        }
+    }
+
     @Override
     public void acknowledge(Message<?> message) throws PulsarClientException {
+        validateMessageId(message);
         try {
             acknowledge(message.getMessageId());
-        } catch (NullPointerException npe) {
-            throw new PulsarClientException.InvalidMessageException(npe.getMessage());
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
     @Override
     public void acknowledge(MessageId messageId) throws PulsarClientException {
+        validateMessageId(messageId);
         try {
             acknowledgeAsync(messageId).get();
         } catch (Exception e) {
@@ -337,15 +354,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void acknowledgeCumulative(Message<?> message) throws PulsarClientException {
+        validateMessageId(message);
         try {
             acknowledgeCumulative(message.getMessageId());
-        } catch (NullPointerException npe) {
-            throw new PulsarClientException.InvalidMessageException(npe.getMessage());
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
         }
     }
 
     @Override
     public void acknowledgeCumulative(MessageId messageId) throws PulsarClientException {
+        validateMessageId(messageId);
         try {
             acknowledgeCumulativeAsync(messageId).get();
         } catch (Exception e) {
@@ -365,20 +384,24 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public CompletableFuture<Void> acknowledgeAsync(Message<?> message) {
         try {
+            validateMessageId(message);
             return acknowledgeAsync(message.getMessageId());
-        } catch (NullPointerException npe) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(PulsarClientException.unwrap(e));
         }
     }
 
     @Override
     public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages) {
         try {
-            List<MessageId> messageIds = new ArrayList<>();
-            messages.forEach(message -> messageIds.add(message.getMessageId()));
+            List<MessageId> messageIds = new ArrayList<>(messages.size());
+            for (Message<?> message: messages) {
+                validateMessageId(message);
+                messageIds.add(message.getMessageId());
+            }
             return acknowledgeAsync(messageIds);
-        } catch (NullPointerException npe) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(PulsarClientException.unwrap(e));
         }
     }
 
@@ -393,28 +416,33 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
         }
         try {
+            validateMessageId(message);
             return doReconsumeLater(message, AckType.Individual, Collections.emptyMap(), delayTime, unit);
-        } catch (NullPointerException npe) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(PulsarClientException.unwrap(e));
         }
     }
 
     @Override
     public CompletableFuture<Void> reconsumeLaterAsync(Messages<?> messages, long delayTime, TimeUnit unit) {
         try {
-            messages.forEach(message -> reconsumeLaterAsync(message,delayTime, unit));
+            for (Message<?> message: messages) {
+                validateMessageId(message);
+                reconsumeLaterAsync(message,delayTime, unit);
+            }
             return CompletableFuture.completedFuture(null);
-        } catch (NullPointerException npe) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(PulsarClientException.unwrap(e));
         }
     }
 
     @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(Message<?> message) {
         try {
+            validateMessageId(message);
             return acknowledgeCumulativeAsync(message.getMessageId());
-        } catch (NullPointerException npe) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(PulsarClientException.unwrap(e));
         }
     }
 
