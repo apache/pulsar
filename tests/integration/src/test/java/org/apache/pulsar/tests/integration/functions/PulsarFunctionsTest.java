@@ -1640,13 +1640,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // update parallelism
         updateFunctionParallelism(functionName, 2);
 
-        Awaitility.await()
-                .pollInterval(Duration.ofMillis(500L))
-                .ignoreExceptions()
-                .untilAsserted(() ->
-                //get function status
-                getFunctionStatus(functionName, 0, true, 2)
-        );
+        //get function status
+        getFunctionStatus(functionName, 0, true, 2);
 
         // delete function
         deleteFunction(functionName);
@@ -1993,6 +1988,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts, int parallelism)
         throws Exception {
+        Awaitility.await()
+                .pollInterval(Duration.ofSeconds(1))
+                .atMost(Duration.ofSeconds(15))
+                .ignoreExceptions()
+                .untilAsserted(() ->
+                        doGetFunctionStatus(functionName, numMessages, checkRestarts, parallelism));
+    }
+
+    private void doGetFunctionStatus(String functionName, int numMessages, boolean checkRestarts, int parallelism)
+            throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
