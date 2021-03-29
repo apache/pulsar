@@ -82,34 +82,24 @@ public class DelayMessagingTest extends PulsarTestSuite {
         Assert.assertNotNull(message, "Can't receive message at the first time.");
         consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
 
-        boolean nullMsgFlag = false;
         // receive retry messages
         for (int i = 0; i < redeliverCnt; i++) {
             message = consumer.receive(delayTimeSeconds * 2, TimeUnit.SECONDS);
-            if (message == null) {
-                log.info("receive null retry message");
-                nullMsgFlag = true;
-                break;
-            }
-//            Assert.assertNotNull(message, "Consumer can't receive message in double delayTimeSeconds time "
-//                    + delayTimeSeconds * 2 + "s");
+            Assert.assertNotNull(message, "Consumer can't receive message in double delayTimeSeconds time "
+                    + delayTimeSeconds * 2 + "s");
             log.info("receive msg. reConsumeTimes: {}", message.getProperty("RECONSUMETIMES"));
             consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
         }
 
-        if (!nullMsgFlag) {
-            Assert.fail("Currently consumer shouldn't receive all retry messages.");
-        }
+        @Cleanup
+        Consumer<byte[]> dltConsumer = pulsarClient.newConsumer()
+                .topic(deadLetterTopic)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("test")
+                .subscribe();
 
-//        @Cleanup
-//        Consumer<byte[]> dltConsumer = pulsarClient.newConsumer()
-//                .topic(deadLetterTopic)
-//                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-//                .subscriptionName("test")
-//                .subscribe();
-//
-//        message = dltConsumer.receive(10, TimeUnit.SECONDS);
-//        Assert.assertNotNull(message, "Dead letter topic consumer can't receive message.");
+        message = dltConsumer.receive(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(message, "Dead letter topic consumer can't receive message.");
     }
 
 }
