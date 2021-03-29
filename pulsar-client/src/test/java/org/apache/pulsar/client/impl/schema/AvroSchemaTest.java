@@ -25,6 +25,7 @@ import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_A
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
+import static org.testng.AssertJUnit.assertSame;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -126,10 +127,16 @@ public class AvroSchemaTest {
     }
 
     @Test
+    public void testGetNativeSchema() throws SchemaValidationException {
+        AvroSchema<StructWithAnnotations> schema2 = AvroSchema.of(StructWithAnnotations.class);
+        org.apache.avro.Schema avroSchema2 = (Schema) schema2.getNativeSchema().get();
+        assertSame(schema2.schema, avroSchema2);
+    }
+
+    @Test
     public void testSchemaDefinition() throws SchemaValidationException {
         org.apache.avro.Schema schema1 = ReflectData.get().getSchema(DefaultStruct.class);
         AvroSchema<StructWithAnnotations> schema2 = AvroSchema.of(StructWithAnnotations.class);
-
         String schemaDef1 = schema1.toString();
         String schemaDef2 = new String(schema2.getSchemaInfo().getSchema(), UTF_8);
         assertNotEquals(

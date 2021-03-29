@@ -26,6 +26,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.Optional;
+
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -155,6 +157,15 @@ public interface Schema<T> extends Cloneable{
      * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.
      */
     Schema<byte[]> BYTES = DefaultImplementation.newBytesSchema();
+
+    /**
+     * Return the native schema that is wrapped by Pulsar API.
+     * For instance with this method you can access the Avro schema
+     * @return the internal schema or null if not present
+     */
+    default Optional<Object> getNativeSchema() {
+        return Optional.empty();
+    }
 
     /**
      * ByteBuffer Schema.

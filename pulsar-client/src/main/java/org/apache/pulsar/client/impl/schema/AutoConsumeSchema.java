@@ -30,6 +30,7 @@ import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -145,6 +146,16 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             schema.setSchemaInfoProvider(schemaInfoProvider);
         }
         return schema;
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        ensureSchemaInitialized();
+        if (schema == null) {
+            return Optional.empty();
+        } else {
+            return schema.getNativeSchema();
+        }
     }
 
     private GenericSchema generateSchema(SchemaInfo schemaInfo) {
