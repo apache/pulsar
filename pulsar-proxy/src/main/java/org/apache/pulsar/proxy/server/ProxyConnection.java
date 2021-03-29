@@ -299,7 +299,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             if (!service.getConfiguration().isAuthenticationEnabled()) {
                 this.client = new PulsarClientImpl(clientConf, service.getWorkerGroup(),
                     new ProxyConnectionPool(clientConf, service.getWorkerGroup(),
-                        () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersion)));
+                        () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersion)), service.getTimer());
 
                 completeConnect();
                 return;
@@ -436,7 +436,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             final String clientAuthMethod, final int protocolVersion) throws PulsarClientException {
         return new PulsarClientImpl(clientConf, service.getWorkerGroup(),
                 new ProxyConnectionPool(clientConf, service.getWorkerGroup(), () -> new ProxyClientCnx(clientConf,
-                        service.getWorkerGroup(), clientAuthRole, clientAuthData, clientAuthMethod, protocolVersion)));
+                        service.getWorkerGroup(), clientAuthRole, clientAuthData, clientAuthMethod, protocolVersion)), service.getTimer());
     }
 
     private static int getProtocolVersionToAdvertise(CommandConnect connect) {
