@@ -8,7 +8,7 @@ The Pulsar Node.js client can be used to create Pulsar [producers](#producers), 
 
 All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Node.js client are thread-safe.
 
-With version 1.3.0 or later, [type definitions](https://github.com/apache/pulsar-client-node/blob/master/index.d.ts) for use in TypeScript are available.
+For 1.3.0 or later versions, [type definitions](https://github.com/apache/pulsar-client-node/blob/master/index.d.ts) used in TypeScript are available.
 
 ## Installation
 
@@ -437,4 +437,3 @@ The following static methods are available for the message id object:
 | `earliest()` | MessageId representing the earliest, or oldest available message stored in the topic. | `Object` |
 | `latest()` | MessageId representing the latest, or last published message in the topic. | `Object` |
 | `deserialize(Buffer)` | Deserialize a message id object from a Buffer. | `Object` |
-
