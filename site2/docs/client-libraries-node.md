@@ -130,7 +130,7 @@ Pulsar Node.js producers have the following methods available:
 | :----- | :---------- | :---------- |
 | `send(Object)` | Publishes a [message](#messages) to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object whose result is the message ID runs executor function. | `Promise<Object>` |
 | `flush()` | Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object runs executor function. | `Promise<null>` |
-| `close()` | Closes the producer and releases all resources allocated to it. If `close()` is called then no more messages will be accepted from the publisher. This method will return Promise object, and when all pending publish requests have been persisted by Pulsar then runs executor function. If an error is thrown, no pending writes will be retried. | `Promise<null>` |
+| `close()` | Closes the producer and releases all resources allocated to it. Once `close()` is called, no more messages are accepted from the publisher. This method returns a Promise object. It runs the executor function when all pending publish requests are persisted by Pulsar. If an error is thrown, no pending writes are retried. | `Promise<null>` |
 | `getProducerName()` | Getter method of the name of the producer. | `string` |
 | `getTopic()` | Getter method of the name of the topic. | `string` |
 
