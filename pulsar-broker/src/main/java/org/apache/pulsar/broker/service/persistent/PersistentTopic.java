@@ -2286,7 +2286,7 @@ public class PersistentTopic extends AbstractTopic
             return false;
         }
 
-        // Check if oldest message for slowest cursor's has expired.
+        // Check if first unconsumed message(first message after mark delete position) for slowest cursor's has expired.
         PositionImpl position = ((ManagedLedgerImpl) ledger).getNextValidPosition(((ManagedCursorContainer)
                 ledger.getCursors()).getSlowestReaderPosition());
         ((ManagedLedgerImpl) ledger).asyncReadEntry(position,

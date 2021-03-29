@@ -84,19 +84,21 @@ public class BacklogQuota {
 
     @Override
     public int hashCode() {
-        return Objects.hash(Long.valueOf(limitSize), policy);
+        return Objects.hash(Long.valueOf(limitSize), Long.valueOf(limitTime), policy);
     }
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("limitSize", limitSize).add("policy", policy).toString();
+        return MoreObjects.toStringHelper(this).add("limitSize", limitSize).add("limitTime", limitTime)
+                .add("policy", policy).toString();
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof BacklogQuota) {
             BacklogQuota other = (BacklogQuota) obj;
-            return Objects.equals(limitSize, other.limitSize) && Objects.equals(policy, other.policy);
+            return Objects.equals(limitSize, other.limitSize) && Objects.equals(limitTime, other.limitTime)
+                    && Objects.equals(policy, other.policy);
         }
         return false;
     };

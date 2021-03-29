@@ -98,6 +98,7 @@ public class NamespaceStatsAggregator {
             stats.backlogSize = ml.getEstimatedBacklogSize();
             stats.offloadedStorageUsed = ml.getOffloadedSize();
             stats.backlogQuotaLimit = topic.getBacklogQuota().getLimitSize();
+            stats.backlogQuotaLimitTime = topic.getBacklogQuota().getLimitTime();
 
             stats.storageWriteLatencyBuckets.addAll(mlStats.getInternalAddEntryLatencyBuckets());
             stats.storageWriteLatencyBuckets.refresh();
