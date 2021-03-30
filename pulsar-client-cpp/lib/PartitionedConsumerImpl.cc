@@ -454,7 +454,7 @@ void PartitionedConsumerImpl::internalListener(Consumer consumer) {
 void PartitionedConsumerImpl::receiveMessages() {
     for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
         ConsumerImplPtr consumer = *i;
-        consumer->receiveMessages(consumer->getCnx().lock(), conf_.getReceiverQueueSize());
+        consumer->sendFlowPermitsToBroker(consumer->getCnx().lock(), conf_.getReceiverQueueSize());
         LOG_DEBUG("Sending FLOW command for consumer - " << consumer->getConsumerId());
     }
 }

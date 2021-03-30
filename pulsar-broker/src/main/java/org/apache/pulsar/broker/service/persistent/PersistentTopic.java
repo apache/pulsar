@@ -44,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
-import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -135,7 +134,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
@@ -755,7 +753,11 @@ public class PersistentTopic extends AbstractTopic
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
             decrementUsageCount();
-            future.completeExceptionally(new PersistenceException(ex));
+            if (ex.getCause() instanceof NotAllowedException) {
+                future.completeExceptionally(ex.getCause());
+            } else {
+                future.completeExceptionally(new PersistenceException(ex));
+            }
             return null;
         });
 
@@ -800,7 +802,7 @@ public class PersistentTopic extends AbstractTopic
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
-            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+            subscriptionFuture.completeExceptionally(new NotAllowedException(
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
         }
@@ -845,7 +847,7 @@ public class PersistentTopic extends AbstractTopic
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
-            subscriptionFuture.completeExceptionally(new RestException(Response.Status.PRECONDITION_FAILED,
+            subscriptionFuture.completeExceptionally(new NotAllowedException(
                     "Exceed the maximum number of subscriptions of the topic: " + topic));
             return subscriptionFuture;
         }
@@ -1314,7 +1316,10 @@ public class PersistentTopic extends AbstractTopic
                     .orElseThrow(() -> new KeeperException.NoNodeException());
                 compactionThreshold = policies.compaction_threshold;
             }
-
+            if (compactionThreshold == null) {
+                compactionThreshold = brokerService.pulsar().getConfiguration()
+                        .getBrokerServiceCompactionThresholdInBytes();
+            }
 
             if (isSystemTopic() || compactionThreshold != 0
                 && currentCompaction.isDone()) {

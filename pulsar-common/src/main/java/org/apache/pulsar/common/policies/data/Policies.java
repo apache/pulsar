@@ -95,7 +95,7 @@ public class Policies {
     public Integer max_subscriptions_per_topic = null;
 
     @SuppressWarnings("checkstyle:MemberName")
-    public long compaction_threshold = 0;
+    public Long compaction_threshold = null;
     @SuppressWarnings("checkstyle:MemberName")
     public long offload_threshold = -1;
     @SuppressWarnings("checkstyle:MemberName")

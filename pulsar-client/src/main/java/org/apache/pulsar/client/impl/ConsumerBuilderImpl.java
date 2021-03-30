@@ -150,8 +150,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 "Passed in topicNames should not be null or empty.");
         Arrays.stream(topicNames).forEach(topicName ->
                 checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
-        conf.getTopicNames().addAll(Lists.newArrayList(Arrays.stream(topicNames).map(StringUtils::trim)
-                .collect(Collectors.toList())));
+        conf.getTopicNames().addAll(Arrays.stream(topicNames).map(StringUtils::trim)
+                .collect(Collectors.toList()));
         return this;
     }
 
@@ -449,7 +449,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
         conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
-        return null;
+        return this;
     }
 
 }

@@ -388,4 +388,31 @@ public class BrokersImpl extends BaseResource implements Brokers {
                 });
         return future;
     }
+
+    @Override
+    public String getVersion() throws PulsarAdminException {
+        WebTarget path = adminBrokers.path("version");
+        try {
+            final CompletableFuture<String> future = new CompletableFuture<>();
+            asyncGetRequest(path, new InvocationCallback<String>() {
+                @Override
+                public void completed(String version) {
+                    future.complete(version);
+                }
+
+                @Override
+                public void failed(Throwable throwable) {
+                    future.completeExceptionally(getApiException(throwable.getCause()));
+                }
+            });
+            return future.get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
 }
