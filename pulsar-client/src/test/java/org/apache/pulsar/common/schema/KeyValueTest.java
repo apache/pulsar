@@ -20,6 +20,7 @@ package org.apache.pulsar.common.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
@@ -103,6 +104,18 @@ public class KeyValueTest {
                 );
             }
         }
+    }
+
+    @Test
+    public void testNullPayload() {
+        KeyValue kv = KeyValue.decode(
+                null,
+                (keyBytes, valueBytes) -> new KeyValue(
+                        Schema.STRING.decode(keyBytes),
+                        Schema.STRING.decode(valueBytes)
+                )
+        );
+        assertNotNull(kv);
     }
 
     private <K, V> void testEncodeDecodeKeyValue(Schema<K> keySchema,

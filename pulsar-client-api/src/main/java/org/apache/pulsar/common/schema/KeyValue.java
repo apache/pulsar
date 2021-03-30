@@ -33,6 +33,8 @@ public class KeyValue<K, V> {
     private final K key;
     private final V value;
 
+    private static final KeyValue NULL = new KeyValue(null, null);
+
     public KeyValue(K key, V value) {
         this.key = key;
         this.value = value;
@@ -130,6 +132,10 @@ public class KeyValue<K, V> {
      * @return the decoded key/value pair
      */
     public static <K, V> KeyValue<K, V> decode(byte[] data, KeyValueDecoder<K, V> decoder) {
+        if (data == null || data.length == 0) {
+            return NULL;
+        }
+
         ByteBuffer byteBuffer = ByteBuffer.wrap(data);
         int keyLength = byteBuffer.getInt();
         byte[] keyBytes = keyLength == -1 ? null : new byte[keyLength];
