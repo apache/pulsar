@@ -80,23 +80,28 @@ public class ExceptionsTest {
     }
 
     @Test
-    public void testIsExceptionPresentInChain() {
-        assertFalse(Exceptions.isExceptionPresentInChain(null, IllegalStateException.class));
+    public void testAreExceptionsPresentInChain() {
+        assertFalse(Exceptions.areExceptionsPresentInChain(null, IllegalStateException.class));
     }
 
     @Test
-    public void testIsExceptionPresentInChain2() {
-        assertTrue(Exceptions.isExceptionPresentInChain(new IllegalStateException(), IllegalStateException.class));
+    public void testAreExceptionsPresentInChain2() {
+        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalStateException(), IllegalStateException.class));
     }
 
     @Test
-    public void testIsExceptionPresentInChain3() {
-        assertTrue(Exceptions.isExceptionPresentInChain(new IllegalArgumentException(new IllegalStateException()), IllegalStateException.class));
+    public void testAreExceptionsPresentInChain3() {
+        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalStateException()), IllegalStateException.class));
     }
 
     @Test
-    public void testIsExceptionPresentInChain4() {
-        assertFalse(Exceptions.isExceptionPresentInChain(new IllegalArgumentException(new IllegalArgumentException()), IllegalStateException.class));
+    public void testAreExceptionsPresentInChain4() {
+        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalStateException()), UnsupportedOperationException.class, IllegalStateException.class));
+    }
+
+    @Test
+    public void testAreExceptionsPresentInChain5() {
+        assertFalse(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalArgumentException()), IllegalStateException.class));
     }
 
 }
