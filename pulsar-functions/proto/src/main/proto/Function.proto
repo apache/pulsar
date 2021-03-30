@@ -40,44 +40,23 @@ enum SubscriptionPosition {
     EARLIEST = 1;
 }
 
-enum Batching {
-    UNKNOWN_BATCHING = 0;
-    ENABLED_BATCHING = 1;
-    DISABLED_BATCHING = 2;
-}
-
-enum Chunking {
-    UNKNOWN_CHUNKING = 0;
-    ENABLED_CHUNKING = 1;
-    DISABLED_CHUNKING = 2;
-}
-
-enum BlockIfQueueFull {
-    UNKNOWN_BLOCKING = 0;
-    ENABLED_BLOCKING = 1;
-    DISABLED_BLOCKING = 2;
-}
-
 enum CompressionType {
-    UNKNOWN_COMPRESSION = 0;
+    LZ4 = 0;
     NONE = 1;
-    LZ4 = 2;
-    ZLIB = 3;
-    ZSTD = 4;
-    SNAPPY = 5;
+    ZLIB = 2;
+    ZSTD = 3;
+    SNAPPY = 4;
 }
 
 enum HashingScheme {
-    UNKNOWN_HASHING = 0;
+    MURMUR3_32HASH = 0;
     JAVA_STRING_HASH = 1;
-    MURMUR3_32HASH = 2;
 }
 
 enum MessageRoutingMode {
-    UNKNOWN_ROUTING = 0;
+    CUSTOM_PARTITION = 0;
     SINGLE_PARTITION = 1;
     ROUND_ROBIN_PARTITION = 2;
-    CUSTOM_PARTITION = 3;
 }
 
 message Resources {
@@ -150,9 +129,9 @@ message ProducerSpec {
     bool useThreadLocalProducers = 3;
     CryptoSpec cryptoSpec = 4;
     string batchBuilder = 5;
-    Batching batching = 6;
-    Chunking chunking = 7;
-    BlockIfQueueFull blockIfQueueFull = 8;
+    bool batchingDisabled = 6;
+    bool chunkingEnabled = 7;
+    bool blockIfQueueFullDisabled = 8;
     CompressionType compressionType = 9;
     HashingScheme hashingScheme = 10;
     MessageRoutingMode messageRoutingMode = 11;

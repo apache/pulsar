@@ -30,6 +30,9 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
+import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
@@ -38,6 +41,7 @@ import java.util.Map;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -50,7 +54,7 @@ import static org.testng.Assert.assertTrue;
 public class FunctionConfigUtilsTest {
 
     @Test
-    public void testConvertBackFidelity() {
+    public void testConvertBackFidelity() throws FunctionDefaultException {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant("test-tenant");
         functionConfig.setNamespace("test-namespace");
@@ -77,7 +81,8 @@ public class FunctionConfigUtilsTest {
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null, defaults);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -91,7 +96,7 @@ public class FunctionConfigUtilsTest {
     }
 
     @Test
-    public void testConvertWindow() {
+    public void testConvertWindow() throws FunctionDefaultException {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant("test-tenant");
         functionConfig.setNamespace("test-namespace");
@@ -118,7 +123,8 @@ public class FunctionConfigUtilsTest {
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("KEY_BASED");
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null, defaults);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -476,7 +482,7 @@ public class FunctionConfigUtilsTest {
     }
 
     @Test
-    public void testDisableForwardSourceMessageProperty() throws InvalidProtocolBufferException {
+    public void testDisableForwardSourceMessageProperty() throws InvalidProtocolBufferException, FunctionDefaultException {
         FunctionConfig config = new FunctionConfig();
         config.setTenant("test-tenant");
         config.setNamespace("test-namespace");
@@ -490,7 +496,8 @@ public class FunctionConfigUtilsTest {
         config.setForwardSourceMessageProperty(true);
         FunctionConfigUtils.inferMissingArguments(config, false);
         assertNull(config.getForwardSourceMessageProperty());
-        FunctionDetails details = FunctionConfigUtils.convert(config, FunctionConfigUtilsTest.class.getClassLoader());
+        ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+        FunctionDetails details = FunctionConfigUtils.convert(config, FunctionConfigUtilsTest.class.getClassLoader(), defaults);
         assertFalse(details.getSink().getForwardSourceMessageProperty());
         String detailsJson = "'" + JsonFormat.printer().omittingInsignificantWhitespace().print(details) + "'";
         log.info("Function details : {}", detailsJson);
@@ -498,7 +505,7 @@ public class FunctionConfigUtilsTest {
     }
 
     @Test
-    public void testFunctionConfigConvertFromDetails() {
+    public void testFunctionConfigConvertFromDetails() throws InvalidFunctionDefaultException {
         String name = "test1";
         String namespace = "ns1";
         String tenant = "tenant1";

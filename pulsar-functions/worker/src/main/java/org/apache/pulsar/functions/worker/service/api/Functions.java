@@ -26,6 +26,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
@@ -53,7 +54,7 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                         final FunctionConfig functionConfig,
                         final String clientRole,
                         AuthenticationDataHttps clientAuthenticationDataHttps,
-                        UpdateOptions updateOptions);
+                        UpdateOptions updateOptions) throws FunctionDefaultException;
 
     void updateFunctionOnWorkerLeader(final String tenant,
                                       final String namespace,

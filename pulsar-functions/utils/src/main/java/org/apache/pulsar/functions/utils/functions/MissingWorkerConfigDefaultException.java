@@ -16,25 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.proto;
+package org.apache.pulsar.functions.utils.functions;
 
-import static org.testng.Assert.assertEquals;
+public class MissingWorkerConfigDefaultException extends FunctionDefaultException {
+    private static final long serialVersionUID = -2978143271896L;
 
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
-import org.testng.annotations.Test;
-
-/**
- * Unit test for {@link FunctionDetails}.
- */
-public class FunctionDetailsTest {
-
-    /**
-     * Make sure the default processing guarantee is always `ATLEAST_ONCE`.
-     */
-    @Test
-    public void testDefaultProcessingGuarantee() {
-        FunctionDetails fc = FunctionDetails.newBuilder().build();
-        assertEquals(ProcessingGuarantees.ATLEAST_ONCE, fc.getProcessingGuarantees());
+    public MissingWorkerConfigDefaultException() {
+        super();
     }
+
+    public MissingWorkerConfigDefaultException(String propertyName) {
+        super("The default property for the property named " + propertyName + " is missing. Please report this issue.");
+
+    }
+
 }

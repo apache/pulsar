@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.utils.functions;
 
 
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +53,7 @@ public class ClusterFunctionProducerDefaultsProxy {
     }
 
     private Logger instanceLog;
-
+/*
     public boolean getBatchingEnabled() {
         return producerDefaults.getBatchingEnabled(functionDetails, instanceLog);
     }
@@ -80,4 +81,6 @@ public class ClusterFunctionProducerDefaultsProxy {
     public int getBatchingMaxPublishDelay() {
         return producerDefaults.getBatchingMaxPublishDelay(functionDetails, instanceLog);
     }
+
+ */
 }

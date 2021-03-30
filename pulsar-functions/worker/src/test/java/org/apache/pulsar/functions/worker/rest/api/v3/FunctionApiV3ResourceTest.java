@@ -59,6 +59,9 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -76,6 +79,9 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
+import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.LeaderService;
@@ -560,7 +566,7 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function config is not provided")
-    public void testUpdateMissingFunctionConfig() {
+    public void testUpdateMissingFunctionConfig() throws FunctionDefaultException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         resource.updateFunction(
@@ -1010,11 +1016,11 @@ public class FunctionApiV3ResourceTest {
 
     }
 
-    private void updateDefaultFunction() {
+    private void updateDefaultFunction() throws FunctionDefaultException {
         updateDefaultFunctionWithPackageUrl(null);
     }
 
-    private void updateDefaultFunctionWithPackageUrl(String packageUrl) {
+    private void updateDefaultFunctionWithPackageUrl(String packageUrl) throws FunctionDefaultException {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
@@ -1038,7 +1044,7 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
-    public void testUpdateNotExistedFunction() {
+    public void testUpdateNotExistedFunction() throws FunctionDefaultException {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
             updateDefaultFunction();
@@ -1084,7 +1090,7 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionWithUrl() {
+    public void testUpdateFunctionWithUrl() throws FunctionDefaultException {
         Configurator.setRootLevel(Level.DEBUG);
 
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
@@ -1163,7 +1169,7 @@ public class FunctionApiV3ResourceTest {
 
 
     @Test(timeOut = 20000)
-    public void testUpdateFunctionSuccessWithPackageName() {
+    public void testUpdateFunctionSuccessWithPackageName() throws FunctionDefaultException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
         updateDefaultFunctionWithPackageUrl("function://public/default/test@v1");
     }
@@ -1381,7 +1387,7 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test
-    public void testGetFunctionSuccess() {
+    public void testGetFunctionSuccess() throws InvalidFunctionDefaultException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         SinkSpec sinkSpec = SinkSpec.newBuilder()
@@ -1632,8 +1638,20 @@ public class FunctionApiV3ResourceTest {
         return functionConfig;
     }
 
-    public static FunctionDetails createDefaultFunctionDetails() {
+    public static ConfigureFunctionDefaults createDefaultFunctionDefaults() {
+        ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+        when(defaults.isBatchingDisabled()).thenReturn(false);
+        when(defaults.isChunkingEnabled()).thenReturn(false);
+        when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(defaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(defaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(defaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        return defaults;
+    }
+
+    public static FunctionDetails createDefaultFunctionDetails() throws FunctionDefaultException {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        return FunctionConfigUtils.convert(functionConfig, null);
+        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        return FunctionConfigUtils.convert(functionConfig, null, defaults);
     }
 }

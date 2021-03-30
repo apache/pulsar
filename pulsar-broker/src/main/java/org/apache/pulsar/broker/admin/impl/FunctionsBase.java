@@ -46,6 +46,7 @@ import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.api.Functions;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -303,7 +304,8 @@ public class FunctionsBase extends AdminResource {
             )
             final @FormDataParam("functionConfig") FunctionConfig functionConfig,
             @ApiParam(value = "The update options is for the Pulsar Function that needs to be updated.")
-            final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException {
+            final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws IOException,
+            FunctionDefaultException {
 
         functions().updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
                 functionPkgUrl, functionConfig, clientAppId(), clientAuthData(), updateOptions);

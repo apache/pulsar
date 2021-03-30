@@ -16,19 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.utils.functions;
 
-public class InvalidWorkerConfigDefaultException extends Exception {
-    private static final long serialVersionUID = -2978143271894L;
+public class InvalidFunctionDefaultException extends FunctionDefaultException {
+    private static final long serialVersionUID = -2978143271895L;
 
-    public InvalidWorkerConfigDefaultException() {
+    public InvalidFunctionDefaultException() {
         super();
     }
 
-    public InvalidWorkerConfigDefaultException(String propertyName, String propertyValue) {
-        super("The property value of " + propertyValue + " is not a valid option for the property " + propertyName
-             + " in the configuration for function_worker.yml . Please restart the broker after correcting the invalid configuration.");
-
+    public InvalidFunctionDefaultException(String propertyName, String propertyValue) {
+        super("The property value of " + propertyValue + " is not a valid option for the property " + propertyName);
+    }
+    public InvalidFunctionDefaultException(String message){
+        super(message);
     }
 
 }

@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.instance;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
+import org.apache.pulsar.functions.utils.functions.InvalidWorkerConfigDefaultException;
 
 import java.io.Serializable;
 

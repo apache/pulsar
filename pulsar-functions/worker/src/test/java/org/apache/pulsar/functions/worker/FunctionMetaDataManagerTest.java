@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
+import org.apache.pulsar.functions.utils.functions.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Request;
 import org.testng.Assert;

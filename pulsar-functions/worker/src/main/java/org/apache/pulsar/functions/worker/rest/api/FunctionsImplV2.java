@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.gson.Gson;
+import io.grpc.xds.shaded.com.google.api.expr.v1alpha1.Decl;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -29,6 +30,7 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.service.api.Functions;
@@ -107,8 +109,12 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
         } catch (IOException e) {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
-        FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
-
+        FunctionConfig functionConfig = null;
+        try {
+            functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
+        } catch (FunctionDefaultException ex){
+            throw new RestException(Response.Status.BAD_REQUEST, ex.getMessage());
+        }
         delegate.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
                 functionPkgUrl, functionConfig, clientRole, null);
         return Response.ok().build();
@@ -125,10 +131,14 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
         } catch (IOException e) {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
-        FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
-
-        delegate.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfig, clientRole, null, null);
+        FunctionConfig functionConfig = null;
+        try {
+            functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
+            delegate.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
+                    functionPkgUrl, functionConfig, clientRole, null, null);
+        } catch (FunctionDefaultException ex) {
+            throw new RestException(Response.Status.BAD_REQUEST, ex.getMessage());
+        }
         return Response.ok().build();
     }
 

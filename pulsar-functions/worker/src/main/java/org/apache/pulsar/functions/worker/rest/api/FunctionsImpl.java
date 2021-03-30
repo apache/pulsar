@@ -60,6 +60,9 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
+import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
@@ -149,6 +152,8 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         Function.FunctionDetails functionDetails = null;
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         File componentPackageFile = null;
+
+        ConfigureFunctionDefaults functionDefaults = new ConfigureFunctionDefaults(worker().getWorkerConfig().getClusterFunctionProducerDefaults(), functionConfig.getProducerConfig());
         try {
 
             // validate parameters
@@ -168,13 +173,13 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                         }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            functionConfig, componentPackageFile);
+                            functionConfig, componentPackageFile, functionDefaults);
                 } else {
                     if (uploadedInputStream != null) {
                         componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            functionConfig, componentPackageFile);
+                            functionConfig, componentPackageFile, functionDefaults);
                     if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
                         throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
                     }
@@ -255,7 +260,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                final FunctionConfig functionConfig,
                                final String clientRole,
                                AuthenticationDataHttps clientAuthenticationDataHttps,
-                               UpdateOptions updateOptions) {
+                               UpdateOptions updateOptions) throws FunctionDefaultException {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -315,6 +320,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, functionName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
+        ConfigureFunctionDefaults functionDefaults = new ConfigureFunctionDefaults(worker().getWorkerConfig().getClusterFunctionProducerDefaults(), functionConfig.getProducerConfig());
 
         Function.FunctionDetails functionDetails = null;
         File componentPackageFile = null;
@@ -333,7 +339,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                         }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
+                            mergedConfig, componentPackageFile, functionDefaults);
 
                 } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
                         || existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
@@ -343,16 +349,16 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                         throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
+                            mergedConfig, componentPackageFile, functionDefaults);
                 } else if (uploadedInputStream != null) {
 
                     componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
+                            mergedConfig, componentPackageFile, functionDefaults);
 
                 } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)) {
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
+                            mergedConfig, componentPackageFile, functionDefaults);
                     if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
                         throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
                     }
@@ -363,7 +369,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                     WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
 
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
+                            mergedConfig, componentPackageFile, functionDefaults);
                 }
             } catch (Exception e) {
                 log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
@@ -726,7 +732,8 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                                                  final String namespace,
                                                                  final String componentName,
                                                                  final FunctionConfig functionConfig,
-                                                                 final File componentPackageFile) throws IOException {
+                                                                 final File componentPackageFile,
+                                                                 ConfigureFunctionDefaults functionDefaults) throws IOException, FunctionDefaultException {
 
         // The rest end points take precedence over whatever is there in function config
         Path archivePath = null;
@@ -754,7 +761,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         else{
             clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
         }
-        return FunctionConfigUtils.convert(functionConfig, clsLoader);
+        return FunctionConfigUtils.convert(functionConfig, clsLoader, functionDefaults);
 
     }
 

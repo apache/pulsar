@@ -47,9 +47,9 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
-import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaults;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
 import org.apache.pulsar.functions.instance.FunctionDefaultsConfig;
-import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
+import org.apache.pulsar.functions.utils.functions.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
@@ -551,8 +551,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private boolean exposeAdminClientEnabled = false;
 
+    // This object is private because we want to parse the strings from configs into enums first.
+    // Use clusterFunctionProducerDefaults instead.
     @Data
-    public static class FunctionDefaults extends FunctionDefaultsConfig {
+    private static class FunctionDefaults extends FunctionDefaultsConfig {
 
     }
     @FieldContext(

@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.functions.proto.Function.ProducerSpec;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -52,16 +53,20 @@ public class PulsarCluster {
     @Getter
     private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
 
-    public PulsarCluster(PulsarClient client, PulsarAdmin adminClient, ProducerSpec producerSpec, InstanceConfig config)  {
+    public PulsarCluster(PulsarClient client, PulsarAdmin adminClient, ProducerSpec producerSpec) throws FunctionDefaultException {
         this.client = client;
         this.adminClient = adminClient;
         this.topicSchema = new TopicSchema(client);
-        this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer()
-                .blockIfQueueFull(config.getClusterFunctionProducerDefaultsProxy().getBlockIfQueueFull())
-                .enableBatching(config.getClusterFunctionProducerDefaultsProxy().getBatchingEnabled())
-                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS); // Should we use any other defaults from clusterFunctionProducerDefaults here?
+        if(producerSpec != null){
+            this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer()
+                    .blockIfQueueFull(!producerSpec.getBlockIfQueueFullDisabled())
+                    .enableBatching(!producerSpec.getBatchingDisabled())
+                    .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS); // Should we use any other defaults from producerSpec here?
+        } else {
+            throw new FunctionDefaultException("ERROR: producerSpec was null when configuring producer in PulsarCluter's constructor");
+        }
         boolean useThreadLocalProducers = false;
-        if (producerSpec != null) {
+      //  if (producerSpec != null) {
             if (producerSpec.getMaxPendingMessages() != 0) {
                 this.producerBuilder.maxPendingMessages(producerSpec.getMaxPendingMessages());
             }
@@ -76,7 +81,7 @@ public class PulsarCluster {
                 }
             }
             useThreadLocalProducers = producerSpec.getUseThreadLocalProducers();
-        }
+        //}
         if (useThreadLocalProducers) {
             tlPublishProducers = new ThreadLocal<>();
         } else {

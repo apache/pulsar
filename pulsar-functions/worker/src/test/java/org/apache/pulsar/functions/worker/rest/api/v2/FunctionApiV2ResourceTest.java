@@ -61,6 +61,9 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.RestException;
@@ -77,6 +80,8 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.LeaderService;
@@ -96,6 +101,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
+import sun.security.krb5.Config;
 
 /**
  * Unit test of {@link FunctionsApiV2Resource}.
@@ -517,6 +523,7 @@ public class FunctionApiV2ResourceTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
 
         try {
             resource.registerFunction(
@@ -526,9 +533,9 @@ public class FunctionApiV2ResourceTest {
                     inputStream,
                     details,
                     functionPkgUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null, defaults)),
                     null);
-        } catch (InvalidProtocolBufferException e) {
+        } catch (InvalidProtocolBufferException | FunctionDefaultException e) {
             throw new RuntimeException(e);
         }
 
@@ -536,6 +543,7 @@ public class FunctionApiV2ResourceTest {
 
     private void registerDefaultFunction() {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
+        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
         try {
             resource.registerFunction(
                     tenant,
@@ -544,9 +552,9 @@ public class FunctionApiV2ResourceTest {
                     mockedInputStream,
                     mockedFormData,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null, defaults)),
                     null);
-        } catch (InvalidProtocolBufferException e) {
+        } catch (InvalidProtocolBufferException | FunctionDefaultException e) {
             throw new RuntimeException(e);
         }
     }
@@ -935,6 +943,7 @@ public class FunctionApiV2ResourceTest {
             doThrow(new IllegalArgumentException(expectedError))
                     .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), anyBoolean());
         }
+        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
 
         try {
             resource.updateFunction(
@@ -944,9 +953,9 @@ public class FunctionApiV2ResourceTest {
                     inputStream,
                     details,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null, defaults)),
                     null);
-        } catch (InvalidProtocolBufferException e) {
+        } catch (InvalidProtocolBufferException | FunctionDefaultException e) {
             throw new RuntimeException(e);
         }
 
@@ -963,6 +972,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
 
         try {
             resource.updateFunction(
@@ -972,9 +982,9 @@ public class FunctionApiV2ResourceTest {
                     mockedInputStream,
                     mockedFormData,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null, defaults)),
                     null);
-        } catch (InvalidProtocolBufferException e) {
+        } catch (InvalidProtocolBufferException | FunctionDefaultException e) {
             throw new RuntimeException(e);
         }
     }
@@ -1046,7 +1056,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
-
+        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
         try {
             resource.updateFunction(
                     tenant,
@@ -1055,9 +1065,9 @@ public class FunctionApiV2ResourceTest {
                     null,
                     null,
                     filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null, defaults)),
                     null);
-        } catch (InvalidProtocolBufferException e) {
+        } catch (InvalidProtocolBufferException | FunctionDefaultException e) {
             throw new RuntimeException(e);
         }
 
@@ -1460,10 +1470,13 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+
+        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+
         try {
             resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)), null);
-        } catch (InvalidProtocolBufferException e) {
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null, defaults)), null);
+        } catch (InvalidProtocolBufferException | FunctionDefaultException e) {
            throw new RuntimeException(e);
         }
 
@@ -1494,10 +1507,13 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+
+        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+
         try {
             resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)), null);
-        } catch (InvalidProtocolBufferException e) {
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null, defaults)), null);
+        } catch (InvalidProtocolBufferException | FunctionDefaultException e) {
             throw new RuntimeException(e);
         }
     }
@@ -1516,8 +1532,20 @@ public class FunctionApiV2ResourceTest {
         return functionConfig;
     }
 
-    public static FunctionDetails createDefaultFunctionDetails() {
+    public static ConfigureFunctionDefaults createDefaultFunctionDefaults() {
+        ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+        when(defaults.isBatchingDisabled()).thenReturn(false);
+        when(defaults.isChunkingEnabled()).thenReturn(false);
+        when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(defaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(defaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(defaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        return defaults;
+    }
+
+    public static FunctionDetails createDefaultFunctionDetails() throws FunctionDefaultException {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        return FunctionConfigUtils.convert(functionConfig, null);
+        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        return FunctionConfigUtils.convert(functionConfig, null, defaults);
     }
 }

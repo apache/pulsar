@@ -47,12 +47,10 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
-import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -291,11 +289,6 @@ public class PulsarWorkerAssignmentTest {
 
         // Validate registered assignments
         assignments = runtimeManager.getCurrentAssignments().values().iterator().next();
-        assignments.forEach((key, val) -> {
-            Function.Batching batching = val.getInstance().getFunctionMetaData().getFunctionDetails().getSink().getProducerSpec().getBatching();
-            assertEquals(batching, Function.Batching.UNKNOWN_BATCHING);
-
-        });
         assertEquals(assignments.size(), ((totalFunctions - totalDeletedFunction) * parallelism));
 
         // (3) Restart worker service and check registered functions

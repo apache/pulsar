@@ -51,6 +51,9 @@ import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.CryptoUtils;
+import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
+import org.apache.pulsar.functions.utils.functions.ProducerDefaultsFromProtobufConverter;
+import org.apache.pulsar.functions.utils.functions.ProducerDefaultsToProtobufConverter;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -105,16 +108,18 @@ public class PulsarSink<T> implements Sink<T> {
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
             InstanceConfig localInstanceConfig = PulsarSink.this.instanceConfig;
-            ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = localInstanceConfig.getClusterFunctionProducerDefaultsProxy();
+            org.apache.pulsar.functions.proto.Function.ProducerSpec producerSpec = localInstanceConfig.getFunctionDetails().getSink().getProducerSpec();
 
-            ProducerBuilder<T> builder = client.newProducer(schema)
-                    .blockIfQueueFull(producerDefaultsProxy.getBlockIfQueueFull())
-                    .enableBatching(producerDefaultsProxy.getBatchingEnabled())
-                    .batchingMaxPublishDelay(producerDefaultsProxy.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS)
-                    .compressionType(producerDefaultsProxy.getCompressionType())
-                    .hashingScheme(producerDefaultsProxy.getHashingScheme()) //
-                    .messageRoutingMode(producerDefaultsProxy.getMessageRoutingMode())
-                    .messageRouter(FunctionResultRouter.of(producerDefaultsProxy))
+            ProducerDefaultsFromProtobufConverter converter = new ProducerDefaultsFromProtobufConverter(producerSpec);
+            ProducerBuilder<T> builder = null;
+            builder = client.newProducer(schema)
+                    .blockIfQueueFull(!producerSpec.getBlockIfQueueFullDisabled())
+                    .enableBatching(!producerSpec.getBatchingDisabled())
+                    .batchingMaxPublishDelay(producerSpec.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS)
+                    .compressionType(converter.getCompressionType())
+                    .hashingScheme(converter.getHashingScheme()) //
+                    .messageRoutingMode(converter.getMessageRoutingMode())
+                    .messageRouter(FunctionResultRouter.of(producerSpec))
                     // set send timeout to be infinity to prevent potential deadlock with consumer
                     // that might happen when consumer is blocked due to unacked messages
                     .sendTimeout(0, TimeUnit.SECONDS)

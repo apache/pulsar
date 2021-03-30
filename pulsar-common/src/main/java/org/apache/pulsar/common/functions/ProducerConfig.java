@@ -23,6 +23,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 
 /**
  * Configuration of the producer inside the function.
@@ -38,5 +41,22 @@ public class ProducerConfig {
     private Boolean useThreadLocalProducers;
     private CryptoConfig cryptoConfig;
     private String batchBuilder;
-    private Boolean isFunctionBatchingEnabled; // We need to add the other default configs here as well.
+    /**
+     * Used to override cluster defaults for function producing behavior.
+     * These are nullable for backwards compatibility (so we don't force
+     * users to set these values.) These must be nullable because if
+     * we assume that a particular value (e.g. true/false) means
+     * they didn't specify an override, if they did explicitly
+     * specify that value and we assume they didn't, we would
+     * load the value from WorkerConfig, which could result
+     * in unexpected behavior that could require redeployment
+     * of functions to fix.
+     */
+    public Boolean batchingDisabled;
+    public Boolean chunkingEnabled;
+    public Boolean blockIfQueueFullDisabled;
+    public CompressionType compressionType;
+    public HashingScheme hashingScheme;
+    public MessageRoutingMode messageRoutingMode;
+    public Integer batchingMaxPublishDelay;
 }

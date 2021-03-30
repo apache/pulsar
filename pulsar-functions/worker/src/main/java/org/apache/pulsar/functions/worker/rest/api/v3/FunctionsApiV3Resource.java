@@ -29,6 +29,7 @@ import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.service.api.Functions;
@@ -86,7 +87,7 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
                                final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                final @FormDataParam("url") String functionPkgUrl,
                                final @FormDataParam("functionConfig") FunctionConfig functionConfig,
-                               final @FormDataParam("updateOptions") UpdateOptions updateOptions) {
+                               final @FormDataParam("updateOptions") UpdateOptions updateOptions) throws FunctionDefaultException {
 
         functions().updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
                 functionPkgUrl, functionConfig, clientAppId(), clientAuthData(), updateOptions);

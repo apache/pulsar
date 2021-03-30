@@ -33,6 +33,7 @@ import org.apache.pulsar.common.nar.NarUnpacker;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
@@ -94,7 +95,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testConvertBackFidelity() throws IOException  {
+    public void testConvertBackFidelity() throws IOException, FunctionDefaultException {
         SourceConfig sourceConfig = createSourceConfig();
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
@@ -108,7 +109,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    public void testConvertBackFidelityWithBatch() throws IOException  {
+    public void testConvertBackFidelityWithBatch() throws IOException, FunctionDefaultException  {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);

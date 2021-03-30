@@ -16,25 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.proto;
+package org.apache.pulsar.functions.utils.functions;
 
-import static org.testng.Assert.assertEquals;
+public class FunctionDefaultException extends Exception {
+    private static final long serialVersionUID = -2978143271897L;
 
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
-import org.testng.annotations.Test;
-
-/**
- * Unit test for {@link FunctionDetails}.
- */
-public class FunctionDetailsTest {
-
-    /**
-     * Make sure the default processing guarantee is always `ATLEAST_ONCE`.
-     */
-    @Test
-    public void testDefaultProcessingGuarantee() {
-        FunctionDetails fc = FunctionDetails.newBuilder().build();
-        assertEquals(ProcessingGuarantees.ATLEAST_ONCE, fc.getProcessingGuarantees());
+    public FunctionDefaultException() {
+        super();
     }
+
+    public FunctionDefaultException(String message){
+        super(message);
+    }
+
 }

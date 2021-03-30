@@ -41,6 +41,8 @@ import org.apache.pulsar.config.validation.ConfigValidation;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
+import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Source;
@@ -66,7 +68,7 @@ public class SourceConfigUtils {
     }
 
     public static FunctionDetails convert(SourceConfig sourceConfig, ExtractedSourceDetails sourceDetails)
-            throws IllegalArgumentException {
+            throws IllegalArgumentException, FunctionDefaultException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
         boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
@@ -174,7 +176,7 @@ public class SourceConfigUtils {
         return functionDetailsBuilder.build();
     }
 
-    public static SourceConfig convertFromDetails(FunctionDetails functionDetails) {
+    public static SourceConfig convertFromDetails(FunctionDetails functionDetails) throws InvalidFunctionDefaultException {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(functionDetails.getTenant());
         sourceConfig.setNamespace(functionDetails.getNamespace());

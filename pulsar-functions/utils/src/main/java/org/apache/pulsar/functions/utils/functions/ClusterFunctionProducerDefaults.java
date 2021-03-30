@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.utils.functions;
 
+import lombok.Getter;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -28,27 +29,28 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+@Getter
 public class ClusterFunctionProducerDefaults {
 
     // Has a method that accepts a FunctionDetails and performs the logic to determine each actual final default.
 
     // Could it provide the builder wrapper for the client in Sink? Does that builder use the same interface as pulsar.producerbuilder?
 
-    private boolean batchingEnabled;
+    private boolean batchingDisabled;
     private boolean chunkingEnabled;
-    private boolean blockIfQueueFull;
+    private boolean blockIfQueueFullDisabled;
     private CompressionType compressionType;
     private HashingScheme hashingScheme;
     private MessageRoutingMode messageRoutingMode;
 
     private int batchingMaxPublishDelay;
 
-    public ClusterFunctionProducerDefaults(boolean batchingEnabled, boolean chunkingEnabled, boolean blockIfQueueFull,
+    public ClusterFunctionProducerDefaults(boolean batchingDisabled, boolean chunkingEnabled, boolean blockIfQueueFullDisabled,
                                            String compressionType, String hashingScheme, String messageRoutingMode,
                                            int batchingMaxPublishDelay) throws InvalidWorkerConfigDefaultException {
-        this.batchingEnabled = batchingEnabled;
+        this.batchingDisabled = batchingDisabled;
         this.chunkingEnabled = chunkingEnabled;
-        this.blockIfQueueFull = blockIfQueueFull;
+        this.blockIfQueueFullDisabled = blockIfQueueFullDisabled;
         this.setCompressionType(compressionType);
         this.setHashingScheme(hashingScheme);
         this.setMessageRoutingMode(messageRoutingMode);
@@ -115,14 +117,14 @@ public class ClusterFunctionProducerDefaults {
         }
     }
 
-    public boolean getBatchingEnabled(Function.FunctionDetails functionDetails, Logger instanceLog) {
+   /* public boolean getBatchingEnabled(Function.FunctionDetails functionDetails, Logger instanceLog) {
         if (functionDetails.getSink() != null && functionDetails.getSink().getProducerSpec() != null
-                && functionDetails.getSink().getProducerSpec().getBatching() != null) {
+                && functionDetails.getSink().getProducerSpec().getBatchingDisabled() != null) {
             boolean batchingEnabled;
-            Function.Batching Batching = functionDetails.getSink().getProducerSpec().getBatching();
+            Function.Batching Batching = functionDetails.getSink().getProducerSpec().getBatchingDisabled();
             switch (Batching) {
                 case UNKNOWN_BATCHING:
-                    batchingEnabled = this.batchingEnabled;
+                    batchingEnabled = this.batchingDisabled;
                     break;
                 case DISABLED_BATCHING:
                     batchingEnabled = false;
@@ -133,12 +135,12 @@ public class ClusterFunctionProducerDefaults {
                 default:
                     instanceLog.error("ERROR: The value provided for batchingEnabled as a function default does not exist in ClusterFunctionProducerDefaults.java." +
                             "Defaulting to cluster default.");
-                    batchingEnabled = this.batchingEnabled;
+                    batchingEnabled = this.batchingDisabled;
                     break;
             }
             return batchingEnabled;
         } else {
-            return this.batchingEnabled;
+            return this.batchingDisabled;
         }
     }
     public boolean getChunkingEnabled(Function.FunctionDetails functionDetails, Logger instanceLog) {
@@ -174,7 +176,7 @@ public class ClusterFunctionProducerDefaults {
             Function.BlockIfQueueFull functionBlockIfQueueFull = functionDetails.getSink().getProducerSpec().getBlockIfQueueFull();
             switch (functionBlockIfQueueFull) {
                 case UNKNOWN_BLOCKING:
-                    blockIfQueueFull = this.blockIfQueueFull;
+                    blockIfQueueFull = this.blockIfQueueFullDisabled;
                     break;
                 case DISABLED_BLOCKING:
                     blockIfQueueFull = false;
@@ -184,12 +186,12 @@ public class ClusterFunctionProducerDefaults {
                     break;
                 default:
                     instanceLog.error("ERROR: The value provided for blockIfQueueFull as a function default does not exist in ClusterFunctionProducerDefaults.java");
-                    blockIfQueueFull = this.blockIfQueueFull;
+                    blockIfQueueFull = this.blockIfQueueFullDisabled;
                     break;
             }
             return blockIfQueueFull;
         } else {
-            return this.blockIfQueueFull;
+            return this.blockIfQueueFullDisabled;
         }
     }
     public CompressionType getCompressionType(Function.FunctionDetails functionDetails, Logger instanceLog) {
@@ -280,7 +282,6 @@ public class ClusterFunctionProducerDefaults {
             return this.messageRoutingMode;
         }
     }
-
     public int getBatchingMaxPublishDelay(Function.FunctionDetails functionDetails, Logger instanceLog) {
         if (functionDetails.getSink() != null && functionDetails.getSink().getProducerSpec() != null
                 && functionDetails.getSink().getProducerSpec().getBatchingMaxPublishDelay() != 0){
@@ -289,7 +290,6 @@ public class ClusterFunctionProducerDefaults {
         }
         return this.batchingMaxPublishDelay;
     }
-
     public Map<String, Object> getFunctionDefaults(Function.FunctionDetails functionDetails, Logger instanceLog) {
         HashMap<String, Object> map = new HashMap<>();
         map.put("enableBatching", this.getBatchingEnabled(functionDetails, instanceLog));
@@ -300,6 +300,6 @@ public class ClusterFunctionProducerDefaults {
         map.put("messageRoutingMode", this.getMessageRoutingMode(functionDetails, instanceLog));
         map.put("batchingMaxPublishDelay", this.getBatchingMaxPublishDelay(functionDetails, instanceLog));
         return map;
-    }
+    }*/
 
 }

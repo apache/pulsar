@@ -43,8 +43,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
-import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaults;
-import org.apache.pulsar.functions.instance.ClusterFunctionProducerDefaultsProxy;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaultsProxy;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -197,13 +197,6 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
         instanceConfig.setMetricsPort(metrics_port);
-
-        ClusterFunctionProducerDefaults producerDefaults = new ClusterFunctionProducerDefaults(this.clusterFunctionBatchingDefault,
-                        this.clusterFunctionChunkingDefault, this.clusterFunctionBlockIfQueueFullDefault, this.clusterFunctionCompressionTypeDefault,
-                        this.clusterFunctionHashingSchemeDefault, this.clusterFunctionMessageRoutingModeDefault, this.clusterFunctionBatchingMaxPublishDelayDefault);
-        ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = new ClusterFunctionProducerDefaultsProxy(functionDetails, producerDefaults);
-
-        instanceConfig.setClusterFunctionProducerDefaultsProxy(producerDefaultsProxy);
 
         Map<String, String> secretsProviderConfigMap = null;
         if (!StringUtils.isEmpty(secretsProviderConfig)) {

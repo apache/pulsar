@@ -36,7 +36,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang.NullArgumentException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -63,6 +62,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.ProducerConfigUtils;
+import org.apache.pulsar.functions.utils.functions.*;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
@@ -128,24 +128,25 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                     }.getType());
             for (Map.Entry<String, ExternalPulsarConfig> entry : externalPulsarConfig.entrySet()) {
                 try {
-                    if (config.getClusterFunctionProducerDefaultsProxy() == null){
-                        throw new NullArgumentException("ERROR: config.getClusterFunctionProducerDefaultsProxy() == null in ContextImpl");
-                    }
                     this.externalPulsarClusters.put(entry.getKey(),
                             new PulsarCluster(InstanceUtils.createPulsarClient(entry.getValue().getServiceURL(), entry.getValue().getAuthConfig()),
                                     config.isExposePulsarAdminClientEnabled() ? InstanceUtils.createPulsarAdminClient(entry.getValue().getWebServiceURL(), entry.getValue().getAuthConfig()) : null,
-                                    ProducerConfigUtils.convert(entry.getValue().getProducerConfig()),
-                                    config));
+                                    ProducerConfigUtils.convert(entry.getValue().getProducerConfig())));
                 } catch (PulsarClientException ex) {
                     throw new RuntimeException("failed to create pulsar client for external cluster: " + entry.getKey(), ex);
+                } catch (FunctionDefaultException ex){
+                    throw new RuntimeException("ERROR: Problem with defaults in ContextImpl");
                 }
             }
         }
         this.defaultPulsarCluster = "default-" + UUID.randomUUID();
-        this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client,
-                config.isExposePulsarAdminClientEnabled() ? pulsarAdmin : null,
-                config.getFunctionDetails().getSink().getProducerSpec(),
-                config));
+        try{
+            this.externalPulsarClusters.put(defaultPulsarCluster, new PulsarCluster(client,
+                    config.isExposePulsarAdminClientEnabled() ? pulsarAdmin : null,
+                    config.getFunctionDetails().getSink().getProducerSpec()));
+        } catch (FunctionDefaultException ex){
+            throw new RuntimeException("ERROR: Problem with defaults in ContextImpl for external pulsar clusters");
+        }
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
@@ -486,20 +487,21 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
         if (producer == null) {
 
-            ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = this.config.getClusterFunctionProducerDefaultsProxy();
-            if (producerDefaultsProxy == null){
-                throw new NullArgumentException("ERROR: this.config.getClusterFunctionProducerDefaultsProxy() == null in ContextImpl.getProducer(..)");
-            }
+            Function.FunctionDetails functionDetails = this.config.getFunctionDetails();
 
-            Producer<O> newProducer = ((ProducerBuilderImpl<O>) pulsar.getProducerBuilder().clone())
+            Function.ProducerSpec producerSpec = functionDetails.getSink().getProducerSpec();
+            ProducerDefaultsFromProtobufConverter converter = new ProducerDefaultsFromProtobufConverter(producerSpec);
+
+            Producer<O> newProducer = null;
+            newProducer = ((ProducerBuilderImpl<O>) pulsar.getProducerBuilder().clone())
                     .schema(schema)
-                    .blockIfQueueFull(producerDefaultsProxy.getBlockIfQueueFull())
-                    .enableBatching(producerDefaultsProxy.getBatchingEnabled())
-                    .batchingMaxPublishDelay(producerDefaultsProxy.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS) // previously was 10 milliseconds
-                    .compressionType(producerDefaultsProxy.getCompressionType())
-                    .hashingScheme(producerDefaultsProxy.getHashingScheme()) //
-                    .messageRoutingMode(producerDefaultsProxy.getMessageRoutingMode())
-                    .messageRouter(FunctionResultRouter.of(producerDefaultsProxy))
+                    .blockIfQueueFull(producerSpec.getBlockIfQueueFullDisabled())
+                    .enableBatching(producerSpec.getBatchingDisabled())
+                    .batchingMaxPublishDelay(producerSpec.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS) // previously was 10 milliseconds
+                    .compressionType(converter.getCompressionType())
+                    .hashingScheme(converter.getHashingScheme()) //
+                    .messageRoutingMode(converter.getMessageRoutingMode())
+                    .messageRouter(FunctionResultRouter.of(producerSpec))
                     // set send timeout to be infinity to prevent potential deadlock with consumer
                     // that might happen when consumer is blocked due to unacked messages
                     .sendTimeout(0, TimeUnit.SECONDS)

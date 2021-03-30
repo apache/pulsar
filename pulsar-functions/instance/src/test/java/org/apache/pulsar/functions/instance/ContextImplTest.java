@@ -51,6 +51,8 @@ import org.apache.pulsar.functions.instance.state.InstanceStateManager;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
+import org.apache.pulsar.functions.utils.functions.InvalidWorkerConfigDefaultException;
 import org.slf4j.Logger;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -72,12 +74,12 @@ public class ContextImplTest {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);
         Function.ProducerSpec producerSpec = Function.ProducerSpec.newBuilder()
-                .setBatching(Function.Batching.UNKNOWN_BATCHING)
-                .setChunking(Function.Chunking.UNKNOWN_CHUNKING)
-                .setBlockIfQueueFull(Function.BlockIfQueueFull.UNKNOWN_BLOCKING)
-                .setCompressionType(Function.CompressionType.UNKNOWN_COMPRESSION)
-                .setHashingScheme(Function.HashingScheme.UNKNOWN_HASHING)
-                .setMessageRoutingMode(Function.MessageRoutingMode.UNKNOWN_ROUTING)
+                .setBatchingDisabled(false)
+                .setChunkingEnabled(false)
+                .setBlockIfQueueFullDisabled(false)
+                .setCompressionType(Function.CompressionType.LZ4)
+                .setHashingScheme(Function.HashingScheme.MURMUR3_32HASH)
+                .setMessageRoutingMode(Function.MessageRoutingMode.CUSTOM_PARTITION)
                 .setBatchingMaxPublishDelay(0)  // This is the default case.
                 .build();
         Function.SinkSpec sink = Function.SinkSpec.newBuilder()
@@ -88,16 +90,15 @@ public class ContextImplTest {
                 .setSink(sink)
                 .build();
         config.setFunctionDetails(functionDetails);
-        ClusterFunctionProducerDefaultsProxy producerDefaultsProxy = mock(ClusterFunctionProducerDefaultsProxy.class);
-        when(producerDefaultsProxy.getBatchingEnabled()).thenReturn(true);
-        when(producerDefaultsProxy.getChunkingEnabled()).thenReturn(false);
-        when(producerDefaultsProxy.getBlockIfQueueFull()).thenReturn(true);
-        when(producerDefaultsProxy.getCompressionType()).thenReturn(CompressionType.SNAPPY);
-        when(producerDefaultsProxy.getHashingScheme()).thenReturn(HashingScheme.JavaStringHash);
-        when(producerDefaultsProxy.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
-        when(producerDefaultsProxy.getBatchingMaxPublishDelay()).thenReturn(10);
+        ClusterFunctionProducerDefaults producerDefaults = mock(ClusterFunctionProducerDefaults.class);
+        when(producerDefaults.isBatchingDisabled()).thenReturn(true);
+        when(producerDefaults.isChunkingEnabled()).thenReturn(false);
+        when(producerDefaults.isBlockIfQueueFullDisabled()).thenReturn(true);
+        when(producerDefaults.getCompressionType()).thenReturn(CompressionType.SNAPPY);
+        when(producerDefaults.getHashingScheme()).thenReturn(HashingScheme.JavaStringHash);
+        when(producerDefaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(producerDefaults.getBatchingMaxPublishDelay()).thenReturn(10);
 
-        config.setClusterFunctionProducerDefaultsProxy(producerDefaultsProxy);
         logger = mock(Logger.class);
         client = mock(PulsarClientImpl.class);
         pulsarAdmin = mock(PulsarAdmin.class);

@@ -16,25 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.proto;
+package org.apache.pulsar.functions.utils.functions;
 
-import static org.testng.Assert.assertEquals;
+public class InvalidWorkerConfigDefaultException extends FunctionDefaultException {
+    private static final long serialVersionUID = -2978143271894L;
 
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
-import org.testng.annotations.Test;
-
-/**
- * Unit test for {@link FunctionDetails}.
- */
-public class FunctionDetailsTest {
-
-    /**
-     * Make sure the default processing guarantee is always `ATLEAST_ONCE`.
-     */
-    @Test
-    public void testDefaultProcessingGuarantee() {
-        FunctionDetails fc = FunctionDetails.newBuilder().build();
-        assertEquals(ProcessingGuarantees.ATLEAST_ONCE, fc.getProcessingGuarantees());
+    public InvalidWorkerConfigDefaultException() {
+        super();
     }
+
+    public InvalidWorkerConfigDefaultException(String propertyName, String propertyValue) {
+        super("The property value of " + propertyValue + " is not a valid option for the property " + propertyName
+             + " in the configuration for function_worker.yml . Please restart the broker after correcting the invalid configuration.");
+
+    }
+
 }

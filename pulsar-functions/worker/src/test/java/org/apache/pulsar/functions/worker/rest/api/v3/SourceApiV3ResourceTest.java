@@ -74,6 +74,8 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
+import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -1461,7 +1463,7 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test
-    public void testGetSourceSuccess() {
+    public void testGetSourceSuccess() throws InvalidFunctionDefaultException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
         SourceSpec sourceSpec = SourceSpec.newBuilder().setBuiltin("jdbc").build();
@@ -1613,7 +1615,7 @@ public class SourceApiV3ResourceTest {
         return sourceConfig;
     }
 
-    private FunctionDetails createDefaultFunctionDetails() {
+    private FunctionDetails createDefaultFunctionDetails() throws FunctionDefaultException {
         return SourceConfigUtils.convert(createDefaultSourceConfig(),
                 new SourceConfigUtils.ExtractedSourceDetails(null, null));
     }

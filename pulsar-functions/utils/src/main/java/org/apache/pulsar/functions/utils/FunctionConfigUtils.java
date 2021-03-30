@@ -31,6 +31,10 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
+import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
+import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
 
 import java.io.File;
 import java.lang.reflect.Type;
@@ -56,8 +60,8 @@ public class FunctionConfigUtils {
 
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
 
-    public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
-            throws IllegalArgumentException {
+    public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader, ConfigureFunctionDefaults functionDefaults)
+            throws IllegalArgumentException, FunctionDefaultException {
         
         boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
@@ -212,7 +216,7 @@ public class FunctionConfigUtils {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
         if (functionConfig.getProducerConfig() != null) {
-            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(functionConfig.getProducerConfig()));
+            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(functionConfig.getProducerConfig(), functionDefaults));
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
@@ -319,7 +323,7 @@ public class FunctionConfigUtils {
         return functionDetailsBuilder.build();
     }
 
-    public static FunctionConfig convertFromDetails(FunctionDetails functionDetails) {
+    public static FunctionConfig convertFromDetails(FunctionDetails functionDetails) throws InvalidFunctionDefaultException {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(functionDetails.getTenant());
         functionConfig.setNamespace(functionDetails.getNamespace());

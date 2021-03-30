@@ -58,6 +58,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
@@ -164,14 +165,22 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                             throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sourcePkgUrl));
                         }
                     }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            sourceConfig, componentPackageFile);
+                    try{
+                        functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
+                                sourceConfig, componentPackageFile);
+                    } catch (Exception ex){
+                        throw new IllegalArgumentException("Invalid default parameters provided");
+                    }
                 } else {
                     if (uploadedInputStream != null) {
                         componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
                     }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            sourceConfig, componentPackageFile);
+                    try{
+                        functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
+                                sourceConfig, componentPackageFile);
+                    } catch (Exception ex){
+                        throw new IllegalArgumentException("Invalid default parameters provided");
+                    }
                     if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
                         throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
                     }
@@ -296,7 +305,13 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             throw new RestException(Response.Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), sourceName));
         }
 
-        SourceConfig existingSourceConfig = SourceConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+        SourceConfig existingSourceConfig = null;
+        try {
+            existingSourceConfig = SourceConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+        } catch (FunctionDefaultException ex){
+            throw new RestException(Response.Status.BAD_REQUEST, ex.getMessage());
+        }
+
         // The rest end points take precedence over whatever is there in functionconfig
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -329,9 +344,12 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                             throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sourcePkgUrl));
                         }
                     }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
-
+                    try{
+                        functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
+                                mergedConfig, componentPackageFile);
+                    } catch (Exception ex){
+                        throw new IllegalArgumentException("Invalid default parameters provided");
+                    }
                 } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
                         || existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
                     try {
@@ -339,17 +357,29 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                     } catch (Exception e) {
                         throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), sourcePkgUrl));
                     }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
+                    try{
+                        functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
+                                mergedConfig, componentPackageFile);
+                    } catch (Exception ex){
+                        throw new IllegalArgumentException("Invalid default parameters provided");
+                    }
                 } else if (uploadedInputStream != null) {
 
                     componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
+                    try{
+                        functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
+                                mergedConfig, componentPackageFile);
+                    } catch (Exception ex){
+                        throw new IllegalArgumentException("Invalid default parameters provided");
+                    }
 
                 } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)) {
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
+                    try{
+                        functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
+                                mergedConfig, componentPackageFile);
+                    } catch (Exception ex){
+                        throw new IllegalArgumentException("Invalid default parameters provided");
+                    }
                     if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
                         throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
                     }
@@ -359,8 +389,12 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                     componentPackageFile.deleteOnExit();
                     WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
 
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
-                            mergedConfig, componentPackageFile);
+                    try{
+                        functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
+                                mergedConfig, componentPackageFile);
+                    } catch (Exception ex){
+                        throw new IllegalArgumentException("Invalid default parameters provided");
+                    }
                 }
             } catch (Exception e) {
                 log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, sourceName, e);
@@ -674,7 +708,12 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             log.error("{}/{}/{} is not a {}", tenant, namespace, componentName, ComponentTypeUtils.toString(componentType));
             throw new RestException(Response.Status.NOT_FOUND, String.format(ComponentTypeUtils.toString(componentType) + " %s doesn't exist", componentName));
         }
-        SourceConfig config = SourceConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
+        SourceConfig config = null;
+        try {
+            config = SourceConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
+        } catch (FunctionDefaultException ex){
+            throw new RestException(Response.Status.BAD_REQUEST, ex.getMessage());
+        }
         return config;
     }
 
@@ -706,7 +745,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                                                  final String namespace,
                                                                  final String sourceName,
                                                                  final SourceConfig sourceConfig,
-                                                                 final File sourcePackageFile) {
+                                                                 final File sourcePackageFile) throws FunctionDefaultException {
         // The rest end points take precedence over whatever is there in sourceconfig
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);

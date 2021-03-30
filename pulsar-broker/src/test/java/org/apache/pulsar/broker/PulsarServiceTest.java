@@ -24,7 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.AssertJUnit.assertSame;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.instance.InvalidWorkerConfigDefaultException;
+import org.apache.pulsar.functions.utils.functions.InvalidWorkerConfigDefaultException;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.testng.annotations.Test;
