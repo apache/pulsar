@@ -1223,7 +1223,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
             "preference) to read all entries for a ledger.")
-    private boolean bookkeeperEnableStickyReads = false;
+    private boolean bookkeeperEnableStickyReads = true;
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the client security provider factory class name. "
             + "Default: org.apache.bookkeeper.tls.TLSContextFactory")
