@@ -33,7 +33,7 @@ The configuration of the Kafka source connector has the following properties.
 ### Schema Management
 
 This Kafka Source connector applies the Schema to the topic depending on the data type that is present on the Kafka topic.
-We are detecting the data type from the `keyDeserializationClass` and `valueDeserializationClass` configuration parameters.
+You can detect the data type from the `keyDeserializationClass` and `valueDeserializationClass` configuration parameters.
 
 If the `valueDeserializationClass` is `org.apache.kafka.common.serialization.StringDeserializer`, you can set Schema.STRING() as schema type on the Pulsar topic.
 
