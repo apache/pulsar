@@ -31,18 +31,18 @@ import java.util.Objects;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-public class PrimitiveRecord implements GenericRecord {
+public class GenericObjectWrapper implements GenericRecord {
 
     private final Object nativeObject;
     private final SchemaType schemaType;
 
-    public static PrimitiveRecord of(Object nativeRecord, SchemaType schemaType) {
-        return new PrimitiveRecord(nativeRecord, schemaType);
+    public static GenericObjectWrapper of(Object nativeRecord, SchemaType schemaType) {
+        return new GenericObjectWrapper(nativeRecord, schemaType);
     }
 
-    private PrimitiveRecord(Object nativeObject, SchemaType schemaType) {
+    private GenericObjectWrapper(Object nativeObject, SchemaType schemaType) {
         this.nativeObject = nativeObject;
-        this.schemaType = schemaType;
+        this.schemaType = Objects.requireNonNull(schemaType, "SchemaType is required");
     }
 
     @Override
@@ -82,9 +82,11 @@ public class PrimitiveRecord implements GenericRecord {
 
     @Override
     public boolean equals(Object other) {
-        if (! (other instanceof PrimitiveRecord)) {
+        if (! (other instanceof GenericObjectWrapper)) {
             return false;
         }
-        return Objects.equals(nativeObject, ((PrimitiveRecord) other).nativeObject);
+        GenericObjectWrapper gw = (GenericObjectWrapper) other;
+        return this.schemaType == gw.schemaType &&
+                Objects.equals(nativeObject, gw.nativeObject);
     }
 }

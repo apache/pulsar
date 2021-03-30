@@ -41,7 +41,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.PrimitiveRecord;
+import org.apache.pulsar.client.api.schema.GenericObjectWrapper;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -243,7 +243,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<GenericRecord> message3 = consumer2.receive();
 
         assertEquals("foo", message.getValue());
-        assertTrue(message3.getValue() instanceof PrimitiveRecord);
+        assertTrue(message3.getValue() instanceof GenericObjectWrapper);
         assertEquals(SchemaType.STRING, message3.getValue().getSchemaType());
         assertEquals("foo", message3.getValue().getNativeObject());
 
@@ -293,7 +293,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<GenericRecord> message3 = consumer2.receive();
 
         assertEquals("foo".getBytes(StandardCharsets.UTF_8), message.getValue());
-        assertTrue(message3.getValue() instanceof PrimitiveRecord);
+        assertTrue(message3.getValue() instanceof GenericObjectWrapper);
         assertEquals(SchemaType.BYTES, message3.getValue().getSchemaType());
         assertEquals("foo".getBytes(StandardCharsets.UTF_8), message3.getValue().getNativeObject());
 

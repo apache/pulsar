@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.PrimitiveRecord;
+import org.apache.pulsar.client.api.schema.GenericObjectWrapper;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
@@ -224,6 +224,6 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         if (this.schema == null) {
             throw new IllegalStateException("Cannot decode a message without schema");
         }
-        return PrimitiveRecord.of(value, this.schema.getSchemaInfo().getType());
+        return GenericObjectWrapper.of(value, this.schema.getSchemaInfo().getType());
     }
 }
