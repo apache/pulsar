@@ -100,6 +100,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -833,7 +834,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         cursor.markDelete(lastPosition);
 
-        while (ledger.getNumberOfEntries() != 2) {
+        while (ledger.getNumberOfEntries() >= 2) {
             Thread.sleep(10);
         }
     }
@@ -2906,7 +2907,50 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // all the messages have benn acknowledged
         // and all the ledgers have been removed except the last ledger
         Thread.sleep(1000);
+        ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
+        Thread.sleep(1000);
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
         Assert.assertEquals(ledger.getTotalSize(), 0);
+    }
+
+    @Test
+    public void testExpiredLedgerDeletionAfterManagedLedgerRestart() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionTime(1, TimeUnit.SECONDS);
+        config.setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        config.setMaximumRolloverTime(500, TimeUnit.MILLISECONDS);
+
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("ml_restart_ledger", config);
+        ManagedCursor cursor = managedLedger.openCursor("c1");
+
+        for (int i = 0; i < 3; i++) {
+            managedLedger.addEntry(new byte[1024 * 1024]);
+        }
+
+        // we have 2 ledgers at the beginning [{entries=2}, {entries=1}]
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
+        List<Entry> entries = cursor.readEntries(3);
+
+        for (Entry entry : entries) {
+            cursor.markDelete(entry.getPosition());
+        }
+        entries.forEach(e -> e.release());
+
+        // managed-ledger restart
+        managedLedger.close();
+        managedLedger = (ManagedLedgerImpl) factory.open("ml_restart_ledger", config);
+
+        // then we have one more empty ledger after managed-ledger initialization
+        // the oldest ledger({entries=2}) will be removed when ledger closed
+        // and now we have [{entries=1}, {entries=0}]
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
+
+        // Now we update the cursors that are still subscribing to ledgers that has been consumed completely
+        managedLedger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
+
+        // We only have one empty ledger at last [{entries=0}]
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
+        Assert.assertEquals(managedLedger.getTotalSize(), 0);
     }
 }

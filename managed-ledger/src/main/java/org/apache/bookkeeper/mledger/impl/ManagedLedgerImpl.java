@@ -1388,8 +1388,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
             ledgers.put(lh.getId(), LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build());
-            final long previousEntries = currentLedgerEntries;
-            final long previousLedgerId = currentLedger.getId();
             currentLedger = lh;
             currentLedgerEntries = 0;
             currentLedgerSize = 0;
@@ -1406,14 +1404,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     synchronized (ManagedLedgerImpl.this) {
                         mbean.addLedgerSwitchLatencySample(System.currentTimeMillis() - lastLedgerCreationInitiationTimestamp,
                                 TimeUnit.MILLISECONDS);
-                    }
-                    // Move cursor read point to new ledger
-                    for (ManagedCursor cursor : cursors) {
-                        PositionImpl markDeletedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
-                        if (markDeletedPosition.getLedgerId() == previousLedgerId && markDeletedPosition.getEntryId() + 1 >= previousEntries) {
-                            // All entries in last ledger are marked delete, move read point to the new ledger
-                            updateCursor((ManagedCursorImpl) cursor, PositionImpl.get(currentLedger.getId(), -1));
-                        }
                     }
                 }
 
@@ -2140,6 +2130,40 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.waitingEntryCallBacks.add(cb);
     }
 
+    public void maybeUpdateCursorBeforeTrimmingConsumedLedger() {
+        for (ManagedCursor cursor : cursors) {
+            PositionImpl lastAckedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
+            LedgerInfo currPointedLedger = ledgers.get(lastAckedPosition.getLedgerId());
+            LedgerInfo nextPointedLedger = Optional.ofNullable(ledgers.higherEntry(lastAckedPosition.getLedgerId()))
+                    .map(Map.Entry::getValue).orElse(null);
+
+            if (currPointedLedger != null) {
+                if (nextPointedLedger != null) {
+                    if (lastAckedPosition.getEntryId() != -1 &&
+                            lastAckedPosition.getEntryId() + 1 >= currPointedLedger.getEntries()) {
+                        lastAckedPosition = new PositionImpl(nextPointedLedger.getLedgerId(), -1);
+                    }
+                } else {
+                    log.debug("No need to reset cursor: {}, current ledger is the last ledger.", cursor);
+                }
+            } else {
+                log.warn("Cursor: {} does not exist in the managed-ledger.", cursor);
+            }
+
+            if (!lastAckedPosition.equals((PositionImpl) cursor.getMarkDeletedPosition())) {
+                try {
+                    log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
+                    lastConfirmedEntry = lastAckedPosition;
+                    updateCursor((ManagedCursorImpl) cursor, lastAckedPosition);
+                } catch (Exception e) {
+                    log.warn("Failed to reset cursor: {} from {} to {}. Trimming thread will retry next time.",
+                            cursor, cursor.getMarkDeletedPosition(), lastAckedPosition);
+                    log.warn("Caused by", e);
+                }
+            }
+        }
+    }
+
     private void trimConsumedLedgersInBackground() {
         trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
     }
@@ -2276,6 +2300,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 promise.completeExceptionally(new ManagedLedgerAlreadyClosedException("Can't trim closed ledger"));
                 return;
             }
+
+            // May need to update the cursor position
+            maybeUpdateCursorBeforeTrimmingConsumedLedger();
 
             long slowestReaderLedgerId = -1;
             if (!cursors.hasDurableCursors()) {

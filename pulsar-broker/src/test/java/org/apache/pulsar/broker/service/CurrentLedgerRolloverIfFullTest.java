@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -99,6 +100,8 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
 
         // trigger a ledger rollover
         managedLedger.rollCurrentLedgerIfFull();
+        Thread.sleep(1000);
+        managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
 
         // the last ledger will be closed and removed and we have one ledger for empty
         Awaitility.await()
