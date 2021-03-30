@@ -56,7 +56,7 @@ This way on Pulsar you have a topic with these properties:
 
 Topic compaction and partition routing use the Pulsar key, that contains the Kafka key, and so they are driven by the same value that you have on Kafka.
 
-When you are consuming data from the Pulsar topic you can use the KeyValue schema, this way you can decode properly the data.
+When you consume data from Pulsar topics, you can use the `KeyValue` schema. In this way, you can decode the data properly.
 In case you want to access the raw key you can use the Message#getKeyBytes() API.
 
 ### Example
@@ -195,4 +195,3 @@ Here is an example of using the Kafka source connector with the configuration fi
     ```bash
     Received message: 'hello world'
     ```
-
