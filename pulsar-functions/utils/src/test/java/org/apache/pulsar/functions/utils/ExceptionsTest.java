@@ -21,7 +21,9 @@ package org.apache.pulsar.functions.utils;
 
 import static org.apache.pulsar.functions.utils.Exceptions.rethrowIOException;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
@@ -75,6 +77,26 @@ public class ExceptionsTest {
             assertEquals("test", ioe.getMessage());
             assertSame(e, ioe.getCause());
         }
+    }
+
+    @Test
+    public void testIsExceptionPresentInChain() {
+        assertFalse(Exceptions.isExceptionPresentInChain(null, IllegalStateException.class));
+    }
+
+    @Test
+    public void testIsExceptionPresentInChain2() {
+        assertTrue(Exceptions.isExceptionPresentInChain(new IllegalStateException(), IllegalStateException.class));
+    }
+
+    @Test
+    public void testIsExceptionPresentInChain3() {
+        assertTrue(Exceptions.isExceptionPresentInChain(new IllegalArgumentException(new IllegalStateException()), IllegalStateException.class));
+    }
+
+    @Test
+    public void testIsExceptionPresentInChain4() {
+        assertFalse(Exceptions.isExceptionPresentInChain(new IllegalArgumentException(new IllegalArgumentException()), IllegalStateException.class));
     }
 
 }
