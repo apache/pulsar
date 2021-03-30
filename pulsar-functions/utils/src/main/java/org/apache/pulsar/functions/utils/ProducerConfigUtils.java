@@ -71,6 +71,7 @@ public class ProducerConfigUtils {
         pbldr.setCompressionType(converter.getCompressionType());
         pbldr.setHashingScheme(converter.getHashingScheme());
         pbldr.setMessageRoutingMode(converter.getMessageRoutingMode());
+        pbldr.setBatchingMaxPublishDelay(conf.getBatchingMaxPublishDelay());
         return pbldr.build();
     }
 
