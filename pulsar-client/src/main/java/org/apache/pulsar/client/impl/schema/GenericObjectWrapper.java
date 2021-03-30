@@ -16,38 +16,43 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schema;
+package org.apache.pulsar.client.impl.schema;
 
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * An interface represents a message with schema for non Struct types.
+ * Implementation of GenericRecord that wraps objects of non Struct types.
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-public class GenericObjectWrapper implements GenericRecord {
+class GenericObjectWrapper implements GenericRecord {
 
     private final Object nativeObject;
     private final SchemaType schemaType;
+    private final byte[] schemaVersion;
 
-    public static GenericObjectWrapper of(Object nativeRecord, SchemaType schemaType) {
-        return new GenericObjectWrapper(nativeRecord, schemaType);
+    static GenericObjectWrapper of(Object nativeObject, SchemaType schemaType, byte[] schemaVersion) {
+        return new GenericObjectWrapper(nativeObject, schemaType, schemaVersion);
     }
 
-    private GenericObjectWrapper(Object nativeObject, SchemaType schemaType) {
+    private GenericObjectWrapper(Object nativeObject, SchemaType schemaType, byte[] schemaVersion) {
         this.nativeObject = nativeObject;
         this.schemaType = Objects.requireNonNull(schemaType, "SchemaType is required");
+        this.schemaVersion = schemaVersion;
     }
 
     @Override
     public byte[] getSchemaVersion() {
-        return null;
+        return schemaVersion;
     }
 
     @Override
@@ -82,11 +87,12 @@ public class GenericObjectWrapper implements GenericRecord {
 
     @Override
     public boolean equals(Object other) {
-        if (! (other instanceof GenericObjectWrapper)) {
+        if (!(other instanceof GenericObjectWrapper)) {
             return false;
         }
         GenericObjectWrapper gw = (GenericObjectWrapper) other;
         return this.schemaType == gw.schemaType &&
-                Objects.equals(nativeObject, gw.nativeObject);
+                Objects.equals(nativeObject, gw.nativeObject) &&
+                Arrays.equals(schemaVersion, gw.schemaVersion);
     }
 }
