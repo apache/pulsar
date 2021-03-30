@@ -24,7 +24,6 @@ import java.time.Clock;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
@@ -47,11 +46,9 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     private String serviceUrl;
     @JsonIgnore
-    @EqualsAndHashCode.Exclude
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @JsonIgnore
-    @EqualsAndHashCode.Exclude
     private Authentication authentication;
     private String authPluginClassName;
 
@@ -105,12 +102,11 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean enableTransaction = false;
 
     @JsonIgnore
-    @EqualsAndHashCode.Exclude
     private Clock clock = Clock.systemDefaultZone();
 
     public Authentication getAuthentication() {
         if (authentication == null) {
-            this.authentication = new AuthenticationDisabled();
+            this.authentication = AuthenticationDisabled.INSTANCE;
         }
         return authentication;
     }
