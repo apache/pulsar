@@ -35,8 +35,7 @@ The configuration of the Kafka source connector has the following properties.
 This Kafka Source connector applies the Schema to the topic depennding on the data type that is present on the Kafka topic.
 We are detecting the data type from the `keyDeserializationClass` and `valueDeserializationClass` configuration parameters.
 
-For instance if the `valueDeserializationClass` is `org.apache.kafka.common.serialization.StringDeserializer` then we set Schema.STRING() as schema type
-on the Pulsar topic.
+If the `valueDeserializationClass` is `org.apache.kafka.common.serialization.StringDeserializer`, you can set Schema.STRING() as schema type on the Pulsar topic.
 
 If `valueDeserializationClass` is `io.confluent.kafka.serializers.KafkaAvroDeserializer` we download the AVRO schema from the Confluent Schema Registry®
 and we set it properly on the Pulsar topic. In this case you have to set `schema.registry.url` inside of the `consumerConfigProperties` configuration entry
