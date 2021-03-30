@@ -20,6 +20,9 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
 
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -42,6 +45,7 @@ import java.util.Map;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -80,8 +84,28 @@ public class FunctionConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
+        producerConfig.setBatchingDisabled(false);
+        producerConfig.setChunkingEnabled(false);
+        producerConfig.setBlockIfQueueFullDisabled(false);
+        producerConfig.setCompressionType(CompressionType.LZ4);
+        producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
+        producerConfig.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfig.setBatchingMaxPublishDelay(12);
+
         functionConfig.setProducerConfig(producerConfig);
+
         ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+        when(defaults.isBatchingDisabled()).thenReturn(false);
+        when(defaults.isChunkingEnabled()).thenReturn(false);
+        when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(defaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(defaults.getCompressionTypeProto()).thenReturn(Function.CompressionType.LZ4);
+        when(defaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(defaults.getHashingSchemeProto()).thenReturn(Function.HashingScheme.MURMUR3_32HASH);
+        when(defaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(defaults.getMessageRoutingModeProto()).thenReturn(Function.MessageRoutingMode.CUSTOM_PARTITION);
+        when(defaults.getBatchingMaxPublishDelay()).thenReturn(12);
+
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null, defaults);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
@@ -122,8 +146,28 @@ public class FunctionConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("KEY_BASED");
+        producerConfig.setBatchingDisabled(false);
+        producerConfig.setChunkingEnabled(false);
+        producerConfig.setBlockIfQueueFullDisabled(false);
+        producerConfig.setCompressionType(CompressionType.LZ4);
+        producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
+        producerConfig.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfig.setBatchingMaxPublishDelay(12);
+
         functionConfig.setProducerConfig(producerConfig);
+
         ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+        when(defaults.isBatchingDisabled()).thenReturn(false);
+        when(defaults.isChunkingEnabled()).thenReturn(false);
+        when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(defaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(defaults.getCompressionTypeProto()).thenReturn(Function.CompressionType.LZ4);
+        when(defaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(defaults.getHashingSchemeProto()).thenReturn(Function.HashingScheme.MURMUR3_32HASH);
+        when(defaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(defaults.getMessageRoutingModeProto()).thenReturn(Function.MessageRoutingMode.CUSTOM_PARTITION);
+        when(defaults.getBatchingMaxPublishDelay()).thenReturn(12);
+
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null, defaults);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 

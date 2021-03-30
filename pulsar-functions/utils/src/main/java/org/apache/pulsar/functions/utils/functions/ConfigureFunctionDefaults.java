@@ -60,7 +60,6 @@ public class ConfigureFunctionDefaults {
     public Function.CompressionType getCompressionTypeProto() {
         CompressionType compressionType = this.getCompressionType();
         switch (compressionType){
-            
             case NONE:
                 return Function.CompressionType.NONE;
             case ZLIB:

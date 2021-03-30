@@ -42,9 +42,11 @@ public class ProducerConfigUtils {
             pbldr.setBatchingDisabled(functionDefaults.isBatchingDisabled());
             pbldr.setChunkingEnabled(functionDefaults.isChunkingEnabled());
             pbldr.setBlockIfQueueFullDisabled(functionDefaults.isBlockIfQueueFullDisabled());
-            pbldr.setCompressionType(functionDefaults.getCompressionTypeProto());
+            Function.CompressionType compressionType = functionDefaults.getCompressionTypeProto();
+            pbldr.setCompressionType(compressionType);
             pbldr.setHashingScheme(functionDefaults.getHashingSchemeProto());
             pbldr.setMessageRoutingMode(functionDefaults.getMessageRoutingModeProto());
+            pbldr.setBatchingMaxPublishDelay(functionDefaults.getBatchingMaxPublishDelay());
         }
         return pbldr.build();
     }
