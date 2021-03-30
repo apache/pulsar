@@ -86,7 +86,7 @@ public class PulsarClientTool {
     IUsageFormatter usageFormatter;
     CmdProduce produceCommand;
     CmdConsume consumeCommand;
-    CmdGenerateDocument generateDocument;
+    CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {
         this.serviceURL = StringUtils.isNotBlank(properties.getProperty("brokerServiceUrl"))
@@ -111,7 +111,7 @@ public class PulsarClientTool {
 
         produceCommand = new CmdProduce();
         consumeCommand = new CmdConsume();
-        generateDocument = new CmdGenerateDocument();
+        generateDocumentation = new CmdGenerateDocumentation();
 
         this.commandParser = new JCommander();
         this.usageFormatter = new DefaultUsageFormatter(this.commandParser);
@@ -119,7 +119,7 @@ public class PulsarClientTool {
         commandParser.addObject(this);
         commandParser.addCommand("produce", produceCommand);
         commandParser.addCommand("consume", consumeCommand);
-        commandParser.addCommand("generate_documentation", generateDocument);
+        commandParser.addCommand("generate_documentation", generateDocumentation);
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {
@@ -187,7 +187,7 @@ public class PulsarClientTool {
             } else if ("consume".equals(chosenCommand)) {
                 return consumeCommand.run();
             } else if ("generate_documentation".equals(chosenCommand)) {
-                return generateDocument.run();
+                return generateDocumentation.run();
             } else {
                 commandParser.usage();
                 return -1;

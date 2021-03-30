@@ -54,14 +54,14 @@ public class DocumentTest extends BrokerTestBase {
         PulsarClientTool tool = new PulsarClientTool(properties);
         String[] args = new String[]{"generate_documentation", "-n", "produce", "-n", "consume"};
         assertEquals(tool.run(args), 0);
-        assertEquals(tool.generateDocument.getCommandNames().size(), 2);
+        assertEquals(tool.generateDocumentation.getCommandNames().size(), 2);
     }
 
     @Test
     public void testGenerator() {
         PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
         JCommander commander = pulsarClientTool.commandParser;
-        CmdGenerateDocument document = new CmdGenerateDocument();
+        CmdGenerateDocumentation document = new CmdGenerateDocumentation();
         for (Map.Entry<String, JCommander> cmd : commander.getCommands().entrySet()) {
             String res = document.generateDocument(cmd.getKey(), commander);
             assertTrue(res.contains("pulsar-client " + cmd.getKey() + " [options]"));

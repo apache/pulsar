@@ -33,9 +33,9 @@ import java.util.Map;
 import java.util.Properties;
 
 @Getter
-@Parameters(commandDescription = "Generate documents automatically.")
+@Parameters(commandDescription = "Generate documentation automatically.")
 @Slf4j
-public class CmdGenerateDocument {
+public class CmdGenerateDocumentation {
 
     @Parameter(names = {"-n", "--command-names"}, description = "List of command names")
     private List<String> commandNames = new ArrayList<>();
