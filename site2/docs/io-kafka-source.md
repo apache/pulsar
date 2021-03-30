@@ -32,18 +32,20 @@ The configuration of the Kafka source connector has the following properties.
 
 ### Schema Management
 
-This Kafka Source connector applies the Schema to the topic depennding on the data type that is present on the Kafka topic.
+This Kafka Source connector applies the Schema to the topic depending on the data type that is present on the Kafka topic.
 We are detecting the data type from the `keyDeserializationClass` and `valueDeserializationClass` configuration parameters.
 
 For instance if the `valueDeserializationClass` is `org.apache.kafka.common.serialization.StringDeserializer` then we set Schema.STRING() as schema type
 on the Pulsar topic.
 
-If `valueDeserializationClass` is `io.confluent.kafka.serializers.KafkaAvroDeserializer` we download the AVRO schema from the Confluent Schema Registry®
-and we set it properly on the Pulsar topic. In this case you have to set `schema.registry.url` inside of the `consumerConfigProperties` configuration entry
+If `valueDeserializationClass` is `io.confluent.kafka.serializers.KafkaAvroDeserializer` Pulsar downloads the AVRO schema from the Confluent Schema Registry®
+and set it properly on the Pulsar topic.
+
+In this case you have to set `schema.registry.url` inside of the `consumerConfigProperties` configuration entry
 of the source.
 
-When `keyDeserializationClass` has any value that is different from the default value of `org.apache.kafka.common.serialization.StringDeserializer` it means 
-that you do not have a String as a key, in this case the Kafka Source uses the KeyValue schema type with the SEPARATED encoding.
+When `keyDeserializationClass` is not `org.apache.kafka.common.serialization.StringDeserializer` it means 
+that you do not have a String as key and the Kafka Source uses the KeyValue schema type with the SEPARATED encoding.
 
 We are also supporting AVRO format for keys as well.
 
@@ -123,7 +125,7 @@ Here is an example of using the Kafka source connector with the configuration fi
 5. Pull a Pulsar image and start Pulsar standalone.
    
    ```bash
-   $ docker pull apachepulsar/pulsar:2.8.0
+   $ docker pull apachepulsar/pulsar:{{pulsar:version}}
    
    $ docker run -d -it --network kafka-pulsar -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-kafka-standalone apachepulsar/pulsar:2.4.0 bin/pulsar standalone
    ```
@@ -158,7 +160,7 @@ Here is an example of using the Kafka source connector with the configuration fi
 8. Copy the following files to Pulsar.
    
     ```bash
-    $ docker cp pulsar-io-kafka-2.8.0.nar pulsar-kafka-standalone:/pulsar
+    $ docker cp pulsar-io-kafka-{{pulsar:version}}.nar pulsar-kafka-standalone:/pulsar
     $ docker cp kafkaSourceConfig.yaml pulsar-kafka-standalone:/pulsar/conf
     $ docker cp pulsar-client.py pulsar-kafka-standalone:/pulsar/
     $ docker cp kafka-producer.py pulsar-kafka-standalone:/pulsar/
@@ -170,7 +172,7 @@ Here is an example of using the Kafka source connector with the configuration fi
     $ docker exec -it pulsar-kafka-standalone /bin/bash
 
     $ ./bin/pulsar-admin source localrun \
-    --archive ./pulsar-io-kafka-2.8.0.nar \
+    --archive ./pulsar-io-kafka-{{pulsar:version}}.nar \
     --classname org.apache.pulsar.io.kafka.KafkaBytesSource \
     --tenant public \
     --namespace default \
