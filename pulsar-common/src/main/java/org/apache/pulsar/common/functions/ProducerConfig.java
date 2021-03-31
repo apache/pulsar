@@ -65,4 +65,29 @@ public class ProducerConfig {
     public boolean getBlockIfQueueFullEnabled(){
         return !this.getBlockIfQueueFullDisabled();
     }
+    public ProducerConfig mergeDefaults(ProducerConfig newConfig){
+        ProducerConfig mergedConfig = new ProducerConfig();
+        if(newConfig.getBatchingDisabled() != null){
+            mergedConfig.setBatchingDisabled(this.getBatchingDisabled());
+        }
+        if(newConfig.getChunkingEnabled() != null){
+            mergedConfig.setChunkingEnabled(this.getChunkingEnabled());
+        }
+        if(newConfig.getBlockIfQueueFullDisabled() != null){
+            mergedConfig.setBlockIfQueueFullDisabled(this.getBlockIfQueueFullDisabled());
+        }
+        if(newConfig.getCompressionType() != null){
+            mergedConfig.setCompressionType(this.getCompressionType());
+        }
+        if(newConfig.getHashingScheme() != null){
+            mergedConfig.setHashingScheme(this.getHashingScheme());
+        }
+        if (newConfig.getMessageRoutingMode() != null) {
+            mergedConfig.setMessageRoutingMode(this.getMessageRoutingMode());
+        }
+        if(newConfig.getBatchingMaxPublishDelay() != null){
+            mergedConfig.setBatchingMaxPublishDelay(this.getBatchingMaxPublishDelay());
+        }
+        return mergedConfig;
+    }
 }

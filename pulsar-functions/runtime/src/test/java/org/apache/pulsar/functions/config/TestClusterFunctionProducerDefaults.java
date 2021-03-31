@@ -167,40 +167,35 @@ public class TestClusterFunctionProducerDefaults {
     public void WorkerConfig_FunctionDefaultsSpecified_ShouldOverrideClusterDefaults() throws URISyntaxException, IOException, InvalidWorkerConfigDefaultException {
         // call WorkerConfig.load(..) on a resource file with the expected function default properties
         URL yamlUrl = getClass().getClassLoader().getResource("test-worker-config-function-producer-defaults.yml");
+        /*functionDefaults:
+        batchingDisabled: true
+        chunkingEnabled: false
+        blockIfQueueFullDisabled: false
+        batchingMaxPublishDelay: 12
+        compressionType: ZLIB
+        hashingScheme: JavaStringHash
+        messageRoutingMode: RoundRobinPartition*/
         WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
-        Function.ProducerSpec producerSpec = Function.ProducerSpec.newBuilder()
-                .setBatchingDisabled(false)
-                .setChunkingEnabled(false)
-                .setBlockIfQueueFullDisabled(false)
-                .setCompressionType(Function.CompressionType.LZ4)
-                .setHashingScheme(Function.HashingScheme.MURMUR3_32HASH)
-                .setMessageRoutingMode(Function.MessageRoutingMode.CUSTOM_PARTITION)
-                .setBatchingMaxPublishDelay(100)
+        ProducerConfig config = ProducerConfig.builder()
+                .batchingDisabled(false)
+                .chunkingEnabled(false)
+                .blockIfQueueFullDisabled(false)
+                .compressionType(CompressionType.LZ4)
+                .hashingScheme(HashingScheme.Murmur3_32Hash)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .batchingMaxPublishDelay(100L)
                 .build();
-        Function.SinkSpec sink = Function.SinkSpec.newBuilder()
-                .setProducerSpec(producerSpec)
-                .build();
-        Function.FunctionDetails details = Function.FunctionDetails.newBuilder()
-                .setSink(sink)
-                .build();
-        /*
-            batchingEnabledDefault: false
-            chunkingEnabledDefault: false
-            blockIfQueueFullDefault: true
-            compressionTypeDefault: ZLIB
-            hashingSchemeDefault: JavaStringHash
-            messageRoutingModeDefault: RoundRobinPartition
-            batchingMaxPublishDelayDefault: 12
-        */
+
         ClusterFunctionProducerDefaults defaults = wc.getClusterFunctionProducerDefaults();
-        Logger mockLogger = mock(Logger.class);
-        Assert.assertEquals(defaults.isBatchingDisabled(), true);
-        Assert.assertEquals(defaults.isChunkingEnabled(), false);
-        Assert.assertEquals(defaults.isBlockIfQueueFullDisabled(), false);
-        Assert.assertEquals(defaults.getCompressionType(), CompressionType.LZ4);
-        Assert.assertEquals(defaults.getHashingScheme(), HashingScheme.Murmur3_32Hash);
-        Assert.assertEquals(defaults.getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
-        Assert.assertEquals(defaults.getBatchingMaxPublishDelay(), 100);
+
+        ConfigureFunctionDefaults functionDefaults = new ConfigureFunctionDefaults(defaults, config);
+        Assert.assertEquals(functionDefaults.isBatchingDisabled(), false);
+        Assert.assertEquals(functionDefaults.isChunkingEnabled(), false);
+        Assert.assertEquals(functionDefaults.isBlockIfQueueFullDisabled(), false);
+        Assert.assertEquals(functionDefaults.getCompressionType(), CompressionType.LZ4);
+        Assert.assertEquals(functionDefaults.getHashingScheme(), HashingScheme.Murmur3_32Hash);
+        Assert.assertEquals(functionDefaults.getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
+        Assert.assertEquals((long)functionDefaults.getBatchingMaxPublishDelay(), 100L);
     }
 /*
     @Test

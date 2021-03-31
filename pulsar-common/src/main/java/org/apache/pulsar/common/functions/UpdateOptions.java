@@ -24,14 +24,19 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Options while updating the sink.
+ * Options while updating function defaults or the sink.
  */
 @Data
 @NoArgsConstructor
-@ApiModel(value = "UpdateOptions", description = "Options while updating the sink")
+@ApiModel(value = "UpdateOptions", description = "Options while updating function defaults or the sink")
 public class UpdateOptions {
     @ApiModelProperty(
         value = "Whether or not to update the auth data",
         name = "update-auth-data")
     private boolean updateAuthData = false;
+
+    @ApiModelProperty(
+            value="Whether or not to ignore any existing function defaults",
+            name ="ignore-existing-function-defaults")
+    private Boolean ignoreExistingFunctionDefaults;
 }

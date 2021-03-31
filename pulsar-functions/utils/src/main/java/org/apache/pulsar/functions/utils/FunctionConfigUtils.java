@@ -31,7 +31,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
 import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
@@ -817,7 +816,8 @@ public class FunctionConfigUtils {
         doJavaChecks(functionConfig, classLoader);
     }
 
-    public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig) {
+    public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig,
+                                                Boolean ignoreExistingFunctionDefaults) {
         FunctionConfig mergedConfig = existingConfig.toBuilder().build();
         if (!existingConfig.getTenant().equals(newConfig.getTenant())) {
             throw new IllegalArgumentException("Tenants differ");
@@ -850,6 +850,16 @@ public class FunctionConfigUtils {
                         ConsumerConfig.builder().isRegexPattern(false).build());
             }));
         }
+        // If ignoreExistingFunctionDefaults == null, then we assume they want to preserve existing defaults on update.
+
+        if(ignoreExistingFunctionDefaults == null || ignoreExistingFunctionDefaults == false){
+            if (newConfig.getProducerConfig() != null){
+                // For each defined default, if it wasn't set on the incoming newConfig, set the value from existing.
+                newConfig.setProducerConfig(existingConfig.getProducerConfig().mergeDefaults(newConfig.getProducerConfig()));
+            }
+            // else, leave them blank to ensure the WorkerConfig defaults get picked up (which happens if they're null)
+        }
+
         if (newConfig.getTopicsPattern() != null && !newConfig.getTopicsPattern().isEmpty()) {
             newConfig.getInputSpecs().put(newConfig.getTopicsPattern(),
                     ConsumerConfig.builder()

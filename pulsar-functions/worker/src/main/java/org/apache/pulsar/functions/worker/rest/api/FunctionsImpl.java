@@ -310,8 +310,21 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         functionConfig.setNamespace(namespace);
         functionConfig.setName(functionName);
         FunctionConfig mergedConfig;
+
+        // We need a way to allow cluster-wide defaults to override *existing* function defaults to ensure users
+        // can easily propagate cluster-wide default changes to functions.
+        // As users may not expect an update to create the side effect of removing existing custom function defaults,
+        // we will allow users who desire to ignore existing defaults to pass ignoreExistingFunctionDefaults=true
+        // When ignoreExistingFunctionDefaults=true:
+        //      The precedence is: REST parameter defaults > WorkerConfig defaults > existing defaults.
+        // When ignoreExistingFunctionDefaults=false (or null):
+        //      The precedence is: REST parameter defaults > existing defaults > WorkerConfig defaults.
+
         try {
-            mergedConfig = FunctionConfigUtils.validateUpdate(existingFunctionConfig, functionConfig);
+            mergedConfig = FunctionConfigUtils.validateUpdate(
+                    existingFunctionConfig,
+                    functionConfig,
+                    updateOptions.getIgnoreExistingFunctionDefaults());
         } catch (Exception e) {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
