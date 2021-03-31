@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -36,15 +36,11 @@ import org.testng.annotations.Test;
  * Delay messaging test.
  */
 @Slf4j
-public class DelayMessagingTest extends PulsarTestSuite {
+public class DelayMessagingTest extends PulsarStandaloneTestSuite {
 
-    @Test(dataProvider = "ServiceUrls")
-    public void delayMsgBlockTest(String serviceUrl) throws Exception {
-        String nsName = generateNamespaceName();
-        pulsarCluster.createNamespace(nsName);
-
-        String topic = generateTopicName(nsName, "testDelayMsgBlock", true);
-        pulsarCluster.createPartitionedTopic(topic, 3);
+    @Test(dataProvider = "StandaloneServiceUrlAndTopics")
+    public void delayMsgBlockTest(String serviceUrl, boolean isPersistent) throws Exception {
+        String topic = generateTopicName("testDelayMsgBlock", isPersistent);
 
         String retryTopic = topic + "-RETRY";
         String deadLetterTopic = topic + "-DLT";
@@ -91,8 +87,6 @@ public class DelayMessagingTest extends PulsarTestSuite {
                 nullMsgFlag = true;
                 break;
             }
-//            Assert.assertNotNull(message, "Consumer can't receive message in double delayTimeSeconds time "
-//                    + delayTimeSeconds * 2 + "s");
             log.info("receive msg. reConsumeTimes: {}", message.getProperty("RECONSUMETIMES"));
             consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
         }
@@ -100,16 +94,6 @@ public class DelayMessagingTest extends PulsarTestSuite {
         if (!nullMsgFlag) {
             Assert.fail("Currently consumer shouldn't receive all retry messages.");
         }
-
-//        @Cleanup
-//        Consumer<byte[]> dltConsumer = pulsarClient.newConsumer()
-//                .topic(deadLetterTopic)
-//                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-//                .subscriptionName("test")
-//                .subscribe();
-//
-//        message = dltConsumer.receive(10, TimeUnit.SECONDS);
-//        Assert.assertNotNull(message, "Dead letter topic consumer can't receive message.");
     }
 
 }
