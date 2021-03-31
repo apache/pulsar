@@ -41,8 +41,8 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.client.impl.schema.ObjectSchema;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -361,8 +361,8 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     private KeyValueSchema getKeyValueSchema() {
-        if (schema instanceof ObjectSchema) {
-            return (KeyValueSchema) ((ObjectSchema)schema).getInternalSchema();
+        if (schema instanceof AutoConsumeSchema) {
+            return (KeyValueSchema) ((AutoConsumeSchema)schema).getInternalSchema();
         } else {
             return (KeyValueSchema) schema;
         }

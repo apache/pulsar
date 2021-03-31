@@ -333,7 +333,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .subscribe();
 
-        Consumer<Object> consumer2 = pulsarClient.newConsumer(Schema.OBJECT())
+        Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .subscriptionName("test-sub2")
                 .topic(topic)
                 .subscribe();
@@ -341,10 +341,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.send(new KeyValue<>("foo", 123));
 
         Message<KeyValue<String, Integer>> message = consumer.receive();
-        Message<Object> message2 = consumer2.receive();
-        log.info("KV {}", message.getValue());
-        log.info("Object {}", message2.getValue());
-        assertEquals(message.getValue(), message2.getValue());
+        Message<GenericRecord> message2 = consumer2.receive();
+        assertEquals(message.getValue(), message2.getValue().getNativeObject());
 
         producer.close();
         consumer.close();
