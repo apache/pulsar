@@ -23,10 +23,7 @@ import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
-import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
-import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaultsProxy;
-import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
-import org.apache.pulsar.functions.utils.functions.InvalidWorkerConfigDefaultException;
+import org.apache.pulsar.functions.utils.functions.*;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.slf4j.Logger;
@@ -103,32 +100,21 @@ public class TestClusterFunctionProducerDefaults {
                 .setMessageRoutingMode(Function.MessageRoutingMode.CUSTOM_PARTITION)
                 .setBatchingMaxPublishDelay(0L)  // This is the default case.
                 .build();
-        Function.SinkSpec sink = Function.SinkSpec.newBuilder()
-                .setProducerSpec(producerSpec)
-                .build();
-        Function.FunctionDetails details = Function.FunctionDetails.newBuilder()
-                .setSink(sink)
-                .build();
-        /*
-            batchingEnabledDefault: false
-            chunkingEnabledDefault: false
-            blockIfQueueFullDefault: true
-            compressionTypeDefault: ZLIB
-            hashingSchemeDefault: JavaStringHash
-            messageRoutingModeDefault: RoundRobinPartition
-            batchingMaxPublishDelayDefault: 12
-         */
-/*
-        ClusterFunctionProducerDefaults defaults = wc.getClusterFunctionProducerDefaults();
-        ClusterFunctionProducerDefaultsProxy defaultsProxy = new ClusterFunctionProducerDefaultsProxy(details, defaults);
 
-        Assert.assertEquals(defaultsProxy.isBatchingDisabled(), false);
-        Assert.assertEquals(defaultsProxy.isChunkingEnabled(), false);
-        Assert.assertEquals(defaultsProxy.isBlockIfQueueFullDisabled(), true);
-        Assert.assertEquals(defaultsProxy.getCompressionType(), CompressionType.ZLIB);
-        Assert.assertEquals(defaultsProxy.getHashingScheme(), HashingScheme.JavaStringHash);
-        Assert.assertEquals(defaultsProxy.getMessageRoutingMode(), MessageRoutingMode.RoundRobinPartition);
-        Assert.assertEquals(defaultsProxy.getBatchingMaxPublishDelay(), 12);*/
+        ProducerDefaultsFromProtobufConverter converter = new ProducerDefaultsFromProtobufConverter(producerSpec);
+        ProducerConfig producerConfig = converter.getProducerConfig();
+
+        ClusterFunctionProducerDefaults defaults = wc.getClusterFunctionProducerDefaults();
+
+        ConfigureFunctionDefaults defaultsConfig = new ConfigureFunctionDefaults(defaults, producerConfig);
+
+        Assert.assertEquals(defaultsConfig.isBatchingDisabled(), false);
+        Assert.assertEquals(defaultsConfig.isChunkingEnabled(), false);
+        Assert.assertEquals(defaultsConfig.isBlockIfQueueFullDisabled(), false);
+        Assert.assertEquals(defaultsConfig.getCompressionType(), CompressionType.LZ4);
+        Assert.assertEquals(defaultsConfig.getHashingScheme(), HashingScheme.Murmur3_32Hash);
+        Assert.assertEquals(defaultsConfig.getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
+        Assert.assertEquals((long)defaultsConfig.getBatchingMaxPublishDelay(), 12L);
     }
     @Test
     public void WorkerConfig_LoadsExpectedDefaults() throws URISyntaxException, IOException, InvalidWorkerConfigDefaultException {
@@ -260,20 +246,20 @@ public class TestClusterFunctionProducerDefaults {
     public void ConfigureFunctionDefaults_ProducerDefaultsAreNull_GettersReturnExpectedResults(){
         ClusterFunctionProducerDefaults producerDefaults = mock(ClusterFunctionProducerDefaults.class);
         ProducerConfig config = mock(ProducerConfig.class);
-        when(producerDefaults.isBatchingDisabled()).thenReturn(null);
-        when(producerDefaults.isChunkingEnabled()).thenReturn(null);
-        when(producerDefaults.isBlockIfQueueFullDisabled()).thenReturn(null);
-        when(producerDefaults.getCompressionType()).thenReturn(null);
-        when(producerDefaults.getHashingScheme()).thenReturn(null);
-        when(producerDefaults.getMessageRoutingMode()).thenReturn(null);
+        when(producerDefaults.isBatchingDisabled()).thenReturn(false);
+        when(producerDefaults.isChunkingEnabled()).thenReturn(false);
+        when(producerDefaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(producerDefaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(producerDefaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(producerDefaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
 
-        when(config.getBatchingDisabled()).thenReturn(false);
-        when(config.getChunkingEnabled()).thenReturn(false);
-        when(config.getBlockIfQueueFullDisabled()).thenReturn(false);
-        when(config.getCompressionType()).thenReturn(CompressionType.LZ4);
-        when(config.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
-        when(config.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
-        when(config.getBatchingMaxPublishDelay()).thenReturn(10L);
+        when(config.getBatchingDisabled()).thenReturn(null);
+        when(config.getChunkingEnabled()).thenReturn(null);
+        when(config.getBlockIfQueueFullDisabled()).thenReturn(null);
+        when(config.getCompressionType()).thenReturn(null);
+        when(config.getHashingScheme()).thenReturn(null);
+        when(config.getMessageRoutingMode()).thenReturn(null);
+        when(config.getBatchingMaxPublishDelay()).thenReturn(null);
 
         ConfigureFunctionDefaults clusterFunctionDefaults = new ConfigureFunctionDefaults(producerDefaults, config);
 
@@ -311,8 +297,8 @@ public class TestClusterFunctionProducerDefaults {
         Assert.assertEquals(clusterFunctionDefaults.isChunkingEnabled(), false);
         Assert.assertEquals(clusterFunctionDefaults.isBlockIfQueueFullDisabled(), false);
         Assert.assertEquals(clusterFunctionDefaults.getCompressionType(), CompressionType.LZ4);
-        Assert.assertEquals(clusterFunctionDefaults.isBatchingDisabled(), false);
-        Assert.assertEquals(clusterFunctionDefaults.getHashingScheme(), HashingScheme.JavaStringHash);
-        Assert.assertEquals(clusterFunctionDefaults.getMessageRoutingMode(), MessageRoutingMode.SinglePartition);
+        Assert.assertEquals(clusterFunctionDefaults.getHashingScheme(), HashingScheme.Murmur3_32Hash);
+        Assert.assertEquals(clusterFunctionDefaults.getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
+        Assert.assertEquals((long)clusterFunctionDefaults.getBatchingMaxPublishDelay(), 10L);
     }
 }

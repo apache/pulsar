@@ -30,17 +30,17 @@ import java.io.Serializable;
 @Accessors(chain = true)
 public class FunctionDefaultsConfig implements Serializable {
     @FieldContext(
-            doc = "Enables message batching between functions"
+            doc = "Disables default message batching between functions"
     )
-    protected boolean batchingEnabled = true;
+    protected boolean batchingDisabled = false;
     @FieldContext(
-            doc = "Enables message chunking between functions"
+            doc = "Enables default message chunking between functions"
     )
     protected boolean chunkingEnabled = false;
     @FieldContext(
-            doc = "Default behavior if to block when message queue is full"
+            doc = "Disables default behavior to block when message queue is full"
     )
-    protected boolean blockIfQueueFull = true;
+    protected boolean blockIfQueueFullDisabled = true;
     @FieldContext(
             doc = "Default compression type"
     )
@@ -59,8 +59,8 @@ public class FunctionDefaultsConfig implements Serializable {
     protected int batchingMaxPublishDelay = 10;
 
     public ClusterFunctionProducerDefaults buildProducerDefaults() throws InvalidWorkerConfigDefaultException {
-        return new ClusterFunctionProducerDefaults(this.isBatchingEnabled(),
-                this.isChunkingEnabled(), this.isBlockIfQueueFull(), this.getCompressionType(),
+        return new ClusterFunctionProducerDefaults(this.isBatchingDisabled(),
+                this.isChunkingEnabled(), this.isBlockIfQueueFullDisabled(), this.getCompressionType(),
                 this.getHashingScheme(), this.getMessageRoutingMode(), this.getBatchingMaxPublishDelay());
     }
 

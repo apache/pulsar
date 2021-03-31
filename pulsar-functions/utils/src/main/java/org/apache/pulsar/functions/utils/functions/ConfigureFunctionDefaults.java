@@ -108,7 +108,7 @@ public class ConfigureFunctionDefaults {
         }
     }
     public Long getBatchingMaxPublishDelay(){
-        if (producerConfig.getBatchingMaxPublishDelay() == null){
+        if (producerConfig.getBatchingMaxPublishDelay() == null || producerConfig.getBatchingMaxPublishDelay() == 0){
             return producerDefaults.getBatchingMaxPublishDelay();
         }
         return producerConfig.getBatchingMaxPublishDelay();

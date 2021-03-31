@@ -27,8 +27,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
 import org.apache.pulsar.common.functions.ProducerConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaultsProxy;
 
 /**
  * Router for routing function results.

@@ -43,8 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
-import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
-import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaultsProxy;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
