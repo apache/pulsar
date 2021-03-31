@@ -32,33 +32,33 @@ The configuration of the Kafka source connector has the following properties.
 
 ### Schema Management
 
-This Kafka Source connector applies the Schema to the topic depending on the data type that is present on the Kafka topic.
+This Kafka source connector applies the schema to the topic depending on the data type that is present on the Kafka topic.
 You can detect the data type from the `keyDeserializationClass` and `valueDeserializationClass` configuration parameters.
 
 If the `valueDeserializationClass` is `org.apache.kafka.common.serialization.StringDeserializer`, you can set Schema.STRING() as schema type on the Pulsar topic.
 
-If `valueDeserializationClass` is `io.confluent.kafka.serializers.KafkaAvroDeserializer` Pulsar downloads the AVRO schema from the Confluent Schema Registry®
-and set it properly on the Pulsar topic.
+If `valueDeserializationClass` is `io.confluent.kafka.serializers.KafkaAvroDeserializer`, Pulsar downloads the AVRO schema from the Confluent Schema Registry®
+and sets it properly on the Pulsar topic.
 
-In this case you have to set `schema.registry.url` inside of the `consumerConfigProperties` configuration entry
+In this case, you need to set `schema.registry.url` inside of the `consumerConfigProperties` configuration entry
 of the source.
 
-When `keyDeserializationClass` is not `org.apache.kafka.common.serialization.StringDeserializer` it means 
+If `keyDeserializationClass` is not `org.apache.kafka.common.serialization.StringDeserializer`, it means 
 that you do not have a String as key and the Kafka Source uses the KeyValue schema type with the SEPARATED encoding.
 
-We are also supporting AVRO format for keys as well.
+Pulsar supports AVRO format for keys.
 
-This way on Pulsar you have a topic with these properties:
+In this case, you can have a Pulsar topic with the following properties:
 - Schema: KeyValue schema with SEPARATED encoding
 - Key: the content of key of the Kafka message (base64 encoded)
 - Value: the content of value of the Kafka message
-- KeySchema: the schema, detected from `keyDeserializationClass`
-- ValueSchema: the schema, detected from `valueDeserializationClass`
+- KeySchema: the schema detected from `keyDeserializationClass`
+- ValueSchema: the schema detected from `valueDeserializationClass`
 
 Topic compaction and partition routing use the Pulsar key, that contains the Kafka key, and so they are driven by the same value that you have on Kafka.
 
 When you consume data from Pulsar topics, you can use the `KeyValue` schema. In this way, you can decode the data properly.
-In case you want to access the raw key you can use the Message#getKeyBytes() API.
+If you want to access the raw key, you can use the `Message#getKeyBytes()` API.
 
 ### Example
 
