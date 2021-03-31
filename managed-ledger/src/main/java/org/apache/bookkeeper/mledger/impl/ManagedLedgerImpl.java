@@ -1405,6 +1405,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         mbean.addLedgerSwitchLatencySample(System.currentTimeMillis() - lastLedgerCreationInitiationTimestamp,
                                 TimeUnit.MILLISECONDS);
                     }
+
+                    // May need to update the cursor position
+                    maybeUpdateCursorBeforeTrimmingConsumedLedger();
                 }
 
                 @Override
@@ -2153,7 +2156,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (!lastAckedPosition.equals((PositionImpl) cursor.getMarkDeletedPosition())) {
                 try {
                     log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
-                    lastConfirmedEntry = lastAckedPosition;
+                    if (lastConfirmedEntry.compareTo(lastAckedPosition) < 0) {
+                        lastConfirmedEntry = lastAckedPosition;
+                    }
                     updateCursor((ManagedCursorImpl) cursor, lastAckedPosition);
                 } catch (Exception e) {
                     log.warn("Failed to reset cursor: {} from {} to {}. Trimming thread will retry next time.",
@@ -2300,9 +2305,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 promise.completeExceptionally(new ManagedLedgerAlreadyClosedException("Can't trim closed ledger"));
                 return;
             }
-
-            // May need to update the cursor position
-            maybeUpdateCursorBeforeTrimmingConsumedLedger();
 
             long slowestReaderLedgerId = -1;
             if (!cursors.hasDurableCursors()) {

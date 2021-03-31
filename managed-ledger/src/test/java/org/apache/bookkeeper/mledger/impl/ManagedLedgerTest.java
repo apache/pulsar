@@ -834,7 +834,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         cursor.markDelete(lastPosition);
 
-        while (ledger.getNumberOfEntries() >= 2) {
+        while (ledger.getNumberOfEntries() != 2) {
             Thread.sleep(10);
         }
     }
@@ -2907,8 +2907,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // all the messages have benn acknowledged
         // and all the ledgers have been removed except the last ledger
         Thread.sleep(1000);
-        ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
-        Thread.sleep(1000);
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
         Assert.assertEquals(ledger.getTotalSize(), 0);
     }
@@ -2942,12 +2940,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         managedLedger = (ManagedLedgerImpl) factory.open("ml_restart_ledger", config);
 
         // then we have one more empty ledger after managed-ledger initialization
-        // the oldest ledger({entries=2}) will be removed when ledger closed
-        // and now we have [{entries=1}, {entries=0}]
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
+        // and now ledgers are [{entries=2}, {entries=1}, {entries=0}]
+        Assert.assertTrue(managedLedger.getLedgersInfoAsList().size() >= 2);
 
         // Now we update the cursors that are still subscribing to ledgers that has been consumed completely
+        managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
         managedLedger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
+        Thread.sleep(100);
 
         // We only have one empty ledger at last [{entries=0}]
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);

@@ -100,8 +100,6 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
 
         // trigger a ledger rollover
         managedLedger.rollCurrentLedgerIfFull();
-        Thread.sleep(1000);
-        managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
 
         // the last ledger will be closed and removed and we have one ledger for empty
         Awaitility.await()
