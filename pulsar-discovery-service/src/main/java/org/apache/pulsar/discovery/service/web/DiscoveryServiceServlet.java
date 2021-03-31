@@ -33,10 +33,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +56,10 @@ public class DiscoveryServiceServlet extends HttpServlet {
 
     private final AtomicInteger counter = new AtomicInteger();
 
-    private ZookeeperCacheLoader zkCache;
+    private MetadataStoreExtended localMetadataStore;
+    private MetadataStoreExtended configMetadataStore;
+    private PulsarResources pulsarResources;
+    private MetadataStoreCacheLoader metadataStoreCacheLoader;
 
     @Override
     public void init(ServletConfig config) throws ServletException {
@@ -66,19 +71,12 @@ public class DiscoveryServiceServlet extends HttpServlet {
                 ? Integer.valueOf(zookeeperSessionTimeoutMsStr)
                 : 30_000;
 
-        String zookeeperClientFactoryClassName = config.getInitParameter("zookeeperClientFactoryClass");
-        if (zookeeperClientFactoryClassName == null) {
-            zookeeperClientFactoryClassName = ZookeeperClientFactoryImpl.class.getName();
-        }
-
-        log.info("zookeeperServers={} zookeeperClientFactoryClass={}", zookeeperServers,
-                zookeeperClientFactoryClassName);
+        log.info("zookeeperServers={}", zookeeperServers);
 
         try {
-            ZooKeeperClientFactory zkClientFactory = (ZooKeeperClientFactory) Class
-                    .forName(zookeeperClientFactoryClassName).newInstance();
-
-            zkCache = new ZookeeperCacheLoader(zkClientFactory, zookeeperServers, zookeeperSessionTimeoutMs);
+            localMetadataStore = createLocalMetadataStore(zookeeperServers, zookeeperSessionTimeoutMs);
+            pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
+            metadataStoreCacheLoader = new MetadataStoreCacheLoader(pulsarResources, zookeeperSessionTimeoutMs);
         } catch (Throwable t) {
             throw new ServletException(t);
         }
@@ -87,9 +85,14 @@ public class DiscoveryServiceServlet extends HttpServlet {
     @Override
     public void destroy() {
         try {
-            zkCache.close();
+            localMetadataStore.close();
+        } catch (Exception e) {
+            log.warn("Failed to close the metadata-store {}", e.getMessage());
+        }
+        try {
+            metadataStoreCacheLoader.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.warn("Failed to close the metadataStore-cache {}", e.getMessage());
         }
     }
 
@@ -166,7 +169,7 @@ public class DiscoveryServiceServlet extends HttpServlet {
      * @return
      */
     LoadManagerReport nextBroker() {
-        List<LoadManagerReport> availableBrokers = zkCache.getAvailableBrokers();
+        List<LoadManagerReport> availableBrokers = metadataStoreCacheLoader.getAvailableBrokers();
 
         if (availableBrokers.isEmpty()) {
             throw new RestException(Status.SERVICE_UNAVAILABLE, "No active broker is available");
@@ -175,6 +178,10 @@ public class DiscoveryServiceServlet extends HttpServlet {
             int nextIdx = signSafeMod(counter.getAndIncrement(), brokersCount);
             return availableBrokers.get(nextIdx);
         }
+    }
+
+    public MetadataStoreExtended createLocalMetadataStore(String zookeeperServers, int operationimeoutMs) throws MetadataStoreException {
+        return PulsarResources.createMetadataStore(zookeeperServers, operationimeoutMs);
     }
 
     private static final Logger log = LoggerFactory.getLogger(DiscoveryServiceServlet.class);

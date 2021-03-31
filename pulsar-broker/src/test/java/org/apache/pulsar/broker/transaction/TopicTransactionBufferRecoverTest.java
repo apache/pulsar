@@ -22,12 +22,17 @@ import com.google.common.collect.Sets;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -42,6 +47,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.events.EventsTopicNames;
@@ -60,6 +66,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
@@ -70,6 +77,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     private final static String RECOVER_ABORT = NAMESPACE1 + "/recover-abort";
     private final static String SUBSCRIPTION_NAME = "test-recover";
     private final static String TAKE_SNAPSHOT = NAMESPACE1 + "/take-snapshot";
+    private final static String ABORT_DELETE = NAMESPACE1 + "/abort-delete";
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -293,5 +301,95 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         reader.close();
         producer.close();
 
+    }
+
+    @Test
+    private void testTopicTransactionBufferDeleteAbort() throws Exception {
+        @Cleanup
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic(ABORT_DELETE)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(ABORT_DELETE)
+                .subscriptionName(SUBSCRIPTION_NAME)
+                .subscribe();
+
+        Transaction tnx = pulsarClient.newTransaction()
+                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .build().get();
+        String value = "Hello Pulsar!";
+
+        MessageId messageId1 = producer.newMessage(tnx).value(value).send();
+        tnx.abort().get();
+
+        admin.topics().unload(ABORT_DELETE);
+
+        tnx = pulsarClient.newTransaction()
+                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .build().get();
+
+        value = "Hello";
+        producer.newMessage(tnx).value(value).send();
+        tnx.commit().get();
+
+        Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
+        System.out.println("consumer receive message" + message.getMessageId());
+        assertNotNull(message.getValue(), value);
+        consumer.acknowledge(message);
+
+        tnx = pulsarClient.newTransaction()
+                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .build().get();
+
+        MessageId messageId2 = producer.newMessage(tnx).value(value).send();
+        tnx.abort().get();
+
+        assertTrue(((MessageIdImpl) messageId2).getLedgerId() != ((MessageIdImpl) messageId1).getLedgerId());
+        boolean exist = false;
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+            Field field = BrokerService.class.getDeclaredField("topics");
+            field.setAccessible(true);
+            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                            .get(getPulsarServiceList().get(i).getBrokerService());
+            CompletableFuture<Optional<Topic>> completableFuture = topics.get("persistent://" + ABORT_DELETE);
+            if (completableFuture != null) {
+                Optional<Topic> topic = completableFuture.get();
+                if (topic.isPresent()) {
+                    PersistentTopic persistentTopic = (PersistentTopic) topic.get();
+                    field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
+                    field.setAccessible(true);
+                    NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers
+                            = (NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>) field.get(persistentTopic.getManagedLedger());
+
+                    ledgers.remove(((MessageIdImpl) messageId1).getLedgerId());
+                    tnx = pulsarClient.newTransaction()
+                            .withTransactionTimeout(2, TimeUnit.SECONDS)
+                            .build().get();
+
+                    producer.newMessage(tnx).value(value).send();
+                    tnx.commit().get();
+                    field = PersistentTopic.class.getDeclaredField("transactionBuffer");
+                    field.setAccessible(true);
+                    TopicTransactionBuffer topicTransactionBuffer =
+                            (TopicTransactionBuffer) field.get(persistentTopic);
+                    field = TopicTransactionBuffer.class.getDeclaredField("aborts");
+                    field.setAccessible(true);
+                    LinkedMap<TxnID, PositionImpl> linkedMap =
+                            (LinkedMap<TxnID, PositionImpl>) field.get(topicTransactionBuffer);
+                    assertEquals(linkedMap.size(), 1);
+                    assertEquals(linkedMap.get(linkedMap.firstKey()).getLedgerId(),
+                            ((MessageIdImpl) message.getMessageId()).getLedgerId());
+                    exist = true;
+                }
+            }
+        }
+        assertTrue(exist);
     }
 }

@@ -284,13 +284,6 @@ public class DefaultImplementation {
                         .newInstance());
     }
 
-    public static Schema<Object> newObjectSchema() {
-        return catchExceptions(
-                () -> (Schema<Object>) newClassInstance(
-                        "org.apache.pulsar.client.impl.schema.ObjectSchema")
-                        .newInstance());
-    }
-
     public static Schema<byte[]> newAutoProduceSchema() {
         return catchExceptions(
                 () -> (Schema<byte[]>) newClassInstance(

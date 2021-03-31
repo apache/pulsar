@@ -42,6 +42,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class LeaderElectionServiceTest {
 
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -115,14 +116,15 @@ public class LeaderElectionServiceTest {
         }
     }
 
-
     private static class MockPulsarService extends PulsarService {
 
         public MockPulsarService(ServiceConfiguration config) {
             super(config);
         }
 
-        public MockPulsarService(ServiceConfiguration config, Optional<WorkerService> functionWorkerService, Consumer<Integer> processTerminator) {
+        public MockPulsarService(ServiceConfiguration config,
+                                 Optional<WorkerService> functionWorkerService,
+                                 Consumer<Integer> processTerminator) {
             super(config, functionWorkerService, processTerminator);
         }
 

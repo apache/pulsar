@@ -30,9 +30,7 @@ import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import io.jsonwebtoken.SignatureAlgorithm;
-
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collections;
@@ -42,9 +40,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import javax.crypto.SecretKey;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -63,7 +59,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -82,6 +77,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "functions-worker")
 public class PulsarFunctionE2ESecurityTest {
 
     LocalBookkeeperEnsemble bkEnsemble;
@@ -111,6 +107,7 @@ public class PulsarFunctionE2ESecurityTest {
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionE2ETest.class);
     private String adminToken;
     private String brokerServiceUrl;
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
@@ -209,12 +206,18 @@ public class PulsarFunctionE2ESecurityTest {
 
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
-        log.info("--- Shutting down ---");
-        pulsarClient.close();
-        superUserAdmin.close();
-        functionsWorkerService.stop();
-        pulsar.close();
-        bkEnsemble.stop();
+        try {
+            log.info("--- Shutting down ---");
+            pulsarClient.close();
+            superUserAdmin.close();
+            functionsWorkerService.stop();
+            pulsar.close();
+            bkEnsemble.stop();
+        } finally {
+            if (tempDirectory != null) {
+                tempDirectory.delete();
+            }
+        }
     }
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
@@ -223,6 +226,8 @@ public class PulsarFunctionE2ESecurityTest {
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
         workerConfig = new WorkerConfig();
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -259,7 +264,12 @@ public class PulsarFunctionE2ESecurityTest {
         return workerService;
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);

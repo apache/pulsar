@@ -24,7 +24,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
@@ -49,7 +48,7 @@ public class SimpleConsumerSocket {
 
     public SimpleConsumerSocket() {
         this.closeLatch = new CountDownLatch(1);
-        consumerBuffer = new ArrayList<String>();
+        consumerBuffer = new ArrayList<>();
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {

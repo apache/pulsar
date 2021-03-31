@@ -35,6 +35,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
@@ -114,7 +115,14 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
         BookiesClusterInfo bookies = admin.bookies().getBookies();
         log.info("bookies info {}", bookies);
-        assertEquals(bookies.getBookies().size(), pulsar.getBookKeeperClient().getMetadataClientDriver().getRegistrationClient().getAllBookies().get().getValue().size());
+        assertEquals(bookies.getBookies().size(),
+                pulsar.getBookKeeperClient()
+                .getMetadataClientDriver()
+                .getRegistrationClient()
+                .getAllBookies()
+                .get()
+                .getValue()
+                .size());
     }
 
 }

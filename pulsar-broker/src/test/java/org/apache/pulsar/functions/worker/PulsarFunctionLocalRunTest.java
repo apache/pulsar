@@ -27,6 +27,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.File;
@@ -46,7 +47,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -94,8 +94,8 @@ import org.testng.annotations.Test;
 
 /**
  * Test Pulsar sink on function
- *
  */
+@Test(groups = { "flaky" })
 public class PulsarFunctionLocalRunTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -120,6 +120,7 @@ public class PulsarFunctionLocalRunTest {
     private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     private static final String SYSTEM_PROPERTY_NAME_NAR_FILE_PATH = "pulsar-io-data-generator.nar.path";
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     public static File getPulsarIODataGeneratorNar() {
         return new File(Objects.requireNonNull(System.getProperty(SYSTEM_PROPERTY_NAME_NAR_FILE_PATH)
@@ -175,15 +176,6 @@ public class PulsarFunctionLocalRunTest {
 
     @BeforeMethod
     void setup(Method method) throws Exception {
-
-        // delete all function temp files
-        File dir = new File(System.getProperty("java.io.tmpdir"));
-        File[] foundFiles = dir.listFiles((ignoredDir, name) -> name.startsWith("function"));
-
-        for (File file : foundFiles) {
-            file.delete();
-        }
-
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
@@ -228,16 +220,8 @@ public class PulsarFunctionLocalRunTest {
         if (Arrays.asList(method.getAnnotation(Test.class).groups()).contains("builtin")) {
             File connectorsDir = new File(workerConfig.getConnectorsDirectory());
 
-            if (connectorsDir.exists()) {
-                FileUtils.deleteDirectory(connectorsDir);
-            }
-
-            if (connectorsDir.mkdir()) {
-                File file = getPulsarIODataGeneratorNar();
-                Files.copy(file.toPath(), new File(connectorsDir.getAbsolutePath() + "/" + file.getName()).toPath());
-            } else {
-                throw new RuntimeException("Failed to create builtin connectors directory");
-            }
+            File file = getPulsarIODataGeneratorNar();
+            Files.copy(file.toPath(), new File(connectorsDir, file.getName()).toPath());
         }
 
         Optional<WorkerService> functionWorkerService = Optional.empty();
@@ -290,16 +274,17 @@ public class PulsarFunctionLocalRunTest {
 
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
-        log.info("--- Shutting down ---");
-        fileServer.stop();
-        pulsarClient.close();
-        admin.close();
-        pulsar.close();
-        bkEnsemble.stop();
-
-        File connectorsDir = new File(workerConfig.getConnectorsDirectory());
-        if (connectorsDir.exists()) {
-            FileUtils.deleteDirectory(connectorsDir);
+        try {
+            log.info("--- Shutting down ---");
+            fileServer.stop();
+            pulsarClient.close();
+            admin.close();
+            pulsar.close();
+            bkEnsemble.stop();
+        } finally {
+            if (tempDirectory != null) {
+                tempDirectory.delete();
+            }
         }
     }
 
@@ -309,6 +294,8 @@ public class PulsarFunctionLocalRunTest {
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
         WorkerConfig workerConfig = new WorkerConfig();
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -343,7 +330,12 @@ public class PulsarFunctionLocalRunTest {
         return workerConfig;
     }
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -361,7 +353,10 @@ public class PulsarFunctionLocalRunTest {
         return functionConfig;
     }
 
-    private static SourceConfig createSourceConfig(String tenant, String namespace, String functionName, String sinkTopic) {
+    private static SourceConfig createSourceConfig(String tenant,
+                                                   String namespace,
+                                                   String functionName,
+                                                   String sinkTopic) {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);
@@ -372,7 +367,11 @@ public class PulsarFunctionLocalRunTest {
         return sourceConfig;
     }
 
-    private static SinkConfig createSinkConfig(String tenant, String namespace, String functionName, String sourceTopic, String subName) {
+    private static SinkConfig createSinkConfig(String tenant,
+                                               String namespace,
+                                               String functionName,
+                                               String sourceTopic,
+                                               String subName) {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant(tenant);
         sinkConfig.setNamespace(namespace);
@@ -501,7 +500,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    public void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
+    private void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -615,7 +614,7 @@ public class PulsarFunctionLocalRunTest {
 
         producer.newMessage().property(propertyKey, propertyValue).value(avroTestObjectClass.newInstance()).send();
         Message<GenericRecord> msg = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(msg, null);
+        Assert.assertNull(msg);
 
         producer.close();
         consumer.close();
@@ -667,7 +666,9 @@ public class PulsarFunctionLocalRunTest {
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
                 .tlsHostNameVerificationEnabled(false)
-                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls())
+                .connectorsDirectory(workerConfig.getConnectorsDirectory())
+                .build();
 
         localRunner.start(false);
 
@@ -747,7 +748,6 @@ public class PulsarFunctionLocalRunTest {
         testPulsarSourceLocalRun(fileServer.getUrl("/pulsar-io-data-generator.nar"));
     }
 
-
     private void testPulsarSinkLocalRun(String jarFilePathUrl) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -780,7 +780,9 @@ public class PulsarFunctionLocalRunTest {
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
                 .tlsHostNameVerificationEnabled(false)
-                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls())
+                .connectorsDirectory(workerConfig.getConnectorsDirectory())
+                .build();
 
         localRunner.start(false);
 

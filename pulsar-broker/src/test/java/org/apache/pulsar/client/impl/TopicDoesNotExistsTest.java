@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl;
 
 import io.netty.util.HashedWheelTimer;
@@ -34,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Tests for not exists topic.
  */
+@Test(groups = "broker-impl")
 public class TopicDoesNotExistsTest extends ProducerConsumerBase {
 
     @Override

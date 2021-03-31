@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -125,6 +126,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("healthcheck"));
         verify(mockBrokers).healthcheck();
+
+        brokers.run(split("version"));
+        verify(mockBrokers).getVersion();
     }
 
     @Test
@@ -593,6 +597,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-compaction-threshold myprop/clust/ns1"));
         verify(mockNamespaces).getCompactionThreshold("myprop/clust/ns1");
 
+        namespaces.run(split("remove-compaction-threshold myprop/clust/ns1"));
+        verify(mockNamespaces).removeCompactionThreshold("myprop/clust/ns1");
+
         namespaces.run(split("set-compaction-threshold myprop/clust/ns1 -t 1G"));
         verify(mockNamespaces).setCompactionThreshold("myprop/clust/ns1", 1024 * 1024 * 1024);
 
@@ -926,6 +933,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-max-unacked-messages-per-subscription persistent://myprop/clust/ns1/ds1 -m 99"));
         verify(mockTopics, times(2)).setMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", 99);
 
+        cmdTopics.run(split("get-compaction-threshold persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getCompactionThreshold("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("set-compaction-threshold persistent://myprop/clust/ns1/ds1 -t 10k"));
+        verify(mockTopics).setCompactionThreshold("persistent://myprop/clust/ns1/ds1", 10 * 1024);
+        cmdTopics.run(split("remove-compaction-threshold persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeCompactionThreshold("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("get-max-message-size persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getMaxMessageSize("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("remove-max-message-size persistent://myprop/clust/ns1/ds1"));
@@ -1236,7 +1250,7 @@ public class PulsarAdminToolTest {
             // Ok
         }
 
-        // validate Athentication-tls has been configured
+        // validate Authentication-tls has been configured
         Field adminBuilderField = PulsarAdminTool.class.getDeclaredField("adminBuilder");
         adminBuilderField.setAccessible(true);
         PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);

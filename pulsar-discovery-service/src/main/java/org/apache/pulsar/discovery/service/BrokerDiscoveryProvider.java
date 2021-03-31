@@ -31,17 +31,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
-import org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +53,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class BrokerDiscoveryProvider implements Closeable {
 
-    final ZookeeperCacheLoader localZkCache;
+    final MetadataStoreCacheLoader metadataStoreCacheLoader;
     private final AtomicInteger counter = new AtomicInteger();
     private PulsarResources pulsarResources;
 
@@ -66,11 +64,10 @@ public class BrokerDiscoveryProvider implements Closeable {
 
     private static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
 
-    public BrokerDiscoveryProvider(ServiceConfig config, ZooKeeperClientFactory zkClientFactory,
-            PulsarResources pulsarResources) throws PulsarServerException {
+    public BrokerDiscoveryProvider(ServiceConfig config, PulsarResources pulsarResources) throws PulsarServerException {
         try {
             this.pulsarResources = pulsarResources;
-            localZkCache = new ZookeeperCacheLoader(zkClientFactory, config.getZookeeperServers(),
+            this.metadataStoreCacheLoader = new MetadataStoreCacheLoader(pulsarResources,
                     config.getZookeeperSessionTimeoutMs());
         } catch (Exception e) {
             LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
@@ -97,7 +94,7 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     List<LoadManagerReport> getAvailableBrokers() {
-        List<LoadManagerReport> availableBrokers = localZkCache.getAvailableBrokers();
+        List<LoadManagerReport> availableBrokers = metadataStoreCacheLoader.getAvailableBrokers();
         return availableBrokers;
     }
 
@@ -110,7 +107,8 @@ public class BrokerDiscoveryProvider implements Closeable {
             final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
                     topicName.getNamespaceObject().toString(), "persistent", topicName.getEncodedLocalName());
             // gets the number of partitions from the zk cache
-            pulsarResources.getNamespaceResources().getPartitionedTopicResources().getAsync(path).thenAccept(metadata -> {
+            pulsarResources.getNamespaceResources().getPartitionedTopicResources().getAsync(path)
+                    .thenAccept(metadata -> {
                 // if the partitioned topic is not found in zk, then the topic
                 // is not partitioned
                 if (metadata.isPresent()) {
@@ -153,7 +151,8 @@ public class BrokerDiscoveryProvider implements Closeable {
                 throw new IllegalAccessException(String.format("Failed to get property %s admin data due to %s",
                         topicName.getTenant(), e.getMessage()));
             }
-            if (!service.getAuthorizationService().isTenantAdmin(topicName.getTenant(), role, tenantInfo, authenticationData).get()) {
+            if (!service.getAuthorizationService()
+                    .isTenantAdmin(topicName.getTenant(), role, tenantInfo, authenticationData).get()) {
                 throw new IllegalAccessException("Don't have permission to administrate resources on this property");
             }
         }
@@ -171,7 +170,7 @@ public class BrokerDiscoveryProvider implements Closeable {
 
     @Override
     public void close() throws IOException {
-        localZkCache.close();
+        metadataStoreCacheLoader.close();
         orderedExecutor.shutdown();
         scheduledExecutorScheduler.shutdownNow();
     }

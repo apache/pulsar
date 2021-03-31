@@ -70,7 +70,6 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
-import org.apache.pulsar.client.impl.schema.AbstractAutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.ObjectSchema;
@@ -97,6 +96,7 @@ public class PulsarClientImpl implements PulsarClient {
     private LookupService lookup;
     private final ConnectionPool cnxPool;
     private final Timer timer;
+    private boolean needStopTimer;
     private final ExecutorProvider externalExecutorProvider;
     private final ExecutorProvider internalExecutorService;
 
@@ -134,10 +134,15 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup));
+        this(conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup), null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool)
+            throws PulsarClientException {
+        this(conf, eventLoopGroup, cnxPool, null);
+    }
+
+    public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool, Timer timer)
             throws PulsarClientException {
         if (conf == null || isBlank(conf.getServiceUrl()) || eventLoopGroup == null) {
             throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
@@ -155,7 +160,12 @@ public class PulsarClientImpl implements PulsarClient {
         } else {
             lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(), conf.isUseTls(), externalExecutorProvider.getExecutor());
         }
-        timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
+        if (timer == null) {
+            this.timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
+            needStopTimer = true;
+        } else {
+            this.timer = timer;
+        }
         producers = Collections.newSetFromMap(new ConcurrentHashMap<>());
         consumers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
@@ -244,7 +254,7 @@ public class PulsarClientImpl implements PulsarClient {
                 new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
         }
 
-        if (schema instanceof AbstractAutoConsumeSchema) {
+        if (schema instanceof AutoConsumeSchema) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidConfigurationException("AutoConsumeSchema is only used by consumers to detect schemas automatically"));
         }
@@ -429,8 +439,8 @@ public class PulsarClientImpl implements PulsarClient {
                         externalExecutorProvider, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
             } else {
                 int partitionIndex = TopicName.getPartitionIndex(topic);
-                consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, externalExecutorProvider, partitionIndex, false,
-                        consumerSubscribedFuture,null, schema, interceptors,
+                consumer = ConsumerImpl.newConsumerImpl(PulsarClientImpl.this, topic, conf, externalExecutorProvider,
+                        partitionIndex, false, consumerSubscribedFuture, null, schema, interceptors,
                         true /* createTopicIfDoesNotExist */);
             }
             consumers.add(consumer);
@@ -513,30 +523,52 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
-        return preProcessSchemaBeforeSubscribe(this, schema, conf.getTopicName())
-            .thenCompose(schemaClone -> doCreateReaderAsync(conf, schemaClone));
-    }
-
-    <T> CompletableFuture<Reader<T>> doCreateReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
-
         if (conf == null) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
         }
-
-        String topic = conf.getTopicName();
-
-        if (!TopicName.isValid(topic)) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+        for (String topic : conf.getTopicNames()) {
+            if (!TopicName.isValid(topic)) {
+                return FutureUtil.failedFuture(new PulsarClientException
+                        .InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+            }
         }
 
         if (conf.getStartMessageId() == null) {
             return FutureUtil
                     .failedFuture(new PulsarClientException.InvalidConfigurationException("Invalid startMessageId"));
         }
+
+        if (conf.getTopicNames().size() == 1) {
+            return preProcessSchemaBeforeSubscribe(this, schema, conf.getTopicName())
+                    .thenCompose(schemaClone -> createSingleTopicReaderAsync(conf, schemaClone));
+        }
+        return createMultiTopicReaderAsync(conf, schema);
+    }
+
+    protected <T> CompletableFuture<Reader<T>> createMultiTopicReaderAsync(
+            ReaderConfigurationData<T> conf, Schema<T> schema) {
+        CompletableFuture<Reader<T>> readerFuture = new CompletableFuture<>();
+        CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
+        MultiTopicsReaderImpl<T> reader = new MultiTopicsReaderImpl<>(this,
+                conf, externalExecutorProvider, consumerSubscribedFuture, schema);
+        ConsumerBase<T> consumer = reader.getMultiTopicsConsumer();
+        consumers.add(consumer);
+        consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader))
+                .exceptionally(ex -> {
+                    log.warn("Failed to create multiTopicReader", ex);
+                    readerFuture.completeExceptionally(ex);
+                    return null;
+                });
+        return readerFuture;
+    }
+
+    protected <T> CompletableFuture<Reader<T>> createSingleTopicReaderAsync(
+            ReaderConfigurationData<T> conf, Schema<T> schema) {
+        String topic = conf.getTopicName();
 
         CompletableFuture<Reader<T>> readerFuture = new CompletableFuture<>();
 
@@ -652,7 +684,9 @@ public class PulsarClientImpl implements PulsarClient {
         try {
             lookup.close();
             cnxPool.close();
-            timer.stop();
+            if (needStopTimer) {
+                timer.stop();
+            }
             externalExecutorProvider.shutdownNow();
             internalExecutorService.shutdownNow();
             conf.getAuthentication().close();
@@ -867,7 +901,7 @@ public class PulsarClientImpl implements PulsarClient {
 
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
                     if (null == schemaInfo) {
-                        if (!(finalSchema instanceof AbstractAutoConsumeSchema)) {
+                        if (!(finalSchema instanceof AutoConsumeSchema)) {
                             // no schema info is found
                             return FutureUtil.failedFuture(
                                     new PulsarClientException.NotFoundException(

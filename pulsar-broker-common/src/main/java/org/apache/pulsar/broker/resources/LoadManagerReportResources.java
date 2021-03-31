@@ -16,29 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.schema;
+package org.apache.pulsar.broker.resources;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 
-/**
- * Auto detect schema.
- */
-@Slf4j
-public class ObjectSchema extends AbstractAutoConsumeSchema<Object> {
+public class LoadManagerReportResources extends BaseResources<LoadManagerReport> {
 
-    @Override
-    public Schema<Object> clone() {
-        Schema<Object> schema = Schema.OBJECT();
-        if (this.schema != null) {
-            schema.configureSchemaInfo(topicName, componentName, this.schema.getSchemaInfo());
-        } else {
-            schema.configureSchemaInfo(topicName, componentName, null);
-        }
-        if (schemaInfoProvider != null) {
-            schema.setSchemaInfoProvider(schemaInfoProvider);
-        }
-        return schema;
+    public LoadManagerReportResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
+        super(configurationStore, LoadManagerReport.class, operationTimeoutSec);
     }
-
 }

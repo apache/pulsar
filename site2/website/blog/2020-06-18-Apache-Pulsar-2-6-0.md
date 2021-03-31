@@ -116,11 +116,11 @@ You can customize more parameters for the `ThresholdShedder` if needed as below.
 # The broker resource usage threshold.
 # When the broker resource usage is greater than the pulsar cluster average resource usage,
 # the threshold shedder will be triggered to offload bundles from the broker.
-# It only takes effect in ThresholdSheddler strategy.
+# It only takes effect in ThresholdShedder strategy.
 loadBalancerBrokerThresholdShedderPercentage=10
 
 # When calculating new resource usage, the history usage accounts for.
-# It only takes effect in ThresholdSheddler strategy.
+# It only takes effect in ThresholdShedder strategy.
 loadBalancerHistoryResourcePercentage=0.9
 
 # The BandWithIn usage weight when calculating new resource usage.

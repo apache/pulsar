@@ -414,8 +414,8 @@ public class ConcurrentOpenHashMapTest {
         }
     }
 
-    void benchHashMap() throws Exception {
-        HashMap<Long, String> map = new HashMap<Long, String>(N, 0.66f);
+    void benchHashMap() {
+        HashMap<Long, String> map = new HashMap<>(N, 0.66f);
 
         for (long i = 0; i < Iterations; i++) {
             for (int j = 0; j < N; j++) {

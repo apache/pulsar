@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.presto;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
 import lombok.Cleanup;
@@ -35,6 +36,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -101,6 +104,37 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         }
         String topic = String.format("public/default/schema_%s_test_%s", schemaFlag, randomName(5)).toLowerCase();
         pulsarSQLBasicTest(TopicName.get(topic), false, false, schema);
+    }
+
+    @Test
+    public void testForUppercaseTopic() throws Exception {
+        TopicName topicName = TopicName.get("public/default/case_UPPER_topic_" + randomName(5));
+        pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class));
+    }
+
+    @Test
+    public void testForDifferentCaseTopic() throws Exception {
+        String tableName = "diff_case_topic_" + randomName(5);
+
+        String topic1 = "public/default/" + tableName.toUpperCase();
+        TopicName topicName1 = TopicName.get(topic1);
+        prepareData(topicName1, false, false, JSONSchema.of(Stock.class));
+
+        String topic2 = "public/default/" + tableName;
+        TopicName topicName2 = TopicName.get(topic2);
+        prepareData(topicName2, false, false, JSONSchema.of(Stock.class));
+
+        try {
+            String query = "select * from pulsar.\"public/default\".\"" + tableName + "\"";
+            execQuery(query);
+            Assert.fail("The testForDifferentCaseTopic query [" + query + "] should be failed.");
+        } catch (ContainerExecException e) {
+            log.warn("Expected exception. result stderr: {}", e.getResult().getStderr(), e);
+            assertTrue(e.getResult().getStderr().contains("There are multiple topics"));
+            assertTrue(e.getResult().getStderr().contains(topic1));
+            assertTrue(e.getResult().getStderr().contains(topic2));
+            assertTrue(e.getResult().getStderr().contains("matched the table name public/default/" + tableName));
+        }
     }
 
     @Override

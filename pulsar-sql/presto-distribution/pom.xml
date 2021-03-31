@@ -25,7 +25,7 @@
     <parent>
         <groupId>org.apache</groupId>
         <artifactId>apache</artifactId>
-        <version>18</version>
+        <version>23</version>
     </parent>
 
     <groupId>org.apache.pulsar</groupId>
@@ -34,7 +34,9 @@
     <version>2.8.0-SNAPSHOT</version>
 
     <properties>
-        <jersey.version>2.31</jersey.version>
+      <maven.compiler.source>1.8</maven.compiler.source>
+      <maven.compiler.target>1.8</maven.compiler.target>
+      <jersey.version>2.31</jersey.version>
         <presto.version>332</presto.version>
         <airlift.version>0.170</airlift.version>
         <objenesis.version>2.6</objenesis.version>
@@ -262,9 +264,6 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-install-plugin</artifactId>
-            </plugin>
-            <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>3.3.0</version>
                 <configuration>
@@ -324,19 +323,12 @@
                 </mapping>
               </configuration>
             </plugin>
-            <plugin>
-              <artifactId>maven-compiler-plugin</artifactId>
-              <configuration>
-                <source>1.8</source>
-                <target>1.8</target>
-              </configuration>
-            </plugin>
         </plugins>
         <extensions>
             <extension>
                 <groupId>org.apache.maven.wagon</groupId>
                 <artifactId>wagon-ssh-external</artifactId>
-                <version>2.10</version>
+                <version>3.4.3</version>
             </extension>
         </extensions>
     </build>

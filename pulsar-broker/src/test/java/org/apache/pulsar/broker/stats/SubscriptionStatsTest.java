@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
+@Test(groups = "broker")
 public class SubscriptionStatsTest extends ProducerConsumerBase {
 
     @BeforeClass

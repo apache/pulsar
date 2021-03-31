@@ -37,6 +37,19 @@ INT_KEYS = [
     'instanceLivenessCheckFreqMs'
 ]
 
+SET_KEYS = [
+    'brokerInterceptors',
+    'messagingProtocols',
+    'tlsProtocols',
+    'tlsCiphers',
+    'authenticationProviders',
+    'superUserRoles',
+    'proxyRoles',
+    'schemaRegistryCompatibilityCheckers',
+    'brokerClientTlsCiphers',
+    'brokerClientTlsProtocols'
+]
+
 PF_ENV_PREFIX = 'PF_'
 
 if len(sys.argv) < 2:
@@ -66,6 +79,8 @@ for conf_filename in conf_files:
             if i == (len(key_parts) - 1):
                 if key_part in INT_KEYS:
                     conf_to_modify[key_part] = int(v)
+                elif key_part in SET_KEYS:
+                    conf_to_modify[key_part] = v.split(',')
                 else:
                     conf_to_modify[key_part] = v
                 modified = True

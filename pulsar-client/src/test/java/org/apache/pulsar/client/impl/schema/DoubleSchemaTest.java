@@ -28,7 +28,7 @@ public class DoubleSchemaTest {
     @Test
     public void testSchemaEncode() {
         DoubleSchema schema = DoubleSchema.of();
-        Double data = new Double(12345678.1234);
+        double data = 12345678.1234;
         long longData = Double.doubleToLongBits(data);
         byte[] expected = new byte[] {
                 (byte) (longData >>> 56),
@@ -46,7 +46,7 @@ public class DoubleSchemaTest {
     @Test
     public void testSchemaEncodeDecodeFidelity() {
         DoubleSchema schema = DoubleSchema.of();
-        Double dbl = new Double(1234578.8754321);
+        Double dbl = 1234578.8754321;
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
         byte[] bytes = schema.encode(dbl);
         byteBuf.writeBytes(bytes);

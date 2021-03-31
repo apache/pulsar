@@ -403,7 +403,7 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (RestException re) {
             throw re;
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e){
-            log.error("Topic {} policies cache have not init.", topicName);
+            log.error("Topic {} policies have not been initialized yet.", topicName);
             throw new RestException(e);
         } catch (Exception e) {
             log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
