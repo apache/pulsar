@@ -2903,7 +2903,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException;
+    Integer getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException;
 
     /**
      * Get the maxConsumersPerSubscription for a namespace asynchronously.
@@ -2957,6 +2957,20 @@ public interface Namespaces {
      *            maxConsumersPerSubscription value for a namespace
      */
     CompletableFuture<Void> setMaxConsumersPerSubscriptionAsync(String namespace, int maxConsumersPerSubscription);
+
+    /**
+     * Remove maxConsumersPerSubscription for a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeMaxConsumersPerSubscription(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove maxConsumersPerSubscription for a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeMaxConsumersPerSubscriptionAsync(String namespace);
 
     /**
      * Get the maxUnackedMessagesPerConsumer for a namespace.
