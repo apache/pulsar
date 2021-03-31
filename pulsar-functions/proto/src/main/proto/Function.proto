@@ -135,7 +135,7 @@ message ProducerSpec {
     CompressionType compressionType = 9;
     HashingScheme hashingScheme = 10;
     MessageRoutingMode messageRoutingMode = 11;
-    int32 batchingMaxPublishDelay = 12;
+    int64 batchingMaxPublishDelay = 12;
 }
 
 message CryptoSpec {

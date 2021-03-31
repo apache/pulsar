@@ -69,6 +69,7 @@ import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.functions.ProducerDefaultsFromProtobufConverter;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 import org.slf4j.Logger;
@@ -720,20 +721,22 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void setupOutput(ContextImpl contextImpl) throws Exception {
-
-        SinkSpec sinkSpec = this.instanceConfig.getFunctionDetails().getSink();
+        org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails =
+                this.instanceConfig.getFunctionDetails();
+        SinkSpec sinkSpec = functionDetails.getSink();
         Object object;
         // If sink classname is not set, we default pulsar sink
         if (sinkSpec.getClassName().isEmpty()) {
             if (StringUtils.isEmpty(sinkSpec.getTopic())) {
                 object = PulsarSinkDisable.INSTANCE;
             } else {
+
                 PulsarSinkConfig pulsarSinkConfig = new PulsarSinkConfig();
                 pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
-                        this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
+                        functionDetails.getProcessingGuarantees().name()));
                 pulsarSinkConfig.setTopic(sinkSpec.getTopic());
                 pulsarSinkConfig.setForwardSourceMessageProperty(
-                        this.instanceConfig.getFunctionDetails().getSink().getForwardSourceMessageProperty());
+                        functionDetails.getSink().getForwardSourceMessageProperty());
 
                 if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
                     pulsarSinkConfig.setSchemaType(sinkSpec.getSchemaType());
@@ -744,17 +747,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
                 pulsarSinkConfig.setSchemaProperties(sinkSpec.getSchemaPropertiesMap());
 
-                if (this.instanceConfig.getFunctionDetails().getSink().getProducerSpec() != null) {
-                    org.apache.pulsar.functions.proto.Function.ProducerSpec conf = this.instanceConfig.getFunctionDetails().getSink().getProducerSpec();
-                    ProducerConfig.ProducerConfigBuilder builder = ProducerConfig.builder()
-                            .maxPendingMessages(conf.getMaxPendingMessages())
-                            .maxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions())
-                            .useThreadLocalProducers(conf.getUseThreadLocalProducers())
-                            .cryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
-                    pulsarSinkConfig.setProducerConfig(builder.build());
+                if (functionDetails.getSink().getProducerSpec() != null) {
+
+                    org.apache.pulsar.functions.proto.Function.ProducerSpec producerSpec = functionDetails.getSink().getProducerSpec();
+                    ProducerDefaultsFromProtobufConverter converter =
+                            new ProducerDefaultsFromProtobufConverter(producerSpec);
+                    ProducerConfig producerConfig = converter.getProducerConfig();
+                    pulsarSinkConfig.setProducerConfig(producerConfig);
                 }
 
-                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.functionClassLoader, this.instanceConfig);
+                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.functionClassLoader);
             }
         } else {
             object = Reflections.createInstance(

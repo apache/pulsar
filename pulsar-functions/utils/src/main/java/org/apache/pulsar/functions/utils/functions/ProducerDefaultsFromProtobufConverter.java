@@ -23,7 +23,10 @@ import lombok.Getter;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.common.functions.CryptoConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.CryptoUtils;
 
 @Getter
 @AllArgsConstructor
@@ -68,5 +71,57 @@ public class ProducerDefaultsFromProtobufConverter {
                 return MessageRoutingMode.CustomPartition;
 
         }
+    }
+
+    public boolean getBatchingDisabled(){
+        return spec.getBatchingDisabled();
+    }
+    public boolean getBatchingEnabled(){
+        return !this.getBatchingDisabled();
+    }
+    public boolean getChunkingEnabled(){
+        return spec.getChunkingEnabled();
+    }
+    public boolean getChunkingDisabled(){
+        return !this.getChunkingEnabled();
+    }
+    public boolean getBlockIfQueueFullDisabled(){
+        return spec.getBlockIfQueueFullDisabled();
+    }
+    public boolean getBlockIfQueueFullEnabled(){
+        return !this.getBlockIfQueueFullDisabled();
+    }
+    public long getBatchingMaxPublishDelay(){
+        return spec.getBatchingMaxPublishDelay();
+    }
+    public int getMaxPendingMessages(){
+        return spec.getMaxPendingMessages();
+    }
+    public int getMaxPendingMessagesAcrossPartitions(){
+        return spec.getMaxPendingMessagesAcrossPartitions();
+    }
+    public boolean getUseThreadLocalProducers(){
+        return spec.getUseThreadLocalProducers();
+    }
+    public CryptoConfig getCryptoConfig(){
+        return CryptoUtils.convertFromSpec(spec.getCryptoSpec());
+    }
+
+
+    public ProducerConfig getProducerConfig(){
+        ProducerConfig.ProducerConfigBuilder builder = ProducerConfig
+                .builder()
+                .batchingDisabled(this.getBatchingDisabled())
+                .chunkingEnabled(this.getChunkingEnabled())
+                .blockIfQueueFullDisabled(this.getBlockIfQueueFullDisabled())
+                .compressionType(this.getCompressionType())
+                .hashingScheme(this.getHashingScheme())
+                .messageRoutingMode(this.getMessageRoutingMode())
+                .batchingMaxPublishDelay(this.getBatchingMaxPublishDelay())
+                .maxPendingMessages(this.getMaxPendingMessages())
+                .maxPendingMessagesAcrossPartitions(this.getMaxPendingMessagesAcrossPartitions())
+                .useThreadLocalProducers(this.getUseThreadLocalProducers())
+                .cryptoConfig(this.getCryptoConfig());
+        return builder.build();
     }
 }

@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaultsProxy;
 
@@ -53,8 +54,8 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
     public static FunctionResultRouter of() {
         return INSTANCE;
     }
-    public static FunctionResultRouter of(Function.ProducerSpec producerSpec) {
-        INSTANCE.isBatchingEnabled = !producerSpec.getBatchingDisabled();
+    public static FunctionResultRouter of(ProducerConfig producerConfig) {
+        INSTANCE.isBatchingEnabled = producerConfig.getBatchingEnabled();
         return INSTANCE;
     }
 

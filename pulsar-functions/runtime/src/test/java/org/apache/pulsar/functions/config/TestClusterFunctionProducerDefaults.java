@@ -58,7 +58,7 @@ public class TestClusterFunctionProducerDefaults {
                 .setCompressionType(Function.CompressionType.LZ4)
                 .setHashingScheme(Function.HashingScheme.MURMUR3_32HASH)
                 .setMessageRoutingMode(Function.MessageRoutingMode.CUSTOM_PARTITION)
-                .setBatchingMaxPublishDelay(0)  // This is the default case.
+                .setBatchingMaxPublishDelay(0L)  // This is the default case.
                 .build();
         Function.SinkSpec sink = Function.SinkSpec.newBuilder()
                 .setProducerSpec(producerSpec)
@@ -101,7 +101,7 @@ public class TestClusterFunctionProducerDefaults {
                 .setCompressionType(Function.CompressionType.LZ4)
                 .setHashingScheme(Function.HashingScheme.MURMUR3_32HASH)
                 .setMessageRoutingMode(Function.MessageRoutingMode.CUSTOM_PARTITION)
-                .setBatchingMaxPublishDelay(0)  // This is the default case.
+                .setBatchingMaxPublishDelay(0L)  // This is the default case.
                 .build();
         Function.SinkSpec sink = Function.SinkSpec.newBuilder()
                 .setProducerSpec(producerSpec)
@@ -273,7 +273,7 @@ public class TestClusterFunctionProducerDefaults {
         when(config.getCompressionType()).thenReturn(CompressionType.LZ4);
         when(config.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
         when(config.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
-        when(config.getBatchingMaxPublishDelay()).thenReturn(10);
+        when(config.getBatchingMaxPublishDelay()).thenReturn(10L);
 
         ConfigureFunctionDefaults clusterFunctionDefaults = new ConfigureFunctionDefaults(producerDefaults, config);
 
@@ -303,7 +303,7 @@ public class TestClusterFunctionProducerDefaults {
         when(config.getCompressionType()).thenReturn(CompressionType.LZ4);
         when(config.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
         when(config.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
-        when(config.getBatchingMaxPublishDelay()).thenReturn(10);
+        when(config.getBatchingMaxPublishDelay()).thenReturn(10L);
 
         ConfigureFunctionDefaults clusterFunctionDefaults = new ConfigureFunctionDefaults(producerDefaults, config);
 

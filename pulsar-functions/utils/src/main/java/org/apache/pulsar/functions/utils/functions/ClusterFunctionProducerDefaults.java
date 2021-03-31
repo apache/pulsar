@@ -43,7 +43,7 @@ public class ClusterFunctionProducerDefaults {
     private HashingScheme hashingScheme;
     private MessageRoutingMode messageRoutingMode;
 
-    private int batchingMaxPublishDelay;
+    private long batchingMaxPublishDelay;
 
     public ClusterFunctionProducerDefaults(boolean batchingDisabled, boolean chunkingEnabled, boolean blockIfQueueFullDisabled,
                                            String compressionType, String hashingScheme, String messageRoutingMode,

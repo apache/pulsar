@@ -377,7 +377,7 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         producerConfig.setCompressionType(CompressionType.SNAPPY);
         producerConfig.setHashingScheme(HashingScheme.JavaStringHash);
         producerConfig.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        producerConfig.setBatchingMaxPublishDelay(12);
+        producerConfig.setBatchingMaxPublishDelay(12L);
         producerConfig.setMaxPendingMessages(100);
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);

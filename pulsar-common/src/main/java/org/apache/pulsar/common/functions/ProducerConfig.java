@@ -58,5 +58,11 @@ public class ProducerConfig {
     public CompressionType compressionType;
     public HashingScheme hashingScheme;
     public MessageRoutingMode messageRoutingMode;
-    public Integer batchingMaxPublishDelay;
+    public Long batchingMaxPublishDelay;
+    public boolean getBatchingEnabled(){
+        return !this.getBatchingDisabled();
+    }
+    public boolean getBlockIfQueueFullEnabled(){
+        return !this.getBlockIfQueueFullDisabled();
+    }
 }

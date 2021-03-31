@@ -79,7 +79,6 @@ public class PulsarSink<T> implements Sink<T> {
     private final Map<String, String> properties;
     private final ClassLoader functionClassLoader;
     private ComponentStatsManager stats;
-    private InstanceConfig instanceConfig;
 
     @VisibleForTesting
     PulsarSinkProcessor<T> pulsarSinkProcessor;
@@ -107,19 +106,17 @@ public class PulsarSink<T> implements Sink<T> {
 
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
-            InstanceConfig localInstanceConfig = PulsarSink.this.instanceConfig;
-            org.apache.pulsar.functions.proto.Function.ProducerSpec producerSpec = localInstanceConfig.getFunctionDetails().getSink().getProducerSpec();
-
-            ProducerDefaultsFromProtobufConverter converter = new ProducerDefaultsFromProtobufConverter(producerSpec);
+            ProducerConfig producerConfig = pulsarSinkConfig.getProducerConfig();
+            if(producerConfig == null){
+                // TODO: Remove this block before pushing upstream. This is just for testing!
+                throw new PulsarClientException("ERROR: producerConfig was null in PulsarSinkProcessorBase.createProducer");
+            }
+            if(producerConfig.getBatchingDisabled() == null){
+                // TODO: Remove this block before pushing upstream. This is just for testing!
+                throw new PulsarClientException("ERROR: producerConfig.getBatchingDisabled() was null in PulsarSinkProcessorBase.createProducer");
+            }
             ProducerBuilder<T> builder = null;
             builder = client.newProducer(schema)
-                    .blockIfQueueFull(!producerSpec.getBlockIfQueueFullDisabled())
-                    .enableBatching(!producerSpec.getBatchingDisabled())
-                    .batchingMaxPublishDelay(producerSpec.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS)
-                    .compressionType(converter.getCompressionType())
-                    .hashingScheme(converter.getHashingScheme()) //
-                    .messageRoutingMode(converter.getMessageRoutingMode())
-                    .messageRouter(FunctionResultRouter.of(producerSpec))
                     // set send timeout to be infinity to prevent potential deadlock with consumer
                     // that might happen when consumer is blocked due to unacked messages
                     .sendTimeout(0, TimeUnit.SECONDS)
@@ -128,11 +125,28 @@ public class PulsarSink<T> implements Sink<T> {
                 builder.producerName(producerName);
             }
             if (pulsarSinkConfig.getProducerConfig() != null) {
-                ProducerConfig producerConfig = pulsarSinkConfig.getProducerConfig();
-                if (producerConfig.getMaxPendingMessages() != 0) {
+                try {
+                    // For some unexplainable reason, builder.enableChunking(..) returns null instead of a builder.
+                    builder
+                            .blockIfQueueFull(producerConfig.getBlockIfQueueFullEnabled())
+                            .enableBatching(producerConfig.getBatchingEnabled())
+                            .enableChunking(producerConfig.getChunkingEnabled());
+                    builder
+                            .batchingMaxPublishDelay(producerConfig.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS)
+                            .compressionType(producerConfig.getCompressionType())
+                            .hashingScheme(producerConfig.getHashingScheme())
+                            .messageRoutingMode(producerConfig.getMessageRoutingMode())
+                            .messageRouter(FunctionResultRouter.of(producerConfig));
+                } catch (Exception ex){
+                    // TODO: Remove this try/catch after testing (after we verify that it is never thrown)
+                    throw new PulsarClientException("ERROR: One of the producer defaults for producerConfig" +
+                            " was null in PulsarSinkProcessorBase.createProducer()");
+                }
+
+                if (producerConfig.getMaxPendingMessages() != null && producerConfig.getMaxPendingMessages() != 0) {
                     builder.maxPendingMessages(producerConfig.getMaxPendingMessages());
                 }
-                if (producerConfig.getMaxPendingMessagesAcrossPartitions() != 0) {
+                if (producerConfig.getMaxPendingMessagesAcrossPartitions() != null && producerConfig.getMaxPendingMessagesAcrossPartitions() != 0) {
                     builder.maxPendingMessagesAcrossPartitions(producerConfig.getMaxPendingMessagesAcrossPartitions());
                 }
                 if (producerConfig.getCryptoConfig() != null) {
@@ -328,14 +342,13 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
     public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties,
-                      ComponentStatsManager stats, ClassLoader functionClassLoader, InstanceConfig instanceConfig) {
+                      ComponentStatsManager stats, ClassLoader functionClassLoader) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client);
         this.properties = properties;
         this.stats = stats;
         this.functionClassLoader = functionClassLoader;
-        this.instanceConfig = instanceConfig;
     }
 
     @Override

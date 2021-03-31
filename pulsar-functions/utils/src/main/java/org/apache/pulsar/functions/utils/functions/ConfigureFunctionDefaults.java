@@ -107,7 +107,7 @@ public class ConfigureFunctionDefaults {
                 return Function.MessageRoutingMode.CUSTOM_PARTITION;
         }
     }
-    public Integer getBatchingMaxPublishDelay(){
+    public Long getBatchingMaxPublishDelay(){
         if (producerConfig.getBatchingMaxPublishDelay() == null){
             return producerDefaults.getBatchingMaxPublishDelay();
         }

@@ -72,4 +72,22 @@ public class ProducerDefaultsToProtobufConverter {
                 throw new InvalidFunctionDefaultException("messageRoutingMode", messageRoutingMode.name());
         }
     }
+    public boolean getBatchingDisabled(){
+        return config.getBatchingDisabled();
+    }
+    public boolean getBatchingEnabled(){
+        return !this.getBatchingDisabled();
+    }
+    public boolean getChunkingDisabled(){
+        return config.getChunkingEnabled();
+    }
+    public boolean getBlockIfQueueFullDisabled(){
+        return config.getBlockIfQueueFullDisabled();
+    }
+    public boolean getBlockIfQueueFullEnabled(){
+        return !this.getBlockIfQueueFullDisabled();
+    }
+    public long getBatchingMaxPublishDelay(){
+        return config.getBatchingMaxPublishDelay();
+    }
 }

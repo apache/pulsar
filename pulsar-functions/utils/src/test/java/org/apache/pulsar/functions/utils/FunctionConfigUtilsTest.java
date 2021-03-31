@@ -90,7 +90,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setCompressionType(CompressionType.LZ4);
         producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
         producerConfig.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
-        producerConfig.setBatchingMaxPublishDelay(12);
+        producerConfig.setBatchingMaxPublishDelay(12L);
 
         functionConfig.setProducerConfig(producerConfig);
 
@@ -104,7 +104,7 @@ public class FunctionConfigUtilsTest {
         when(defaults.getHashingSchemeProto()).thenReturn(Function.HashingScheme.MURMUR3_32HASH);
         when(defaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
         when(defaults.getMessageRoutingModeProto()).thenReturn(Function.MessageRoutingMode.CUSTOM_PARTITION);
-        when(defaults.getBatchingMaxPublishDelay()).thenReturn(12);
+        when(defaults.getBatchingMaxPublishDelay()).thenReturn(12L);
 
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null, defaults);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
@@ -152,7 +152,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setCompressionType(CompressionType.LZ4);
         producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
         producerConfig.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
-        producerConfig.setBatchingMaxPublishDelay(12);
+        producerConfig.setBatchingMaxPublishDelay(12L);
 
         functionConfig.setProducerConfig(producerConfig);
 
@@ -166,7 +166,7 @@ public class FunctionConfigUtilsTest {
         when(defaults.getHashingSchemeProto()).thenReturn(Function.HashingScheme.MURMUR3_32HASH);
         when(defaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
         when(defaults.getMessageRoutingModeProto()).thenReturn(Function.MessageRoutingMode.CUSTOM_PARTITION);
-        when(defaults.getBatchingMaxPublishDelay()).thenReturn(12);
+        when(defaults.getBatchingMaxPublishDelay()).thenReturn(12L);
 
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null, defaults);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);

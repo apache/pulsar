@@ -135,7 +135,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 } catch (PulsarClientException ex) {
                     throw new RuntimeException("failed to create pulsar client for external cluster: " + entry.getKey(), ex);
                 } catch (FunctionDefaultException ex){
-                    throw new RuntimeException("ERROR: Problem with defaults in ContextImpl");
+                    throw new RuntimeException("ERROR: Problem with defaults in ContextImpl when creating pulsar " +
+                            "client for external cluster: " + entry.getKey(), ex);
                 }
             }
         }
@@ -495,13 +496,13 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             Producer<O> newProducer = null;
             newProducer = ((ProducerBuilderImpl<O>) pulsar.getProducerBuilder().clone())
                     .schema(schema)
-                    .blockIfQueueFull(producerSpec.getBlockIfQueueFullDisabled())
-                    .enableBatching(producerSpec.getBatchingDisabled())
-                    .batchingMaxPublishDelay(producerSpec.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS) // previously was 10 milliseconds
+                    .blockIfQueueFull(converter.getBlockIfQueueFullEnabled())
+                    .enableBatching(converter.getBatchingEnabled())
+                    .batchingMaxPublishDelay(converter.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS) // previously was 10 milliseconds
                     .compressionType(converter.getCompressionType())
                     .hashingScheme(converter.getHashingScheme()) //
                     .messageRoutingMode(converter.getMessageRoutingMode())
-                    .messageRouter(FunctionResultRouter.of(producerSpec))
+                    .messageRouter(FunctionResultRouter.of(converter.getProducerConfig()))
                     // set send timeout to be infinity to prevent potential deadlock with consumer
                     // that might happen when consumer is blocked due to unacked messages
                     .sendTimeout(0, TimeUnit.SECONDS)
