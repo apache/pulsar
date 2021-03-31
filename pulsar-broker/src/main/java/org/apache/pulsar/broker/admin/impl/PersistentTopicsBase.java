@@ -565,7 +565,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
+            log.error("Topic {} policies have not been initialized yet.", topicName);
             asyncResponse.resume(new RestException(e));
             return;
         }
@@ -829,8 +829,8 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
-            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
+            log.error("Topic {} policies have not been initialized yet.", topicName);
+            throw new RestException(Status.PRECONDITION_FAILED, "Policies have not been initialized yet");
         }
         if (topicPolicies == null) {
             topicPolicies = new TopicPolicies();
@@ -883,9 +883,9 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
+            log.error("Topic {} policies have not been initialized yet.", topicName);
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Policies cache have not init"));
+                    "Policies have not been initialized yet"));
         }
         if (topicPolicies == null) {
             topicPolicies = new TopicPolicies();
@@ -947,8 +947,8 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
-            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
+            log.error("Topic {} policies have not been initialized yet.", topicName);
+            throw new RestException(Status.PRECONDITION_FAILED, "Policies have not been initialized yet");
         }
         if (topicPolicies == null) {
             topicPolicies = new TopicPolicies();
@@ -980,9 +980,9 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
+            log.error("Topic {} policies have not been initialized yet.", topicName);
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Policies cache have not init"));
+                    "Policies have not been initialized yet"));
         }
         if (topicPolicies == null) {
             topicPolicies = new TopicPolicies();
@@ -2561,7 +2561,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName);
+            log.error("Topic {} policies have not been initialized yet.", topicName);
             asyncResponse.resume(new RestException(e));
             return;
         }
@@ -2622,8 +2622,8 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
-            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
+            log.error("Topic {} policies have not been initialized yet.", topicName);
+            throw new RestException(Status.PRECONDITION_FAILED, "Policies have not been initialized yet");
         }
         if (topicPolicies == null) {
             topicPolicies = new TopicPolicies();
@@ -2642,7 +2642,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName);
+            log.error("Topic {} policies have not been initialized yet.", topicName);
             asyncResponse.resume(new RestException(e));
             return;
         }
