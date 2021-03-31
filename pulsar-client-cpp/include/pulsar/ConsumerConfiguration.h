@@ -89,6 +89,10 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * consumers will be promoted to primary and will start getting messages.
      */
     ConsumerConfiguration& setConsumerType(ConsumerType consumerType);
+
+    /**
+     * @return the consumer type
+     */
     ConsumerType getConsumerType() const;
 
     /**
@@ -100,6 +104,10 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
      */
     ConsumerConfiguration& setKeySharedPolicy(KeySharedPolicy keySharedPolicy);
+
+    /**
+     * @return the KeyShared subscription policy
+     */
     KeySharedPolicy getKeySharedPolicy() const;
 
     /**
@@ -108,31 +116,43 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * for every message received.
      */
     ConsumerConfiguration& setMessageListener(MessageListener messageListener);
+
+    /**
+     * @return the message listener
+     */
     MessageListener getMessageListener() const;
+
+    /**
+     * @return true if the message listener has been set
+     */
     bool hasMessageListener() const;
 
     /**
      * Sets the size of the consumer receive queue.
      *
-     * The consumer receive queue controls how many messages can be accumulated by the Consumer before the
-     * application calls receive(). Using a higher value could potentially increase the consumer throughput
+     * The consumer receive queue controls how many messages can be accumulated by the consumer before the
+     * application calls receive(). Using a higher value may potentially increase the consumer throughput
      * at the expense of bigger memory utilization.
      *
-     * Setting the consumer queue size as zero decreases the throughput of the consumer, by disabling
+     * Setting the consumer queue size to 0 decreases the throughput of the consumer by disabling
      * pre-fetching of
-     * messages. This approach improves the message distribution on shared subscription, by pushing messages
+     * messages. This approach improves the message distribution on shared subscription by pushing messages
      * only to
-     * the consumers that are ready to process them. Neither receive with timeout nor Partitioned Topics can
+     * the consumers that are ready to process them. Neither receive with timeout nor partitioned topics can
      * be
-     * used if the consumer queue size is zero. The receive() function call should not be interrupted when
-     * the consumer queue size is zero.
+     * used if the consumer queue size is 0. The receive() function call should not be interrupted when
+     * the consumer queue size is 0.
      *
-     * Default value is 1000 messages and should be good for most use cases.
+     * The default value is 1000 messages and it is appropriate for the most use cases.
      *
-     * @param size
-     *            the new receiver queue size value
+     * @param size the new receiver queue size value
+     *            
      */
     void setReceiverQueueSize(int size);
+
+    /**
+     * @return the receiver queue size
+     */
     int getReceiverQueueSize() const;
 
     /**
@@ -150,7 +170,16 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      */
     int getMaxTotalReceiverQueueSizeAcrossPartitions() const;
 
-    void setConsumerName(const std::string&);
+    /**
+     * Set the consumer name.
+     *
+     * @param consumerName
+     */
+    void setConsumerName(const std::string& consumerName);
+
+    /**
+     * @return the consumer name
+     */
     const std::string& getConsumerName() const;
 
     /**
@@ -167,8 +196,22 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      */
     long getUnAckedMessagesTimeoutMs() const;
 
+    /**
+     * Set the tick duration time that defines the granularity of the ack-timeout redelivery (in
+     * milliseconds). 
+     * <p> 
+     * The default value is 1000, which means 1 second. 
+     * <p>
+     * Using a higher tick time reduces
+     * the memory overhead to track messages when the ack-timeout is set to a bigger value.
+     *
+     * @param milliSeconds the tick duration time (in milliseconds)
+     */
     void setTickDurationInMs(const uint64_t milliSeconds);
 
+    /**
+     * @return the tick duration time (in milliseconds)
+     */
     long getTickDurationInMs() const;
 
     /**
@@ -235,14 +278,51 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      */
     long getBrokerConsumerStatsCacheTimeInMs() const;
 
+    /**
+     * @return true if encryption keys are added
+     */
     bool isEncryptionEnabled() const;
+
+    /**
+     * @return the shared pointer to CryptoKeyReader.
+     */
     const CryptoKeyReaderPtr getCryptoKeyReader() const;
+
+    /**
+     * Set the shared pointer to CryptoKeyReader.
+     *
+     * @param the shared pointer to CryptoKeyReader
+     */
     ConsumerConfiguration& setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
 
+    /**
+     * @return the ConsumerCryptoFailureAction
+     */
     ConsumerCryptoFailureAction getCryptoFailureAction() const;
+
+    /**
+     * Set the ConsumerCryptoFailureAction.
+     */
     ConsumerConfiguration& setCryptoFailureAction(ConsumerCryptoFailureAction action);
 
+    /**
+     * @return true if readCompacted is enabled
+     */
     bool isReadCompacted() const;
+
+    /**
+     * If enabled, the consumer reads messages from the compacted topics rather than reading the full message
+     * backlog of the topic. This means that if the topic has been compacted, the consumer only sees the
+     * latest value for each key in the topic, up until the point in the topic message backlog that has been
+     * compacted. Beyond that point, message is sent as normal.
+     *
+     * `readCompacted` can only be enabled subscriptions to persistent topics, which have a single active
+     * consumer (for example, failure or exclusive subscriptions). Attempting to enable it on subscriptions to
+     * a non-persistent topics or on a shared subscription leads to the subscription call failure.
+     *
+     * @param readCompacted
+     *            whether to read from the compacted topic
+     */
     void setReadCompacted(bool compacted);
 
     /**
@@ -253,9 +333,23 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * @param periodInSeconds       period in seconds to do an auto discovery
      */
     void setPatternAutoDiscoveryPeriod(int periodInSeconds);
+
+    /**
+     * @return the time duration for the PatternMultiTopicsConsumer performs a pattern auto discovery
+     */
     int getPatternAutoDiscoveryPeriod() const;
 
+    /**
+     * @param subscriptionInitialPosition the initial position at which to set
+     * the cursor when subscribing to the topic for the first time.
+     *
+     * The default value is `InitialPositionLatest`.
+     */
     void setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition);
+
+    /**
+     * @return the configured `InitialPosition` for the consumer.
+     */
     InitialPosition getSubscriptionInitialPosition() const;
 
     /**
