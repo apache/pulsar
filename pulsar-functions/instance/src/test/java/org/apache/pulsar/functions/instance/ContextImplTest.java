@@ -80,7 +80,7 @@ public class ContextImplTest {
                 .setCompressionType(Function.CompressionType.LZ4)
                 .setHashingScheme(Function.HashingScheme.MURMUR3_32HASH)
                 .setMessageRoutingMode(Function.MessageRoutingMode.CUSTOM_PARTITION)
-                .setBatchingMaxPublishDelay(0L)  // This is the default case.
+                .setBatchingMaxPublishDelay(10L)  // This is the default case.
                 .build();
         Function.SinkSpec sink = Function.SinkSpec.newBuilder()
                 .setProducerSpec(producerSpec)

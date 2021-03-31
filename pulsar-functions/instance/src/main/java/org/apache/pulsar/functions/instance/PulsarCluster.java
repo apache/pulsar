@@ -63,7 +63,7 @@ public class PulsarCluster {
                     .enableBatching(!producerSpec.getBatchingDisabled())
                     .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS); // Should we use any other defaults from producerSpec here?
         } else {
-            throw new FunctionDefaultException("ERROR: producerSpec was null when configuring producer in PulsarCluter's constructor");
+            throw new FunctionDefaultException("ERROR: producerSpec was null when configuring producer in PulsarCluster's constructor");
         }
         boolean useThreadLocalProducers = false;
       //  if (producerSpec != null) {
