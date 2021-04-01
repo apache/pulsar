@@ -27,6 +27,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -63,7 +64,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
      */
     @Test
     public void testReplicatedSubscriptionAcrossTwoRegions() throws Exception {
-        String namespace = "pulsar/replicatedsubscription-" + System.currentTimeMillis();
+        String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
         String topicName = "persistent://" + namespace + "/mytopic";
         String subscriptionName = "cluster-subscription";
         // Subscription replication produces duplicates, https://github.com/apache/pulsar/issues/10054
@@ -77,14 +78,16 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
 
         @Cleanup
-        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         // create subscription in r1
         createReplicatedSubscription(client1, topicName, subscriptionName, replicateSubscriptionState);
 
         @Cleanup
-        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         // create subscription in r2
