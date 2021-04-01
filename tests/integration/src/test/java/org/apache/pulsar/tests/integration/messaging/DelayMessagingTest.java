@@ -58,7 +58,7 @@ public class DelayMessagingTest extends PulsarTestSuite {
                 .create();
 
         final int redeliverCnt = 10;
-        final int delayTimeSeconds = 10;
+        final int delayTimeSeconds = 5;
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
