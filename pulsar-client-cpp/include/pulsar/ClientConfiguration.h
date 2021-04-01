@@ -144,7 +144,7 @@ class PULSAR_PUBLIC ClientConfiguration {
 
     /**
      * Configure whether to use the TLS encryption on the connections.
-     * <p>
+     * 
      * The default value is false.
      *
      * @param useTls
@@ -170,7 +170,7 @@ class PULSAR_PUBLIC ClientConfiguration {
 
     /**
      * Configure whether the Pulsar client accepts untrusted TLS certificates from brokers.
-     * <p>
+     * 
      * The default value is false.
      *
      * @param tlsAllowInsecureConnection
@@ -184,9 +184,12 @@ class PULSAR_PUBLIC ClientConfiguration {
 
     /**
      * Configure whether it allows validating hostname verification when a client connects to a broker over
-     * TLS. <p> It validates the incoming x509 certificate and matches the provided hostname (CN/SAN) with the
-     * expected broker's hostname. It follows the server identity hostname verification in RFC 2818. <p> The
-     * default value is false.
+     * TLS. 
+     *
+     * It validates the incoming x509 certificate and matches the provided hostname (CN/SAN) with the
+     * expected broker's hostname. It follows the server identity hostname verification in RFC 2818. 
+     * 
+     * The default value is false.
      *
      * @see [RFC 2818](https://tools.ietf.org/html/rfc2818).
      *
@@ -195,7 +198,7 @@ class PULSAR_PUBLIC ClientConfiguration {
     ClientConfiguration& setValidateHostName(bool validateHostName);
 
     /**
-     * @return whether to enable the TLS hostname verification.
+     * @return true if the TLS hostname verification is enabled
      */
     bool isValidateHostName() const;
 
@@ -213,7 +216,7 @@ class PULSAR_PUBLIC ClientConfiguration {
 
     /**
      * Initialize stats interval in seconds. Stats are printed and reset after every `statsIntervalInSeconds`.
-     * <p>
+     * 
      * Set to 0 means disabling stats collection.
      */
     ClientConfiguration& setStatsIntervalInSeconds(const unsigned int&);

@@ -98,7 +98,7 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     /**
      * Set KeyShared subscription policy for consumer.
      *
-     * <p>By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to
+     * By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to
      * set a different KeyShared policy, you can set by following example:
      *
      * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
@@ -157,8 +157,8 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * Set the max total receiver queue size across partitons.
-     * <p>
-     * This setting will be used to reduce the receiver queue size for individual partitions
+     * 
+     * This setting is used to reduce the receiver queue size for individual partitions
      * {@link #setReceiverQueueSize(int)} if the total exceeds this value (default: 50000).
      *
      * @param maxTotalReceiverQueueSizeAcrossPartitions
@@ -199,9 +199,9 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     /**
      * Set the tick duration time that defines the granularity of the ack-timeout redelivery (in
      * milliseconds).
-     * <p>
+     * 
      * The default value is 1000, which means 1 second.
-     * <p>
+     * 
      * Using a higher tick time reduces
      * the memory overhead to track messages when the ack-timeout is set to a bigger value.
      *
@@ -216,7 +216,7 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * Set the delay to wait before re-delivering messages that have failed to be process.
-     * <p>
+     * 
      * When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
      * will be redelivered after a fixed timeout. The default is 1 min.
      *
@@ -340,15 +340,15 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     int getPatternAutoDiscoveryPeriod() const;
 
     /**
-     * @param subscriptionInitialPosition the initial position at which to set
-     * the cursor when subscribing to the topic for the first time.
-     *
      * The default value is `InitialPositionLatest`.
+     * 
+     * @param subscriptionInitialPosition the initial position at which to set
+     * the cursor when subscribing to the topic for the first time
      */
     void setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition);
 
     /**
-     * @return the configured `InitialPosition` for the consumer.
+     * @return the configured `InitialPosition` for the consumer
      */
     InitialPosition getSubscriptionInitialPosition() const;
 

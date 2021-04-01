@@ -186,11 +186,7 @@ class PULSAR_PUBLIC ReaderConfiguration {
      * Set the tick duration time that defines the granularity of the ack-timeout redelivery (in
      * milliseconds).
      *
-     * <p>
-     *
      * The default value is 1000, which means 1 second.
-     *
-     * <p>
      *
      * Using a higher tick time
      * reduces the memory overhead to track messages when the ack-timeout is set to a bigger value.
