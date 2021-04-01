@@ -850,15 +850,13 @@ public class FunctionConfigUtils {
                         ConsumerConfig.builder().isRegexPattern(false).build());
             }));
         }
-        // If ignoreExistingFunctionDefaults == null, then we assume they want to preserve existing defaults on update.
+        // If ignoreExistingFunctionDefaults == null or false, then we assume they want to preserve
+        // existing defaults on update.
 
-        if(ignoreExistingFunctionDefaults == null || ignoreExistingFunctionDefaults == false){
-            if (newConfig.getProducerConfig() != null){
-                // For each defined default, if it wasn't set on the incoming newConfig, set the value from existing.
-                mergedConfig.setProducerConfig(existingConfig.getProducerConfig().mergeDefaults(newConfig.getProducerConfig()));
-            }
-            // else, leave them blank to ensure the WorkerConfig defaults get picked up (which happens if they're null)
-        }
+        // For each defined default, if it wasn't set on the incoming newConfig, set the value from existing.
+        mergedConfig.setProducerConfig(existingConfig.getProducerConfig()
+                .mergeDefaults(newConfig.getProducerConfig(),
+                        ignoreExistingFunctionDefaults != null ? ignoreExistingFunctionDefaults : false));
 
         if (newConfig.getTopicsPattern() != null && !newConfig.getTopicsPattern().isEmpty()) {
             newConfig.getInputSpecs().put(newConfig.getTopicsPattern(),

@@ -65,43 +65,60 @@ public class ProducerConfig {
     public boolean getBlockIfQueueFullEnabled(){
         return !this.getBlockIfQueueFullDisabled();
     }
-    public ProducerConfig mergeDefaults(ProducerConfig newConfig){
+    public ProducerConfig mergeDefaults(ProducerConfig newConfig, boolean ignoreExistingFunctionDefaults){
         ProducerConfig mergedConfig = new ProducerConfig();
-        if(newConfig.getBatchingDisabled() != null){
+        if(ignoreExistingFunctionDefaults == false){
+            // (i.e. don't ignore existing function defaults)
+            if(newConfig == null) {
+                mergedConfig = this;
+            }
+            else {
+                if(newConfig.getBatchingDisabled() != null){
+                    mergedConfig.setBatchingDisabled(newConfig.getBatchingDisabled());
+                } else {
+                    mergedConfig.setBatchingDisabled(this.getBatchingDisabled());
+                }
+                if(newConfig.getChunkingEnabled() != null){
+                    mergedConfig.setChunkingEnabled(newConfig.getChunkingEnabled());
+                } else {
+                    mergedConfig.setChunkingEnabled(this.getChunkingEnabled());
+                }
+                if(newConfig.getBlockIfQueueFullDisabled() != null){
+                    mergedConfig.setBlockIfQueueFullDisabled(newConfig.getBlockIfQueueFullDisabled());
+                } else {
+                    mergedConfig.setBlockIfQueueFullDisabled(this.getBlockIfQueueFullDisabled());
+                }
+                if(newConfig.getCompressionType() != null){
+                    mergedConfig.setCompressionType(newConfig.getCompressionType());
+                } else {
+                    mergedConfig.setCompressionType(this.getCompressionType());
+                }
+                if(newConfig.getHashingScheme() != null){
+                    mergedConfig.setHashingScheme(newConfig.getHashingScheme());
+                } else {
+                    mergedConfig.setHashingScheme(this.getHashingScheme());
+                }
+                if (newConfig.getMessageRoutingMode() != null) {
+                    mergedConfig.setMessageRoutingMode(newConfig.getMessageRoutingMode());
+                } else {
+                    mergedConfig.setMessageRoutingMode(this.getMessageRoutingMode());
+                }
+                if(newConfig.getBatchingMaxPublishDelay() != null){
+                    mergedConfig.setBatchingMaxPublishDelay(newConfig.getBatchingMaxPublishDelay());
+                } else {
+                    mergedConfig.setBatchingMaxPublishDelay(this.getBatchingMaxPublishDelay());
+                }
+            }
+        } else {
             mergedConfig.setBatchingDisabled(newConfig.getBatchingDisabled());
-        } else {
-            mergedConfig.setBatchingDisabled(this.getBatchingDisabled());
-        }
-        if(newConfig.getChunkingEnabled() != null){
             mergedConfig.setChunkingEnabled(newConfig.getChunkingEnabled());
-        } else {
-            mergedConfig.setChunkingEnabled(this.getChunkingEnabled());
-        }
-        if(newConfig.getBlockIfQueueFullDisabled() != null){
             mergedConfig.setBlockIfQueueFullDisabled(newConfig.getBlockIfQueueFullDisabled());
-        } else {
-            mergedConfig.setBlockIfQueueFullDisabled(this.getBlockIfQueueFullDisabled());
-        }
-        if(newConfig.getCompressionType() != null){
             mergedConfig.setCompressionType(newConfig.getCompressionType());
-        } else {
-            mergedConfig.setCompressionType(this.getCompressionType());
-        }
-        if(newConfig.getHashingScheme() != null){
             mergedConfig.setHashingScheme(newConfig.getHashingScheme());
-        } else {
-            mergedConfig.setHashingScheme(this.getHashingScheme());
-        }
-        if (newConfig.getMessageRoutingMode() != null) {
             mergedConfig.setMessageRoutingMode(newConfig.getMessageRoutingMode());
-        } else {
-            mergedConfig.setMessageRoutingMode(this.getMessageRoutingMode());
-        }
-        if(newConfig.getBatchingMaxPublishDelay() != null){
             mergedConfig.setBatchingMaxPublishDelay(newConfig.getBatchingMaxPublishDelay());
-        } else {
-            mergedConfig.setBatchingMaxPublishDelay(this.getBatchingMaxPublishDelay());
         }
+
         return mergedConfig;
     }
 }

@@ -489,7 +489,7 @@ public class FunctionConfigUtilsTest {
 
         ProducerConfig newProducerConfig = new ProducerConfig();
         newProducerConfig.setBatchingDisabled(true);
-        FunctionConfig newFunctionConfig = new FunctionConfig();
+        FunctionConfig newFunctionConfig = createFunctionConfig();
         newFunctionConfig.setProducerConfig(newProducerConfig);
 
         FunctionConfig mergedConfig = FunctionConfigUtils
@@ -513,7 +513,7 @@ public class FunctionConfigUtilsTest {
 
         ProducerConfig newProducerConfig = new ProducerConfig();
         newProducerConfig.setBatchingDisabled(true);
-        FunctionConfig newFunctionConfig = new FunctionConfig();
+        FunctionConfig newFunctionConfig = createFunctionConfig();
         newFunctionConfig.setProducerConfig(newProducerConfig);
 
         FunctionConfig mergedConfig = FunctionConfigUtils
