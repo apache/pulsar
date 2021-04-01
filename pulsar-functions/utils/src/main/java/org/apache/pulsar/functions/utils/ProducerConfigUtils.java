@@ -24,7 +24,7 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.functions.*;
 
 public class ProducerConfigUtils {
-    public static Function.ProducerSpec convert(ProducerConfig conf, ConfigureFunctionDefaults functionDefaults) throws FunctionDefaultException {
+    public static Function.ProducerSpec convert(ProducerConfig conf, FunctionDefaultsMediator functionDefaults) throws FunctionDefaultException {
         Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
         if (conf.getMaxPendingMessages() != null) {
             pbldr.setMaxPendingMessages(conf.getMaxPendingMessages());

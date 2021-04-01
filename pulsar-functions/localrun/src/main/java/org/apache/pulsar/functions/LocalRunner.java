@@ -349,12 +349,12 @@ public class LocalRunner implements AutoCloseable {
                                 this.clusterFunctionHashingSchemeDefault,
                                 this.clusterFunctionMessageRoutingModeDefault,
                                 this.clusterFunctionBatchingMaxPublishDelayDefault);
-                ConfigureFunctionDefaults configureFunctionDefaults =
-                        new ConfigureFunctionDefaults(producerDefaults, functionConfig.getProducerConfig());
+                FunctionDefaultsMediatorImpl functionDefaultsMediatorImpl =
+                        new FunctionDefaultsMediatorImpl(producerDefaults, functionConfig.getProducerConfig());
 
                 functionDetails = FunctionConfigUtils.convert(functionConfig,
                         userCodeClassLoader != null ? userCodeClassLoader :
-                                Thread.currentThread().getContextClassLoader(), configureFunctionDefaults);
+                                Thread.currentThread().getContextClassLoader(), functionDefaultsMediatorImpl);
             } else if (sourceConfig != null) {
                 inferMissingArguments(sourceConfig);
                 userCodeFile = sourceConfig.getArchive();

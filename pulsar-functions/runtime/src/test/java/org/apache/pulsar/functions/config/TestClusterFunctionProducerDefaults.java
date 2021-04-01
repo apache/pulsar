@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.config;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.utils.functions.*;
 import org.apache.pulsar.functions.proto.Function;
@@ -106,7 +105,7 @@ public class TestClusterFunctionProducerDefaults {
 
         ClusterFunctionProducerDefaults defaults = wc.getClusterFunctionProducerDefaults();
 
-        ConfigureFunctionDefaults defaultsConfig = new ConfigureFunctionDefaults(defaults, producerConfig);
+        FunctionDefaultsMediatorImpl defaultsConfig = new FunctionDefaultsMediatorImpl(defaults, producerConfig);
 
         Assert.assertEquals(defaultsConfig.isBatchingDisabled(), false);
         Assert.assertEquals(defaultsConfig.isChunkingEnabled(), false);
@@ -188,7 +187,7 @@ public class TestClusterFunctionProducerDefaults {
 
         ClusterFunctionProducerDefaults defaults = wc.getClusterFunctionProducerDefaults();
 
-        ConfigureFunctionDefaults functionDefaults = new ConfigureFunctionDefaults(defaults, config);
+        FunctionDefaultsMediatorImpl functionDefaults = new FunctionDefaultsMediatorImpl(defaults, config);
         Assert.assertEquals(functionDefaults.isBatchingDisabled(), false);
         Assert.assertEquals(functionDefaults.isChunkingEnabled(), false);
         Assert.assertEquals(functionDefaults.isBlockIfQueueFullDisabled(), false);
@@ -256,7 +255,7 @@ public class TestClusterFunctionProducerDefaults {
         when(config.getMessageRoutingMode()).thenReturn(null);
         when(config.getBatchingMaxPublishDelay()).thenReturn(null);
 
-        ConfigureFunctionDefaults clusterFunctionDefaults = new ConfigureFunctionDefaults(producerDefaults, config);
+        FunctionDefaultsMediatorImpl clusterFunctionDefaults = new FunctionDefaultsMediatorImpl(producerDefaults, config);
 
         Assert.assertEquals(clusterFunctionDefaults.isBatchingDisabled(), false);
         Assert.assertEquals(clusterFunctionDefaults.isChunkingEnabled(), false);
@@ -286,7 +285,7 @@ public class TestClusterFunctionProducerDefaults {
         when(config.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
         when(config.getBatchingMaxPublishDelay()).thenReturn(10L);
 
-        ConfigureFunctionDefaults clusterFunctionDefaults = new ConfigureFunctionDefaults(producerDefaults, config);
+        FunctionDefaultsMediatorImpl clusterFunctionDefaults = new FunctionDefaultsMediatorImpl(producerDefaults, config);
 
         Assert.assertEquals(clusterFunctionDefaults.isBatchingDisabled(), false);
         Assert.assertEquals(clusterFunctionDefaults.isChunkingEnabled(), false);

@@ -79,7 +79,7 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediatorImpl;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -1638,8 +1638,8 @@ public class FunctionApiV3ResourceTest {
         return functionConfig;
     }
 
-    public static ConfigureFunctionDefaults createDefaultFunctionDefaults() {
-        ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+    public static FunctionDefaultsMediatorImpl createDefaultFunctionDefaults() {
+        FunctionDefaultsMediatorImpl defaults = mock(FunctionDefaultsMediatorImpl.class);
         when(defaults.isBatchingDisabled()).thenReturn(false);
         when(defaults.isChunkingEnabled()).thenReturn(false);
         when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
@@ -1651,7 +1651,7 @@ public class FunctionApiV3ResourceTest {
 
     public static FunctionDetails createDefaultFunctionDetails() throws FunctionDefaultException {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createDefaultFunctionDefaults();
         return FunctionConfigUtils.convert(functionConfig, null, defaults);
     }
 }

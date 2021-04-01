@@ -26,7 +26,7 @@ import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.proto.Function;
 
 @AllArgsConstructor
-public class ConfigureFunctionDefaults {
+public class FunctionDefaultsMediatorImpl implements FunctionDefaultsMediator{
     private ClusterFunctionProducerDefaults producerDefaults;
     private ProducerConfig producerConfig;
 

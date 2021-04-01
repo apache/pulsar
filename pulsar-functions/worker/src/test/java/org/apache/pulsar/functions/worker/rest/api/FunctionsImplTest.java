@@ -28,10 +28,15 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
@@ -42,7 +47,8 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediator;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediatorImpl;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
@@ -60,6 +66,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
@@ -353,6 +360,46 @@ public class FunctionsImplTest {
         assertFalse(functionImpl.isSuperUser(superUser));
     }
 
+    private FunctionConfig createFunctionConfigWithDefaults() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant("test-tenant");
+        functionConfig.setNamespace("test-namespace");
+        functionConfig.setName("test-function");
+        functionConfig.setParallelism(1);
+        functionConfig.setClassName(IdentityFunction.class.getName());
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
+        functionConfig.setInputSpecs(inputSpecs);
+        functionConfig.setOutput("test-output");
+        functionConfig.setOutputSerdeClassName("test-serde");
+        functionConfig.setOutputSchemaType("json");
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        functionConfig.setRetainOrdering(false);
+        functionConfig.setRetainKeyOrdering(false);
+        functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+        functionConfig.setBatchBuilder("DEFAULT");
+        functionConfig.setForwardSourceMessageProperty(false);
+        functionConfig.setUserConfig(new HashMap<>());
+        functionConfig.setAutoAck(true);
+        functionConfig.setTimeoutMs(2000l);
+        functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
+        functionConfig.setCleanupSubscription(true);
+        functionConfig.setRuntimeFlags("-Dfoo=bar");
+
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchingDisabled(false);
+        producerConfig.setChunkingEnabled(false);
+        producerConfig.setBlockIfQueueFullDisabled(false);
+        producerConfig.setCompressionType(CompressionType.SNAPPY);
+        producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
+        producerConfig.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        producerConfig.setBatchingMaxPublishDelay(21L);
+
+        functionConfig.setProducerConfig(producerConfig);
+        return functionConfig;
+    }
+
     public static FunctionConfig createDefaultFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -367,8 +414,8 @@ public class FunctionsImplTest {
         return functionConfig;
     }
 
-    public static ConfigureFunctionDefaults createDefaultFunctionDefaults() {
-        ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+    public static FunctionDefaultsMediatorImpl createMockDefaultFunctionMediator() {
+        FunctionDefaultsMediatorImpl defaults = mock(FunctionDefaultsMediatorImpl.class);
         when(defaults.isBatchingDisabled()).thenReturn(false);
         when(defaults.isChunkingEnabled()).thenReturn(false);
         when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
@@ -380,7 +427,7 @@ public class FunctionsImplTest {
 
     public static Function.FunctionDetails createDefaultFunctionDetails() throws FunctionDefaultException {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createMockDefaultFunctionMediator();
         return FunctionConfigUtils.convert(functionConfig, null, defaults);
     }
 }

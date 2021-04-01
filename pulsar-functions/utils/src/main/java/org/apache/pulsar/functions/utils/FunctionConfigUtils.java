@@ -31,7 +31,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediator;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediatorImpl;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
 
@@ -59,7 +60,7 @@ public class FunctionConfigUtils {
 
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
 
-    public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader, ConfigureFunctionDefaults functionDefaults)
+    public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader, FunctionDefaultsMediator functionDefaults)
             throws IllegalArgumentException, FunctionDefaultException {
         
         boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
@@ -816,8 +817,7 @@ public class FunctionConfigUtils {
         doJavaChecks(functionConfig, classLoader);
     }
 
-    public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig,
-                                                Boolean ignoreExistingFunctionDefaults) {
+    public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig, Boolean ignoreExistingFunctionDefaults) {
         FunctionConfig mergedConfig = existingConfig.toBuilder().build();
         if (!existingConfig.getTenant().equals(newConfig.getTenant())) {
             throw new IllegalArgumentException("Tenants differ");
@@ -855,7 +855,7 @@ public class FunctionConfigUtils {
         if(ignoreExistingFunctionDefaults == null || ignoreExistingFunctionDefaults == false){
             if (newConfig.getProducerConfig() != null){
                 // For each defined default, if it wasn't set on the incoming newConfig, set the value from existing.
-                newConfig.setProducerConfig(existingConfig.getProducerConfig().mergeDefaults(newConfig.getProducerConfig()));
+                mergedConfig.setProducerConfig(existingConfig.getProducerConfig().mergeDefaults(newConfig.getProducerConfig()));
             }
             // else, leave them blank to ensure the WorkerConfig defaults get picked up (which happens if they're null)
         }

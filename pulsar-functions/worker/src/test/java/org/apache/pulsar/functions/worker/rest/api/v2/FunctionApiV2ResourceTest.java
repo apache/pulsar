@@ -80,7 +80,7 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediatorImpl;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -101,7 +101,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
-import sun.security.krb5.Config;
 
 /**
  * Unit test of {@link FunctionsApiV2Resource}.
@@ -523,7 +522,7 @@ public class FunctionApiV2ResourceTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createDefaultFunctionDefaults();
 
         try {
             resource.registerFunction(
@@ -543,7 +542,7 @@ public class FunctionApiV2ResourceTest {
 
     private void registerDefaultFunction() {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createDefaultFunctionDefaults();
         try {
             resource.registerFunction(
                     tenant,
@@ -943,7 +942,7 @@ public class FunctionApiV2ResourceTest {
             doThrow(new IllegalArgumentException(expectedError))
                     .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), anyBoolean());
         }
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createDefaultFunctionDefaults();
 
         try {
             resource.updateFunction(
@@ -972,7 +971,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createDefaultFunctionDefaults();
 
         try {
             resource.updateFunction(
@@ -1056,7 +1055,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createDefaultFunctionDefaults();
         try {
             resource.updateFunction(
                     tenant,
@@ -1471,7 +1470,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
 
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createDefaultFunctionDefaults();
 
         try {
             resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
@@ -1508,7 +1507,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
 
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createDefaultFunctionDefaults();
 
         try {
             resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl,
@@ -1532,8 +1531,8 @@ public class FunctionApiV2ResourceTest {
         return functionConfig;
     }
 
-    public static ConfigureFunctionDefaults createDefaultFunctionDefaults() {
-        ConfigureFunctionDefaults defaults = mock(ConfigureFunctionDefaults.class);
+    public static FunctionDefaultsMediatorImpl createDefaultFunctionDefaults() {
+        FunctionDefaultsMediatorImpl defaults = mock(FunctionDefaultsMediatorImpl.class);
         when(defaults.isBatchingDisabled()).thenReturn(false);
         when(defaults.isChunkingEnabled()).thenReturn(false);
         when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
@@ -1545,7 +1544,7 @@ public class FunctionApiV2ResourceTest {
 
     public static FunctionDetails createDefaultFunctionDetails() throws FunctionDefaultException {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        ConfigureFunctionDefaults defaults = createDefaultFunctionDefaults();
+        FunctionDefaultsMediatorImpl defaults = createDefaultFunctionDefaults();
         return FunctionConfigUtils.convert(functionConfig, null, defaults);
     }
 }

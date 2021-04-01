@@ -60,8 +60,8 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
-import org.apache.pulsar.functions.utils.functions.ConfigureFunctionDefaults;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediator;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediatorImpl;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
@@ -153,7 +153,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         File componentPackageFile = null;
 
-        ConfigureFunctionDefaults functionDefaults = new ConfigureFunctionDefaults(worker().getWorkerConfig().getClusterFunctionProducerDefaults(), functionConfig.getProducerConfig());
+        FunctionDefaultsMediatorImpl clusterFunctionDefaults = new FunctionDefaultsMediatorImpl(worker().getWorkerConfig().getClusterFunctionProducerDefaults(), functionConfig.getProducerConfig());
         try {
 
             // validate parameters
@@ -173,13 +173,13 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                         }
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            functionConfig, componentPackageFile, functionDefaults);
+                            functionConfig, componentPackageFile, clusterFunctionDefaults);
                 } else {
                     if (uploadedInputStream != null) {
                         componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
                     }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            functionConfig, componentPackageFile, functionDefaults);
+                            functionConfig, componentPackageFile, clusterFunctionDefaults);
                     if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
                         throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
                     }
@@ -333,7 +333,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, functionName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
-        ConfigureFunctionDefaults functionDefaults = new ConfigureFunctionDefaults(worker().getWorkerConfig().getClusterFunctionProducerDefaults(), functionConfig.getProducerConfig());
+        FunctionDefaultsMediatorImpl functionDefaults = new FunctionDefaultsMediatorImpl(worker().getWorkerConfig().getClusterFunctionProducerDefaults(), functionConfig.getProducerConfig());
 
         Function.FunctionDetails functionDetails = null;
         File componentPackageFile = null;
@@ -746,7 +746,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                                                  final String componentName,
                                                                  final FunctionConfig functionConfig,
                                                                  final File componentPackageFile,
-                                                                 ConfigureFunctionDefaults functionDefaults) throws IOException, FunctionDefaultException {
+                                                                 FunctionDefaultsMediator clusterFunctionDefaultsMediator) throws IOException, FunctionDefaultException {
 
         // The rest end points take precedence over whatever is there in function config
         Path archivePath = null;
@@ -774,7 +774,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         else{
             clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
         }
-        return FunctionConfigUtils.convert(functionConfig, clsLoader, functionDefaults);
+        return FunctionConfigUtils.convert(functionConfig, clsLoader, clusterFunctionDefaultsMediator);
 
     }
 
