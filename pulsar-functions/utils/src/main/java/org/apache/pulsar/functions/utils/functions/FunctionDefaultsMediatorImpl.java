@@ -109,6 +109,9 @@ public class FunctionDefaultsMediatorImpl implements FunctionDefaultsMediator{
     }
     public Long getBatchingMaxPublishDelay(){
         if (producerConfig.getBatchingMaxPublishDelay() == null || producerConfig.getBatchingMaxPublishDelay() == 0){
+            if (producerDefaults == null){
+                return 10L; // Would it be better to force producerDefaults to not be null?
+            }
             return producerDefaults.getBatchingMaxPublishDelay();
         }
         return producerConfig.getBatchingMaxPublishDelay();

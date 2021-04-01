@@ -42,45 +42,42 @@ public class TestClusterFunctionProducerDefaults {
 
     }
     @Test
-    public void WorkerConfig_FunctionDefaultsUnknown_ShouldLoadClusterDefaults() throws URISyntaxException, IOException, InvalidWorkerConfigDefaultException {
+    public void FunctionDefaultsMediatorImpl_ShouldUseCorrectClusterOverrides()
+            throws URISyntaxException, IOException, InvalidWorkerConfigDefaultException {
         // call WorkerConfig.load(..) on a resource file with the expected function default properties
-        URL yamlUrl = getClass().getClassLoader().getResource("test-worker-config-function-producer-defaults.yml");
+        URL yamlUrl = getClass().getClassLoader()
+                .getResource("test-worker-config-function-producer-defaults.yml");
         WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
 
-        Function.ProducerSpec producerSpec = Function.ProducerSpec.newBuilder()
-                .setBatchingDisabled(false)
-                .setChunkingEnabled(false)
-                .setBlockIfQueueFullDisabled(false)
-                .setCompressionType(Function.CompressionType.LZ4)
-                .setHashingScheme(Function.HashingScheme.MURMUR3_32HASH)
-                .setMessageRoutingMode(Function.MessageRoutingMode.CUSTOM_PARTITION)
-                .setBatchingMaxPublishDelay(0L)  // This is the default case.
-                .build();
-        Function.SinkSpec sink = Function.SinkSpec.newBuilder()
-                .setProducerSpec(producerSpec)
-                .build();
-        Function.FunctionDetails details = Function.FunctionDetails.newBuilder()
-                .setSink(sink)
-                .build();
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchingDisabled(false);
+        producerConfig.setChunkingEnabled(true);
+        producerConfig.setBlockIfQueueFullDisabled(true);
+        producerConfig.setCompressionType(CompressionType.LZ4);
+        producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
+        producerConfig.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfig.setBatchingMaxPublishDelay(0L); // This is the default case, so it should be treated like a null
         /*
-            batchingEnabledDefault: false
-            chunkingEnabledDefault: false
-            blockIfQueueFullDefault: true
-            compressionTypeDefault: ZLIB
-            hashingSchemeDefault: JavaStringHash
-            messageRoutingModeDefault: RoundRobinPartition
-            batchingMaxPublishDelayDefault: 12
+            functionDefaults:
+              batchingDisabled: true
+              chunkingEnabled: false
+              blockIfQueueFullDisabled: false
+              batchingMaxPublishDelay: 12
+              compressionType: ZLIB
+              hashingScheme: JavaStringHash
+              messageRoutingMode: RoundRobinPartition
         */
         ClusterFunctionProducerDefaults defaults = wc.getClusterFunctionProducerDefaults();
-        Logger mockLogger = mock(Logger.class);
 
-        Assert.assertEquals(defaults.isBatchingDisabled(), false);
-        Assert.assertEquals(defaults.isChunkingEnabled(), false);
-        Assert.assertEquals(defaults.isBlockIfQueueFullDisabled(), true);
-        Assert.assertEquals(defaults.getCompressionType(), CompressionType.ZLIB);
-        Assert.assertEquals(defaults.getHashingScheme(), HashingScheme.JavaStringHash);
-        Assert.assertEquals(defaults.getMessageRoutingMode(), MessageRoutingMode.RoundRobinPartition);
-        Assert.assertEquals(defaults.getBatchingMaxPublishDelay(), 12);
+        FunctionDefaultsMediatorImpl mediator = new FunctionDefaultsMediatorImpl(defaults, producerConfig);
+
+        Assert.assertEquals(mediator.isBatchingDisabled(), false);
+        Assert.assertEquals(mediator.isChunkingEnabled(), true);
+        Assert.assertEquals(mediator.isBlockIfQueueFullDisabled(), true);
+        Assert.assertEquals(mediator.getCompressionType(), CompressionType.LZ4);
+        Assert.assertEquals(mediator.getHashingScheme(), HashingScheme.Murmur3_32Hash);
+        Assert.assertEquals(mediator.getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
+        Assert.assertEquals((long)mediator.getBatchingMaxPublishDelay(), 12L);
 
     }
 
@@ -118,11 +115,21 @@ public class TestClusterFunctionProducerDefaults {
     @Test
     public void WorkerConfig_LoadsExpectedDefaults() throws URISyntaxException, IOException, InvalidWorkerConfigDefaultException {
         URL yamlUrl = getClass().getClassLoader().getResource("test-worker-config-function-producer-defaults.yml");
+        /*
+        functionDefaults:
+            batchingDisabled: true
+            chunkingEnabled: false
+            blockIfQueueFullDisabled: false
+            batchingMaxPublishDelay: 12
+            compressionType: ZLIB
+            hashingScheme: JavaStringHash
+            messageRoutingMode: RoundRobinPartition
+        */
         WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
-        Assert.assertEquals(!wc.getClusterFunctionProducerDefaults().isBatchingDisabled(), false);
-        Assert.assertEquals(!wc.getClusterFunctionProducerDefaults().isChunkingEnabled(), false);
-        Assert.assertEquals(!wc.getClusterFunctionProducerDefaults().isBlockIfQueueFullDisabled(), true);
-        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getBatchingMaxPublishDelay(), 12);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().isBatchingDisabled(), true);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().isChunkingEnabled(), false);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().isBlockIfQueueFullDisabled(), false);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getBatchingMaxPublishDelay(), 12L);
         Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getCompressionType(), CompressionType.ZLIB);
         Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getHashingScheme(), HashingScheme.JavaStringHash);
         Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getMessageRoutingMode(), MessageRoutingMode.RoundRobinPartition);

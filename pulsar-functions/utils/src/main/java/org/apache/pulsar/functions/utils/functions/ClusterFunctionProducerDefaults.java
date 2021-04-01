@@ -47,7 +47,7 @@ public class ClusterFunctionProducerDefaults {
 
     public ClusterFunctionProducerDefaults(boolean batchingDisabled, boolean chunkingEnabled, boolean blockIfQueueFullDisabled,
                                            String compressionType, String hashingScheme, String messageRoutingMode,
-                                           int batchingMaxPublishDelay) throws InvalidWorkerConfigDefaultException {
+                                           long batchingMaxPublishDelay) throws InvalidWorkerConfigDefaultException {
         this.batchingDisabled = batchingDisabled;
         this.chunkingEnabled = chunkingEnabled;
         this.blockIfQueueFullDisabled = blockIfQueueFullDisabled;
@@ -58,9 +58,9 @@ public class ClusterFunctionProducerDefaults {
     }
     // We could also validate that chunking is disabled if batching is enabled, etc.
 
-    public void setBatchingMaxPublishDelay(int batchingMaxPublishDelay) throws InvalidWorkerConfigDefaultException {
+    public void setBatchingMaxPublishDelay(long batchingMaxPublishDelay) throws InvalidWorkerConfigDefaultException {
         if(batchingMaxPublishDelay < 0){
-            throw new InvalidWorkerConfigDefaultException("batchingMaxPublishDelay", Integer.toString(batchingMaxPublishDelay));
+            throw new InvalidWorkerConfigDefaultException("batchingMaxPublishDelay", Long.toString(batchingMaxPublishDelay));
         }
         this.batchingMaxPublishDelay = batchingMaxPublishDelay;
     }
