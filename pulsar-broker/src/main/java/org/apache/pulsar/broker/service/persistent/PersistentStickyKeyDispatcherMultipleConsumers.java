@@ -172,7 +172,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         AtomicInteger keyNumbers = new AtomicInteger(groupedEntries.size());
 
         int currentThreadKeyNumber = groupedEntries.size();
-        if (currentThreadKeyNumber == 0 ) {
+        if (currentThreadKeyNumber == 0) {
             currentThreadKeyNumber = -1;
         }
         for (Map.Entry<Consumer, List<Entry>> current : groupedEntries.entrySet()) {
