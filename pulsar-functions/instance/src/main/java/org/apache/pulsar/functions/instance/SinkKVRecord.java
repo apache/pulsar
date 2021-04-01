@@ -16,26 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api;
+package org.apache.pulsar.functions.instance;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.classification.InterfaceAudience;
-import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.functions.api.KVRecord;
+import org.apache.pulsar.functions.api.Record;
 
-/**
- * Key value schema record.
- * You can use this interface on Pulsar IO Sources in order to write KeyValue messages.
- */
-@InterfaceAudience.Public
-@InterfaceStability.Stable
-public interface KVRecord<K, V> extends Record<KeyValue<K,V>> {
+public class SinkKVRecord<K,V> extends SinkRecord<KeyValue<K,V>> implements KVRecord<K,V> {
 
-    Schema<K> getKeySchema();
+    public SinkKVRecord(Record<KeyValue<K, V>> sourceRecord, KeyValue<K, V> value) {
+        super(sourceRecord, value);
+    }
 
-    Schema<V> getValueSchema();
+    @Override
+    public Schema<K> getKeySchema() {
+        return ((KeyValueSchema) this.getSchema()).getKeySchema();
+    }
 
-    KeyValueEncodingType getKeyValueEncodingType();
+    @Override
+    public Schema<V> getValueSchema() {
+        return ((KeyValueSchema) this.getSchema()).getValueSchema();
+    }
 
+    @Override
+    public KeyValueEncodingType getKeyValueEncodingType() {
+        return ((KeyValueSchema) this.getSchema()).getKeyValueEncodingType();
+    }
 }
