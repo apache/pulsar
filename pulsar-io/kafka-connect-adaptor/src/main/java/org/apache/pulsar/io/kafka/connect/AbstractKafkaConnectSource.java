@@ -170,7 +170,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     private static Optional<Long> RECORD_SEQUENCE = Optional.empty();
     private static long FLUSH_TIMEOUT_MS = 2000;
 
-    public abstract class AbstractKafkaSourceRecord<T> implements Record {
+    public abstract class AbstractKafkaSourceRecord<T> implements Record<T> {
         @Getter
         Optional<String> key;
         @Getter
@@ -196,7 +196,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         }
 
         @Override
-        public Schema getSchema() {
+        public Schema<T> getSchema() {
             return null;
         }
 

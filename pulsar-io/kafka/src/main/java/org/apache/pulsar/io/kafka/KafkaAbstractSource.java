@@ -208,7 +208,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             return schema;
         }
     }
-    protected static class KeyValueKafkaRecord<V> extends KafkaRecord implements KVRecord<Object, Object> {
+    protected static class KeyValueKafkaRecord<V> extends KafkaRecord<KeyValue<Object, Object>> implements KVRecord<Object, Object> {
 
         private final Schema<Object> keySchema;
         private final Schema<Object> valueSchema;
