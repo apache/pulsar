@@ -146,7 +146,7 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * The default value is 1000 messages and it is appropriate for the most use cases.
      *
      * @param size the new receiver queue size value
-     *            
+     *
      */
     void setReceiverQueueSize(int size);
 
@@ -198,9 +198,9 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * Set the tick duration time that defines the granularity of the ack-timeout redelivery (in
-     * milliseconds). 
-     * <p> 
-     * The default value is 1000, which means 1 second. 
+     * milliseconds).
+     * <p>
+     * The default value is 1000, which means 1 second.
      * <p>
      * Using a higher tick time reduces
      * the memory overhead to track messages when the ack-timeout is set to a bigger value.

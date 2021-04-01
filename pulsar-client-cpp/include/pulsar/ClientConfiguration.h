@@ -183,15 +183,13 @@ class PULSAR_PUBLIC ClientConfiguration {
     bool isTlsAllowInsecureConnection() const;
 
     /**
-     * Configure whether it allows validating hostname verification when a client connects to a broker over TLS.
-     * <p>
-     * It validates the incoming x509 certificate and matches the provided hostname (CN/SAN) with the expected
-     * broker's hostname. It follows the server identity hostname verification in RFC 2818.
-     * <p>
-     * The default value is false.
-     * 
+     * Configure whether it allows validating hostname verification when a client connects to a broker over
+     * TLS. <p> It validates the incoming x509 certificate and matches the provided hostname (CN/SAN) with the
+     * expected broker's hostname. It follows the server identity hostname verification in RFC 2818. <p> The
+     * default value is false.
+     *
      * @see [RFC 2818](https://tools.ietf.org/html/rfc2818).
-     * 
+     *
      * @param validateHostName whether to enable the TLS hostname verification
      */
     ClientConfiguration& setValidateHostName(bool validateHostName);
@@ -203,7 +201,7 @@ class PULSAR_PUBLIC ClientConfiguration {
 
     /**
      * Configure the listener name that the broker returns the corresponding `advertisedListener`.
-     * 
+     *
      * @param name the listener name
      */
     ClientConfiguration& setListenerName(const std::string& listenerName);
