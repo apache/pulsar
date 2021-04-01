@@ -60,7 +60,7 @@ public class FunctionConfigUtils {
 
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
 
-    public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader, FunctionDefaultsMediator functionDefaults)
+    public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader, FunctionDefaultsMediator functionDefaultsMediator)
             throws IllegalArgumentException, FunctionDefaultException {
         
         boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
@@ -216,7 +216,7 @@ public class FunctionConfigUtils {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
         if (functionConfig.getProducerConfig() != null) {
-            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(functionConfig.getProducerConfig(), functionDefaults));
+            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(functionConfig.getProducerConfig(), functionDefaultsMediator));
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 

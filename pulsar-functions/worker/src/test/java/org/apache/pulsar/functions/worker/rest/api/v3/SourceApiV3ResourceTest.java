@@ -56,6 +56,9 @@ import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -64,6 +67,7 @@ import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
@@ -74,8 +78,7 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
-import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
-import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
+import org.apache.pulsar.functions.utils.functions.*;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -171,6 +174,16 @@ public class SourceApiV3ResourceTest {
         this.mockedPackages = mock(Packages.class);
         namespaceList.add(tenant + "/" + namespace);
 
+        ClusterFunctionProducerDefaults mockedProducerDefaults = mock(ClusterFunctionProducerDefaults.class);
+
+        when(mockedProducerDefaults.isBatchingDisabled()).thenReturn(false);
+        when(mockedProducerDefaults.isChunkingEnabled()).thenReturn(false);
+        when(mockedProducerDefaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(mockedProducerDefaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(mockedProducerDefaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(mockedProducerDefaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(mockedProducerDefaults.getBatchingMaxPublishDelay()).thenReturn(12L);
+
         this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
@@ -199,7 +212,8 @@ public class SourceApiV3ResourceTest {
                 .setWorkerPort(8080)
                 .setFunctionMetadataTopicName("pulsar/functions")
                 .setNumFunctionPackageReplicas(3)
-                .setPulsarServiceUrl("pulsar://localhost:6650/");
+                .setPulsarServiceUrl("pulsar://localhost:6650/")
+                .setClusterFunctionProducerDefaults(mockedProducerDefaults);
         tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
         tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
@@ -1614,9 +1628,23 @@ public class SourceApiV3ResourceTest {
         sourceConfig.setSerdeClassName(outputSerdeClassName);
         return sourceConfig;
     }
-
+    private FunctionDefaultsMediator getFunctionDefaultsMediatorMock(){
+        FunctionDefaultsMediatorImpl defaults = mock(FunctionDefaultsMediatorImpl.class);
+        when(defaults.isBatchingDisabled()).thenReturn(false);
+        when(defaults.isChunkingEnabled()).thenReturn(false);
+        when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(defaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(defaults.getCompressionTypeProto()).thenReturn(Function.CompressionType.LZ4);
+        when(defaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(defaults.getHashingSchemeProto()).thenReturn(Function.HashingScheme.MURMUR3_32HASH);
+        when(defaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(defaults.getMessageRoutingModeProto()).thenReturn(Function.MessageRoutingMode.CUSTOM_PARTITION);
+        when(defaults.getBatchingMaxPublishDelay()).thenReturn(12L);
+        return defaults;
+    }
     private FunctionDetails createDefaultFunctionDetails() throws FunctionDefaultException {
         return SourceConfigUtils.convert(createDefaultSourceConfig(),
-                new SourceConfigUtils.ExtractedSourceDetails(null, null));
+                new SourceConfigUtils.ExtractedSourceDetails(null, null),
+                getFunctionDefaultsMediatorMock());
     }
 }

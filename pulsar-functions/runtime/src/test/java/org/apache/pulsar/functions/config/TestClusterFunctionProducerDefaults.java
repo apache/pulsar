@@ -134,7 +134,42 @@ public class TestClusterFunctionProducerDefaults {
         Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getHashingScheme(), HashingScheme.JavaStringHash);
         Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getMessageRoutingMode(), MessageRoutingMode.RoundRobinPartition);
     }
-
+    @Test
+    public void WorkerConfig_WhenSomeDefaultsAreMissing_LoadsExpectedDefaults() throws URISyntaxException,
+            IOException, InvalidWorkerConfigDefaultException {
+        URL yamlUrl = getClass().getClassLoader()
+                .getResource("test-worker-config-function-producer-defaults-some-missing.yml");
+        /*
+        functionDefaults:
+            batchingDisabled: true
+            chunkingEnabled: false
+        */
+        WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().isBatchingDisabled(), true);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().isChunkingEnabled(), false);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().isBlockIfQueueFullDisabled(), false);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getBatchingMaxPublishDelay(), 10L);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getCompressionType(), CompressionType.LZ4);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getHashingScheme(), HashingScheme.Murmur3_32Hash);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
+    }
+    @Test
+    public void WorkerConfig_WhenDefaultsSectionIsMissing_LoadsExpectedDefaults() throws URISyntaxException,
+            IOException, InvalidWorkerConfigDefaultException {
+        URL yamlUrl = getClass().getClassLoader()
+                .getResource("test-worker-config-function-producer-defaults-missing.yml");
+        /*
+        [no function defaults section]
+        */
+        WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().isBatchingDisabled(), false);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().isChunkingEnabled(), false);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().isBlockIfQueueFullDisabled(), false);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getBatchingMaxPublishDelay(), 10L);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getCompressionType(), CompressionType.LZ4);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getHashingScheme(), HashingScheme.Murmur3_32Hash);
+        Assert.assertEquals(wc.getClusterFunctionProducerDefaults().getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
+    }
     @Test
     public void WorkerConfig_Constructor_DoesNotThrowNullPointerException(){
         // This test is to help isolate a flaky test

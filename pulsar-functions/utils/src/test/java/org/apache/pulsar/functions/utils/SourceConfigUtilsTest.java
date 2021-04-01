@@ -37,6 +37,8 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediator;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediatorImpl;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
@@ -57,6 +59,8 @@ import java.util.function.Consumer;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -100,7 +104,10 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     @Test
     public void testConvertBackFidelity() throws IOException, FunctionDefaultException {
         SourceConfig sourceConfig = createSourceConfig();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(
+                sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null),
+                getFunctionDefaultsMediatorMock());
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -111,10 +118,28 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         );
     }
 
+    private FunctionDefaultsMediator getFunctionDefaultsMediatorMock(){
+        FunctionDefaultsMediatorImpl defaults = mock(FunctionDefaultsMediatorImpl.class);
+        when(defaults.isBatchingDisabled()).thenReturn(false);
+        when(defaults.isChunkingEnabled()).thenReturn(false);
+        when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(defaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(defaults.getCompressionTypeProto()).thenReturn(Function.CompressionType.LZ4);
+        when(defaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(defaults.getHashingSchemeProto()).thenReturn(Function.HashingScheme.MURMUR3_32HASH);
+        when(defaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(defaults.getMessageRoutingModeProto()).thenReturn(Function.MessageRoutingMode.CUSTOM_PARTITION);
+        when(defaults.getBatchingMaxPublishDelay()).thenReturn(12L);
+        return defaults;
+    }
+
     @Test
     public void testConvertBackFidelityWithBatch() throws IOException, FunctionDefaultException  {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(
+                sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null),
+                getFunctionDefaultsMediatorMock());
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources

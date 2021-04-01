@@ -40,7 +40,7 @@ public class FunctionDefaultsConfig implements Serializable {
     @FieldContext(
             doc = "Disables default behavior to block when message queue is full"
     )
-    protected boolean blockIfQueueFullDisabled = true;
+    protected boolean blockIfQueueFullDisabled = false;
     @FieldContext(
             doc = "Default compression type"
     )
@@ -56,7 +56,7 @@ public class FunctionDefaultsConfig implements Serializable {
     @FieldContext(
             doc = "Default max publish delay (in milliseconds) when message batching is enabled"
     )
-    protected int batchingMaxPublishDelay = 10;
+    protected long batchingMaxPublishDelay = 10L;
 
     public ClusterFunctionProducerDefaults buildProducerDefaults() throws InvalidWorkerConfigDefaultException {
         return new ClusterFunctionProducerDefaults(this.isBatchingDisabled(),

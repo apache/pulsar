@@ -42,6 +42,7 @@ import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
+import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediator;
 import org.apache.pulsar.functions.utils.functions.InvalidFunctionDefaultException;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSource;
@@ -67,7 +68,8 @@ public class SourceConfigUtils {
         private String typeArg;
     }
 
-    public static FunctionDetails convert(SourceConfig sourceConfig, ExtractedSourceDetails sourceDetails)
+    public static FunctionDetails convert(SourceConfig sourceConfig, ExtractedSourceDetails sourceDetails,
+                                          FunctionDefaultsMediator functionDefaultsMediator)
             throws IllegalArgumentException, FunctionDefaultException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
@@ -147,7 +149,8 @@ public class SourceConfigUtils {
         }
 
         if (sourceConfig.getProducerConfig() != null) {
-            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(sourceConfig.getProducerConfig()));
+            sinkSpecBuilder.setProducerSpec(ProducerConfigUtils.convert(sourceConfig.getProducerConfig(),
+                    functionDefaultsMediator));
         }
 
         sinkSpecBuilder.setForwardSourceMessageProperty(true);

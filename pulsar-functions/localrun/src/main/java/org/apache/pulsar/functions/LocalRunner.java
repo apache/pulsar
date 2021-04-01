@@ -300,6 +300,18 @@ public class LocalRunner implements AutoCloseable {
             Function.FunctionDetails functionDetails;
             String userCodeFile = null;
             int parallelism;
+            ClusterFunctionProducerDefaults producerDefaults =
+                    new ClusterFunctionProducerDefaults(
+                            this.clusterFunctionBatchingDisabled,
+                            this.clusterFunctionChunkingEnabled,
+                            this.clusterFunctionBlockIfQueueFullDisabled,
+                            this.clusterFunctionCompressionTypeDefault,
+                            this.clusterFunctionHashingSchemeDefault,
+                            this.clusterFunctionMessageRoutingModeDefault,
+                            this.clusterFunctionBatchingMaxPublishDelayDefault);
+            FunctionDefaultsMediatorImpl functionDefaultsMediatorImpl =
+                    new FunctionDefaultsMediatorImpl(producerDefaults, functionConfig.getProducerConfig());
+
             if (functionConfig != null) {
                 FunctionConfigUtils.inferMissingArguments(functionConfig, true);
                 parallelism = functionConfig.getParallelism();
@@ -340,17 +352,6 @@ public class LocalRunner implements AutoCloseable {
                 } else {
                     throw new UnsupportedOperationException();
                 }
-                ClusterFunctionProducerDefaults producerDefaults =
-                        new ClusterFunctionProducerDefaults(
-                                this.clusterFunctionBatchingDisabled,
-                                this.clusterFunctionChunkingEnabled,
-                                this.clusterFunctionBlockIfQueueFullDisabled,
-                                this.clusterFunctionCompressionTypeDefault,
-                                this.clusterFunctionHashingSchemeDefault,
-                                this.clusterFunctionMessageRoutingModeDefault,
-                                this.clusterFunctionBatchingMaxPublishDelayDefault);
-                FunctionDefaultsMediatorImpl functionDefaultsMediatorImpl =
-                        new FunctionDefaultsMediatorImpl(producerDefaults, functionConfig.getProducerConfig());
 
                 functionDetails = FunctionConfigUtils.convert(functionConfig,
                         userCodeClassLoader != null ? userCodeClassLoader :
@@ -363,8 +364,11 @@ public class LocalRunner implements AutoCloseable {
                 ClassLoader builtInSourceClassLoader = userCodeFile != null ? isBuiltInSource(userCodeFile) : null;
                 if (builtInSourceClassLoader != null) {
                     functionDetails = SourceConfigUtils.convert(
-                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(
-                                    sourceConfig, builtInSourceClassLoader, true));
+                            sourceConfig,
+                            SourceConfigUtils.validateAndExtractDetails(
+                                    sourceConfig, builtInSourceClassLoader, true),
+                            functionDefaultsMediatorImpl
+                            );
                     userCodeClassLoader = builtInSourceClassLoader;
                 } else if (userCodeFile != null && Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
@@ -373,7 +377,9 @@ public class LocalRunner implements AutoCloseable {
                             sourceConfig.getClassName(), file, narExtractionDirectory);
                     functionDetails = SourceConfigUtils.convert(
                             sourceConfig,
-                            SourceConfigUtils.validateAndExtractDetails(sourceConfig, sourceClassLoader, true));
+                            SourceConfigUtils.validateAndExtractDetails(
+                                    sourceConfig, sourceClassLoader, true),
+                            functionDefaultsMediatorImpl);
                     userCodeClassLoader = sourceClassLoader;
                     userCodeClassLoaderCreated = true;
                 } else if (userCodeFile != null) {
@@ -385,7 +391,10 @@ public class LocalRunner implements AutoCloseable {
                             Function.FunctionDetails.ComponentType.SOURCE,
                             sourceConfig.getClassName(), file, narExtractionDirectory);
                     functionDetails = SourceConfigUtils.convert(
-                            sourceConfig, SourceConfigUtils.validateAndExtractDetails(sourceConfig, sourceClassLoader, true));
+                            sourceConfig,
+                            SourceConfigUtils.validateAndExtractDetails(
+                                    sourceConfig, sourceClassLoader, true),
+                            functionDefaultsMediatorImpl);
                     userCodeClassLoader = sourceClassLoader;
                     userCodeClassLoaderCreated = true;
                 } else {
@@ -394,7 +403,9 @@ public class LocalRunner implements AutoCloseable {
                     }
                     functionDetails = SourceConfigUtils.convert(
                             sourceConfig, SourceConfigUtils.validateAndExtractDetails(
-                                    sourceConfig, Thread.currentThread().getContextClassLoader(), true));
+                                    sourceConfig,
+                                    Thread.currentThread().getContextClassLoader(), true),
+                            functionDefaultsMediatorImpl);
                 }
             } else if (sinkConfig != null) {
                 inferMissingArguments(sinkConfig);

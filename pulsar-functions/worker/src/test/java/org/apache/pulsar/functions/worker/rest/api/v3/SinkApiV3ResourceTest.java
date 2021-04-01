@@ -56,6 +56,9 @@ import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -71,6 +74,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -180,6 +184,16 @@ public class SinkApiV3ResourceTest {
         this.mockedPackages = mock(Packages.class);
         namespaceList.add(tenant + "/" + namespace);
 
+        ClusterFunctionProducerDefaults mockedProducerDefaults = mock(ClusterFunctionProducerDefaults.class);
+
+        when(mockedProducerDefaults.isBatchingDisabled()).thenReturn(false);
+        when(mockedProducerDefaults.isChunkingEnabled()).thenReturn(false);
+        when(mockedProducerDefaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(mockedProducerDefaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(mockedProducerDefaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(mockedProducerDefaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(mockedProducerDefaults.getBatchingMaxPublishDelay()).thenReturn(12L);
+
         this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
@@ -208,7 +222,8 @@ public class SinkApiV3ResourceTest {
                 .setWorkerPort(8080)
                 .setFunctionMetadataTopicName("pulsar/functions")
                 .setNumFunctionPackageReplicas(3)
-                .setPulsarServiceUrl("pulsar://localhost:6650/");
+                .setPulsarServiceUrl("pulsar://localhost:6650/")
+                .setClusterFunctionProducerDefaults(mockedProducerDefaults);
         tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
         tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
