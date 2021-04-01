@@ -34,13 +34,14 @@ import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.io.PulsarFunctionE2ETest.Metric;
+
 import org.apache.pulsar.io.batchdiscovery.ImmediateTriggerer;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+@Test(groups = "broker-io")
 public class PulsarBatchSourceE2ETest extends AbstractPulsarE2ETest {
 
     private void testPulsarBatchSourceStats(String jarFilePathUrl) throws Exception {

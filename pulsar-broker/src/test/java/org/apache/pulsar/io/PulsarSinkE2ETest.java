@@ -49,7 +49,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.io.PulsarFunctionE2ETest.Metric;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -58,6 +57,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import lombok.Cleanup;
 
+@Test(groups = "broker-io")
 public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
 
     @Test

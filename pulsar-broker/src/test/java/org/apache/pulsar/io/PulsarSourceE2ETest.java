@@ -33,7 +33,6 @@ import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.io.PulsarFunctionE2ETest.Metric;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
