@@ -157,7 +157,7 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * Set the max total receiver queue size across partitons.
-     * 
+     *
      * This setting is used to reduce the receiver queue size for individual partitions
      * {@link #setReceiverQueueSize(int)} if the total exceeds this value (default: 50000).
      *
@@ -199,9 +199,9 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     /**
      * Set the tick duration time that defines the granularity of the ack-timeout redelivery (in
      * milliseconds).
-     * 
+     *
      * The default value is 1000, which means 1 second.
-     * 
+     *
      * Using a higher tick time reduces
      * the memory overhead to track messages when the ack-timeout is set to a bigger value.
      *
@@ -216,7 +216,7 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * Set the delay to wait before re-delivering messages that have failed to be process.
-     * 
+     *
      * When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
      * will be redelivered after a fixed timeout. The default is 1 min.
      *
@@ -341,7 +341,7 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * The default value is `InitialPositionLatest`.
-     * 
+     *
      * @param subscriptionInitialPosition the initial position at which to set
      * the cursor when subscribing to the topic for the first time
      */
