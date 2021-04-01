@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
