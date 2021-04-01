@@ -54,7 +54,7 @@ If warning messages are shown as below, it means broken links exist.
 
 Fix the broken links manually and then send a pull request.
 
-Besides, you can use an automatic checker tool to crawl through the Pulsar website and identify dead links, for example, [https://www.drlinkcheck.com/](https://www.drlinkcheck.com/).
+Besides, you can use an automatic checker tool to crawl through the Pulsar website and identify dead links, for example, [Dr. Link Checker](https://www.drlinkcheck.com/).
 
 ## Documentation
 Pulsar documents are written in English. Documentation related pages are placed in the `/site2/docs` directory. All documentation pages are versioned. For more details, refer to [versioning](#versioning).
