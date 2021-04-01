@@ -2089,17 +2089,17 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected int internalGetMaxConsumersPerSubscription() {
+    protected Integer internalGetMaxConsumersPerSubscription() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_consumers_per_subscription;
     }
 
-    protected void internalSetMaxConsumersPerSubscription(int maxConsumersPerSubscription) {
+    protected void internalSetMaxConsumersPerSubscription(Integer maxConsumersPerSubscription) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
-            if (maxConsumersPerSubscription < 0) {
+            if (maxConsumersPerSubscription != null && maxConsumersPerSubscription < 0) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "maxConsumersPerSubscription must be 0 or more");
             }
