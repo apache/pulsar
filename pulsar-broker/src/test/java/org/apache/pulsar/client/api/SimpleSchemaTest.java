@@ -31,6 +31,7 @@ import static org.testng.Assert.fail;
 
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.Schema.Parser;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
@@ -523,7 +524,12 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 Message<GenericRecord> data = c.receive();
                 assertNotNull(data.getSchemaVersion());
                 assertEquals(data.getValue().getField("i"), i);
+                MessageImpl impl = (MessageImpl) data;
+
+                org.apache.avro.Schema avroSchema = (org.apache.avro.Schema) impl.getSchema().getNativeSchema().get();
+                assertNotNull(avroSchema);
             }
+
         }
     }
 

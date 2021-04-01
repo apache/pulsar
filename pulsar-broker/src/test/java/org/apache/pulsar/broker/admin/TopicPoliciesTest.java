@@ -1381,6 +1381,72 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getSubscribeRate(topic, true), brokerPolicy);
     }
 
+    @Test(timeOut = 30000)
+    public void testPriorityAndDisableMaxConsumersOnSub() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        int maxConsumerInBroker = 1;
+        int maxConsumerInNs = 2;
+        int maxConsumerInTopic = 4;
+        String mySub = "my-sub";
+        conf.setMaxConsumersPerSubscription(maxConsumerInBroker);
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().until(() ->
+                pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        List<Consumer<String>> consumerList = new ArrayList<>();
+        ConsumerBuilder<String> builder = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic).subscriptionName(mySub);
+        consumerList.add(builder.subscribe());
+        try {
+            builder.subscribe();
+            fail("should fail");
+        } catch (PulsarClientException ignored) {
+        }
+
+        admin.namespaces().setMaxConsumersPerSubscription(myNamespace, maxConsumerInNs);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespace)));
+        consumerList.add(builder.subscribe());
+        try {
+            builder.subscribe();
+            fail("should fail");
+        } catch (PulsarClientException ignored) {
+        }
+        //disabled
+        admin.namespaces().setMaxConsumersPerSubscription(myNamespace, 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.namespaces().getMaxConsumersPerSubscription(myNamespace).intValue(), 0));
+        consumerList.add(builder.subscribe());
+        //set topic-level
+        admin.topics().setMaxConsumersPerSubscription(topic, maxConsumerInTopic);
+        Awaitility.await().untilAsserted(() ->
+                assertNotNull(admin.topics().getMaxConsumersPerSubscription(topic)));
+        consumerList.add(builder.subscribe());
+        try {
+            builder.subscribe();
+            fail("should fail");
+        } catch (PulsarClientException ignored) {
+        }
+        //remove topic policies
+        admin.topics().removeMaxConsumersPerSubscription(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin.topics().getMaxConsumersPerSubscription(topic)));
+        consumerList.add(builder.subscribe());
+        //remove namespace policies, then use broker-level
+        admin.namespaces().removeMaxConsumersPerSubscription(myNamespace);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespace)));
+        try {
+            builder.subscribe();
+            fail("should fail");
+        } catch (PulsarClientException ignored) {
+        }
+
+        for (Consumer<String> consumer : consumerList) {
+            consumer.close();
+        }
+    }
+
     @Test
     public void testRemoveSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);

@@ -28,6 +28,7 @@ import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -133,6 +134,17 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private Schema<?> generateSchema(SchemaInfo schemaInfo) {
 
+    @Override
+    public Optional<Object> getNativeSchema() {
+        ensureSchemaInitialized();
+        if (schema == null) {
+            return Optional.empty();
+        } else {
+            return schema.getNativeSchema();
+        }
+    }
+
+    private GenericSchema generateSchema(SchemaInfo schemaInfo) {
         // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
         // to decode the messages.
         final boolean useProvidedSchemaAsReaderSchema = false;
@@ -191,7 +203,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                         KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
                 Schema<?> keySchema = getSchema(kvSchemaInfo.getKey());
                 Schema<?> valueSchema = getSchema(kvSchemaInfo.getValue());
-                return KeyValueSchema.of(keySchema, valueSchema);
+                return KeyValueSchema.of(keySchema, valueSchema,
+                        KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo));
             default:
                 throw new IllegalArgumentException("Retrieve schema instance from schema info for type '"
                         + schemaInfo.getType() + "' is not supported yet");

@@ -44,12 +44,14 @@ for conf_filename in conf_files:
     for line in open(conf_filename):
         lines.append(line)
         line = line.strip()
-        if not line or line.startswith('#'):
+        if not line:
             continue
 
         try:
             k,v = line.split('=', 1)
-            keys[k] = len(lines) - 1
+            if k.startswith('#'):
+                k = k[1:]
+            keys[k.strip()] = len(lines) - 1
         except:
             print("[%s] skip Processing %s" % (conf_filename, line))
 
