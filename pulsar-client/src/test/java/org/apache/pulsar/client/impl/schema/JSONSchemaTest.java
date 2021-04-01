@@ -22,6 +22,8 @@ import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_JSON_ALLOW_NULL;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_JSON_NOT_ALLOW_NULL;
 import static org.testng.Assert.assertEquals;
+import static org.testng.AssertJUnit.assertSame;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -32,6 +34,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaValidationException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
@@ -367,5 +370,12 @@ public class JSONSchemaTest {
         byte[] encoded = jsonSchema.encode(pc);
         PC roundtrippedPc = jsonSchema.decode(encoded);
         assertEquals(roundtrippedPc, pc);
+    }
+
+    @Test
+    public void testGetNativeSchema() throws SchemaValidationException {
+        JSONSchema<PC> schema2 = JSONSchema.of(PC.class);
+        org.apache.avro.Schema avroSchema2 = (Schema) schema2.getNativeSchema().get();
+        assertSame(schema2.schema, avroSchema2);
     }
 }
