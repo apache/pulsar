@@ -760,7 +760,7 @@ public class PersistentReplicator extends AbstractReplicator
 
         int markerType = msg.getMessageBuilder().getMarkerType();
 
-        if (!msg.getMessageBuilder().hasMarkerType() ||
+        if (!msg.getMessageBuilder().hasReplicatedFrom() ||
                 !remoteCluster.equals(msg.getMessageBuilder().getReplicatedFrom())) {
             // Only consider markers that are coming from the same cluster that this
             // replicator instance is assigned to.
