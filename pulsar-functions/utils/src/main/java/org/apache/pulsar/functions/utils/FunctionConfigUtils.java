@@ -817,7 +817,7 @@ public class FunctionConfigUtils {
         doJavaChecks(functionConfig, classLoader);
     }
 
-    public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig, Boolean ignoreExistingFunctionDefaults) {
+    public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig, boolean ignoreExistingFunctionDefaults) {
         FunctionConfig mergedConfig = existingConfig.toBuilder().build();
         if (!existingConfig.getTenant().equals(newConfig.getTenant())) {
             throw new IllegalArgumentException("Tenants differ");
@@ -856,7 +856,7 @@ public class FunctionConfigUtils {
         // For each defined default, if it wasn't set on the incoming newConfig, set the value from existing.
         mergedConfig.setProducerConfig(existingConfig.getProducerConfig()
                 .mergeDefaults(newConfig.getProducerConfig(),
-                        ignoreExistingFunctionDefaults != null ? ignoreExistingFunctionDefaults : false));
+                        ignoreExistingFunctionDefaults));
 
         if (newConfig.getTopicsPattern() != null && !newConfig.getTopicsPattern().isEmpty()) {
             newConfig.getInputSpecs().put(newConfig.getTopicsPattern(),

@@ -184,7 +184,7 @@ public class LocalRunner implements AutoCloseable {
     public String clusterFunctionMessageRoutingModeDefault = "CustomPartition";
 
     @Parameter(names = "--clusterFunctionBatchingMaxPublishDelayDefault", description = "The default max publish delay (in milliseconds) for functions when message batching is enabled", hidden = true)
-    public int clusterFunctionBatchingMaxPublishDelayDefault = 10;
+    public long clusterFunctionBatchingMaxPublishDelayDefault = 10L;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
     private static final String DEFAULT_WEB_SERVICE_URL = "http://localhost:8080";

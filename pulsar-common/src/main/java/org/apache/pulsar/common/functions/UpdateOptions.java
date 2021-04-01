@@ -38,5 +38,5 @@ public class UpdateOptions {
     @ApiModelProperty(
             value="Whether or not to ignore any existing function defaults",
             name ="ignore-existing-function-defaults")
-    private Boolean ignoreExistingFunctionDefaults;
+    private boolean ignoreExistingFunctionDefaults = false;
 }
