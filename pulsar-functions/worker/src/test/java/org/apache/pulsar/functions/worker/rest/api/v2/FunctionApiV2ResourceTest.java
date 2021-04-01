@@ -80,6 +80,7 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediatorImpl;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -170,6 +171,15 @@ public class FunctionApiV2ResourceTest {
         this.mockedLeaderService = mock(LeaderService.class);
         this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
+        ClusterFunctionProducerDefaults mockedProducerDefaults = mock(ClusterFunctionProducerDefaults.class);
+
+        when(mockedProducerDefaults.isBatchingDisabled()).thenReturn(false);
+        when(mockedProducerDefaults.isChunkingEnabled()).thenReturn(false);
+        when(mockedProducerDefaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(mockedProducerDefaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(mockedProducerDefaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(mockedProducerDefaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(mockedProducerDefaults.getBatchingMaxPublishDelay()).thenReturn(12L);
 
         this.mockedWorkerService = mock(PulsarWorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
@@ -194,7 +204,8 @@ public class FunctionApiV2ResourceTest {
                 .setWorkerPort(8080)
                 .setFunctionMetadataTopicName("pulsar/functions")
                 .setNumFunctionPackageReplicas(3)
-                .setPulsarServiceUrl("pulsar://localhost:6650/");
+                .setPulsarServiceUrl("pulsar://localhost:6650/")
+                .setClusterFunctionProducerDefaults(mockedProducerDefaults);
         tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
         tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);

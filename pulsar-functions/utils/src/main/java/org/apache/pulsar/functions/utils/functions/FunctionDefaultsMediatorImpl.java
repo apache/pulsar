@@ -34,25 +34,25 @@ public class FunctionDefaultsMediatorImpl implements FunctionDefaultsMediator{
         // We must rely on a null check to determine if we should get the default from WorkerConfig
         // Otherwise, unexpected behavior could occur if we get the value from WorkerConfig
         // when the operator intentionally set a different value in the FunctionConfig.
-        if (producerConfig.getBatchingDisabled() == null){
+        if (producerConfig == null || producerConfig.getBatchingDisabled() == null){
             return producerDefaults.isBatchingDisabled();
         }
         return producerConfig.getBatchingDisabled();
     }
     public boolean isChunkingEnabled(){
-        if (producerConfig.getChunkingEnabled() == null){
+        if (producerConfig == null || producerConfig.getChunkingEnabled() == null){
             return producerDefaults.isChunkingEnabled();
         }
         return producerConfig.getChunkingEnabled();
     }
     public boolean isBlockIfQueueFullDisabled(){
-        if (producerConfig.getBlockIfQueueFullDisabled() == null){
+        if (producerConfig == null || producerConfig.getBlockIfQueueFullDisabled() == null){
             return producerDefaults.isBlockIfQueueFullDisabled();
         }
         return producerConfig.getBlockIfQueueFullDisabled();
     }
     public CompressionType getCompressionType(){
-        if (producerConfig.getCompressionType() == null){
+        if (producerConfig == null || producerConfig.getCompressionType() == null){
             return producerDefaults.getCompressionType();
         }
         return producerConfig.getCompressionType();
@@ -74,7 +74,7 @@ public class FunctionDefaultsMediatorImpl implements FunctionDefaultsMediator{
         }
     }
     public HashingScheme getHashingScheme(){
-        if (producerConfig.getHashingScheme() == null){
+        if (producerConfig == null || producerConfig.getHashingScheme() == null){
             return producerDefaults.getHashingScheme();
         }
         return producerConfig.getHashingScheme();
@@ -90,7 +90,7 @@ public class FunctionDefaultsMediatorImpl implements FunctionDefaultsMediator{
         }
     }
     public MessageRoutingMode getMessageRoutingMode(){
-        if (producerConfig.getMessageRoutingMode() == null){
+        if (producerConfig == null || producerConfig.getMessageRoutingMode() == null){
             return producerDefaults.getMessageRoutingMode();
         }
         return producerConfig.getMessageRoutingMode();
@@ -108,10 +108,9 @@ public class FunctionDefaultsMediatorImpl implements FunctionDefaultsMediator{
         }
     }
     public Long getBatchingMaxPublishDelay(){
-        if (producerConfig.getBatchingMaxPublishDelay() == null || producerConfig.getBatchingMaxPublishDelay() == 0){
-            if (producerDefaults == null){
-                return 10L; // Would it be better to force producerDefaults to not be null?
-            }
+        if (producerConfig == null ||
+                producerConfig.getBatchingMaxPublishDelay() == null ||
+                producerConfig.getBatchingMaxPublishDelay() == 0){
             return producerDefaults.getBatchingMaxPublishDelay();
         }
         return producerConfig.getBatchingMaxPublishDelay();

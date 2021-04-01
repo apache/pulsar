@@ -253,6 +253,7 @@ public class TestClusterFunctionProducerDefaults {
         when(producerDefaults.getCompressionType()).thenReturn(CompressionType.LZ4);
         when(producerDefaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
         when(producerDefaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(producerDefaults.getBatchingMaxPublishDelay()).thenReturn(12L);
 
         when(config.getBatchingDisabled()).thenReturn(null);
         when(config.getChunkingEnabled()).thenReturn(null);
@@ -271,6 +272,7 @@ public class TestClusterFunctionProducerDefaults {
         Assert.assertEquals(clusterFunctionDefaults.isBatchingDisabled(), false);
         Assert.assertEquals(clusterFunctionDefaults.getHashingScheme(), HashingScheme.Murmur3_32Hash);
         Assert.assertEquals(clusterFunctionDefaults.getMessageRoutingMode(), MessageRoutingMode.CustomPartition);
+        Assert.assertEquals((long)clusterFunctionDefaults.getBatchingMaxPublishDelay(), 12L);
     }
 
     @Test
@@ -283,6 +285,7 @@ public class TestClusterFunctionProducerDefaults {
         when(producerDefaults.getCompressionType()).thenReturn(CompressionType.NONE);
         when(producerDefaults.getHashingScheme()).thenReturn(HashingScheme.JavaStringHash);
         when(producerDefaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.SinglePartition);
+        when(producerDefaults.getBatchingMaxPublishDelay()).thenReturn(12L);
 
         when(config.getBatchingDisabled()).thenReturn(false);
         when(config.getChunkingEnabled()).thenReturn(false);
