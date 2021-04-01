@@ -310,7 +310,8 @@ public class LocalRunner implements AutoCloseable {
                             this.clusterFunctionMessageRoutingModeDefault,
                             this.clusterFunctionBatchingMaxPublishDelayDefault);
             FunctionDefaultsMediatorImpl functionDefaultsMediatorImpl =
-                    new FunctionDefaultsMediatorImpl(producerDefaults, functionConfig.getProducerConfig());
+                    new FunctionDefaultsMediatorImpl(producerDefaults,
+                            functionConfig != null ? functionConfig.getProducerConfig() : null);
 
             if (functionConfig != null) {
                 FunctionConfigUtils.inferMissingArguments(functionConfig, true);

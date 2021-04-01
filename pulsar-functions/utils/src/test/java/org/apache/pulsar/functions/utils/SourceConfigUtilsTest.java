@@ -36,6 +36,7 @@ import org.apache.pulsar.common.nar.NarUnpacker;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.functions.ClusterFunctionProducerDefaults;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultException;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediator;
 import org.apache.pulsar.functions.utils.functions.FunctionDefaultsMediatorImpl;
@@ -104,10 +105,14 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
     @Test
     public void testConvertBackFidelity() throws IOException, FunctionDefaultException {
         SourceConfig sourceConfig = createSourceConfig();
+        FunctionDefaultsMediator defaultsMediator =
+                new FunctionDefaultsMediatorImpl(getClusterFunctionProducerDefaultsMock(),
+                        sourceConfig.getProducerConfig());
+
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(
                 sourceConfig,
                 new SourceConfigUtils.ExtractedSourceDetails(null, null),
-                getFunctionDefaultsMediatorMock());
+                defaultsMediator);
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -118,28 +123,28 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         );
     }
 
-    private FunctionDefaultsMediator getFunctionDefaultsMediatorMock(){
-        FunctionDefaultsMediatorImpl defaults = mock(FunctionDefaultsMediatorImpl.class);
-        when(defaults.isBatchingDisabled()).thenReturn(false);
-        when(defaults.isChunkingEnabled()).thenReturn(false);
-        when(defaults.isBlockIfQueueFullDisabled()).thenReturn(false);
-        when(defaults.getCompressionType()).thenReturn(CompressionType.LZ4);
-        when(defaults.getCompressionTypeProto()).thenReturn(Function.CompressionType.LZ4);
-        when(defaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
-        when(defaults.getHashingSchemeProto()).thenReturn(Function.HashingScheme.MURMUR3_32HASH);
-        when(defaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
-        when(defaults.getMessageRoutingModeProto()).thenReturn(Function.MessageRoutingMode.CUSTOM_PARTITION);
-        when(defaults.getBatchingMaxPublishDelay()).thenReturn(12L);
-        return defaults;
+    private ClusterFunctionProducerDefaults getClusterFunctionProducerDefaultsMock(){
+        ClusterFunctionProducerDefaults mockedProducerDefaults = mock(ClusterFunctionProducerDefaults.class);
+        when(mockedProducerDefaults.isBatchingDisabled()).thenReturn(false);
+        when(mockedProducerDefaults.isChunkingEnabled()).thenReturn(false);
+        when(mockedProducerDefaults.isBlockIfQueueFullDisabled()).thenReturn(false);
+        when(mockedProducerDefaults.getCompressionType()).thenReturn(CompressionType.LZ4);
+        when(mockedProducerDefaults.getHashingScheme()).thenReturn(HashingScheme.Murmur3_32Hash);
+        when(mockedProducerDefaults.getMessageRoutingMode()).thenReturn(MessageRoutingMode.CustomPartition);
+        when(mockedProducerDefaults.getBatchingMaxPublishDelay()).thenReturn(12L);
+        return mockedProducerDefaults;
     }
 
     @Test
     public void testConvertBackFidelityWithBatch() throws IOException, FunctionDefaultException  {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
+        FunctionDefaultsMediator defaultsMediator =
+                new FunctionDefaultsMediatorImpl(getClusterFunctionProducerDefaultsMock(),
+                        sourceConfig.getProducerConfig());
         Function.FunctionDetails functionDetails = SourceConfigUtils.convert(
                 sourceConfig,
                 new SourceConfigUtils.ExtractedSourceDetails(null, null),
-                getFunctionDefaultsMediatorMock());
+                defaultsMediator);
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
