@@ -132,8 +132,6 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         }
     }
 
-    private Schema<?> generateSchema(SchemaInfo schemaInfo) {
-
     @Override
     public Optional<Object> getNativeSchema() {
         ensureSchemaInitialized();
@@ -144,7 +142,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         }
     }
 
-    private GenericSchema generateSchema(SchemaInfo schemaInfo) {
+    private Schema<?> generateSchema(SchemaInfo schemaInfo) {
         // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
         // to decode the messages.
         final boolean useProvidedSchemaAsReaderSchema = false;
