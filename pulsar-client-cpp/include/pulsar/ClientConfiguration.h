@@ -142,29 +142,87 @@ class PULSAR_PUBLIC ClientConfiguration {
      */
     ClientConfiguration& setLogger(LoggerFactory* loggerFactory);
 
+    /**
+     * Configure whether to use the TLS encryption on the connections.
+     *
+     * The default value is false.
+     *
+     * @param useTls
+     */
     ClientConfiguration& setUseTls(bool useTls);
+
+    /**
+     * @return whether the TLS encryption is used on the connections
+     */
     bool isUseTls() const;
 
+    /**
+     * Set the path to the trusted TLS certificate file.
+     *
+     * @param tlsTrustCertsFilePath
+     */
     ClientConfiguration& setTlsTrustCertsFilePath(const std::string& tlsTrustCertsFilePath);
+
+    /**
+     * @return the path to the trusted TLS certificate file
+     */
     std::string getTlsTrustCertsFilePath() const;
 
+    /**
+     * Configure whether the Pulsar client accepts untrusted TLS certificates from brokers.
+     *
+     * The default value is false.
+     *
+     * @param tlsAllowInsecureConnection
+     */
     ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
+
+    /**
+     * @return whether the Pulsar client accepts untrusted TLS certificates from brokers
+     */
     bool isTlsAllowInsecureConnection() const;
 
+    /**
+     * Configure whether it allows validating hostname verification when a client connects to a broker over
+     * TLS.
+     *
+     * It validates the incoming x509 certificate and matches the provided hostname (CN/SAN) with the
+     * expected broker's hostname. It follows the server identity hostname verification in RFC 2818.
+     *
+     * The default value is false.
+     *
+     * @see [RFC 2818](https://tools.ietf.org/html/rfc2818).
+     *
+     * @param validateHostName whether to enable the TLS hostname verification
+     */
     ClientConfiguration& setValidateHostName(bool validateHostName);
+
+    /**
+     * @return true if the TLS hostname verification is enabled
+     */
     bool isValidateHostName() const;
 
+    /**
+     * Configure the listener name that the broker returns the corresponding `advertisedListener`.
+     *
+     * @param name the listener name
+     */
     ClientConfiguration& setListenerName(const std::string& listenerName);
+
+    /**
+     * @return the listener name for the broker
+     */
     const std::string& getListenerName() const;
 
-    /*
-     * Initialize stats interval in seconds. Stats are printed and reset after every 'statsIntervalInSeconds'.
-     * Set to 0 in order to disable stats collection.
+    /**
+     * Initialize stats interval in seconds. Stats are printed and reset after every `statsIntervalInSeconds`.
+     *
+     * Set to 0 means disabling stats collection.
      */
     ClientConfiguration& setStatsIntervalInSeconds(const unsigned int&);
 
-    /*
-     * Get the stats interval set in the client.
+    /**
+     * @return the stats interval configured for the client
      */
     const unsigned int& getStatsIntervalInSeconds() const;
 
