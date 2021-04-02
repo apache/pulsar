@@ -114,7 +114,7 @@ public abstract class AbstractPulsarE2ETest {
     }
     
     @BeforeMethod
-    void setup(Method method) throws Exception {
+    public void setup(Method method) throws Exception {
         log.info("--- Setting up method {} ---", method.getName());
 
         // Start local bookkeeper ensemble
