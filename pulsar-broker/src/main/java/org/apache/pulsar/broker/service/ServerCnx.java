@@ -1193,7 +1193,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
                                     if (isActive()) {
                                         if (producerFuture.complete(producer)) {
-                                            log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                                            log.debug("[{}] Created new producer: {}", remoteAddress, producer);
                                             commandSender.sendProducerSuccessResponse(requestId, producerName,
                                                     producer.getLastSequenceId(), producer.getSchemaVersion(),
                                                     newTopicEpoch, true /* producer is ready now */);
@@ -1208,11 +1208,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         }
                                         } else {
                                             producer.closeNow(true);
-                                        log.info("[{}] Cleared producer created after connection was closed: {}",
-                                                remoteAddress, producer);
-                                        producerFuture.completeExceptionally(
-                                                new IllegalStateException(
-                                                        "Producer created after connection was closed"));
+                                            log.info("[{}] Cleared producer created after connection was closed: {}",
+                                                    remoteAddress, producer);
+                                            producerFuture.completeExceptionally(
+                                                    new IllegalStateException(
+                                                            "Producer created after connection was closed"));
                                         }
 
                                         producers.remove(producerId, producerFuture);
@@ -1522,7 +1522,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                  producer.getTopic(), producer.getProducerName(), remoteAddress, producerId);
 
         producer.close(true).thenAccept(v -> {
-            log.info("[{}][{}] Closed producer on cnx {}. producerId={}",
+            log.debug("[{}][{}] Closed producer on cnx {}. producerId={}",
                      producer.getTopic(), producer.getProducerName(),
                      remoteAddress, producerId);
             commandSender.sendSuccessResponse(requestId);
@@ -1569,7 +1569,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             consumer.close();
             consumers.remove(consumerId, consumerFuture);
             commandSender.sendSuccessResponse(requestId);
-            log.info("[{}] Closed consumer, consumerId={}", remoteAddress, consumerId);
+            log.debug("[{}] Closed consumer, consumerId={}", remoteAddress, consumerId);
         } catch (BrokerServiceException e) {
             log.warn("[{]] Error closing consumer {} : {}", remoteAddress, consumer, e);
             commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(e), e.getMessage());
@@ -1923,7 +1923,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return topic.addSchema(schema);
         } else {
             return topic.hasSchema().thenCompose((hasSchema) -> {
-                log.info("[{}] {} configured with schema {}",
+                log.debug("[{}] {} configured with schema {}",
                          remoteAddress, topic.getName(), hasSchema);
                 CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
                 if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
