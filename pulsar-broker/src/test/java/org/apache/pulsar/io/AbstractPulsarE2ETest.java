@@ -84,28 +84,27 @@ import lombok.ToString;
 
 public abstract class AbstractPulsarE2ETest {
 
-	final String tenant = "external-repl-prop";
+	public static final Logger log = LoggerFactory.getLogger(AbstractPulsarE2ETest.class);
 	
-    LocalBookkeeperEnsemble bkEnsemble;
-    ServiceConfiguration config;
-    WorkerConfig workerConfig;
-    PulsarService pulsar;
-    PulsarAdmin admin;
-    PulsarClient pulsarClient;
-    BrokerStats brokerStatsClient;
-    PulsarWorkerService functionsWorkerService;
-    String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
-    String primaryHost;
-    String workerId;
-    PulsarFunctionTestTemporaryDirectory tempDirectory;
-    
     protected final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     protected final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
     protected final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     protected final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
     protected final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
-    
-    public static final Logger log = LoggerFactory.getLogger(AbstractPulsarE2ETest.class);
+    protected final String tenant = "external-repl-prop";
+	
+	protected LocalBookkeeperEnsemble bkEnsemble;
+	protected ServiceConfiguration config;
+	protected WorkerConfig workerConfig;
+	protected PulsarService pulsar;
+	protected PulsarAdmin admin;
+	protected PulsarClient pulsarClient;
+	protected BrokerStats brokerStatsClient;
+	protected PulsarWorkerService functionsWorkerService;
+	protected String pulsarFunctionsNamespace = tenant + "/pulsar-function-admin";
+	protected String primaryHost;
+	protected String workerId;
+	protected PulsarFunctionTestTemporaryDirectory tempDirectory;
     protected FileServer fileServer;
     
     @DataProvider(name = "validRoleName")
@@ -113,7 +112,7 @@ public abstract class AbstractPulsarE2ETest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
     
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup(Method method) throws Exception {
         log.info("--- Setting up method {} ---", method.getName());
 
