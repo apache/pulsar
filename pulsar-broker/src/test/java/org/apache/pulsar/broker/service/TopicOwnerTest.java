@@ -26,6 +26,8 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +40,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
@@ -71,6 +74,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Test(groups = "broker")
 public class TopicOwnerTest {
@@ -240,6 +245,28 @@ public class TopicOwnerTest {
         }).when(spyZooKeeperServer).submitRequest(any(Request.class));
     }
 
+    private MutableBoolean listenNamespaceBundleLoading(PulsarService broker, NamespaceBundle namespaceBundle) {
+        NamespaceService namespaceService = broker.getNamespaceService();
+        final MutableBoolean loaded = new MutableBoolean();
+        namespaceService.addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
+            @Override
+            public void onLoad(NamespaceBundle bundle) {
+                loaded.setTrue();
+            }
+
+            @Override
+            public void unLoad(NamespaceBundle bundle) {
+                loaded.setFalse();
+            }
+
+            @Override
+            public boolean test(NamespaceBundle candidate) {
+                return namespaceBundle.equals(candidate);
+            }
+        });
+        return loaded;
+    }
+
     @Test
     public void testAcquireOwnershipWithZookeeperDisconnectedBeforeOwnershipNodeCreated() throws Exception {
         String topic1 = "persistent://my-tenant/my-ns/topic-1";
@@ -250,6 +277,7 @@ public class TopicOwnerTest {
 
         PulsarService pulsar1 = pulsarServices[1];
         final ZooKeeper zooKeeper1 = pulsar1.getZkClient();
+        final MutableBoolean loadedFromListener1 = listenNamespaceBundleLoading(pulsar1, namespaceBundle);
 
         final CompletableFuture<Void> reconnectedFuture = watchZookeeperReconnect(zooKeeper1);
 
@@ -287,6 +315,8 @@ public class TopicOwnerTest {
         pulsar1.getBrokerService().getTopic(topic1, true).join();
 
         Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
+        Assert.assertTrue(pulsar1.getNamespaceService().isServiceUnitOwned(namespaceBundle));
+        Assert.assertTrue(loadedFromListener1.booleanValue());
     }
 
     @Test
@@ -299,6 +329,7 @@ public class TopicOwnerTest {
 
         PulsarService pulsar1 = pulsarServices[1];
         final ZooKeeper zooKeeper1 = pulsar1.getZkClient();
+        final MutableBoolean loadedFromListener1 = listenNamespaceBundleLoading(pulsar1, namespaceBundle);
 
         final CompletableFuture<Void> reconnectedFuture = watchZookeeperReconnect(zooKeeper1);
 
@@ -335,6 +366,8 @@ public class TopicOwnerTest {
         pulsar1.getBrokerService().getTopic(topic1, true).join();
 
         Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
+        Assert.assertTrue(pulsar1.getNamespaceService().isServiceUnitOwned(namespaceBundle));
+        Assert.assertTrue(loadedFromListener1.booleanValue());
     }
 
     @Test
@@ -346,6 +379,7 @@ public class TopicOwnerTest {
         final MutableObject<PulsarService> leaderAuthorizedBroker = spyLeaderNamespaceServiceForAuthorizedBroker();
 
         PulsarService pulsar1 = pulsarServices[1];
+        MutableBoolean loadedFromListener1 = listenNamespaceBundleLoading(pulsar1, namespaceBundle);
 
         leaderAuthorizedBroker.setValue(pulsar1);
         Assert.assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
@@ -388,6 +422,7 @@ public class TopicOwnerTest {
         ownedBundlesCache1.synchronous().invalidate(ServiceUnitZkUtils.path(namespaceBundle));
         pulsarAdmins[0].topics().createNonPartitionedTopic(topic1);
         Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
+        Assert.assertTrue(loadedFromListener1.booleanValue());
     }
 
     @Test
@@ -400,6 +435,14 @@ public class TopicOwnerTest {
 
         PulsarService pulsar1 = pulsarServices[1];
         PulsarService pulsar2 = pulsarServices[2];
+
+        final Map<String, PulsarService> servicesByBrokerUrl = Arrays.stream(pulsarServices)
+            .collect(Collectors.toMap(PulsarService::getBrokerServiceUrl, Function.identity()));
+        final Map<String, MutableBoolean> loadedFromListenersByBrokerUrl = Arrays.stream(pulsarServices)
+            .collect(Collectors.toMap(
+                PulsarService::getBrokerServiceUrl,
+                service -> listenNamespaceBundleLoading(service, namespaceBundle)
+            ));
 
         leaderAuthorizedBroker.setValue(pulsar1);
         Assert.assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
@@ -434,13 +477,22 @@ public class TopicOwnerTest {
         leaderAuthorizedBroker.setValue(pulsar2);
 
         // We don't known whether previous unload was successful or not, but now all lookups should return same result.
-        final String currentBrokerServiceUrl = pulsarAdmins[0].lookups().lookupTopic(topic1);
-        Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), currentBrokerServiceUrl);
-        Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), currentBrokerServiceUrl);
-        Assert.assertEquals(pulsarAdmins[3].lookups().lookupTopic(topic1), currentBrokerServiceUrl);
-        Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), currentBrokerServiceUrl);
+        final String ownerBrokerServiceUrl = pulsarAdmins[0].lookups().lookupTopic(topic1);
+        Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), ownerBrokerServiceUrl);
+        Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), ownerBrokerServiceUrl);
+        Assert.assertEquals(pulsarAdmins[3].lookups().lookupTopic(topic1), ownerBrokerServiceUrl);
+        Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), ownerBrokerServiceUrl);
 
         pulsarAdmins[0].topics().createNonPartitionedTopic(topic1);
+
+        for (Map.Entry<String, MutableBoolean> entry : loadedFromListenersByBrokerUrl.entrySet()) {
+            String brokerUrl = entry.getKey();
+            PulsarService service = servicesByBrokerUrl.get(brokerUrl);
+            MutableBoolean loadedFromListener = entry.getValue();
+            boolean owned = brokerUrl.equals(ownerBrokerServiceUrl);
+            Assert.assertEquals(service.getNamespaceService().isServiceUnitOwned(namespaceBundle), owned);
+            Assert.assertEquals(loadedFromListener.booleanValue(), owned);
+        }
     }
 
     @Test
@@ -453,6 +505,8 @@ public class TopicOwnerTest {
 
         PulsarService pulsar1 = pulsarServices[1];
         PulsarService pulsar2 = pulsarServices[2];
+
+        MutableBoolean loadedFromListener2 = listenNamespaceBundleLoading(pulsar2, namespaceBundle);
 
         leaderAuthorizedBroker.setValue(pulsar1);
         Assert.assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
@@ -494,6 +548,8 @@ public class TopicOwnerTest {
 
         Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), pulsar2.getBrokerServiceUrl());
         Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), pulsar2.getBrokerServiceUrl());
+        Assert.assertTrue(pulsar2.getNamespaceService().isServiceUnitOwned(namespaceBundle));
+        Assert.assertTrue(loadedFromListener2.booleanValue());
     }
 
     @Test
