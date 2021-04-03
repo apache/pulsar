@@ -94,6 +94,3 @@ jobs:
         with:
           name: surefire-artifacts
           path: artifacts.zip
-      - name: Setup upterm ssh session
-        if: failure()
-        uses: lhotari/action-upterm@v1
