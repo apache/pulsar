@@ -323,8 +323,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         try {
             mergedConfig = FunctionConfigUtils.validateUpdate(
                     existingFunctionConfig,
-                    functionConfig,
-                    updateOptions != null ? updateOptions.getIgnoreExistingFunctionDefaults() : null);
+                    functionConfig);
         } catch (Exception e) {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }

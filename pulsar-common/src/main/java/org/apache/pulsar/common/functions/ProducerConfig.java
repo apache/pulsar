@@ -65,9 +65,8 @@ public class ProducerConfig {
     public boolean getBlockIfQueueFullEnabled(){
         return !this.getBlockIfQueueFullDisabled();
     }
-    public ProducerConfig mergeDefaults(ProducerConfig newConfig, boolean ignoreExistingFunctionDefaults){
+    public ProducerConfig mergeDefaults(ProducerConfig newConfig){
         ProducerConfig mergedConfig = new ProducerConfig();
-        if(ignoreExistingFunctionDefaults == false){
             // (i.e. don't ignore existing function defaults)
             if(newConfig == null) {
                 mergedConfig = this;
@@ -109,16 +108,6 @@ public class ProducerConfig {
                     mergedConfig.setBatchingMaxPublishDelay(this.getBatchingMaxPublishDelay());
                 }
             }
-        } else {
-            mergedConfig.setBatchingDisabled(newConfig.getBatchingDisabled());
-            mergedConfig.setChunkingEnabled(newConfig.getChunkingEnabled());
-            mergedConfig.setBlockIfQueueFullDisabled(newConfig.getBlockIfQueueFullDisabled());
-            mergedConfig.setCompressionType(newConfig.getCompressionType());
-            mergedConfig.setHashingScheme(newConfig.getHashingScheme());
-            mergedConfig.setMessageRoutingMode(newConfig.getMessageRoutingMode());
-            mergedConfig.setBatchingMaxPublishDelay(newConfig.getBatchingMaxPublishDelay());
-        }
-
         return mergedConfig;
     }
 }

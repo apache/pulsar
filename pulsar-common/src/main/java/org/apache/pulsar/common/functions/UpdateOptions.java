@@ -34,9 +34,4 @@ public class UpdateOptions {
         value = "Whether or not to update the auth data",
         name = "update-auth-data")
     private boolean updateAuthData = false;
-
-    @ApiModelProperty(
-            value="Whether or not to ignore any existing function defaults",
-            name ="ignore-existing-function-defaults")
-    private boolean ignoreExistingFunctionDefaults = false;
 }
