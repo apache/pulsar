@@ -198,6 +198,10 @@ Pulsar slack channel at https://apache-pulsar.slack.com/
 
 You can self-register at https://apache-pulsar.herokuapp.com/
 
+## Contributor Over Time
+
+![image](https://user-images.githubusercontent.com/2106987/113494632-9963a780-951c-11eb-9174-6901a3f7db67.png)
+
 ## License
 
 Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
