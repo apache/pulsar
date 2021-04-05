@@ -313,7 +313,7 @@ public interface PulsarClient extends Closeable {
      * the {@link org.apache.pulsar.client.api.transaction.Transaction} instance
      *
      * @throws PulsarClientException
-     *             if disable transaction
+     *             if transactions are not enabled
      * @since 2.7.0
      */
     TransactionBuilder newTransaction() throws PulsarClientException;

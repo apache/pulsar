@@ -933,7 +933,7 @@ public class PulsarClientImpl implements PulsarClient {
     // @Override
     public TransactionBuilder newTransaction() throws PulsarClientException {
         if (!conf.isEnableTransaction()) {
-            throw new PulsarClientException.InvalidConfigurationException("Disable Transaction");
+            throw new PulsarClientException.InvalidConfigurationException("Transactions are not enabled");
         }
         return new TransactionBuilderImpl(this, tcClient);
     }
