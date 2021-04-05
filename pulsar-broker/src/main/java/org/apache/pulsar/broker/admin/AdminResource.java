@@ -339,9 +339,6 @@ public abstract class AdminResource extends PulsarWebResource {
             BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
 
-            // hydrate the namespace polices
-            mergeNamespaceWithDefaults(policies, namespace, policyPath);
-
             return policies;
         } catch (RestException re) {
             throw re;
@@ -371,8 +368,6 @@ public abstract class AdminResource extends PulsarWebResource {
                         return FutureUtil.failedFuture(new RestException(e));
                     }
                     policies.get().bundles = bundleData != null ? bundleData : policies.get().bundles;
-                    // hydrate the namespace polices
-                    mergeNamespaceWithDefaults(policies.get(), namespace, policyPath);
                     return CompletableFuture.completedFuture(policies.get());
                 });
             } else {

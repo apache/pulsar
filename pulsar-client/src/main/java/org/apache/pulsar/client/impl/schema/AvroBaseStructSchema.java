@@ -21,6 +21,8 @@ package org.apache.pulsar.client.impl.schema;
 import org.apache.avro.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+import java.util.Optional;
+
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
 
@@ -45,5 +47,10 @@ public abstract class AvroBaseStructSchema<T> extends AbstractStructSchema<T>{
 
     public Schema getAvroSchema(){
         return schema;
+    }
+
+    @Override
+    public Optional<Object> getNativeSchema() {
+        return Optional.of(schema);
     }
 }

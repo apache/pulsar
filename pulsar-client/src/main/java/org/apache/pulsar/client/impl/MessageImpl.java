@@ -292,7 +292,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public boolean isExpired(int messageTTLInSeconds) {
-        return messageTTLInSeconds != 0 && (brokerEntryMetadata == null
+        return messageTTLInSeconds != 0 && (brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp()
                 ? (System.currentTimeMillis() >
                     getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
                 : (System.currentTimeMillis() >
@@ -300,7 +300,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public boolean publishedEarlierThan(long timestamp) {
-        return brokerEntryMetadata == null ? getPublishTime() < timestamp
+        return brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp() ? getPublishTime() < timestamp
                 : brokerEntryMetadata.getBrokerTimestamp() < timestamp;
     }
 

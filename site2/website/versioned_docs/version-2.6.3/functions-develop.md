@@ -100,7 +100,7 @@ func main() {
 	pf.Start(HandleRequest)
 }
 ```
-For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-function-go/examples/inputFunc.go#L20-L36).
+For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/inputFunc/inputFunc.go#L20-L36).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -466,7 +466,7 @@ func contextFunc(ctx context.Context) {
 }
 ```
 
-For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-function-go/examples/contextFunc.go#L29-L34).
+For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/contextFunc/contextFunc.go#L29-L34).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 

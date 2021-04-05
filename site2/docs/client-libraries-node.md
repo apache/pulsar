@@ -8,6 +8,8 @@ The Pulsar Node.js client can be used to create Pulsar [producers](#producers), 
 
 All the methods in [producers](#producers), [consumers](#consumers), and [readers](#readers) of a Node.js client are thread-safe.
 
+For 1.3.0 or later versions, [type definitions](https://github.com/apache/pulsar-client-node/blob/master/index.d.ts) used in TypeScript are available.
+
 ## Installation
 
 You can install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
@@ -25,6 +27,7 @@ Compatibility between each version of the Node.js client and the C++ client is a
 | 1.0.0          | 2.3.0 or later |
 | 1.1.0          | 2.4.0 or later |
 | 1.2.0          | 2.5.0 or later |
+| 1.3.0          | 2.7.0 or later |
 
 If an incompatible version of the C++ client is installed, you may fail to build or run this library.
 
@@ -55,7 +58,7 @@ A URL for a production Pulsar cluster may look something like this:
 pulsar://pulsar.us-west.example.com:6650
 ```
 
-If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL will look like something like this:
+If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL looks like this:
 
 ```http
 pulsar+ssl://pulsar.us-west.example.com:6651
@@ -63,7 +66,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 ## Create a client
 
-In order to interact with Pulsar, you will first need a client object. You can create a client instance using a `new` operator and the `Client` method, passing in a client options object (more on configuration [below](#client-configuration)).
+In order to interact with Pulsar, you first need a client object. You can create a client instance using a `new` operator and the `Client` method, passing in a client options object (more on configuration [below](#client-configuration)).
 
 Here is an example:
 
@@ -87,7 +90,7 @@ The following configurable parameters are available for Pulsar clients:
 | :-------- | :---------- | :------ |
 | `serviceUrl` | The connection URL for the Pulsar cluster. See [above](#connection-urls) for more info. |  |
 | `authentication` | Configure the authentication provider. (default: no authentication). See [TLS Authentication](security-tls-authentication.md) for more info. | |
-| `operationTimeoutSeconds` | The timeout for Node.js client operations (creating producers, subscribing to and unsubscribing from [topics](reference-terminology.md#topic)). Retries will occur until this threshold is reached, at which point the operation will fail. | 30 |
+| `operationTimeoutSeconds` | The timeout for Node.js client operations (creating producers, subscribing to and unsubscribing from [topics](reference-terminology.md#topic)). Retries occur until this threshold is reached, at which point the operation fails. | 30 |
 | `ioThreads` | The number of threads to use for handling connections to Pulsar [brokers](reference-terminology.md#broker). | 1 |
 | `messageListenerThreads` | The number of threads used by message listeners ([consumers](#consumers) and [readers](#readers)). | 1 |
 | `concurrentLookupRequest` | The number of concurrent lookup requests that can be sent on each broker connection. Setting a maximum helps to keep from overloading brokers. You should set values over the default of 50000 only if the client needs to produce and/or subscribe to thousands of Pulsar topics. | 50000 |
@@ -116,7 +119,7 @@ await producer.close();
 ```
 
 > #### Promise operation
-> When you create a new Pulsar producer, the operation will return `Promise` object and get producer instance or an error through executor function.  
+> When you create a new Pulsar producer, the operation returns `Promise` object and get producer instance or an error through executor function.  
 > In this example, using await operator instead of executor function.
 
 ### Producer operations
@@ -125,24 +128,26 @@ Pulsar Node.js producers have the following methods available:
 
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
-| `send(Object)` | Publishes a [message](#messages) to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function. | `Promise<null>` |
-| `flush()` | Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function. | `Promise<null>` |
-| `close()` | Closes the producer and releases all resources allocated to it. If `close()` is called then no more messages will be accepted from the publisher. This method will return Promise object, and when all pending publish requests have been persisted by Pulsar then run executor function. If an error is thrown, no pending writes will be retried. | `Promise<null>` |
+| `send(Object)` | Publishes a [message](#messages) to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object whose result is the message ID runs executor function. | `Promise<Object>` |
+| `flush()` | Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object runs executor function. | `Promise<null>` |
+| `close()` | Closes the producer and releases all resources allocated to it. Once `close()` is called, no more messages are accepted from the publisher. This method returns a Promise object. It runs the executor function when all pending publish requests are persisted by Pulsar. If an error is thrown, no pending writes are retried. | `Promise<null>` |
+| `getProducerName()` | Getter method of the producer name. | `string` |
+| `getTopic()` | Getter method of the name of the topic. | `string` |
 
 ### Producer configuration
 
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
-| `topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer will publish messages. | |
-| `producerName` | A name for the producer. If you do not explicitly assign a name, Pulsar will automatically generate a globally unique name.  If you choose to explicitly assign a name, it will need to be unique across *all* Pulsar clusters, otherwise the creation operation will throw an error. | |
-| `sendTimeoutMs` | When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set `sendTimeoutMs` to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication.md) feature. | 30000 |
+| `topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer publishes messages. | |
+| `producerName` | A name for the producer. If you do not explicitly assign a name, Pulsar automatically generates a globally unique name.  If you choose to explicitly assign a name, it needs to be unique across *all* Pulsar clusters, otherwise the creation operation throws an error. | |
+| `sendTimeoutMs` | When publishing a message to a topic, the producer waits for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error is thrown. If you set `sendTimeoutMs` to -1, the timeout is set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication.md) feature. | 30000 |
 | `initialSequenceId` | The initial sequence ID of the message. When producer send message, add sequence ID to message. The ID is increased each time to send. | |
-| `maxPendingMessages` | The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the [broker](reference-terminology.md#broker)). By default, when the queue is full all calls to the `send` method will fail *unless* `blockIfQueueFull` is set to `true`. | 1000 |
+| `maxPendingMessages` | The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the [broker](reference-terminology.md#broker)). By default, when the queue is full all calls to the `send` method fails *unless* `blockIfQueueFull` is set to `true`. | 1000 |
 | `maxPendingMessagesAcrossPartitions` | The maximum size of the sum of partition's  pending queue. | 50000 |
-| `blockIfQueueFull` | If set to `true`, the producer's `send` method will wait when the outgoing message queue is full rather than failing and throwing an error (the size of that queue is dictated by the `maxPendingMessages` parameter); if set to `false` (the default), `send` operations will fail and throw a error when the queue is full. | `false` |
+| `blockIfQueueFull` | If set to `true`, the producer's `send` method waits when the outgoing message queue is full rather than failing and throwing an error (the size of that queue is dictated by the `maxPendingMessages` parameter); if set to `false` (the default), `send` operations fails and throw a error when the queue is full. | `false` |
 | `messageRoutingMode` | The message routing logic (for producers on [partitioned topics](concepts-messaging.md#partitioned-topics)). This logic is applied only when no key is set on messages. The available options are: round robin (`RoundRobinDistribution`), or publishing all messages to a single partition (`UseSinglePartition`, the default). | `UseSinglePartition` |
 | `hashingScheme` | The hashing function that determines the partition on which a particular message is published (partitioned topics only). The available options are: `JavaStringHash` (the equivalent of `String.hashCode()` in Java), `Murmur3_32Hash` (applies the [Murmur3](https://en.wikipedia.org/wiki/MurmurHash) hashing function), or `BoostHash` (applies the hashing function from C++'s [Boost](https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html) library). | `BoostHash` |
-| `compressionType` | The message data compression type used by the producer. The available options are [`LZ4`](https://github.com/lz4/lz4), and [`Zlib`](https://zlib.net/). | Compression None |
+| `compressionType` | The message data compression type used by the producer. The available options are [`LZ4`](https://github.com/lz4/lz4), and [`Zlib`](https://zlib.net/), [ZSTD](https://github.com/facebook/zstd/), [SNAPPY](https://github.com/google/snappy/). | Compression None |
 | `batchingEnabled` | If set to `true`, the producer send message as batch. | `true` |
 | `batchingMaxPublishDelayMs` | The maximum time of delay sending message in batching. | 10 |
 | `batchingMaxMessages` | The maximum size of sending message in each time of batching. | 1000 |
@@ -201,7 +206,7 @@ await consumer.close();
 ```
 
 > #### Promise operation
-> When you create a new Pulsar consumer, the operation will return `Promise` object and get consumer instance or an error through executor function.  
+> When you create a new Pulsar consumer, the operation returns `Promise` object and get consumer instance or an error through executor function.  
 > In this example, using await operator instead of executor function.
 
 ### Consumer operations
@@ -214,24 +219,27 @@ Pulsar Node.js consumers have the following methods available:
 | `receive(Number)` | Receives a single message from the topic with specific timeout in milliseconds. | `Promise<Object>` |
 | `acknowledge(Object)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) by message object. | `void` |
 | `acknowledgeId(Object)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) by message ID object. | `void` |
-| `acknowledgeCumulative(Object)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) *all* the messages in the stream, up to and including the specified message. The `acknowledgeCumulative` method will return void, and send the ack to the broker asynchronously. After that, the messages will *not* be redelivered to the consumer. Cumulative acking can not be used with a [shared](concepts-messaging.md#shared) subscription type. | `void` |
+| `acknowledgeCumulative(Object)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) *all* the messages in the stream, up to and including the specified message. The `acknowledgeCumulative` method returns void, and send the ack to the broker asynchronously. After that, the messages are *not* redelivered to the consumer. Cumulative acking can not be used with a [shared](concepts-messaging.md#shared) subscription type. | `void` |
 | `acknowledgeCumulativeId(Object)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) *all* the messages in the stream, up to and including the specified message ID. | `void` |
 | `negativeAcknowledge(Message)`| [Negatively acknowledges](reference-terminology.md#negative-acknowledgment-nack)  a message to the Pulsar broker by message object. | `void` |
 | `negativeAcknowledgeId(MessageId)` | [Negatively acknowledges](reference-terminology.md#negative-acknowledgment-nack) a message to the Pulsar broker by message ID object. | `void` |
 | `close()` | Closes the consumer, disabling its ability to receive messages from the broker. | `Promise<null>` |
+| `unsubscribe()` | Unsubscribes the subscription. | `Promise<null>` |
 
 ### Consumer configuration
 
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
-| `topic` | The Pulsar [topic](reference-terminology.md#topic) on which the consumer will establish a subscription and listen for messages. | |
+| `topic` | The Pulsar topic on which the consumer establishes a subscription and listen for messages. | |
+| `topics` | The array of topics. | |
+| `topicsPattern` | The regular expression for topics. | |
 | `subscription` | The subscription name for this consumer. | |
 | `subscriptionType` | Available options are `Exclusive`, `Shared`, `Key_Shared`, and `Failover`. | `Exclusive` |
 | `subscriptionInitialPosition` | Initial position at which to set cursor when subscribing to a topic at first time. | `SubscriptionInitialPosition.Latest` |
 | `ackTimeoutMs` | Acknowledge timeout in milliseconds. | 0 |
 | `nAckRedeliverTimeoutMs` | Delay to wait before redelivering messages that failed to be processed. | 60000 |
 | `receiverQueueSize` | Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls `receive`. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization. | 1000 |
-| `receiverQueueSizeAcrossPartitions` | Set the max total receiver queue size across partitions. This setting will be used to reduce the receiver queue size for individual partitions if the total exceeds this value. | 50000 |
+| `receiverQueueSizeAcrossPartitions` | Set the max total receiver queue size across partitions. This setting is used to reduce the receiver queue size for individual partitions if the total exceeds this value. | 50000 |
 | `consumerName` | The name of consumer. Currently(v2.4.1), [failover](concepts-messaging.md#failover) mode use consumer name in ordering. | |
 | `properties` | The metadata of consumer. | |
 | `listener`| A listener that is called for a message received. | |
@@ -317,7 +325,7 @@ Pulsar Node.js readers have the following methods available:
 
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
-| `topic` | The Pulsar [topic](reference-terminology.md#topic) on which the reader will establish a subscription and listen for messages. | |
+| `topic` | The Pulsar [topic](reference-terminology.md#topic) on which the reader establishes a subscription and listen for messages. | |
 | `startMessageId` | The initial reader position, i.e. the message at which the reader begins processing messages. The options are `Pulsar.MessageId.earliest` (the earliest available message on the topic), `Pulsar.MessageId.latest` (the latest available message on the topic), or a message ID object for a position that is not earliest or latest. | |
 | `receiverQueueSize` | Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls `readNext`. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization. | 1000 |
 | `readerName` | The name of the reader. |  |
@@ -388,7 +396,9 @@ The following keys are available for producer message objects:
 | `eventTimestamp` | The timestamp associated with the message. |
 | `sequenceId` | The sequence ID of the message. |
 | `partitionKey` | The optional key associated with the message (particularly useful for things like topic compaction). |
-| `replicationClusters` | The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default. |
+| `replicationClusters` | The clusters to which this message is replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default. |
+| `deliverAt` | The absolute timestamp at or after which the message is delivered. | |
+| `deliverAfter` | The relative delay after which the message is delivered. | |
 
 ### Message object operations
 
@@ -427,4 +437,3 @@ The following static methods are available for the message id object:
 | `earliest()` | MessageId representing the earliest, or oldest available message stored in the topic. | `Object` |
 | `latest()` | MessageId representing the latest, or last published message in the topic. | `Object` |
 | `deserialize(Buffer)` | Deserialize a message id object from a Buffer. | `Object` |
-
