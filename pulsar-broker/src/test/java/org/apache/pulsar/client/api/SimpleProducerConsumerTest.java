@@ -2796,21 +2796,26 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
+                .enableBatching(false)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        // Creates new client connection
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);
         Consumer<byte[]> consumer1 = newPulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
-        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        // Creates new client connection
+        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);
         Consumer<byte[]> consumer2 = newPulsarClient1.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
-        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        // Creates new client connection
+        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);
         Consumer<byte[]> consumer3 = newPulsarClient2.newConsumer().topicsPattern(topicName)
-                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
+                .subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
         int numberOfMessages = 100;
         String message = "my-message";
@@ -2826,9 +2831,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         m = consumer3.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertNull(m);
 
+        // delay to reduce flakiness
+        Thread.sleep(1000L);
+
         for (int i = 0; i<numberOfMessages; i++) {
             // All messages would be received by consumer 1
             m = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            assertNotNull(m, "reading message index #" + i + " failed");
             messages.add(new String(m.getData()));
             consumer1.acknowledge(m);
         }
