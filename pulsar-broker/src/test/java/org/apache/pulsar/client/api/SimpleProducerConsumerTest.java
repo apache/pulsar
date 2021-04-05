@@ -1323,6 +1323,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         consumer1.redeliverUnacknowledgedMessages();
         consumer2.redeliverUnacknowledgedMessages();
+        Thread.sleep(1000L);
 
         try {
             if (consumer1.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS) != null
@@ -2376,6 +2377,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         assertEquals(messages1.size(), consumeMsgInParts);
         consumer.redeliverUnacknowledgedMessages();
+        Thread.sleep(1000L);
 
         // (1.b) consume second consumeMsgInParts msgs and trigger redeliver
         messages1.clear();
@@ -2391,6 +2393,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         assertEquals(messages1.size(), consumeMsgInParts);
         consumer.redeliverUnacknowledgedMessages();
+        Thread.sleep(1000L);
 
         // (2) Second round to produce-consume messages
         for (int i = 0; i < receiverQueueSize; i++) {
