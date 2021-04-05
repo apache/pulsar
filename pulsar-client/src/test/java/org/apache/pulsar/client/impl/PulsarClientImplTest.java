@@ -203,11 +203,12 @@ public class PulsarClientImplTest {
         ClientConfigurationData conf = clientImpl.conf;
         conf.setServiceUrl("");
         initializeEventLoopGroup(conf);
-        assertFalse(eventLoopGroup.isShutdown());
+        ConnectionPool connectionPool = new ConnectionPool(conf, eventLoopGroup);
         try {
-            assertThrows(() -> new PulsarClientImpl(conf, eventLoopGroup));
+            assertThrows(() -> new PulsarClientImpl(conf, eventLoopGroup, connectionPool));
         } finally {
-            assertTrue(eventLoopGroup.isShutdown());
+            // Externally passed eventLoopGroup should not be shutdown.
+            assertFalse(eventLoopGroup.isShutdown());
         }
     }
 }

@@ -281,7 +281,8 @@ public interface PulsarClient extends Closeable {
      * Perform immediate shutdown of PulsarClient.
      *
      * <p>Release all the resources and close all the producer, consumer and reader instances without waiting
-     * for ongoing operations to complete.
+     * for ongoing operations to complete. Resources passed from the outside like EventLoopGroup or ConnectionPool
+     * will not be closed.
      *
      * @throws PulsarClientException
      *             if the forceful shutdown fails

@@ -51,6 +51,7 @@ import java.util.stream.Collectors;
 
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
@@ -63,7 +64,6 @@ import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
-import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -97,12 +97,14 @@ public class PulsarClientImpl implements PulsarClient {
     private boolean needStopTimer;
     private final ExecutorProvider externalExecutorProvider;
     private final ExecutorProvider internalExecutorService;
+    private final boolean createdEventLoopGroup;
+    private final boolean createdCnxPool;
 
     public enum State {
         Open, Closing, Closed
     }
 
-    private AtomicReference<State> state = new AtomicReference<>();
+    private final AtomicReference<State> state = new AtomicReference<>();
     private final Set<ProducerBase<?>> producers;
     private final Set<ConsumerBase<?>> consumers;
 
@@ -128,28 +130,40 @@ public class PulsarClientImpl implements PulsarClient {
     private TransactionCoordinatorClientImpl tcClient;
 
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
-        this(conf, getEventLoopGroup(conf));
+        this(conf, getEventLoopGroup(conf), true);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup), null);
+        this(conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup), null, false, true);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, null);
+        this(conf, eventLoopGroup, cnxPool, null, false, false);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool, Timer timer)
             throws PulsarClientException {
+        this(conf, eventLoopGroup, cnxPool, timer, false, false);
+    }
+
+    private PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, boolean createdEventLoopGroup)
+            throws PulsarClientException {
+        this(conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup), null, createdEventLoopGroup, true);
+    }
+
+    private PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool, Timer timer,
+                             boolean createdEventLoopGroup, boolean createdCnxPool) throws PulsarClientException {
         try {
+            this.createdEventLoopGroup = createdEventLoopGroup;
+            this.createdCnxPool = createdCnxPool;
             if (conf == null || isBlank(conf.getServiceUrl()) || eventLoopGroup == null) {
                 throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
             }
             this.eventLoopGroup = eventLoopGroup;
             setAuth(conf);
             this.conf = conf;
-            this.clientClock = conf.getClock();
+            clientClock = conf.getClock();
             conf.getAuthentication().start();
             this.cnxPool = cnxPool;
             externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
@@ -168,18 +182,18 @@ public class PulsarClientImpl implements PulsarClient {
             producers = Collections.newSetFromMap(new ConcurrentHashMap<>());
             consumers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-                if (conf.isEnableTransaction()) {
-                    tcClient = new TransactionCoordinatorClientImpl(this);
-                    try {
-                        tcClient.start();
-                    } catch (Throwable e) {
-                        log.error("Start transactionCoordinatorClient error.", e);
-                        throw new PulsarClientException(e);
-                    }
+            if (conf.isEnableTransaction()) {
+                tcClient = new TransactionCoordinatorClientImpl(this);
+                try {
+                    tcClient.start();
+                } catch (Throwable e) {
+                    log.error("Start transactionCoordinatorClient error.", e);
+                    throw new PulsarClientException(e);
                 }
+            }
 
-                memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes());
-                state.set(State.Open);
+            memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes());
+            state.set(State.Open);
         } catch (Throwable t) {
             shutdown();
             shutdownEventLoopGroup(eventLoopGroup);
@@ -704,7 +718,7 @@ public class PulsarClientImpl implements PulsarClient {
                 log.warn("Failed to shutdown eventLoopGroup", t);
                 throwable = t;
             }
-            if (cnxPool != null) {
+            if (createdCnxPool) {
                 try {
                     cnxPool.close();
                 } catch (Throwable t) {
@@ -751,7 +765,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private void shutdownEventLoopGroup(EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        if (eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
+        if (createdEventLoopGroup && !eventLoopGroup.isShutdown()) {
             try {
                 eventLoopGroup.shutdownGracefully().get();
             } catch (Throwable t) {
