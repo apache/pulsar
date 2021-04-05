@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
@@ -28,6 +29,7 @@ import java.util.Objects;
  * <code>limit</code> representing a quota limit in bytes and <code>policy</code> for backlog retention policy.
  */
 public class BacklogQuota {
+    @JsonAlias("limit")
     private long limitSize;
     // backlog quota by time in second
     private int limitTime;

@@ -3532,6 +3532,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }, config.getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
     }
 
+    public Clock getClock() {
+        return clock;
+    }
+
     /**
      * check if ledger-op task is already completed by timeout-task. If completed then delete the created ledger
      *

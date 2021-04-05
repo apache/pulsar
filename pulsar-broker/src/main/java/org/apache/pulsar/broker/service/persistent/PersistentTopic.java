@@ -2285,46 +2285,77 @@ public class PersistentTopic extends AbstractTopic
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         int backlogQuotaLimitInSecond = brokerService.getBacklogQuotaManager().getBacklogQuotaLimitInTime(topicName);
 
-        // If backlog quota by time is not infinite and we have at least one durable cursor.
-        if (backlogQuotaLimitInSecond < 0
+        // If backlog quota by time is not set and we have no durable cursor.
+        if (backlogQuotaLimitInSecond <= 0
                 || ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition() == null) {
             return false;
         }
 
-        // Check if first unconsumed message(first message after mark delete position) for slowest cursor's has expired.
-        PositionImpl position = ((ManagedLedgerImpl) ledger).getNextValidPosition(((ManagedCursorContainer)
-                ledger.getCursors()).getSlowestReaderPosition());
-        ((ManagedLedgerImpl) ledger).asyncReadEntry(position,
-            new AsyncCallbacks.ReadEntryCallback() {
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    MessageImpl<byte[]> msg = null;
-                    try {
-                        msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
-                        future.complete(msg.isExpired(backlogQuotaLimitInSecond));
-                    } catch (Exception e) {
-                        log.error("[{}][{}] Error deserializing message for backlog check", e);
-                        future.complete(false);
-                    } finally {
-                        entry.release();
-                        if (msg != null) {
-                            msg.recycle();
+        if (brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck()) {
+            // Check if first unconsumed message(first message after mark delete position)
+            // for slowest cursor's has expired.
+            PositionImpl position = ((ManagedLedgerImpl) ledger).getNextValidPosition(((ManagedCursorContainer)
+                    ledger.getCursors()).getSlowestReaderPosition());
+            ((ManagedLedgerImpl) ledger).asyncReadEntry(position,
+                    new AsyncCallbacks.ReadEntryCallback() {
+                        @Override
+                        public void readEntryComplete(Entry entry, Object ctx) {
+                            MessageImpl<byte[]> msg = null;
+                            try {
+                                msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
+                                boolean expired = msg.isExpired(backlogQuotaLimitInSecond);
+                                if (expired && log.isDebugEnabled()) {
+                                    log.debug("Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
+                                    + "exceeded quota {}", ((ManagedLedgerImpl) ledger).getSlowestConsumer().getName(),
+                                            backlogQuotaLimitInSecond);
+                                }
+                                future.complete(expired);
+                            } catch (Exception e) {
+                                log.error("[{}][{}] Error deserializing message for backlog check", e);
+                                future.complete(false);
+                            } finally {
+                                entry.release();
+                                if (msg != null) {
+                                    msg.recycle();
+                                }
+                            }
                         }
+
+                        @Override
+                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("[{}][{}] Error reading entry for precise time based  backlog check",
+                                    topicName, exception);
+                            future.complete(false);
+                        }
+                    }, null);
+
+            try {
+                return future.get();
+            } catch (Exception e) {
+                log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
+                return false;
+            }
+        } else {
+            Long ledgerId = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition().getLedgerId();
+            try {
+                org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
+                        ledgerInfo = ledger.getLedgerInfo(ledgerId).get();
+                if (ledgerInfo != null && ledgerInfo.hasTimestamp() && ledgerInfo.getTimestamp() > 0
+                        && ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp()
+                        > backlogQuotaLimitInSecond * 1000) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Time based backlog quota exceeded, quota {}, age of ledger "
+                                        + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
+                                ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp());
                     }
+                    return true;
+                } else {
+                    return false;
                 }
-
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("[{}][{}] Error reading entry for backlog check", topicName, exception);
-                    future.complete(false);
-                }
-            }, null);
-
-        try {
-            return future.get();
-        } catch (Exception e) {
-            log.error("[{}][{}] Error reading entry for backlog check", topicName, e);
-            return false;
+            } catch (Exception e) {
+                log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
+                return false;
+            }
         }
     }
 

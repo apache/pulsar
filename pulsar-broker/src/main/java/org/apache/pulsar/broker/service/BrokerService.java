@@ -1534,10 +1534,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 PersistentTopic persistentTopic = (PersistentTopic) topic;
                 if (persistentTopic.isSizeBacklogExceeded()) {
                     getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
-                            BacklogQuota.BacklogQuotaType.destination_storage);
+                            BacklogQuota.BacklogQuotaType.destination_storage, false);
                 } else if (persistentTopic.isTimeBacklogExceeded()) {
                     getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
-                            BacklogQuota.BacklogQuotaType.message_age);
+                            BacklogQuota.BacklogQuotaType.message_age,
+                            pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("quota not exceeded for [{}]", topic.getName());

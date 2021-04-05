@@ -27,6 +27,8 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -105,7 +107,8 @@ public class BacklogQuotaManager {
      *
      * @param persistentTopic Topic on which backlog has been exceeded
      */
-    public void handleExceededBacklogQuota(PersistentTopic persistentTopic, BacklogQuotaType backlogQuotaType) {
+    public void handleExceededBacklogQuota(PersistentTopic persistentTopic, BacklogQuotaType backlogQuotaType,
+                                           boolean preciseTimeBasedBacklogQuotaCheck) {
         TopicName topicName = TopicName.get(persistentTopic.getName());
         BacklogQuota quota = getBacklogQuota(topicName);
         log.info("Backlog quota type {} exceeded for topic [{}]. Applying [{}] policy", backlogQuotaType,
@@ -117,7 +120,7 @@ public class BacklogQuotaManager {
                         dropBacklogForSizeLimit(persistentTopic, quota);
                         break;
                 case message_age:
-                        dropBacklogForTimeLimit(persistentTopic, quota);
+                        dropBacklogForTimeLimit(persistentTopic, quota, preciseTimeBasedBacklogQuotaCheck);
                         break;
                 default:
                     break;
@@ -213,17 +216,40 @@ public class BacklogQuotaManager {
      * @param quota
      *            Backlog quota set for the topic
      */
-    private void dropBacklogForTimeLimit(PersistentTopic persistentTopic, BacklogQuota quota) {
-        // Set the reduction factor to 90%. The aim is to drop down the backlog to 90% of the quota limit.
-        double reductionFactor = 0.9;
-        int target = (int) (reductionFactor * quota.getLimitTime());
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] target backlog expire time is [{}]", persistentTopic.getName(), target);
-        }
-
-        for (PersistentSubscription subscription : persistentTopic.getSubscriptions().values()) {
-            subscription.getExpiryMonitor().expireMessages(target);
+    private void dropBacklogForTimeLimit(PersistentTopic persistentTopic, BacklogQuota quota,
+                                         boolean preciseTimeBasedBacklogQuotaCheck) {
+        // If enabled precise time based backlog quota check, will expire message based on the timeBaseQuota
+        if (preciseTimeBasedBacklogQuotaCheck) {
+            // Set the reduction factor to 90%. The aim is to drop down the backlog to 90% of the quota limit.
+            double reductionFactor = 0.9;
+            int target = (int) (reductionFactor * quota.getLimitTime());
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] target backlog expire time is [{}]", persistentTopic.getName(), target);
+            }
+            for (PersistentSubscription subscription : persistentTopic.getSubscriptions().values()) {
+                subscription.getExpiryMonitor().expireMessages(target);
+            }
+        } else {
+            // If disabled precise time based backlog quota check, will try to remove whole ledger from cursor's backlog
+            Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
+            ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+            try {
+                Long ledgerId =  mLedger.getCursors().getSlowestReaderPosition().getLedgerId();
+                MLDataFormats.ManagedLedgerInfo.LedgerInfo  ledgerInfo = mLedger.getLedgerInfo(ledgerId).get();
+                // Timestamp only > 0 if ledger has been closed
+                while (ledgerInfo.getTimestamp() > 0
+                        && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime()) {
+                    ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
+                    // skip whole ledger for the slowest cursor
+                    slowestConsumer.resetCursor(mLedger.getNextValidPosition(
+                            PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1)));
+                    ledgerId =  mLedger.getCursors().getSlowestReaderPosition().getLedgerId();
+                    ledgerInfo = mLedger.getLedgerInfo(ledgerId).get();
+                }
+            } catch (Exception e) {
+                log.error("Error resetting cursor for slowest consumer [{}]: {}",
+                        mLedger.getSlowestConsumer().getName(), e);
+            }
         }
     }
 
