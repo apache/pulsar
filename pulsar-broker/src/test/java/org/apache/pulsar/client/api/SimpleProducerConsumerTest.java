@@ -3614,17 +3614,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         new Thread(() -> {
             try {
+                new Thread(() -> {
+                    try {
+                        consumer.close();
+                    } catch (PulsarClientException ignore) {
+                    }
+                }).start();
                 consumer.receiveAsync().get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
                 countDownLatch.countDown();
-            }
-        }).start();
-        new Thread(() -> {
-            try {
-                consumer.close();
-            } catch (PulsarClientException ignore) {
             }
         }).start();
         countDownLatch.await();
@@ -3636,17 +3636,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
+                new Thread(() -> {
+                    try {
+                        consumer2.close();
+                    } catch (PulsarClientException ignore) {
+                    }
+                }).start();
                 consumer2.batchReceiveAsync().get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
                 countDownLatch2.countDown();
-            }
-        }).start();
-        new Thread(() -> {
-            try {
-                consumer2.close();
-            } catch (PulsarClientException ignore) {
             }
         }).start();
         countDownLatch2.await();
@@ -3658,17 +3658,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
+                new Thread(() -> {
+                    try {
+                        partitionedTopicConsumer.close();
+                    } catch (PulsarClientException ignore) {
+                    }
+                }).start();
                 partitionedTopicConsumer.batchReceiveAsync().get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains(errorMsg));
                 countDownLatch3.countDown();
-            }
-        }).start();
-        new Thread(() -> {
-            try {
-                partitionedTopicConsumer.close();
-            } catch (PulsarClientException ignore) {
             }
         }).start();
         countDownLatch3.await();
