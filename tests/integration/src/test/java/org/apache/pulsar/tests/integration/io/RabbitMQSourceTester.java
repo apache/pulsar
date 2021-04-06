@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.io.sources;
+package org.apache.pulsar.tests.integration.io;
 
 import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.apache.pulsar.tests.integration.containers.RabbitMQContainer;
+import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 
-import static org.apache.pulsar.tests.integration.io.sinks.RabbitMQSinkTester.createConnectionFactory;
+import static org.apache.pulsar.tests.integration.io.RabbitMQSinkTester.createConnectionFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

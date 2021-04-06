@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.io.sinks;
+package org.apache.pulsar.tests.integration.io;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -26,6 +26,7 @@ import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import lombok.Data;
 import org.apache.pulsar.tests.integration.containers.RabbitMQContainer;
+import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
 import org.apache.pulsar.tests.integration.io.sinks.SinkTester.SinkType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 

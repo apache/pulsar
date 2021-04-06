@@ -18,102 +18,52 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
-import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
-import org.testcontainers.shaded.com.google.common.collect.Sets;
+import org.apache.pulsar.tests.integration.io.sinks.PulsarIOSinkRunner;
+import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
+import org.apache.pulsar.tests.integration.io.sources.PulsarIOSourceRunner;
+import org.apache.pulsar.tests.integration.io.sources.SourceTester;
+import org.testcontainers.containers.GenericContainer;
 
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.failsafe.RetryPolicy;
-
-@Slf4j
 public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
 
-    final Duration ONE_MINUTE = Duration.ofMinutes(1);
-    final Duration TEN_SECONDS = Duration.ofSeconds(10);
-
-    protected final RetryPolicy statusRetryPolicy = new RetryPolicy()
-            .withMaxDuration(ONE_MINUTE)
-            .withDelay(TEN_SECONDS)
-            .onRetry(e -> log.error("Retry ... "));
-    
-    protected final AtomicInteger testId = new AtomicInteger(0);
-    
-    protected void initNamespace(PulsarAdmin admin) {
-        log.info("[initNamespace] start.");
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	protected void testSink(SinkTester tester, boolean builtin) throws Exception {
+        if (pulsarCluster == null) {
+            super.setupCluster();
+            super.setupFunctionWorkers();
+        }
+        tester.startServiceContainer(pulsarCluster);
         try {
-            admin.tenants().createTenant("debezium", new TenantInfo(Sets.newHashSet(),
-                    Sets.newHashSet(pulsarCluster.getClusterName())));
-            admin.namespaces().createNamespace("debezium/mysql-json");
-            admin.namespaces().createNamespace("debezium/mysql-avro");
-            admin.namespaces().createNamespace("debezium/mongodb");
-            admin.namespaces().createNamespace("debezium/postgresql");
-        } catch (Exception e) {
-            log.info("[initNamespace] msg: {}", e.getMessage());
-        }
-        log.info("[initNamespace] finish.");
-    }
-    
-    protected Schema getSchema(boolean jsonWithEnvelope) {
-        if (jsonWithEnvelope) {
-            return KeyValueSchema.kvBytes();
-        } else {
-            return KeyValueSchema.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED);
+        	PulsarIOSinkRunner runner = new PulsarIOSinkRunner(pulsarCluster, functionRuntimeType.toString());
+            runner.runSinkTester(tester, builtin);
+        } finally {
+            tester.stopServiceContainer(pulsarCluster);
         }
     }
-    
-    protected <T> void ensureSubscriptionCreated(String inputTopicName,
-                                                      String subscriptionName,
-                                                      Schema<T> inputTopicSchema)
-            throws Exception {
-        // ensure the function subscription exists before we start producing messages
-        try (PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build()) {
-            try (Consumer<T> ignored = client.newConsumer(inputTopicSchema)
-                .topic(inputTopicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionName(subscriptionName)
-                .subscribe()) {
-            }
-        }
-    }
-    
-    protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
-                                                              int numMessages) throws Exception {
-        @Cleanup
-        PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build();
+	
+	@SuppressWarnings("rawtypes")
+	protected <ServiceContainerT extends GenericContainer>  void testSink(SinkTester<ServiceContainerT> sinkTester,
+			boolean builtinSink,
+			SourceTester<ServiceContainerT> sourceTester) throws Exception {
 
-        @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-            .topic(inputTopicName)
-            .create();
+		if (pulsarCluster == null) {
+			super.setupCluster();
+			super.setupFunctionWorkers();
+		}
 
-        LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
-        for (int i = 0; i < numMessages; i++) {
-            String key = "key-" + i;
-            String value = "value-" + i;
-            kvs.put(key, value);
-            producer.newMessage()
-                .key(key)
-                .value(value)
-                .send();
-        }
-        return kvs;
-    }  
+		ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);
+
+		try {
+			PulsarIOSinkRunner runner = new PulsarIOSinkRunner(pulsarCluster, functionRuntimeType.toString());
+            runner.runSinkTester(sinkTester, builtinSink);
+			if (null != sourceTester) {
+				PulsarIOSourceRunner sourceRunner = new PulsarIOSourceRunner(pulsarCluster, functionRuntimeType.toString());
+				sourceTester.setServiceContainer(serviceContainer);
+				sourceRunner.testSource(sourceTester);
+			}
+		} finally {
+			sinkTester.stopServiceContainer(pulsarCluster);
+		}
+    }
 }
