@@ -272,7 +272,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
                     readMoreEntries();
                 }
-            },100, TimeUnit.MILLISECONDS);
+            }, 100, TimeUnit.MILLISECONDS);
         }
     }
 
