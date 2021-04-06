@@ -25,7 +25,11 @@ import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.api.Context;
@@ -359,6 +363,17 @@ public class FunctionsImplTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchingDisabled(false);
+        producerConfig.setChunkingEnabled(false);
+        producerConfig.setBlockIfQueueFullDisabled(false);
+        producerConfig.setCompressionType(CompressionType.SNAPPY);
+        producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
+        producerConfig.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        producerConfig.setBatchingMaxPublishDelay(21L);
+
+        functionConfig.setProducerConfig(producerConfig);
         return functionConfig;
     }
 

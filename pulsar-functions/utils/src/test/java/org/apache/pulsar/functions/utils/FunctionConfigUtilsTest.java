@@ -20,6 +20,9 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
 
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -41,6 +44,7 @@ import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 /**
@@ -76,6 +80,13 @@ public class FunctionConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
+        producerConfig.setBatchingDisabled(false);
+        producerConfig.setChunkingEnabled(false);
+        producerConfig.setBlockIfQueueFullDisabled(false);
+        producerConfig.setCompressionType(CompressionType.LZ4);
+        producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
+        producerConfig.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfig.setBatchingMaxPublishDelay(12L);
         functionConfig.setProducerConfig(producerConfig);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
@@ -117,6 +128,13 @@ public class FunctionConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("KEY_BASED");
+        producerConfig.setBatchingDisabled(false);
+        producerConfig.setChunkingEnabled(false);
+        producerConfig.setBlockIfQueueFullDisabled(false);
+        producerConfig.setCompressionType(CompressionType.LZ4);
+        producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
+        producerConfig.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfig.setBatchingMaxPublishDelay(12L);
         functionConfig.setProducerConfig(producerConfig);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
@@ -459,6 +477,31 @@ public class FunctionConfigUtilsTest {
         functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
         functionConfig.setCleanupSubscription(true);
         functionConfig.setRuntimeFlags("-Dfoo=bar");
+
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchingDisabled(false);
+        producerConfig.setChunkingEnabled(false);
+        producerConfig.setBlockIfQueueFullDisabled(false);
+        producerConfig.setCompressionType(CompressionType.SNAPPY);
+        producerConfig.setHashingScheme(HashingScheme.Murmur3_32Hash);
+        producerConfig.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        producerConfig.setBatchingMaxPublishDelay(21L);
+
+        functionConfig.setProducerConfig(producerConfig);
+        return functionConfig;
+    }
+
+    private FunctionConfig createUpdatedFunctionConfigDefaults(String fieldName, Object fieldValue) {
+        FunctionConfig functionConfig = createFunctionConfig();
+        ProducerConfig producerConfig = functionConfig.getProducerConfig();
+        Class<?> fClass = ProducerConfig.class;
+        try {
+            Field chap = fClass.getDeclaredField(fieldName);
+            chap.setAccessible(true);
+            chap.set(producerConfig, fieldValue);
+        } catch (Exception e) {
+            throw new RuntimeException("Something wrong with the test", e);
+        }
         return functionConfig;
     }
 
@@ -572,5 +615,122 @@ public class FunctionConfigUtilsTest {
         FunctionConfig functionConfig = createFunctionConfig();
         FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("outputSchemaType", "avro");
         FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test
+    public void testMergeFunctionDefaults_validateUpdate_whenIgnoringExistingDefaults_ExistingConfigsAreNull(){
+        FunctionConfig existingFunctionConfig = createFunctionConfig();
+        ProducerConfig existingProducerConfig = new ProducerConfig();
+        existingProducerConfig.setBatchingDisabled(false);
+        existingFunctionConfig.setProducerConfig(existingProducerConfig);
+
+        ProducerConfig newProducerConfig = new ProducerConfig();
+        newProducerConfig.setBatchingDisabled(true);
+        FunctionConfig newFunctionConfig = createFunctionConfig();
+        newFunctionConfig.setProducerConfig(newProducerConfig);
+
+        FunctionConfig mergedConfig = FunctionConfigUtils
+                .validateUpdate(existingFunctionConfig, newFunctionConfig);
+
+        assertNotNull(mergedConfig.getProducerConfig());
+        assertNotNull(existingFunctionConfig.getProducerConfig().getBatchingDisabled());
+        assertNotNull(newFunctionConfig.getProducerConfig().getBatchingDisabled());
+        assertEquals((boolean)existingFunctionConfig.getProducerConfig().getBatchingDisabled(), false);
+        assertEquals((boolean)mergedConfig.getProducerConfig().getBatchingDisabled(), true);
+        assertNull(mergedConfig.getProducerConfig().getBlockIfQueueFullDisabled());
+        assertNull(mergedConfig.getProducerConfig().getChunkingEnabled());
+        assertNull(mergedConfig.getProducerConfig().getCompressionType());
+        assertNull(mergedConfig.getProducerConfig().getHashingScheme());
+        assertNull(mergedConfig.getProducerConfig().getMessageRoutingMode());
+        assertNull(mergedConfig.getProducerConfig().getBatchingMaxPublishDelay());
+    }
+    @Test
+    public void testMergeFunctionDefaults_validateUpdate_whenNotIgnoringExistingDefaults_ExistingConfigsOverride(){
+        FunctionConfig existingFunctionConfig = createFunctionConfig();
+
+        ProducerConfig newProducerConfig = new ProducerConfig();
+        newProducerConfig.setBatchingDisabled(true);
+        FunctionConfig newFunctionConfig = createFunctionConfig();
+        newFunctionConfig.setProducerConfig(newProducerConfig);
+
+        FunctionConfig mergedConfig = FunctionConfigUtils
+                .validateUpdate(existingFunctionConfig, newFunctionConfig);
+
+        assertNotNull(mergedConfig.getProducerConfig());
+        assertNotNull(existingFunctionConfig.getProducerConfig().getBatchingDisabled());
+        assertNotNull(newFunctionConfig.getProducerConfig().getBatchingDisabled());
+        assertEquals((boolean)existingFunctionConfig.getProducerConfig().getBatchingDisabled(), false);
+        assertEquals((boolean)mergedConfig.getProducerConfig().getBatchingDisabled(), true);
+        assertNotNull(mergedConfig.getProducerConfig().getBlockIfQueueFullDisabled());
+        assertNotNull(mergedConfig.getProducerConfig().getChunkingEnabled());
+        assertNotNull(mergedConfig.getProducerConfig().getCompressionType());
+        assertNotNull(mergedConfig.getProducerConfig().getHashingScheme());
+        assertNotNull(mergedConfig.getProducerConfig().getMessageRoutingMode());
+        assertNotNull(mergedConfig.getProducerConfig().getBatchingMaxPublishDelay());
+
+        assertEquals((boolean)mergedConfig.getProducerConfig().getBlockIfQueueFullDisabled(), false);
+        assertEquals((boolean)mergedConfig.getProducerConfig().getChunkingEnabled(), false);
+        assertEquals(mergedConfig.getProducerConfig().getCompressionType(), CompressionType.SNAPPY);
+        assertEquals(mergedConfig.getProducerConfig().getHashingScheme(), HashingScheme.Murmur3_32Hash);
+        assertEquals(mergedConfig.getProducerConfig().getMessageRoutingMode(), MessageRoutingMode.RoundRobinPartition);
+        assertEquals((long)mergedConfig.getProducerConfig().getBatchingMaxPublishDelay(), 21L);
+    }
+    @Test
+    public void testMergeFunctionDefaults_overrideBatchingDisabled(){
+        FunctionConfig existingFunctionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfigDefaults("batchingDisabled", true);
+        FunctionConfig mergedConfig = FunctionConfigUtils
+                .validateUpdate(existingFunctionConfig, newFunctionConfig);
+        assertEquals((boolean)mergedConfig.getProducerConfig().getBatchingDisabled(), true);
+    }
+    @Test
+    public void testMergeFunctionDefaults_overrideChunkingEnabled(){
+        FunctionConfig existingFunctionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfigDefaults("chunkingEnabled", true);
+        FunctionConfig mergedConfig = FunctionConfigUtils
+                .validateUpdate(existingFunctionConfig, newFunctionConfig);
+        assertEquals((boolean)mergedConfig.getProducerConfig().getChunkingEnabled(), true);
+    }
+    @Test
+    public void testMergeFunctionDefaults_overrideBlockIfQueueFullDisabled(){
+        FunctionConfig existingFunctionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfigDefaults("blockIfQueueFullDisabled", true);
+        FunctionConfig mergedConfig = FunctionConfigUtils
+                .validateUpdate(existingFunctionConfig, newFunctionConfig);
+        assertEquals((boolean)mergedConfig.getProducerConfig().getBlockIfQueueFullDisabled(), true);
+    }
+    @Test
+    public void testMergeFunctionDefaults_overrideCompressionType(){
+        FunctionConfig existingFunctionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfigDefaults("compressionType", CompressionType.ZLIB);
+        FunctionConfig mergedConfig = FunctionConfigUtils
+                .validateUpdate(existingFunctionConfig, newFunctionConfig);
+        assertEquals(mergedConfig.getProducerConfig().getCompressionType(), CompressionType.ZLIB);
+    }
+    @Test
+    public void testMergeFunctionDefaults_overrideHashingScheme(){
+        FunctionConfig existingFunctionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfigDefaults("hashingScheme", HashingScheme.JavaStringHash);
+        FunctionConfig mergedConfig = FunctionConfigUtils
+                .validateUpdate(existingFunctionConfig, newFunctionConfig);
+        assertEquals(mergedConfig.getProducerConfig().getHashingScheme(), HashingScheme.JavaStringHash);
+    }
+    @Test
+    public void testMergeFunctionDefaults_overrideMessageRoutingMode(){
+        FunctionConfig existingFunctionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfigDefaults("messageRoutingMode",
+                MessageRoutingMode.SinglePartition);
+        FunctionConfig mergedConfig = FunctionConfigUtils
+                .validateUpdate(existingFunctionConfig, newFunctionConfig);
+        assertEquals(mergedConfig.getProducerConfig().getMessageRoutingMode(),
+                MessageRoutingMode.SinglePartition);
+    }
+    @Test
+    public void testMergeFunctionDefaults_overrideBatchingMaxPublishDelay(){
+        FunctionConfig existingFunctionConfig = createFunctionConfig();
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfigDefaults("batchingMaxPublishDelay", 5L);
+        FunctionConfig mergedConfig = FunctionConfigUtils
+                .validateUpdate(existingFunctionConfig, newFunctionConfig);
+        assertEquals((long)mergedConfig.getProducerConfig().getBatchingMaxPublishDelay(), 5L);
     }
 }

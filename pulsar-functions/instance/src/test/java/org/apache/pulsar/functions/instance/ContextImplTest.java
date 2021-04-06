@@ -50,6 +50,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.slf4j.Logger;
@@ -72,8 +73,21 @@ public class ContextImplTest {
     public void setup() {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);
+        Function.ProducerSpec producerSpec = Function.ProducerSpec.newBuilder()
+                .setBatchingDisabled(false)
+                .setChunkingEnabled(false)
+                .setBlockIfQueueFullDisabled(false)
+                .setCompressionType(Function.CompressionType.LZ4)
+                .setHashingScheme(Function.HashingScheme.MURMUR3_32HASH)
+                .setMessageRoutingMode(Function.MessageRoutingMode.CUSTOM_PARTITION)
+                .setBatchingMaxPublishDelay(10L)  // This is the default case.
+                .build();
+        Function.SinkSpec sink = Function.SinkSpec.newBuilder()
+                .setProducerSpec(producerSpec)
+                .build();
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
             .setUserConfig("")
+            .setSink(sink)
             .build();
         config.setFunctionDetails(functionDetails);
         logger = mock(Logger.class);

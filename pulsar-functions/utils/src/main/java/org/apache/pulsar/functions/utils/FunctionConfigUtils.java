@@ -944,6 +944,11 @@ public class FunctionConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
+        if(existingConfig.getProducerConfig() != null){
+            mergedConfig.setProducerConfig(existingConfig.getProducerConfig().merge(newConfig.getProducerConfig()));
+        } else {
+            mergedConfig.setProducerConfig(newConfig.getProducerConfig());
+        }
         return mergedConfig;
     }
 }

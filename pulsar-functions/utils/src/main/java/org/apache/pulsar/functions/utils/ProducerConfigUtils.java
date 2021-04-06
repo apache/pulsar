@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.utils;
 
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.functions.ProducerConfigFromProtobufConverter;
+import org.apache.pulsar.functions.utils.functions.ProducerConfigToProtobufConverter;
 
 public class ProducerConfigUtils {
     public static Function.ProducerSpec convert(ProducerConfig conf) {
@@ -37,7 +39,14 @@ public class ProducerConfigUtils {
         if (conf.getBatchBuilder() != null) {
             pbldr.setBatchBuilder(conf.getBatchBuilder());
         }
-
+        pbldr.setBatchingDisabled(conf.getBatchingDisabled());
+        pbldr.setChunkingEnabled(conf.getChunkingEnabled());
+        pbldr.setBlockIfQueueFullDisabled(conf.getBlockIfQueueFullDisabled());
+        pbldr.setBatchingMaxPublishDelay(conf.getBatchingMaxPublishDelay());
+        ProducerConfigToProtobufConverter converter = new ProducerConfigToProtobufConverter(conf);
+        pbldr.setCompressionType(converter.getCompressionType());
+        pbldr.setHashingScheme(converter.getHashingScheme());
+        pbldr.setMessageRoutingMode(converter.getMessageRoutingMode());
         return pbldr.build();
     }
 
@@ -53,6 +62,23 @@ public class ProducerConfigUtils {
             producerConfig.setBatchBuilder(spec.getBatchBuilder());
         }
         producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
+
+        producerConfig.setBatchingDisabled(spec.getBatchingDisabled());
+        producerConfig.setChunkingEnabled(spec.getChunkingEnabled());
+        producerConfig.setBlockIfQueueFullDisabled(spec.getBlockIfQueueFullDisabled());
+        producerConfig.setBatchingMaxPublishDelay(spec.getBatchingMaxPublishDelay());
+
+        ProducerConfigFromProtobufConverter converter = new ProducerConfigFromProtobufConverter(spec);
+        if (spec.getCompressionType() != null){
+            producerConfig.setCompressionType(converter.getCompressionType());
+        }
+        if (spec.getHashingScheme() != null){
+            producerConfig.setHashingScheme(converter.getHashingScheme());
+        }
+        if (spec.getMessageRoutingMode() != null){
+            producerConfig.setMessageRoutingMode(converter.getMessageRoutingMode());
+        }
+
         return producerConfig;
     }
 }

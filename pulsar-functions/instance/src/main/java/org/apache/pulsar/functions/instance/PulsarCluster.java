@@ -56,10 +56,13 @@ public class PulsarCluster {
         this.client = client;
         this.adminClient = adminClient;
         this.topicSchema = new TopicSchema(client);
-        this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
-                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
         boolean useThreadLocalProducers = false;
         if (producerSpec != null) {
+            this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer()
+                    .blockIfQueueFull(!producerSpec.getBlockIfQueueFullDisabled())
+                    .enableBatching(!producerSpec.getBatchingDisabled())
+                    .batchingMaxPublishDelay(producerSpec.getBatchingMaxPublishDelay() == 0L ? 1L :
+                            producerSpec.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS);
             if (producerSpec.getMaxPendingMessages() != 0) {
                 this.producerBuilder.maxPendingMessages(producerSpec.getMaxPendingMessages());
             }
@@ -74,6 +77,12 @@ public class PulsarCluster {
                 }
             }
             useThreadLocalProducers = producerSpec.getUseThreadLocalProducers();
+        }
+        else {
+            this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer()
+                    .blockIfQueueFull(true)
+                    .enableBatching(true)
+                    .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
         }
         if (useThreadLocalProducers) {
             tlPublishProducers = new ThreadLocal<>();

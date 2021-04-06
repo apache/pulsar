@@ -108,13 +108,6 @@ public class PulsarSink<T> implements Sink<T> {
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
             ProducerBuilder<T> builder = client.newProducer(schema)
-                    .blockIfQueueFull(true)
-                    .enableBatching(true)
-                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                    .compressionType(CompressionType.LZ4)
-                    .hashingScheme(HashingScheme.Murmur3_32Hash) //
-                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
-                    .messageRouter(FunctionResultRouter.of())
                     // set send timeout to be infinity to prevent potential deadlock with consumer
                     // that might happen when consumer is blocked due to unacked messages
                     .sendTimeout(0, TimeUnit.SECONDS)
@@ -124,10 +117,48 @@ public class PulsarSink<T> implements Sink<T> {
             }
             if (pulsarSinkConfig.getProducerConfig() != null) {
                 ProducerConfig producerConfig = pulsarSinkConfig.getProducerConfig();
-                if (producerConfig.getMaxPendingMessages() != 0) {
+                if(producerConfig.getBatchingEnabled() != null){
+                    builder.enableBatching(producerConfig.getBatchingEnabled());
+                    builder.messageRouter(FunctionResultRouter.of(producerConfig.getBatchingEnabled()));
+                } else {
+                    builder.enableBatching(true);
+                    builder.messageRouter(FunctionResultRouter.of(true));
+                }
+                if(producerConfig.getChunkingEnabled() != null){
+                    builder.enableChunking(producerConfig.getChunkingEnabled());
+                } else {
+                    builder.enableChunking(false);
+                }
+                if(producerConfig.getBlockIfQueueFullEnabled() != null){
+                    builder.blockIfQueueFull(producerConfig.getBlockIfQueueFullEnabled());
+                } else {
+                    builder.blockIfQueueFull(true);
+                }
+                if(producerConfig.getBatchingMaxPublishDelay() != null){
+                    builder.batchingMaxPublishDelay(producerConfig.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS);
+                } else {
+                    builder.batchingMaxPublishDelay(10L, TimeUnit.MILLISECONDS);
+                }
+                if(producerConfig.getCompressionType() != null){
+                    builder.compressionType(producerConfig.getCompressionType());
+                } else {
+                    builder.compressionType(CompressionType.LZ4);
+                }
+                if(producerConfig.getHashingScheme() != null){
+                    builder.hashingScheme(producerConfig.getHashingScheme());
+                } else {
+                    builder.hashingScheme(HashingScheme.Murmur3_32Hash);
+                }
+                if(producerConfig.getMessageRoutingMode() != null){
+                    builder.messageRoutingMode(producerConfig.getMessageRoutingMode());
+                } else {
+                    builder.messageRoutingMode(MessageRoutingMode.CustomPartition);
+                }
+                if (producerConfig.getMaxPendingMessages() != null && producerConfig.getMaxPendingMessages() != 0) {
                     builder.maxPendingMessages(producerConfig.getMaxPendingMessages());
                 }
-                if (producerConfig.getMaxPendingMessagesAcrossPartitions() != 0) {
+                if (producerConfig.getMaxPendingMessagesAcrossPartitions() != null &&
+                        producerConfig.getMaxPendingMessagesAcrossPartitions() != 0) {
                     builder.maxPendingMessagesAcrossPartitions(producerConfig.getMaxPendingMessagesAcrossPartitions());
                 }
                 if (producerConfig.getCryptoConfig() != null) {
@@ -144,6 +175,14 @@ public class PulsarSink<T> implements Sink<T> {
                         builder.batcherBuilder(BatcherBuilder.DEFAULT);
                     }
                 }
+            } else {
+                builder.blockIfQueueFull(true)
+                        .enableBatching(true)
+                        .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+                        .compressionType(CompressionType.LZ4)
+                        .hashingScheme(HashingScheme.Murmur3_32Hash) //
+                        .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                        .messageRouter(FunctionResultRouter.of(true));
             }
             return builder.properties(properties).create();
         }

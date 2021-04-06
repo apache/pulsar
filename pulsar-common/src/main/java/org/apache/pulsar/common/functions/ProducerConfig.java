@@ -23,6 +23,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 
 /**
  * Configuration of the producer inside the function.
@@ -38,4 +41,60 @@ public class ProducerConfig {
     private Boolean useThreadLocalProducers;
     private CryptoConfig cryptoConfig;
     private String batchBuilder;
+
+    public Boolean batchingDisabled;
+    public Boolean chunkingEnabled;
+    public Boolean blockIfQueueFullDisabled;
+    public CompressionType compressionType;
+    public HashingScheme hashingScheme;
+    public MessageRoutingMode messageRoutingMode;
+    public Long batchingMaxPublishDelay;
+    public Boolean getBatchingEnabled(){
+        return !this.getBatchingDisabled();
+    }
+    public Boolean getBlockIfQueueFullEnabled() { return !this.getBlockIfQueueFullDisabled();}
+    public ProducerConfig merge(ProducerConfig newConfig){
+        ProducerConfig mergedConfig = new ProducerConfig();
+        if(newConfig == null) {
+            mergedConfig = this;
+        }
+        else {
+            if(newConfig.getBatchingDisabled() != null){
+                mergedConfig.setBatchingDisabled(newConfig.getBatchingDisabled());
+            } else {
+                mergedConfig.setBatchingDisabled(this.getBatchingDisabled());
+            }
+            if(newConfig.getChunkingEnabled() != null){
+                mergedConfig.setChunkingEnabled(newConfig.getChunkingEnabled());
+            } else {
+                mergedConfig.setChunkingEnabled(this.getChunkingEnabled());
+            }
+            if(newConfig.getBlockIfQueueFullDisabled() != null){
+                mergedConfig.setBlockIfQueueFullDisabled(newConfig.getBlockIfQueueFullDisabled());
+            } else {
+                mergedConfig.setBlockIfQueueFullDisabled(this.getBlockIfQueueFullDisabled());
+            }
+            if(newConfig.getCompressionType() != null){
+                mergedConfig.setCompressionType(newConfig.getCompressionType());
+            } else {
+                mergedConfig.setCompressionType(this.getCompressionType());
+            }
+            if(newConfig.getHashingScheme() != null){
+                mergedConfig.setHashingScheme(newConfig.getHashingScheme());
+            } else {
+                mergedConfig.setHashingScheme(this.getHashingScheme());
+            }
+            if (newConfig.getMessageRoutingMode() != null) {
+                mergedConfig.setMessageRoutingMode(newConfig.getMessageRoutingMode());
+            } else {
+                mergedConfig.setMessageRoutingMode(this.getMessageRoutingMode());
+            }
+            if(newConfig.getBatchingMaxPublishDelay() != null){
+                mergedConfig.setBatchingMaxPublishDelay(newConfig.getBatchingMaxPublishDelay());
+            } else {
+                mergedConfig.setBatchingMaxPublishDelay(this.getBatchingMaxPublishDelay());
+            }
+        }
+        return mergedConfig;
+    }
 }

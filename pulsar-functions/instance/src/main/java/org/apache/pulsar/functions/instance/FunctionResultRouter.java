@@ -26,16 +26,17 @@ import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
+import org.apache.pulsar.common.functions.ProducerConfig;
 
 /**
  * Router for routing function results.
  */
 public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
 
-    private static final FunctionResultRouter INSTANCE = new FunctionResultRouter();
+    private static final FunctionRouterClock clock = FunctionRouterClock.of();
 
-    public FunctionResultRouter() {
-        this(Math.abs(ThreadLocalRandom.current().nextInt()), Clock.systemUTC());
+    public FunctionResultRouter(boolean isBatchingEnabled) {
+        this(clock.getPtnIdx(), clock.getTime(), isBatchingEnabled);
     }
 
     @VisibleForTesting
@@ -48,8 +49,17 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
             clock);
     }
 
-    public static FunctionResultRouter of() {
-        return INSTANCE;
+    public FunctionResultRouter(int startPtnIdx, Clock clock, boolean isBatchingEnabled) {
+        super(
+                HashingScheme.Murmur3_32Hash,
+                startPtnIdx,
+                isBatchingEnabled,
+                1,
+                clock);
+    }
+
+    public static FunctionResultRouter of(boolean isBatchingEnabled) {
+        return new FunctionResultRouter(isBatchingEnabled);
     }
 
     @Override

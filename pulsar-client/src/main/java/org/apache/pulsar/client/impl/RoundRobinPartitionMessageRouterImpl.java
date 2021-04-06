@@ -45,7 +45,7 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
     private volatile int partitionIndex = 0;
 
     private final int startPtnIdx;
-    private final boolean isBatchingEnabled;
+    protected boolean isBatchingEnabled;
     private final long partitionSwitchMs;
 
     private final Clock clock;

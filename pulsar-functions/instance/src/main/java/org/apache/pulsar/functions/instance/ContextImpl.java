@@ -64,6 +64,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.ProducerConfigUtils;
+import org.apache.pulsar.functions.utils.functions.ProducerConfigFromProtobufConverter;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
@@ -480,27 +481,54 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
         if (producer == null) {
 
-            Producer<O> newProducer = ((ProducerBuilderImpl<O>) pulsar.getProducerBuilder().clone())
-                    .schema(schema)
-                    .blockIfQueueFull(true)
-                    .enableBatching(true)
-                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                    .compressionType(CompressionType.LZ4)
-                    .hashingScheme(HashingScheme.Murmur3_32Hash) //
-                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
-                    .messageRouter(FunctionResultRouter.of())
-                    // set send timeout to be infinity to prevent potential deadlock with consumer
-                    // that might happen when consumer is blocked due to unacked messages
-                    .sendTimeout(0, TimeUnit.SECONDS)
-                    .topic(topicName)
-                    .properties(InstanceUtils.getProperties(componentType,
-                            FunctionCommon.getFullyQualifiedName(
-                                    this.config.getFunctionDetails().getTenant(),
-                                    this.config.getFunctionDetails().getNamespace(),
-                                    this.config.getFunctionDetails().getName()),
-                            this.config.getInstanceId()))
-                    .create();
+            Producer<O> newProducer = null;
 
+            if (this.config.getFunctionDetails() != null && this.config.getFunctionDetails().getSink() != null &&
+            this.config.getFunctionDetails().getSink().getProducerSpec() != null){
+                Function.ProducerSpec producerSpec = this.config.getFunctionDetails().getSink().getProducerSpec();
+                ProducerConfigFromProtobufConverter converter = new ProducerConfigFromProtobufConverter(producerSpec);
+                newProducer = ((ProducerBuilderImpl<O>) pulsar.getProducerBuilder().clone())
+                        .schema(schema)
+                        .blockIfQueueFull(converter.getBlockIfQueueFullEnabled())
+                        .enableBatching(converter.getBatchingEnabled())
+                        .batchingMaxPublishDelay(converter.getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS)
+                        .compressionType(converter.getCompressionType())
+                        .hashingScheme(converter.getHashingScheme()) //
+                        .messageRoutingMode(converter.getMessageRoutingMode())
+                        .messageRouter(FunctionResultRouter.of(converter.getBatchingEnabled()))
+                        // set send timeout to be infinity to prevent potential deadlock with consumer
+                        // that might happen when consumer is blocked due to unacked messages
+                        .sendTimeout(0, TimeUnit.SECONDS)
+                        .topic(topicName)
+                        .properties(InstanceUtils.getProperties(componentType,
+                                FunctionCommon.getFullyQualifiedName(
+                                        this.config.getFunctionDetails().getTenant(),
+                                        this.config.getFunctionDetails().getNamespace(),
+                                        this.config.getFunctionDetails().getName()),
+                                this.config.getInstanceId()))
+                        .create();
+            } else {
+             newProducer = ((ProducerBuilderImpl<O>) pulsar.getProducerBuilder().clone())
+                        .schema(schema)
+                        .blockIfQueueFull(true)
+                        .enableBatching(true)
+                        .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+                        .compressionType(CompressionType.LZ4)
+                        .hashingScheme(HashingScheme.Murmur3_32Hash) //
+                        .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                        .messageRouter(FunctionResultRouter.of(true))
+                        // set send timeout to be infinity to prevent potential deadlock with consumer
+                        // that might happen when consumer is blocked due to unacked messages
+                        .sendTimeout(0, TimeUnit.SECONDS)
+                        .topic(topicName)
+                        .properties(InstanceUtils.getProperties(componentType,
+                                FunctionCommon.getFullyQualifiedName(
+                                        this.config.getFunctionDetails().getTenant(),
+                                        this.config.getFunctionDetails().getNamespace(),
+                                        this.config.getFunctionDetails().getName()),
+                                this.config.getInstanceId()))
+                        .create();
+            }
             if (pulsar.getTlPublishProducers() != null) {
                 pulsar.getTlPublishProducers().get().put(topicName, newProducer);
             } else {

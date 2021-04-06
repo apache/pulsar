@@ -40,6 +40,25 @@ enum SubscriptionPosition {
     EARLIEST = 1;
 }
 
+enum CompressionType {
+    LZ4 = 0;
+    NONE = 1;
+    ZLIB = 2;
+    ZSTD = 3;
+    SNAPPY = 4;
+}
+
+enum HashingScheme {
+    MURMUR3_32HASH = 0;
+    JAVA_STRING_HASH = 1;
+}
+
+enum MessageRoutingMode {
+    CUSTOM_PARTITION = 0;
+    SINGLE_PARTITION = 1;
+    ROUND_ROBIN_PARTITION = 2;
+}
+
 message Resources {
     double cpu = 1;
     int64 ram = 2;
@@ -110,6 +129,13 @@ message ProducerSpec {
     bool useThreadLocalProducers = 3;
     CryptoSpec cryptoSpec = 4;
     string batchBuilder = 5;
+    bool batchingDisabled = 6;
+    bool chunkingEnabled = 7;
+    bool blockIfQueueFullDisabled = 8;
+    CompressionType compressionType = 9;
+    HashingScheme hashingScheme = 10;
+    MessageRoutingMode messageRoutingMode = 11;
+    int64 batchingMaxPublishDelay = 12;
 }
 
 message CryptoSpec {

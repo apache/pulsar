@@ -22,6 +22,9 @@ import com.google.gson.Gson;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -367,6 +370,13 @@ public class SourceConfigUtilsTest extends PowerMockTestCase {
         configs.put("consumerConfigProperties", consumerConfigs);
 
         ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchingDisabled(true);
+        producerConfig.setChunkingEnabled(false);
+        producerConfig.setBlockIfQueueFullDisabled(true);
+        producerConfig.setCompressionType(CompressionType.SNAPPY);
+        producerConfig.setHashingScheme(HashingScheme.JavaStringHash);
+        producerConfig.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        producerConfig.setBatchingMaxPublishDelay(12L);
         producerConfig.setMaxPendingMessages(100);
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
