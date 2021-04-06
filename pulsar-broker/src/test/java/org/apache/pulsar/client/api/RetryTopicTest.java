@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import lombok.Cleanup;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -68,7 +69,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
-                .topic("persistent://my-property/my-ns/my-subscription-DLQ")
+                .topic("persistent://my-property/my-ns/retry-topic-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
@@ -145,7 +146,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         // subscribe to the DLQ topics before consuming original topics
         Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic("persistent://my-property/my-ns/my-subscription-DLQ")
+                .topic("persistent://my-property/my-ns/retry-topic-1-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
@@ -224,7 +225,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
-                .topic("persistent://my-property/my-ns/my-subscription-DLQ")
+                .topic("persistent://my-property/my-ns/retry-topic-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscribe();
 
