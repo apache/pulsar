@@ -1000,7 +1000,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
             schema = schema.clone();
             if (schema.requireFetchingSchemaInfo()) {
-                Schema<?> finalSchema = schema;
+                @SuppressWarnings("rawtypes") Schema finalSchema = schema;
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
                     if (null == schemaInfo) {
                         if (!(finalSchema instanceof AutoConsumeSchema)) {
