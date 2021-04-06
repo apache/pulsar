@@ -178,4 +178,18 @@ public class PulsarClientImplTest {
         client.shutdown();
         client.timer().stop();
     }
+
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testNewTransactionWhenDisable() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setEnableTransaction(false);
+        PulsarClientImpl pulsarClient = null;
+        try {
+            pulsarClient = new PulsarClientImpl(conf);
+        } catch (PulsarClientException e) {
+            e.printStackTrace();
+        }
+        pulsarClient.newTransaction();
+    }
 }
