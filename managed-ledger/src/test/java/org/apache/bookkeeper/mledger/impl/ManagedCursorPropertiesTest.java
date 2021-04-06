@@ -45,6 +45,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry-1".getBytes());
         ledger.addEntry("entry-2".getBytes());
         Position p3 = ledger.addEntry("entry-3".getBytes());
+        ledger.addEntry("entry-4".getBytes());
 
         Map<String, Long> properties = new TreeMap<>();
         properties.put("a", 1L);
@@ -82,6 +83,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry-1".getBytes());
         ledger.addEntry("entry-2".getBytes());
         Position p3 = ledger.addEntry("entry-3".getBytes());
+        ledger.addEntry("entry-4".getBytes());
 
         Map<String, Long> properties = new TreeMap<>();
         properties.put("a", 1L);
@@ -113,6 +115,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry-1".getBytes());
         Position p2 = ledger.addEntry("entry-2".getBytes());
         Position p3 = ledger.addEntry("entry-3".getBytes());
+        ledger.addEntry("entry-4".getBytes());
 
         Map<String, Long> properties = new TreeMap<>();
         properties.put("a", 1L);
