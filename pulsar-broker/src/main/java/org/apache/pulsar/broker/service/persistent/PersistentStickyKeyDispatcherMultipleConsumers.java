@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -267,7 +268,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // stuckConsumers for avoid stopping dispatch.
             readMoreEntries();
         }  else if (currentThreadKeyNumber == 0) {
-            readMoreEntries();
+            topic.getBrokerService().executor().schedule(() -> {
+                synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
+                    readMoreEntries();
+                }
+            },100, TimeUnit.MILLISECONDS);
         }
     }
 
