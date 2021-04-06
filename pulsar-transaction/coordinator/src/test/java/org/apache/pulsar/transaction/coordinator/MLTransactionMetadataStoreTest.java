@@ -273,7 +273,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testDeleteLog1() throws Exception {
+    public void testRecoverWhenDeleteFromCursor() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
@@ -286,7 +286,10 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
 
         Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
-        transactionMetadataStore.newTransaction(1000).get();
+
+        // txnID1 have not deleted from cursor, we can recover from transaction log
+        TxnID txnID1 = transactionMetadataStore.newTransaction(1000).get();
+        // txnID2 have deleted from cursor.
         TxnID txnID2 = transactionMetadataStore.newTransaction(1000).get();
 
         transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN).get();
