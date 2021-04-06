@@ -262,8 +262,9 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
         OpSendMsg opSendMsg;
         if (batchMessageContainer_->createOpSendMsg(opSendMsg) == ResultOk) {
             callbacks->opSendMsgs.emplace_back(opSendMsg);
-            releaseSemaphoreForSendOp(opSendMsg);
         }
+
+        releaseSemaphoreForSendOp(opSendMsg);
         batchMessageContainer_->clear();
     }
     pendingMessagesQueue_.clear();
