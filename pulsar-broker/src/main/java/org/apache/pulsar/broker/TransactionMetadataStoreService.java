@@ -277,18 +277,6 @@ public class TransactionMetadataStoreService {
             } else {
                 if ((txnStatus == COMMITTING && txnAction == TxnAction.COMMIT.getValue())
                         || (txnStatus == ABORTING && txnAction == TxnAction.ABORT.getValue())) {
-                    TxnAction retryAction;
-                    switch (txnStatus) {
-                        case COMMITTING:
-                            retryAction = TxnAction.COMMIT;
-                            break;
-                        case ABORTING:
-                            retryAction = TxnAction.ABORT;
-                            break;
-                        default:
-                            completableFuture.complete(null);
-                            return;
-                    }
                     endTxnInTransactionBuffer(txnID, txnAction).exceptionally(e -> {
                         if (!isRetryableException(e.getCause())) {
                             LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
@@ -299,7 +287,7 @@ public class TransactionMetadataStoreService {
                                         + "TxnAction : {}", txnID, txnAction, e);
                             }
                             transactionOpRetryTimer.newTimeout(timeout ->
-                                    endTransaction(txnID, retryAction.getValue()),
+                                    endTransaction(txnID, txnAction),
                                     endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
 
                         }
@@ -314,8 +302,7 @@ public class TransactionMetadataStoreService {
                 }
             }
         }).exceptionally(e -> {
-            if (!(e instanceof TransactionCoordinatorClientException.TransactionNotFoundException
-                    || e instanceof CoordinatorNotFoundException)) {
+            if (!isRetryableException(e)) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("End transaction op retry! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
                 }
