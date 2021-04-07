@@ -69,7 +69,7 @@ brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"
 
 Those metrics are added in the Prometheus interface, you can monitor and check the metrics stats in the Grafana.
 
-### Function & connector stats
+### Function and connector stats
 
 You can collect functions worker stats from `functions-worker` and export the metrics in JSON formats, which contain functions worker JVM metrics.
 
@@ -83,7 +83,7 @@ You can collect functions and connectors metrics from `functions-worker` and exp
 pulsar-admin functions-worker function-stats
 ```
 
-The aggregated functions and connectors metrics can be exposed in Prometheus formats as below. You can get `FUNCTIONS_WORKER_ADDRESS` and `WORKER_PORT` from the `functions_worker.yml` file.
+The aggregated functions and connectors metrics can be exposed in Prometheus formats as below. You can get [`FUNCTIONS_WORKER_ADDRESS`](http://pulsar.apache.org/docs/en/next/functions-worker/) and `WORKER_PORT` from the `functions_worker.yml` file.
 
 ```
 http://$FUNCTIONS_WORKER_ADDRESS:$WORKER_PORT/metrics:
