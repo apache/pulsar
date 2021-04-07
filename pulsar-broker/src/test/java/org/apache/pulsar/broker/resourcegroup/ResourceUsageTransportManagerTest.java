@@ -90,7 +90,7 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
             }
 
             @Override
-            public void resourceUsageListener(String broker, ResourceUsage resourceUsage) {
+            public void acceptResourceUsage(String broker, ResourceUsage resourceUsage) {
 
                 recvdBroker[0] = broker;
                 recvdUsage.setOwner(resourceUsage.getOwner());

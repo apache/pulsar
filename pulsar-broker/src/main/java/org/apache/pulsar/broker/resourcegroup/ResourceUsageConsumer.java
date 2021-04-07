@@ -35,5 +35,5 @@ public interface ResourceUsageConsumer {
      * @param broker name
      * @param Resource usage object
      */
-    void resourceUsageListener(String broker, ResourceUsage resourceUsage);
+    void acceptResourceUsage(String broker, ResourceUsage resourceUsage);
 }

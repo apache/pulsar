@@ -136,7 +136,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
                 recdUsageInfo.getUsageMapsList().forEach(ru -> {
                     ResourceUsageConsumer owner = consumerMap.get(ru.getOwner());
                     if (owner != null) {
-                        owner.resourceUsageListener(recdUsageInfo.getBroker(), ru);
+                        owner.acceptResourceUsage(recdUsageInfo.getBroker(), ru);
                     }
                 });
 
