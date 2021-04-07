@@ -109,7 +109,8 @@ public class MLTransactionMetadataStore
                                 txnMetaMap.put(txnID, MutablePair.of(new TxnMetaImpl(txnID), positions));
                                 txnIdSortedSet.add(transactionMetadataEntry.getTxnidLeastBits());
                                 timeoutTracker.replayAddTransaction(transactionMetadataEntry.getTxnidLeastBits(),
-                                        transactionMetadataEntry.getTimeoutMs());
+                                        transactionMetadataEntry.getTimeoutMs()
+                                                + transactionMetadataEntry.getStartTime());
                             }
                             break;
                         case ADD_PARTITION:
@@ -352,6 +353,7 @@ public class MLTransactionMetadataStore
     public CompletableFuture<Void> closeAsync() {
         return transactionLog.closeAsync().thenCompose(v -> {
             txnMetaMap.clear();
+            this.timeoutTracker.close();
             if (!this.changeToCloseState()) {
                 return FutureUtil.failedFuture(
                         new IllegalStateException("Managed ledger transaction metadata store state to close error!"));
