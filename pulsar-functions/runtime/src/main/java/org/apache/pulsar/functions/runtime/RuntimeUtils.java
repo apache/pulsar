@@ -32,6 +32,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.hotspot.BufferPoolsExports;
+import io.prometheus.client.hotspot.ClassLoadingExports;
+import io.prometheus.client.hotspot.GarbageCollectorExports;
+import io.prometheus.client.hotspot.MemoryPoolsExports;
+import io.prometheus.client.hotspot.StandardExports;
+import io.prometheus.client.hotspot.ThreadExports;
+import io.prometheus.client.hotspot.VersionInfoExports;
+import io.prometheus.jmx.JmxCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -40,6 +49,8 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+
+import javax.management.MalformedObjectNameException;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -464,4 +475,20 @@ public class RuntimeUtils {
         return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
     }
 
+    public static void registerDefaultCollectors(CollectorRegistry registry) {
+        // Add the JMX exporter for functionality similar to the kafka connect JMX metrics
+        try {
+            new JmxCollector("{}").register(registry);
+        } catch (MalformedObjectNameException ex) {
+            System.err.println(ex);
+        }
+        // Add the default exports from io.prometheus.client.hotspot.DefaultExports
+        new StandardExports().register(registry);
+        new MemoryPoolsExports().register(registry);
+        new BufferPoolsExports().register(registry);
+        new GarbageCollectorExports().register(registry);
+        new ThreadExports().register(registry);
+        new ClassLoadingExports().register(registry);
+        new VersionInfoExports().register(registry);
+    }
 }

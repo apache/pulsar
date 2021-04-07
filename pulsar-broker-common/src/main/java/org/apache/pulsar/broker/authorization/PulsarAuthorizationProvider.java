@@ -579,7 +579,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                  String role,
                                                                 AuthenticationDataSource authData) {
         try {
-            TenantInfo tenantInfo = pulsarResources.getTenatResources()
+            TenantInfo tenantInfo = pulsarResources.getTenantResources()
                     .get(path(POLICIES, tenantName))
                     .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
 
