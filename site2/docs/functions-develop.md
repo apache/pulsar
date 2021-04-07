@@ -765,9 +765,26 @@ $ bin/pulsar-admin functions localrun \
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Metrics
-Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
 
+Pulsar Functions allows you to deploy and manage processing functions that consume messages from and publish messages to Pulsar topics easily. It is important to ensure that the running functions are healthy at any time. Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
+
+> **Note**
+> 
 > If a Pulsar Function uses the language-native interface for Java or Python, that function is not able to publish metrics and stats to Pulsar.
+
+You can monitor Pulsar Functions that have been deployed with the following methods:
+
+- Check the metrics provided by Pulsar.
+
+  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of **Java, Python, and Go** functions. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
+
+  For the complete list of the function metrics, see [here](reference-metrics.md#pulsar-functions).
+
+- Set and check your customized metrics.
+
+  In addition to the metrics provided by Pulsar, Pulsar allows you to customize metrics for **Java and Python** functions. Function workers collect user-defined metrics to Prometheus automatically and you can check them in Grafana.
+
+Here are examples of how to customize metrics for Java and Python functions.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
@@ -793,8 +810,6 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
 }
 ```
 
-> For instructions on reading and using metrics, see the [Monitoring](deploy-monitoring.md) guide.
-
 <!--Python-->
 You can record metrics using the [`Context`](#context) object on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message. The following is an example.
 
@@ -812,9 +827,6 @@ class MetricRecorderFunction(Function):
 Currently, the feature is not available in Go.
 
 <!--END_DOCUSAURUS_CODE_TABS-->
-
-### Access metrics
-To access metrics created by Pulsar Functions, refer to [Monitoring](deploy-monitoring.md) in Pulsar. 
 
 ## Security
 
