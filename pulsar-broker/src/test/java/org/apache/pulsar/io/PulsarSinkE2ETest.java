@@ -49,6 +49,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.worker.PulsarFunctionTestUtils;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -107,9 +108,9 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         // 5 Sink should only read compacted value，so we will only receive compacted messages
         retryStrategically((test) -> {
             try {
-                String prometheusMetrics = getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-                Map<String, Metric> metrics = parseMetrics(prometheusMetrics);
-                Metric m = metrics.get("pulsar_sink_received_total");
+                String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
+                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_received_total");
                 return m.value == (double) maxKeys;
             } catch (Exception e) {
                 return false;
@@ -249,11 +250,11 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits, 523);
 
         // validate prometheus metrics empty
-        String prometheusMetrics = getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, Metric> metrics = parseMetrics(prometheusMetrics);
-        Metric m = metrics.get("pulsar_sink_received_total");
+        Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
+        PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sinkName);
@@ -332,10 +333,10 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         }, 5, 200);
 
         // get stats after producing
-        prometheusMetrics = getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheusMetrics: {}", prometheusMetrics);
 
-        metrics = parseMetrics(prometheusMetrics);
+        metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
         m = metrics.get("pulsar_sink_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
