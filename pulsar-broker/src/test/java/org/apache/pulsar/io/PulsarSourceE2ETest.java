@@ -33,6 +33,7 @@ import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.worker.PulsarFunctionTestUtils;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -105,11 +106,11 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         }, 50, 150);
         assertEquals(admin.topics().getStats(sinkTopic2).publishers.size(), 1);
 
-        String prometheusMetrics = getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheusMetrics: {}", prometheusMetrics);
 
-        Map<String, Metric> metrics = parseMetrics(prometheusMetrics);
-        Metric m = metrics.get("pulsar_source_received_total");
+        Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
+        PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_source_received_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
