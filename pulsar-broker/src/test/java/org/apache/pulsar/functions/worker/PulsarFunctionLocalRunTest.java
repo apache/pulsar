@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStr
 import static org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -81,6 +82,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -411,6 +413,7 @@ public class PulsarFunctionLocalRunTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
         functionConfig.setJar(jarFilePathUrl);
+        int metricsPort = FunctionCommon.findAvailablePort();
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
@@ -420,6 +423,7 @@ public class PulsarFunctionLocalRunTest {
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
                 .tlsHostNameVerificationEnabled(false)
+                .metricsPortStart(metricsPort)
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
@@ -462,6 +466,21 @@ public class PulsarFunctionLocalRunTest {
         // due to publish failure
         assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
                 totalMsgs);
+
+        // validate prometheus metrics
+        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
+        log.info("prometheus metrics: {}", prometheusMetrics);
+
+        Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
+        assertFalse(metrics.isEmpty());
+
+        PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_function_processed_successfully_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), functionName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+        assertEquals(m.value, 5.0);
 
         // stop functions
         localRunner.stop();
@@ -771,6 +790,7 @@ public class PulsarFunctionLocalRunTest {
         }
 
         sinkConfig.setArchive(jarFilePathUrl);
+        int metricsPort = FunctionCommon.findAvailablePort();
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
                 .sinkConfig(sinkConfig)
@@ -782,6 +802,7 @@ public class PulsarFunctionLocalRunTest {
                 .tlsHostNameVerificationEnabled(false)
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls())
                 .connectorsDirectory(workerConfig.getConnectorsDirectory())
+                .metricsPortStart(metricsPort)
                 .build();
 
         localRunner.start(false);
@@ -818,6 +839,21 @@ public class PulsarFunctionLocalRunTest {
                 return false;
             }
         }, 5, 200);
+
+        // validate prometheus metrics
+        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
+        log.info("prometheus metrics: {}", prometheusMetrics);
+
+        Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
+        assertFalse(metrics.isEmpty());
+
+        PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_written_total");
+        assertEquals(m.tags.get("cluster"), config.getClusterName());
+        assertEquals(m.tags.get("instance_id"), "0");
+        assertEquals(m.tags.get("name"), sinkName);
+        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
+        assertEquals(m.value, 10.0);
 
         // stop sink
         localRunner.stop();
