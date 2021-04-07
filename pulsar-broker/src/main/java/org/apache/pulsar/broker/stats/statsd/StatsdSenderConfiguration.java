@@ -31,6 +31,7 @@ public class StatsdSenderConfiguration {
     public int metricsGenerationInterval;
     public boolean includeTopicsMetrics;
     public boolean includeConsumersMetrics;
+    public boolean includeProducersMetrics;
 
     public StatsdSenderConfiguration(ServiceConfiguration conf) {
         this.hostname = conf.getStatsdServerHostname();
@@ -43,5 +44,6 @@ public class StatsdSenderConfiguration {
         this.metricsGenerationInterval = conf.getStatsMetricsGenerationInterval();
         this.includeTopicsMetrics = conf.getStatsdIncludeTopicsMetrics();
         this.includeConsumersMetrics = conf.getStatsdIncludeConsumersMetrics();
+        this.includeProducersMetrics = conf.getStatsdIncludeProducersMetrics();
     }
 }

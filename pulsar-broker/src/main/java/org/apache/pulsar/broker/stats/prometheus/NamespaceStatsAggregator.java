@@ -88,7 +88,7 @@ public class NamespaceStatsAggregator {
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-                                StatsDClient statsd) {
+                                boolean includeProducerMetrics, StatsDClient statsd) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
         TopicStats.resetTypes();
@@ -103,8 +103,9 @@ public class NamespaceStatsAggregator {
 
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
-                    getTopicStats(topic, topicStats, includeConsumerMetrics,
-                            pulsar.getConfiguration().isExposePreciseBacklogInPrometheus());
+                    getTopicStats(topic, topicStats, includeConsumerMetrics, includeProducerMetrics,
+                            pulsar.getConfiguration().isExposePreciseBacklogInPrometheus(),
+                            pulsar.getConfiguration().isExposeSubscriptionBacklogSizeInPrometheus());
 
                     /*
                     if (includeTopicMetrics) {

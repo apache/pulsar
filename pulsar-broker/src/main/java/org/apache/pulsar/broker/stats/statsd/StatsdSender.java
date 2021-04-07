@@ -66,7 +66,8 @@ public class StatsdSender implements AutoCloseable {
 
     public void generateAndSend() {
         NamespaceStatsAggregator.generate(this.pulsar, this.configuration.includeTopicsMetrics,
-                this.configuration.includeConsumersMetrics, this.client);
+                this.configuration.includeConsumersMetrics, this.configuration.includeProducersMetrics,
+                this.client);
     }
 
     @Override

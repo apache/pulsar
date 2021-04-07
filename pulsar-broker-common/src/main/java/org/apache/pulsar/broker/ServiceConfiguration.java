@@ -2039,7 +2039,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Boolean statsdIncludeConsumersMetrics = false;
 
->>>>>>> fa8266048cd (add configurations)
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define if statsd metrics collects producers metrics"
+    )
+    private Boolean statsdIncludeProducersMetrics = false;
 
     /**** --- Functions --- ****/
     @FieldContext(
