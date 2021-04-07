@@ -938,6 +938,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (possibleSendToDeadLetterTopicMessages != null) {
             possibleSendToDeadLetterTopicMessages.clear();
         }
+
+        if (deadLetterProducer != null) {
+            try {
+                createProducerLock.writeLock().lock();
+                if (deadLetterProducer != null) {
+                    deadLetterProducer.thenApplyAsync(Producer::closeAsync);
+                    deadLetterProducer = null;
+                }
+            } catch (Exception e) {
+                log.error("Error closing deadLetterProducer for topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
+            } finally {
+                createProducerLock.writeLock().unlock();
+            }
+        }
+
         acknowledgmentsGroupingTracker.close();
         if (batchReceiveTimeout != null) {
             batchReceiveTimeout.cancel();
