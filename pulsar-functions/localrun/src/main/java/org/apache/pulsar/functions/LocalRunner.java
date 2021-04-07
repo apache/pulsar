@@ -582,14 +582,11 @@ public class LocalRunner implements AutoCloseable {
             instanceConfig.setFunctionId(UUID.randomUUID().toString());
             instanceConfig.setInstanceId(i + instanceIdOffset);
             instanceConfig.setMaxBufferedTuples(1024);
-            instanceConfig.setPort(FunctionCommon.findAvailablePort());
             if (metricsPortStart != null) {
                 if (metricsPortStart < 0 || metricsPortStart > 65535) {
                     throw new IllegalArgumentException("Metrics port need to be within the range of 0 and 65535");
                 }
                 instanceConfig.setMetricsPort(metricsPortStart + i);
-            } else {
-                instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
             }
             instanceConfig.setClusterName("local");
             if (functionConfig != null) {
@@ -608,9 +605,11 @@ public class LocalRunner implements AutoCloseable {
             spawners.add(runtimeSpawner);
             runtimeSpawner.start();
 
-            // starting metrics server
-            log.info("Starting metrics server on port {}", instanceConfig.getMetricsPort());
-            new HTTPServer(new InetSocketAddress(instanceConfig.getMetricsPort()), collectorRegistry, true);
+            if (metricsPortStart != null) {
+                // starting metrics server
+                log.info("Starting metrics server on port {}", instanceConfig.getMetricsPort());
+                new HTTPServer(new InetSocketAddress(instanceConfig.getMetricsPort()), collectorRegistry, true);
+            }
 
         }
     }
