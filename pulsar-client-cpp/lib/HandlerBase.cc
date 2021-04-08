@@ -37,7 +37,8 @@ HandlerBase::HandlerBase(const ClientImplPtr& client, const std::string& topic, 
       state_(Pending),
       backoff_(backoff),
       epoch_(0),
-      timer_(client->getIOExecutorProvider()->get()->createDeadlineTimer()) {}
+      executor_(client->getIOExecutorProvider()->get()),
+      timer_(executor_->createDeadlineTimer()) {}
 
 HandlerBase::~HandlerBase() { timer_->cancel(); }
 

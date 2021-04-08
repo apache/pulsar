@@ -108,6 +108,7 @@ class HandlerBase {
     uint64_t epoch_;
 
    private:
+    ExecutorServicePtr executor_;
     DeadlineTimerPtr timer_;
     friend class ClientConnection;
     friend class PulsarFriend;
