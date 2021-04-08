@@ -34,7 +34,7 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     @Override
     public void initialize(ServiceConfiguration config) {
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
-                config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS);
+                config.getDelayedDeliveryTickDurationMillis(), TimeUnit.MILLISECONDS);
         this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();
     }
 
