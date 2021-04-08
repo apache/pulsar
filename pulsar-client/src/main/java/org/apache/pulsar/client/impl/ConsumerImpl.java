@@ -551,8 +551,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             delayTime = 0;
         }
         if (retryLetterProducer == null) {
+            createProducerLock.writeLock().lock();
             try {
-                createProducerLock.writeLock().lock();
                 if (retryLetterProducer == null) {
                     retryLetterProducer = client.newProducer(schema)
                             .topic(this.deadLetterPolicy.getRetryLetterTopic())
@@ -940,8 +940,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (deadLetterProducer != null) {
+            createProducerLock.writeLock().lock();
             try {
-                createProducerLock.writeLock().lock();
                 if (deadLetterProducer != null) {
                     deadLetterProducer.thenApplyAsync(Producer::closeAsync);
                     deadLetterProducer = null;
@@ -1709,8 +1709,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private void initDeadLetterProducerIfNeeded() {
         if (deadLetterProducer == null) {
+            createProducerLock.writeLock().lock();
             try {
-                createProducerLock.writeLock().lock();
                 if (deadLetterProducer == null) {
                     deadLetterProducer = client.newProducer(schema)
                             .topic(this.deadLetterPolicy.getDeadLetterTopic())
