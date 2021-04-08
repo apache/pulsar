@@ -179,7 +179,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         }
 
         if (maxConsumersPerSubscription == null) {
-            maxConsumersPerSubscription = policies != null && policies.max_consumers_per_subscription > 0
+            maxConsumersPerSubscription = policies != null
+                    && policies.max_consumers_per_subscription != null
+                    && policies.max_consumers_per_subscription >= 0
                     ? policies.max_consumers_per_subscription :
                     brokerService.pulsar().getConfiguration().getMaxConsumersPerSubscription();
         }

@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -179,6 +180,13 @@ import org.slf4j.LoggerFactory;
 @Setter(AccessLevel.PROTECTED)
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
     private static final Logger log = LoggerFactory.getLogger(BrokerService.class);
+    private static final Duration FUTURE_DEADLINE_TIMEOUT_DURATION = Duration.ofSeconds(60);
+    private static final TimeoutException FUTURE_DEADLINE_TIMEOUT_EXCEPTION =
+            FutureUtil.createTimeoutException("Future didn't finish within deadline", BrokerService.class,
+                    "futureWithDeadline(...)");
+    private static final TimeoutException FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION =
+            FutureUtil.createTimeoutException("Failed to load topic within timeout", BrokerService.class,
+                    "futureWithDeadline(...)");
 
     private final PulsarService pulsar;
     private final ManagedLedgerFactory managedLedgerFactory;
@@ -847,7 +855,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             }
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topic, e);
-            return failedFuture(e);
+            return FutureUtil.failedFuture(e);
         } catch (RuntimeException e) {
             Throwable cause = e.getCause();
             if (cause instanceof ServiceUnitNotReadyException) {
@@ -856,7 +864,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 log.warn("[{}] Unexpected exception when loading topic: {}", topic, e.getMessage(), e);
             }
 
-            return failedFuture(cause);
+            return FutureUtil.failedFuture(cause);
         }
     }
 
@@ -964,25 +972,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return topicFuture;
     }
 
-    private static <T> CompletableFuture<T> failedFuture(Throwable t) {
-        CompletableFuture<T> future = new CompletableFuture<>();
-        future.completeExceptionally(t);
-        return future;
-    }
-
-    private <T> CompletableFuture<T> futureWithDeadline(Long delay, TimeUnit unit, Exception exp) {
-        CompletableFuture<T> future = new CompletableFuture<T>();
-        executor().schedule(() -> {
-            if (!future.isDone()) {
-                future.completeExceptionally(exp);
-            }
-        }, delay, unit);
-        return future;
-    }
-
     private <T> CompletableFuture<T> futureWithDeadline() {
-        return futureWithDeadline(60000L, TimeUnit.MILLISECONDS,
-                new TimeoutException("Future didn't finish within deadline"));
+        return FutureUtil.createFutureWithTimeout(FUTURE_DEADLINE_TIMEOUT_DURATION, executor(),
+                () -> FUTURE_DEADLINE_TIMEOUT_EXCEPTION);
     }
 
     public PulsarClient getReplicationClient(String cluster) {
@@ -1093,9 +1085,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      */
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
             boolean createIfMissing) throws RuntimeException {
-        final CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline(
-                pulsar.getConfiguration().getTopicLoadTimeoutSeconds(),
-                TimeUnit.SECONDS, new TimeoutException("Failed to load topic within timeout"));
+        final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
+                Duration.ofSeconds(pulsar.getConfiguration().getTopicLoadTimeoutSeconds()), executor(),
+                () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
         if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load persistent topic {}", topic);
@@ -1259,7 +1251,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
                     }
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                    log.warn("Topic {} policies cache have not init.", topicName);
+                    log.debug("Topic {} policies have not been initialized yet.", topicName);
                 }
             }
 
@@ -2565,10 +2557,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             checkTopicLevelPolicyEnable();
             return pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
             return null;
         } catch (RestException | NullPointerException e) {
-            log.warn("Topic level policies are not enabled. "
+            log.debug("Topic level policies are not enabled. "
                     + "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
             return null;
         }
