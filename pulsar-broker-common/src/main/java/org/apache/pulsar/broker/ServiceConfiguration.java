@@ -1510,6 +1510,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String managedLedgerDataReadPriority = OffloadPolicies.OffloadedReadPriority.TIERED_STORAGE_FIRST
             .getValue();
 
+    private long stickConsumerBackOffDelayTimeMs = 500;
+
     /*** --- Load balancer --- ****/
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,

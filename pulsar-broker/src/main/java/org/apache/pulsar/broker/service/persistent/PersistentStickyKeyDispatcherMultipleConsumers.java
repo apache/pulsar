@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -67,6 +68,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private final Set<Consumer> stuckConsumers;
     private final Set<Consumer> nextStuckConsumers;
 
+    private long stickConsumerBackOffDelayTimeMs = 500;
+
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         super(topic, cursor, subscription);
@@ -76,6 +79,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         this.stuckConsumers = new HashSet<>();
         this.nextStuckConsumers = new HashSet<>();
 
+        this.stickConsumerBackOffDelayTimeMs = conf.getStickConsumerBackOffDelayTimeMs();
         switch (ksm.getKeySharedMode()) {
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
@@ -267,7 +271,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // stuckConsumers for avoid stopping dispatch.
             readMoreEntries();
         }  else if (currentThreadKeyNumber == 0) {
-            readMoreEntries();
+            topic.getBrokerService().executor().schedule(() -> {
+                synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
+                    readMoreEntries();
+                }
+            }, stickConsumerBackOffDelayTimeMs, TimeUnit.MILLISECONDS);
         }
     }
 
