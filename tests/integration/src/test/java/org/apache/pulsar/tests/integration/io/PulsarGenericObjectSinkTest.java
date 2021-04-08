@@ -60,7 +60,8 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
             this.outputTopicName = outputTopicName;
             this.sinkName = sinkName;
             this.schema = schema;
-            this.testValue = testValue};
+            this.testValue = testValue;
+        }
     }
 
     @Data
