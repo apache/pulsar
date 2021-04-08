@@ -362,7 +362,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private KeyValueSchema getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchema) ((AutoConsumeSchema)schema).getInternalSchema();
+            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema();
         } else {
             return (KeyValueSchema) schema;
         }

@@ -33,7 +33,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -897,7 +896,6 @@ public class PulsarClientImpl implements PulsarClient {
             schema = schema.clone();
             if (schema.requireFetchingSchemaInfo()) {
                 Schema finalSchema = schema;
-
                 return schemaInfoProvider.getLatestSchema().thenCompose(schemaInfo -> {
                     if (null == schemaInfo) {
                         if (!(finalSchema instanceof AutoConsumeSchema)) {
