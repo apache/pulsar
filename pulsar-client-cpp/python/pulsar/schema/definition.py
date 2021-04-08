@@ -80,7 +80,7 @@ class Record(with_metaclass(RecordMeta, object)):
             'fields': []
         }
 
-        for name in sorted(cls._fields.keys()):
+        for name in cls._fields.keys():
             field = cls._fields[name]
             field_type = field.schema() if field._required else ['null', field.schema()]
             schema['fields'].append({
