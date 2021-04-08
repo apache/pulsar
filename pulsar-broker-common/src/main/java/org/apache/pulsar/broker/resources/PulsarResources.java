@@ -31,7 +31,7 @@ import lombok.Getter;
 public class PulsarResources {
 
     public static final int DEFAULT_OPERATION_TIMEOUT_SEC = 30;
-    private TenantResources tenatResources;
+    private TenantResources tenantResources;
     private ClusterResources clusterResources;
     private NamespaceResources namespaceResources;
     private DynamicConfigurationResources dynamicConfigResources;
@@ -46,7 +46,7 @@ public class PulsarResources {
     public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore,
             int operationTimeoutSec) {
         if (configurationMetadataStore != null) {
-            tenatResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
+            tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(configurationMetadataStore, operationTimeoutSec);
             namespaceResources = new NamespaceResources(configurationMetadataStore, operationTimeoutSec);
         }

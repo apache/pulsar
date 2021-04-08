@@ -67,8 +67,8 @@ flexible messaging model and an intuitive client API.</description>
   </scm>
 
   <ciManagement>
-    <system>Travis</system>
-    <url>https://travis-ci.org/apache/pulsar</url>
+    <system>GitHub Actions</system>
+    <url>https://github.com/apache/pulsar/actions</url>
   </ciManagement>
 
   <issueManagement>
@@ -2028,7 +2028,7 @@ flexible messaging model and an intuitive client API.</description>
     </repository>
     <repository>
       <id>confluent</id>
-      <url>http://packages.confluent.io/maven/</url>
+      <url>https://packages.confluent.io/maven/</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>

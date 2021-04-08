@@ -82,8 +82,7 @@ public class ReplicatorTestBase extends TestRetrySupport {
 
     ZookeeperServerTest globalZkS;
 
-    ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
-            new DefaultThreadFactory("ReplicatorTestBase"));
+    ExecutorService executor;
 
     static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
@@ -104,6 +103,9 @@ public class ReplicatorTestBase extends TestRetrySupport {
         incrementSetupNumber();
 
         log.info("--- Starting ReplicatorTestBase::setup ---");
+        executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+                new DefaultThreadFactory("ReplicatorTestBase"));
+
         globalZkS = new ZookeeperServerTest(0);
         globalZkS.start();
 
@@ -266,7 +268,10 @@ public class ReplicatorTestBase extends TestRetrySupport {
     protected void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
-        executor.shutdown();
+        if (executor != null) {
+            executor.shutdown();
+            executor = null;
+        }
 
         admin1.close();
         admin2.close();
