@@ -28,6 +28,7 @@ import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -89,6 +90,7 @@ public class Producer {
     private final Map<String, String> metadata;
 
     private final SchemaVersion schemaVersion;
+    private final String clientAddress; // IP address only, no port number included
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
@@ -131,6 +133,15 @@ public class Producer {
         this.schemaVersion = schemaVersion;
         this.accessMode = accessMode;
         this.topicEpoch = topicEpoch;
+
+        if (cnx.hasHAProxyMessage()) {
+            this.clientAddress = cnx.getHAProxyMessage().sourceAddress();
+        } else if (cnx.clientAddress() instanceof InetSocketAddress) {
+            InetSocketAddress inetAddress = (InetSocketAddress) cnx.clientAddress();
+            this.clientAddress = inetAddress.getAddress().getHostAddress();
+        } else {
+            this.clientAddress = null;
+        }
     }
 
     @Override
@@ -660,6 +671,10 @@ public class Producer {
 
     public Optional<Long> getTopicEpoch() {
         return topicEpoch;
+    }
+
+    public String getClientAddress() {
+        return clientAddress;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);

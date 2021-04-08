@@ -794,6 +794,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        doc = "Max number of producers with the same IP address allowed to connect to topic."
+            + " \n\nOnce this limit reaches, Broker will reject new producers until the number of"
+            + " connected producers with the same IP address decrease."
+            + " Using a value of 0, is disabling maxSameAddressProducersPerTopic-limit check.")
+    private int maxSameAddressProducersPerTopic = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
         doc = "Enforce producer to publish encrypted messages.(default disable).")
     private boolean encryptionRequireOnProducer = false;
 
@@ -803,6 +811,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Broker will reject new consumers until the number of connected consumers decrease."
             + " Using a value of 0, is disabling maxConsumersPerTopic-limit check.")
     private int maxConsumersPerTopic = 0;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Max number of consumers with the same IP address allowed to connect to topic."
+            + " \n\nOnce this limit reaches, Broker will reject new consumers until the number of"
+            + " connected consumers with the same IP address decrease."
+            + " Using a value of 0, is disabling maxSameAddressConsumersPerTopic-limit check.")
+    private int maxSameAddressConsumersPerTopic = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,

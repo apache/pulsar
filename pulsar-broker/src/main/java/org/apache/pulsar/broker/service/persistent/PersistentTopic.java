@@ -1436,6 +1436,17 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
+    public int getNumberOfSameAddressConsumers(final String clientAddress) {
+        int count = 0;
+        if (clientAddress != null) {
+            for (PersistentSubscription subscription : subscriptions.values()) {
+                count += subscription.getNumberOfSameAddressConsumers(clientAddress);
+            }
+        }
+        return count;
+    }
+
+    @Override
     public ConcurrentOpenHashMap<String, PersistentSubscription> getSubscriptions() {
         return subscriptions;
     }

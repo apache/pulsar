@@ -23,6 +23,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -122,6 +123,7 @@ public class Consumer {
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
     private PositionImpl readPositionWhenJoining;
+    private final String clientAddress; // IP address only, no port number included
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -171,6 +173,15 @@ public class Consumer {
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
+        }
+
+        if (cnx.hasHAProxyMessage()) {
+            this.clientAddress = cnx.getHAProxyMessage().sourceAddress();
+        } else if (cnx.clientAddress() instanceof InetSocketAddress) {
+            InetSocketAddress inetAddress = (InetSocketAddress) cnx.clientAddress();
+            this.clientAddress = inetAddress.getAddress().getHostAddress();
+        } else {
+            this.clientAddress = null;
         }
     }
 
@@ -827,6 +838,10 @@ public class Consumer {
 
     public TransportCnx cnx() {
         return cnx;
+    }
+
+    public String getClientAddress() {
+        return clientAddress;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);
