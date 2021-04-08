@@ -2075,6 +2075,63 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
+    public void testNonPersistentMaxConsumerOnSub() throws Exception {
+        int maxConsumerPerSubInBroker = 1;
+        int maxConsumerPerSubInNs = 2;
+        int maxConsumerPerSubInTopic = 3;
+        conf.setMaxConsumersPerSubscription(maxConsumerPerSubInBroker);
+        final String topic = "non-persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 3);
+        Producer producer = pulsarClient.newProducer().topic(topic).create();
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        final String subName = "my-sub";
+        ConsumerBuilder builder = pulsarClient.newConsumer()
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName).topic(topic);
+        Consumer consumer = builder.subscribe();
+
+        try {
+            builder.subscribe();
+            fail("should fail");
+        } catch (PulsarClientException e) {
+            assertTrue(e.getMessage().contains("reached max consumers limit"));
+        }
+        // set namespace policy
+        admin.namespaces().setMaxConsumersPerSubscription(myNamespace, maxConsumerPerSubInNs);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespace));
+            assertEquals(admin.namespaces().getMaxConsumersPerSubscription(myNamespace).intValue(), maxConsumerPerSubInNs);
+        });
+        Consumer consumer2 = builder.subscribe();
+        try {
+            builder.subscribe();
+            fail("should fail");
+        } catch (PulsarClientException e) {
+            assertTrue(e.getMessage().contains("reached max consumers limit"));
+        }
+
+        //set topic policy
+        admin.topics().setMaxConsumersPerSubscription(topic, maxConsumerPerSubInTopic);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(admin.topics().getMaxConsumersPerSubscription(topic));
+            assertEquals(admin.topics().getMaxConsumersPerSubscription(topic).intValue(), maxConsumerPerSubInTopic);
+        });
+        Consumer consumer3 = builder.subscribe();
+        try {
+            builder.subscribe();
+            fail("should fail");
+        } catch (PulsarClientException e) {
+            assertTrue(e.getMessage().contains("reached max consumers limit"));
+        }
+        consumer.close();
+        consumer2.close();
+        consumer3.close();
+        producer.close();
+    }
+
+    @Test(timeOut = 20000)
     public void testGetCompactionThresholdApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
