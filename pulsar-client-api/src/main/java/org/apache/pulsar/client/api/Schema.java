@@ -30,6 +30,7 @@ import java.util.Optional;
 
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.internal.DefaultImplementation;
@@ -372,9 +373,8 @@ public interface Schema<T> extends Cloneable{
      * Create a schema instance that automatically deserialize messages
      * based on the current topic schema.
      *
-     * <p>The messages values are deserialized into a {@link GenericRecord} object.
-     *
-     * <p>Currently this is only supported with Avro and JSON schema types.
+     * <p>The messages values are deserialized into a {@link GenericRecord} object,
+     * that extends the {@link GenericObject} interface.
      *
      * @return the auto schema instance
      */
