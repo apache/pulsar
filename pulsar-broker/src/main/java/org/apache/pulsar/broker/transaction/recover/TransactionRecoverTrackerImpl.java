@@ -46,13 +46,34 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
      * This is for recover open status transaction. The key is this transaction's sequenceId, the value is this
      * transaction timeout time.
      * <p>
-     *     When update transaction status to committing or aborting
+     *     When transaction update status to committing or aborting, it will be remove form this.
+     * <p>
+     *     When transactionMetadataStore recover complete, the transaction don't update status, it will send all
+     *     transaction to transactionTimeoutTracker.
      *
      */
     private final Map<Long, Long> openTransactions;
 
+    /**
+     * Update transaction to committing status.
+     * <p>
+     *     When transaction update status to committing, it will be add in.
+     * <p>
+     *     When transaction update status to committed status, the transaction will remove from it.
+     * <p>
+     *     When transactionMetadataStore recover complete, all transaction in this will endTransaction by commit action.
+     */
     private final Set<Long> committingTransactions;
 
+    /**
+     * Update transaction to aborting status.
+     * <p>
+     *     When transaction update status to aborting, it will be add in.
+     * <p>
+     *     When transaction update status to aborted status, the transaction will remove from it.
+     * <p>
+     *     When transactionMetadataStore recover complete, all transaction in this will endTransaction by abort action.
+     */
     private final Set<Long> abortingTransactions;
 
     public TransactionRecoverTrackerImpl(TransactionMetadataStoreService transactionMetadataStoreService,

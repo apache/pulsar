@@ -34,7 +34,7 @@ public interface TransactionRecoverTracker {
     void updateTransactionStatus(long sequenceId, TxnStatus txnStatus) throws CoordinatorException.InvalidTxnStatusException;
 
     /**
-     * Handle recover transaction update status.
+     * Handle recover transaction in open status.
      * @param sequenceId {@link Long} the sequenceId of this transaction.
      * @param timeout {@link long} the timeout time of this transaction.
      */
