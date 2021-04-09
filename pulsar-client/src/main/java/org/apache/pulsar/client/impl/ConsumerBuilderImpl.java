@@ -53,6 +53,7 @@ import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Getter(AccessLevel.PUBLIC)
@@ -118,6 +119,27 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
             String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
             String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+
+            //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
+            String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+            String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            try {
+                PartitionedTopicMetadata partitionedTopicMetadata = client.getLookup().getPartitionedTopicMetadata(TopicName.get(oldRetryLetterTopic)).get();
+                if (partitionedTopicMetadata.partitions > 0) {
+                    retryLetterTopic = oldRetryLetterTopic;
+                }
+            } catch (Exception e) {
+                // oldRetryLetterTopic not exist, do nothing
+            }
+            try {
+                PartitionedTopicMetadata partitionedTopicMetadata = client.getLookup().getPartitionedTopicMetadata(TopicName.get(oldDeadLetterTopic)).get();
+                if (partitionedTopicMetadata.partitions > 0) {
+                    deadLetterTopic = oldDeadLetterTopic;
+                }
+            } catch (Exception e) {
+                // oldDeadLetterTopic not exist, do nothing
+            }
+
             if(conf.getDeadLetterPolicy() == null) {
                 conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
                                         .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
