@@ -169,8 +169,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         public void start() {
             TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry();
 
-            while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
-                fillEntryQueueCallback.fillQueue();
+            while (fillEntryQueueCallback.fillQueue() || entryQueue.size() > 0) {
                 Entry entry = entryQueue.poll();
                 if (entry != null) {
                     try {
@@ -197,12 +196,17 @@ public class MLTransactionLogImpl implements TransactionLog {
 
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
 
-        void fillQueue() {
+        boolean fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(100, this);
+                    return true;
+                } else {
+                    return false;
                 }
+            } else {
+                return true;
             }
         }
 

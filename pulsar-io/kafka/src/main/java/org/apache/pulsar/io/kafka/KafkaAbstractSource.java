@@ -27,6 +27,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
@@ -128,9 +131,10 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
                 for (ConsumerRecord<Object, Object> consumerRecord : consumerRecords) {
-                    KafkaRecord record = new KafkaRecord(consumerRecord,
-                            extractValue(consumerRecord),
-                            extractSchema(consumerRecord));
+                    KafkaRecord record = buildRecord(consumerRecord);
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Write record {} {} {}", record.getKey(), record.getValue(), record.getSchema());
+                    }
                     consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;
@@ -153,14 +157,10 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         runnerThread.start();
     }
 
-    public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
-        return consumerRecord.value();
-    }
-
-    public abstract Schema<V> extractSchema(ConsumerRecord<Object, Object> consumerRecord);
+    public abstract KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord);
 
     @Slf4j
-    static private class KafkaRecord<V> implements Record<V> {
+    protected static class KafkaRecord<V> implements Record<V> {
         private final ConsumerRecord<String, ?> record;
         private final V value;
         private final Schema<V> schema;
@@ -176,6 +176,11 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         @Override
         public Optional<String> getPartitionId() {
             return Optional.of(Integer.toString(record.partition()));
+        }
+
+        @Override
+        public Optional<Integer> getPartitionIndex() {
+            return Optional.of(record.partition());
         }
 
         @Override
@@ -201,6 +206,33 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         @Override
         public Schema<V> getSchema() {
             return schema;
+        }
+    }
+    protected static class KeyValueKafkaRecord<V> extends KafkaRecord implements KVRecord<Object, Object> {
+
+        private final Schema<Object> keySchema;
+        private final Schema<Object> valueSchema;
+
+        public KeyValueKafkaRecord(ConsumerRecord record, KeyValue value,
+                                   Schema<Object> keySchema, Schema<Object> valueSchema) {
+            super(record, value, null);
+            this.keySchema = keySchema;
+            this.valueSchema = valueSchema;
+        }
+
+        @Override
+        public Schema<Object> getKeySchema() {
+            return keySchema;
+        }
+
+        @Override
+        public Schema<Object> getValueSchema() {
+            return valueSchema;
+        }
+
+        @Override
+        public KeyValueEncodingType getKeyValueEncodingType() {
+            return KeyValueEncodingType.SEPARATED;
         }
     }
 }

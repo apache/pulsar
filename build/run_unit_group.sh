@@ -60,8 +60,10 @@ function other() {
                                                 **/PrimitiveSchemaTest.java,
                                                 BlobStoreManagedLedgerOffloaderTest.java'
 
-  $MVN_TEST_COMMAND -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java' \
-                                       -DtestForkCount=1
+  $MVN_TEST_COMMAND -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
+                                                  **/OffloadersCacheTest.java' \
+                                       -DtestForkCount=1 \
+                                       -DtestReuseFork=true
 
   $MVN_TEST_COMMAND -pl pulsar-sql/presto-pulsar-plugin -Dinclude='**/TestPulsarKeyValueSchemaHandler.java' \
                                                         -DtestForkCount=1

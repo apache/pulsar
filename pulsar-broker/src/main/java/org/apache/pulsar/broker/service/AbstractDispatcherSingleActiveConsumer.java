@@ -70,8 +70,6 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     protected abstract void cancelPendingRead();
 
-    protected abstract boolean isConsumersExceededOnSubscription();
-
     protected void notifyActiveConsumerChanged(Consumer activeConsumer) {
         if (null != activeConsumer && subscriptionType == SubType.Failover) {
             consumers.forEach(consumer ->

@@ -38,6 +38,12 @@ Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme 
 pulsar://localhost:6650
 ```
 
+If you have multiple brokers, you can set the URL as below.
+
+```
+pulsar://localhost:6550,localhost:6651,localhost:6652
+```
+
 A URL for a production Pulsar cluster may look something like this:
 
 ```http
@@ -77,11 +83,34 @@ func main() {
 }
 ```
 
+If you have multiple brokers, you can initiate a client object as below.
+
+```
+import (
+    "log"
+    "time"
+    "github.com/apache/pulsar-client-go/pulsar"
+)
+
+func main() {
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+        URL: "pulsar://localhost:6650,localhost:6651,localhost:6652",
+        OperationTimeout:  30 * time.Second,
+        ConnectionTimeout: 30 * time.Second,
+    })
+    if err != nil {
+        log.Fatalf("Could not instantiate Pulsar client: %v", err)
+    }
+
+    defer client.Close()
+}
+```
+
 The following configurable parameters are available for Pulsar clients:
 
  Name | Description | Default
 | :-------- | :---------- |:---------- |
-| URL | Configure the service URL for the Pulsar service. This parameter is required | |
+| URL | Configure the service URL for the Pulsar service.<br><br>If you have multiple brokers, you can set multiple Pulsar cluster addresses for a client. <br><br>This parameter is **required**. |None |
 | ConnectionTimeout | Timeout for the establishment of a TCP connection | 30s |
 | OperationTimeout| Set the operation timeout. Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the operation will be marked as failed| 30s|
 | Authentication | Configure the authentication provider. Example: `Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem")` | no authentication |

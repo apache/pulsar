@@ -19,20 +19,26 @@
 
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 
@@ -146,6 +152,41 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
+    }
+
+    /**
+     * Determine whether the number of consumers on the subscription reaches the threshold.
+     * @return
+     */
+    protected abstract boolean isConsumersExceededOnSubscription();
+
+    protected boolean isConsumersExceededOnSubscription(BrokerService brokerService,
+                                                        String topic, int consumerSize) {
+        Policies policies = null;
+        Integer maxConsumersPerSubscription = null;
+        try {
+            maxConsumersPerSubscription = Optional.ofNullable(brokerService
+                    .getTopicPolicies(TopicName.get(topic)))
+                    .map(TopicPolicies::getMaxConsumersPerSubscription)
+                    .orElse(null);
+            if (maxConsumersPerSubscription == null) {
+                // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
+                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+            }
+        } catch (Exception e) {
+            log.debug("Get topic or namespace policies fail", e);
+        }
+
+        if (maxConsumersPerSubscription == null) {
+            maxConsumersPerSubscription = policies != null
+                    && policies.max_consumers_per_subscription != null
+                    && policies.max_consumers_per_subscription >= 0
+                    ? policies.max_consumers_per_subscription :
+                    brokerService.pulsar().getConfiguration().getMaxConsumersPerSubscription();
+        }
+
+        return maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerSize;
     }
 
     private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {

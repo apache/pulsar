@@ -45,7 +45,7 @@ RUN sed -i '1 s/.*/#!\/usr\/bin\/python3/' /pulsar/bin/watch-znode.py /pulsar/bi
 # required by gen-yml-from-env.py
 RUN apt-get install -y python-yaml
 
-RUN apt-get install -y supervisor procps curl less
+RUN apt-get install -y supervisor procps curl less netcat dnsutils iputils-ping
 
 
 RUN mkdir -p /var/log/pulsar \

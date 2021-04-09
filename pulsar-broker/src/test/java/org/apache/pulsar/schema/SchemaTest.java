@@ -26,6 +26,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +46,6 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -199,6 +199,106 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.close();
         consumer.close();
         consumer1.close();
+    }
+
+    @Test
+    public void testStringSchema() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test-string-schema";
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName("test-sub")
+                .topic(topic)
+                .subscribe();
+
+        // use GenericRecord even for primitive types
+        // it will be a PrimitiveRecord
+        Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .subscriptionName("test-sub3")
+                .topic(topic)
+                .subscribe();
+
+        producer.send("foo");
+
+        Message<String> message = consumer.receive();
+        Message<GenericRecord> message3 = consumer2.receive();
+
+        assertEquals("foo", message.getValue());
+        assertEquals(message3.getValue().getClass().getName(), "org.apache.pulsar.client.impl.schema.GenericObjectWrapper");
+        assertEquals(SchemaType.STRING, message3.getValue().getSchemaType());
+        assertEquals("foo", message3.getValue().getNativeObject());
+
+        producer.close();
+        consumer.close();
+        consumer2.close();
+    }
+
+    @Test
+    public void testUseAutoConsumeWithSchemalessTopic() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test-schemaless";
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .subscriptionName("test-sub")
+                .topic(topic)
+                .subscribe();
+
+        // use GenericRecord even for primitive types
+        // it will be a PrimitiveRecord
+        Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .subscriptionName("test-sub3")
+                .topic(topic)
+                .subscribe();
+
+        producer.send("foo".getBytes(StandardCharsets.UTF_8));
+
+        Message<byte[]> message = consumer.receive();
+        Message<GenericRecord> message3 = consumer2.receive();
+
+        assertEquals("foo".getBytes(StandardCharsets.UTF_8), message.getValue());
+        assertEquals(message3.getValue().getClass().getName(), "org.apache.pulsar.client.impl.schema.GenericObjectWrapper");
+        assertEquals(SchemaType.BYTES, message3.getValue().getSchemaType());
+        assertEquals("foo".getBytes(StandardCharsets.UTF_8), message3.getValue().getNativeObject());
+
+        producer.close();
+        consumer.close();
+        consumer2.close();
     }
 
     @Test

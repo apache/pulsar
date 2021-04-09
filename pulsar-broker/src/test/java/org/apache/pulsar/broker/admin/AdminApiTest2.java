@@ -609,6 +609,21 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
+
+    @Test(timeOut = 20000)
+    public void testMaxConsumersOnSubApi() throws Exception {
+        final String namespace = "prop-xyz/ns1";
+        assertNull(admin.namespaces().getMaxConsumersPerSubscription(namespace));
+        admin.namespaces().setMaxConsumersPerSubscription(namespace, 10);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(admin.namespaces().getMaxConsumersPerSubscription(namespace));
+            assertEquals(admin.namespaces().getMaxConsumersPerSubscription(namespace).intValue(), 10);
+        });
+        admin.namespaces().removeMaxConsumersPerSubscription(namespace);
+        Awaitility.await().untilAsserted(() ->
+                admin.namespaces().getMaxConsumersPerSubscription(namespace));
+    }
+
     /**
      * It verifies that pulsar with different load-manager generates different load-report and returned by admin-api
      *

@@ -59,10 +59,13 @@ jobs:
         if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         uses: actions/cache@v2
         with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-maven-
+            ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+            ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 1.8
         if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
@@ -71,6 +74,7 @@ jobs:
           java-version: 1.8
 
       - name: Replace maven's wagon-http version
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: sudo ./build/replace_maven-wagon-http-version.sh
 
       # license check fails with 3.6.2 so we have to downgrade
