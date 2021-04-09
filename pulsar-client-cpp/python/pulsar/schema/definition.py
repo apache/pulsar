@@ -38,6 +38,10 @@ class RecordMeta(type):
         return type.__new__(metacls, name, parents, dct)
 
     @classmethod
+    def __prepare__(cls, clsname, bases):
+        return OrderedDict()
+
+    @classmethod
     def _get_fields(cls, dct):
         # Build a set of valid fields for this record
         fields = OrderedDict()
