@@ -169,7 +169,7 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 >
 > For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [here](http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-offload-threshold-em-). 
 
-### Configure Aliyun OSS offloader to run manually
+### Run Aliyun OSS offloader manually
 
 For individual topics, you can trigger the Aliyun OSS offloader manually using one of the following methods:
 
