@@ -107,7 +107,7 @@ managedLedgerOffloadBucket=pulsar-topic-offload
 
 The endpoint is the region where a bucket is located.
 
-> #### Tip
+> **Tip**
 >
 > For more information about Aliyun OSS regions and endpoints, see [here](https://help.aliyun.com/document_detail/31837.html).
  
