@@ -28,7 +28,7 @@ public class FloatSchemaTest {
     @Test
     public void testSchemaEncode() {
         FloatSchema schema = FloatSchema.of();
-        Float data = new Float(12345678.1234);
+        float data = (float) 12345678.1234;
         long longData = Float.floatToRawIntBits(data);
         byte[] expected = new byte[] {
                 (byte) (longData >>> 24),
@@ -43,7 +43,7 @@ public class FloatSchemaTest {
     public void testSchemaEncodeDecodeFidelity() {
         FloatSchema schema = FloatSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(4);
-        Float dbl = new Float(1234578.8754321);
+        Float dbl = (float) 1234578.8754321;
         byte[] bytes = schema.encode(dbl);
         byteBuf.writeBytes(schema.encode(dbl));
         Assert.assertEquals(dbl, schema.decode(bytes));

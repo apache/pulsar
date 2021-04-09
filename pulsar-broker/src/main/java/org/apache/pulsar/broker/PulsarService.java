@@ -32,6 +32,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -41,6 +42,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -61,8 +63,8 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
+import org.apache.bookkeeper.mledger.offload.OffloadersCache;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -134,6 +136,7 @@ import org.apache.pulsar.packages.management.core.impl.PackagesManagementImpl;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -182,7 +185,7 @@ public class PulsarService implements AutoCloseable {
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
-    private Offloaders offloaderManager = new Offloaders();
+    private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
@@ -237,6 +240,7 @@ public class PulsarService implements AutoCloseable {
 
     private final ReentrantLock mutex = new ReentrantLock();
     private final Condition isClosedCondition = mutex.newCondition();
+    private volatile CompletableFuture<Void> closeFuture;
     // key is listener name , value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
 
@@ -296,16 +300,29 @@ public class PulsarService implements AutoCloseable {
                         .build());
     }
 
+    @Override
+    public void close() throws PulsarServerException {
+        try {
+            closeAsync().get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof PulsarServerException) {
+                throw (PulsarServerException) e.getCause();
+            } else {
+                throw new PulsarServerException(e.getCause());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /**
      * Close the current pulsar service. All resources are released.
      */
-    @Override
-    public void close() throws PulsarServerException {
+    public CompletableFuture<Void> closeAsync() {
         mutex.lock();
-
         try {
-            if (state == State.Closed) {
-                return;
+            if (closeFuture != null) {
+                return closeFuture;
             }
 
             // close the service in reverse order v.s. in which they are started
@@ -323,8 +340,9 @@ public class PulsarService implements AutoCloseable {
                 this.webSocketService.close();
             }
 
+            List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
             if (this.brokerService != null) {
-                this.brokerService.close();
+                asyncCloseFutures.add(this.brokerService.closeAsync());
                 this.brokerService = null;
             }
 
@@ -404,7 +422,7 @@ public class PulsarService implements AutoCloseable {
                 schemaRegistryService.close();
             }
 
-            offloaderManager.close();
+            offloadersCache.close();
 
             if (protocolHandlers != null) {
                 protocolHandlers.close();
@@ -429,15 +447,21 @@ public class PulsarService implements AutoCloseable {
             state = State.Closed;
             isClosedCondition.signalAll();
 
+            CompletableFuture<Void> shutdownFuture =
+                    CompletableFuture.allOf(asyncCloseFutures.toArray(new CompletableFuture[0]));
+            closeFuture = shutdownFuture;
+            return shutdownFuture;
         } catch (Exception e) {
+            PulsarServerException pse;
             if (e instanceof CompletionException && e.getCause() instanceof MetadataStoreException) {
-                throw new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e));
+                pse = new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e));
             } else if (e.getCause() instanceof CompletionException
                     && e.getCause().getCause() instanceof MetadataStoreException) {
-                throw new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e.getCause()));
+                pse = new PulsarServerException(MetadataStoreException.unwrap((CompletionException) e.getCause()));
             } else {
-                throw new PulsarServerException(e);
+                pse = new PulsarServerException(e);
             }
+            return FutureUtil.failedFuture(pse);
         } finally {
             mutex.unlock();
         }
@@ -554,8 +578,6 @@ public class PulsarService implements AutoCloseable {
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
 
-            this.offloaderManager = OffloaderUtils.searchForOffloaders(
-                    config.getOffloadersDirectory(), config.getNarExtractionDirectory());
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
             this.brokerInterceptor = BrokerInterceptors.load(config);
@@ -622,6 +644,12 @@ public class PulsarService implements AutoCloseable {
                         new ServletHolder(readerWebSocketServlet), true, attributeMap);
                 this.webService.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
                         new ServletHolder(readerWebSocketServlet), true, attributeMap);
+
+                final WebSocketServlet pingPongWebSocketServlet = new WebSocketPingPongServlet(webSocketService);
+                this.webService.addServlet(WebSocketPingPongServlet.SERVLET_PATH,
+                        new ServletHolder(pingPongWebSocketServlet), true, attributeMap);
+                this.webService.addServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
+                        new ServletHolder(pingPongWebSocketServlet), true, attributeMap);
             }
 
             if (LOG.isDebugEnabled()) {
@@ -1048,7 +1076,10 @@ public class PulsarService implements AutoCloseable {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(
+                Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
+                        offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
+
+                LedgerOffloaderFactory offloaderFactory = offloaders.getOffloaderFactory(
                         offloadPolicies.getManagedLedgerOffloadDriver());
                 try {
                     return offloaderFactory.create(

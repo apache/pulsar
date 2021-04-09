@@ -678,7 +678,7 @@ public class LoadSimulationController {
                     break;
                 case "quit":
                 case "exit":
-                    System.exit(0);
+                    PerfClientUtils.exit(0);
                     break;
                 default:
                     log.info("ERROR: Unknown command \"{}\"", command);
@@ -720,7 +720,7 @@ public class LoadSimulationController {
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
         (new LoadSimulationController(arguments)).run();
     }

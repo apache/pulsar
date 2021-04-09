@@ -132,7 +132,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
     }
 
     @Override
-    public Object getNativeRecord() {
+    public Object getNativeObject() {
         return jn;
     }
 

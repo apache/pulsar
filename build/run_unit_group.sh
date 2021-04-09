@@ -25,72 +25,27 @@ set -o errexit
 
 MVN_TEST_COMMAND='build/retry.sh mvn -B -ntp test'
 
+echo -n "Test Group : $TEST_GROUP"
+
 # Test Groups  -- start --
 function broker_group_1() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="**/AdminApiOffloadTest.java" \
-                                      -DtestForkCount=1 \
-                                      -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="org/apache/pulsar/broker/**/*.java" \
-                                      -Dexclude='org/apache/pulsar/broker/zookeeper/**/*.java,
-                                                 org/apache/pulsar/broker/loadbalance/**/*.java,
-                                                 org/apache/pulsar/broker/service/**/*.java,
-                                                 **/AdminApiOffloadTest.java'
-
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker'
 }
 
 function broker_group_2() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="**/MessagePublishBufferThrottleTest.java" \
-                                      -DtestForkCount=1 \
-                                      -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="**/ReplicatorTest.java" \
-                                      -DtestForkCount=1 \
-                                      -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="**/TopicOwnerTest.java" \
-                                      -DtestForkCount=1 \
-                                      -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="**/AntiAffinityNamespaceGroupTest.java" \
-                                      -DtestForkCount=1 \
-                                      -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="**/*StreamingDispatcher*Test.java" \
-                                      -DtestForkCount=1 \
-                                      -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="org/apache/pulsar/broker/zookeeper/**/*.java,
-                                                 org/apache/pulsar/broker/loadbalance/**/*.java,
-                                                 org/apache/pulsar/broker/service/**/*.java" \
-                                      -Dexclude='**/ReplicatorTest.java,
-                                                 **/MessagePublishBufferThrottleTest.java,
-                                                 **/TopicOwnerTest.java,
-                                                 **/*StreamingDispatcher*Test.java,
-                                                 **/AntiAffinityNamespaceGroupTest.java'
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming'
 }
 
 function broker_client_api() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="**/DispatcherBlockConsumerTest.java" \
-                                      -DtestForkCount=1 \
-                                      -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="**/SimpleProducerConsumerTest.java" \
-                                      -DtestForkCount=1 \
-                                      -DtestReuseFork=true
-
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="org/apache/pulsar/client/api/**/*.java" \
-                                      -Dexclude='**/DispatcherBlockConsumerTest.java,
-                                                 **/SimpleProducerConsumerTest.java'
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-api'
 }
 
 function broker_client_impl() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dinclude="org/apache/pulsar/client/impl/**/*.java"
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-impl'
 }
 
-function broker_client_other() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dexclude='org/apache/pulsar/broker/**/*.java,
-                                                 org/apache/pulsar/client/**/*.java'
+function broker_flaky() {
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=1 -DtestReuseFork=false
 }
 
 function proxy() {
@@ -105,21 +60,19 @@ function other() {
                                                 **/PrimitiveSchemaTest.java,
                                                 BlobStoreManagedLedgerOffloaderTest.java'
 
-  $MVN_TEST_COMMAND -pl managed-ledger -Dinclude="**/ManagedLedgerTest.java" \
+  $MVN_TEST_COMMAND -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
+                                                  **/OffloadersCacheTest.java' \
                                        -DtestForkCount=1 \
                                        -DtestReuseFork=true
 
-  $MVN_TEST_COMMAND -pl pulsar-sql/presto-pulsar-plugin -Dinclude="**/TestPulsarKeyValueSchemaHandler.java" \
-                                                        -DtestForkCount=1 \
-                                                        -DtestReuseFork=true
+  $MVN_TEST_COMMAND -pl pulsar-sql/presto-pulsar-plugin -Dinclude='**/TestPulsarKeyValueSchemaHandler.java' \
+                                                        -DtestForkCount=1
 
-  $MVN_TEST_COMMAND -pl pulsar-client -Dinclude="**/PrimitiveSchemaTest.java" \
-                                      -DtestForkCount=1 \
-                                      -DtestReuseFork=true
+  $MVN_TEST_COMMAND -pl pulsar-client -Dinclude='**/PrimitiveSchemaTest.java' \
+                                      -DtestForkCount=1
 
-  $MVN_TEST_COMMAND -pl tiered-storage/jcloud -Dinclude="**/BlobStoreManagedLedgerOffloaderTest.java" \
-                                              -DtestForkCount=1 \
-                                              -DtestReuseFork=true
+  $MVN_TEST_COMMAND -pl tiered-storage/jcloud -Dinclude='**/BlobStoreManagedLedgerOffloaderTest.java' \
+                                              -DtestForkCount=1
 }
 
 # Test Groups  -- end --
@@ -146,8 +99,8 @@ case $TEST_GROUP in
     broker_client_impl
     ;;
 
-  BROKER_CLIENT_OTHER)
-    broker_client_other
+  BROKER_FLAKY)
+    broker_flaky
     ;;
 
   PROXY)
@@ -163,4 +116,3 @@ case $TEST_GROUP in
     exit 1
     ;;
 esac
-

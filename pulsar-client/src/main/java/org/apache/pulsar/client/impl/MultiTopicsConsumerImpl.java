@@ -97,8 +97,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
-
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
     private final ConsumerStatsRecorder stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
@@ -160,7 +160,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.internalConfig = getInternalConsumerConfig();
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStatsRecorderImpl(this) : null;
 
-        // start track and auto subscribe partition increasement
+        // start track and auto subscribe partition increment
         if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
             partitionsAutoUpdateTimeout = client.timer()
@@ -265,8 +265,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private void messageReceived(ConsumerImpl<T> consumer, Message<T> message) {
         checkArgument(message instanceof MessageImpl);
-        TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(
-                consumer.getTopic(), consumer.getTopicNameWithoutPartition(), message);
+        TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(),
+                consumer.getTopicNameWithoutPartition(), message, consumer);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message from topics-consumer {}",
@@ -386,6 +386,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         } finally {
             lock.writeLock().unlock();
         }
+
         return result;
     }
 
@@ -595,18 +596,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void redeliverUnacknowledgedMessages() {
-        lock.writeLock().lock();
-        try {
-            consumers.values().stream().forEach(consumer -> {
-                consumer.redeliverUnacknowledgedMessages();
-                consumer.unAckedChunkedMessageIdSequenceMap.clear();
-            });
-            incomingMessages.clear();
-            resetIncomingMessageSize();
-            unAckedMessageTracker.clear();
-        } finally {
-            lock.writeLock().unlock();
-        }
+        consumers.values().stream().forEach(consumer -> {
+            consumer.redeliverUnacknowledgedMessages();
+            consumer.unAckedChunkedMessageIdSequenceMap.clear();
+        });
+        incomingMessages.clear();
+        resetIncomingMessageSize();
+        unAckedMessageTracker.clear();
+
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 

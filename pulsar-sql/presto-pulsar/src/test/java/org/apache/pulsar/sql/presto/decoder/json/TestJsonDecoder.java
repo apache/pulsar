@@ -160,12 +160,12 @@ public class TestJsonDecoder extends AbstractDecoderTester {
         Map<DecoderColumnHandle, FieldValueProvider> decodedRow = pulsarRowDecoder.decodeRow(payload).get();
 
         RowType columnType = RowType.from(ImmutableList.<RowType.Field>builder()
-                .add(RowType.field("stringField", VARCHAR))
                 .add(RowType.field("intField", INTEGER))
                 .add(RowType.field("nestedRow", RowType.from(ImmutableList.<RowType.Field>builder()
-                        .add(RowType.field("stringField", VARCHAR))
                         .add(RowType.field("longField", BIGINT))
+                        .add(RowType.field("stringField", VARCHAR))
                         .build())))
+                .add(RowType.field("stringField", VARCHAR))
                 .build());
 
         PulsarColumnHandle columnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(), "rowField", columnType, false, false, "rowField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
@@ -239,23 +239,23 @@ public class TestJsonDecoder extends AbstractDecoderTester {
         Map<DecoderColumnHandle, FieldValueProvider> decodedRow = pulsarRowDecoder.decodeRow(payload).get();
 
         RowType columnType = RowType.from(ImmutableList.<RowType.Field>builder()
-                .add(RowType.field("stringField", VARCHAR))
                 .add(RowType.field("arrayField", new ArrayType(
                         RowType.from(ImmutableList.<RowType.Field>builder()
-                                .add(RowType.field("stringField", VARCHAR))
                                 .add(RowType.field("longField", BIGINT))
+                                .add(RowType.field("stringField", VARCHAR))
                                 .build()))))
                 .add(RowType.field("mapField", decoderFactory.getTypeManager().getParameterizedType(StandardTypes.MAP,
                         ImmutableList.of(TypeSignatureParameter.typeParameter(VarcharType.VARCHAR.getTypeSignature()),
                                 TypeSignatureParameter.typeParameter(RowType.from(ImmutableList.<RowType.Field>builder()
-                                        .add(RowType.field("stringField", VARCHAR))
                                         .add(RowType.field("longField", BIGINT))
+                                        .add(RowType.field("stringField", VARCHAR))
                                         .build()).getTypeSignature())
                         ))))
                 .add(RowType.field("nestedRow", RowType.from(ImmutableList.<RowType.Field>builder()
-                        .add(RowType.field("stringField", VARCHAR))
                         .add(RowType.field("longField", BIGINT))
+                        .add(RowType.field("stringField", VARCHAR))
                         .build())))
+                .add(RowType.field("stringField", VARCHAR))
                 .add(RowType.field("structedField",
                         decoderFactory.getTypeManager().getParameterizedType(StandardTypes.MAP,
                                 ImmutableList.of(TypeSignatureParameter.typeParameter(VarcharType.VARCHAR.getTypeSignature()),

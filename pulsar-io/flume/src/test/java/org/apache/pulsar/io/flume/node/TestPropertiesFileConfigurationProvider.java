@@ -47,17 +47,17 @@ public class TestPropertiesFileConfigurationProvider {
     private PropertiesFileConfigurationProvider provider;
 
     @BeforeMethod
-    public void setUp() throws Exception {
+    public void setUp() {
         provider = new PropertiesFileConfigurationProvider("test", TESTFILE);
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() throws Exception {
+    public void tearDown() {
 
     }
 
     @Test
-    public void testPropertyRead() throws Exception {
+    public void testPropertyRead() {
 
         FlumeConfiguration configuration = provider.getFlumeConfiguration();
         assertNotNull(configuration);

@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
@@ -33,8 +34,10 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -53,6 +56,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -146,4 +150,46 @@ public class PulsarClientImplTest {
                 assertSame(consumer.getState(), HandlerState.State.Closed));
     }
 
+    @Test
+    public void testInitializeWithoutTimer() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf);
+
+        HashedWheelTimer timer = mock(HashedWheelTimer.class);
+        Field field = client.getClass().getDeclaredField("timer");
+        field.setAccessible(true);
+        field.set(client, timer);
+
+        client.shutdown();
+        verify(timer).stop();
+    }
+
+    @Test
+    public void testInitializeWithTimer() throws PulsarClientException {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("test"));
+        ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
+        conf.setServiceUrl("pulsar://localhost:6650");
+
+        HashedWheelTimer timer = new HashedWheelTimer();
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool, timer);
+
+        client.shutdown();
+        client.timer().stop();
+    }
+
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testNewTransactionWhenDisable() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setEnableTransaction(false);
+        PulsarClientImpl pulsarClient = null;
+        try {
+            pulsarClient = new PulsarClientImpl(conf);
+        } catch (PulsarClientException e) {
+            e.printStackTrace();
+        }
+        pulsarClient.newTransaction();
+    }
 }

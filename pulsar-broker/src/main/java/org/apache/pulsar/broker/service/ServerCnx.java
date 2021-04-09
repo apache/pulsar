@@ -132,6 +132,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.slf4j.Logger;
@@ -220,6 +221,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         log.info("New connection from {}", remoteAddress);
         this.ctx = ctx;
         this.commandSender = new PulsarCommandSenderImpl(getBrokerService().getInterceptor(), this);
+        this.service.getPulsarStats().recordConnectionCreate();
     }
 
     @Override
@@ -253,6 +255,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.warn("Consumer {} was already closed: {}", consumer, e);
             }
         });
+        this.service.getPulsarStats().recordConnectionClose();
     }
 
     @Override
@@ -269,6 +272,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.warn("[{}] Got exception {}", remoteAddress,
                     ClientCnx.isKnownException(cause) ? cause : ExceptionUtils.getStackTrace(cause));
             state = State.Failed;
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Failed.name());
+            }
         } else {
             // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
             // failed
@@ -553,6 +559,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void completeConnect(int clientProtoVersion, String clientVersion) {
         ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
         state = State.Connected;
+        service.getPulsarStats().recordConnectionCreateSuccess();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connected.name());
+        }
         setRemoteEndpointProtocolVersion(clientProtoVersion);
         if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {
             this.clientVersion = clientVersion.intern();
@@ -618,6 +628,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Authentication in progress client by method {}.",
                 remoteAddress, authMethod);
+            log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connecting.name());
         }
         return State.Connecting;
     }
@@ -792,6 +803,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
         } catch (Exception e) {
+            service.getPulsarStats().recordConnectionCreateFail();
             logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
             String msg = "Unable to authenticate";
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
@@ -815,10 +827,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData());
             doAuthentication(clientData, authResponse.getProtocolVersion(), authResponse.getClientVersion());
         } catch (AuthenticationException e) {
+            service.getPulsarStats().recordConnectionCreateFail();
             log.warn("[{}] Authentication failed: {} ", remoteAddress, e.getMessage());
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, e.getMessage()));
             close();
         } catch (Exception e) {
+            service.getPulsarStats().recordConnectionCreateFail();
             String msg = "Unable to handleAuthResponse";
             log.warn("[{}] {} ", remoteAddress, msg, e);
             ctx.writeAndFlush(Commands.newError(-1, ServerError.UnknownError, msg));
@@ -1232,7 +1246,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 cause = new TopicNotFoundException("Topic Not Found.");
                             }
 
-                            if (!(cause instanceof ServiceUnitNotReadyException)) {
+                            if (!Exceptions.areExceptionsPresentInChain(cause,
+                                    ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
                                 // Do not print stack traces for expected exceptions
                                 log.error("[{}] Failed to create topic {}, producerId={}",
                                           remoteAddress, topicName, producerId, exception);

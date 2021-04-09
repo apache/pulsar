@@ -30,6 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
+@Test(groups = "broker")
 public class BookkeeperSchemaStorageTest {
 
     @Test

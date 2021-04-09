@@ -39,35 +39,46 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v2
+
+      - name: Changed files check
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
         with:
-          fetch-depth: 100
-          ref: ${{ github.event.pull_request.head.sha }}
+          filters: |
+            # pattern syntax: https://github.com/micromatch/picomatch
+            all:
+              - '**'
+            docs:
+              - 'site2/**'
+              - 'deployment/**'
+              - '.asf.yaml'
+              - '*.md'
+              - '**/*.md'
 
       - name: Cache local Maven repository
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         uses: actions/cache@v2
         with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-maven-
-
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 deployment .asf.yaml .ci ct.yaml
+            ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+            ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 1.8
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
 
       - name: Replace maven's wagon-http version
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: sudo ./build/replace_maven-wagon-http-version.sh
 
       - name: clean disk
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: |
           sudo swapoff -a
           sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
@@ -76,21 +87,37 @@ jobs:
           df -h
 
       - name: run install by skip tests
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: mvn -q -B -ntp clean install -DskipTests
 
       - name: build pulsar image
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
 
       - name: build pulsar-all image
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: mvn -B -f docker/pulsar-all/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true
 
       - name: build artifacts and docker image
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
 
       - name: run integration tests
-        if: steps.docs.outputs.changed_only == 'no'
+        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: ./build/run_integration_group.sh BACKWARDS_COMPAT
+
+      - name: Upload container logs
+        uses: actions/upload-artifact@v2
+        if: ${{ cancelled() || failure() }}
+        continue-on-error: true
+        with:
+          name: container-logs
+          path: tests/integration/target/container-logs
+
+      - name: Upload surefire-reports
+        uses: actions/upload-artifact@v2
+        if: ${{ cancelled() || failure() }}
+        continue-on-error: true
+        with:
+          name: surefire-reports
+          path: tests/integration/target/surefire-reports

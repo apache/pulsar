@@ -41,18 +41,16 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 100
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Cache Maven dependencies
         uses: actions/cache@v2
         with:
           path: |
-            ~/.m2/repository
+            ~/.m2/repository/*/*/*
             !~/.m2/repository/org/apache/pulsar
-            !~/.m2/.gradle-enterprise
-          key: ${{ runner.os }}-maven-dependencies-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-all-
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1

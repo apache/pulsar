@@ -29,9 +29,7 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -43,6 +41,7 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
     private final String localCluster = "a";
@@ -75,7 +74,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
     @Test
     public void testBuildSnapshotWith2Clusters() throws Exception {
-        List<String> remoteClusters = Arrays.asList("b");
+        List<String> remoteClusters = Collections.singletonList("b");
 
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(controller,
                 remoteClusters, conf, clock);
@@ -195,8 +194,8 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
     }
 
     @Test
-    public void testBuildTimeout() throws Exception {
-        List<String> remoteClusters = Arrays.asList("b");
+    public void testBuildTimeout() {
+        List<String> remoteClusters = Collections.singletonList("b");
 
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(controller,
                 remoteClusters, conf, clock);

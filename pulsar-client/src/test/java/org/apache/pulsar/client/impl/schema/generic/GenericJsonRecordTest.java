@@ -123,6 +123,6 @@ public class GenericJsonRecordTest {
                 = new GenericJsonReader(Collections.singletonList(new Field("somefield", 0)))
                 .read(json, 0, json.length);
         assertEquals(SchemaType.JSON, record.getSchemaType());
-        assertSame(record.getNativeRecord(), record.getJsonNode());
+        assertSame(record.getNativeObject(), record.getJsonNode());
     }
 }

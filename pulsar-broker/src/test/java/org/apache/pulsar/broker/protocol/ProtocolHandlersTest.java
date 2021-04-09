@@ -42,6 +42,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link ProtocolHandlers}.
  */
+@Test(groups = "broker")
 public class ProtocolHandlersTest {
 
     private static final String protocol1 = "protocol1";
