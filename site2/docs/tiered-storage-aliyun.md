@@ -59,11 +59,11 @@ This example uses Pulsar 2.8.0.
     >
     > * If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
     > 
-    > * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+    > * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
 ## Configuration
 
-> #### Note
+> **Note**
 > 
 > Before offloading data from BookKeeper to Aliyun OSS, you need to configure some properties of the Aliyun OSS offload driver.
 
@@ -107,7 +107,7 @@ managedLedgerOffloadBucket=pulsar-topic-offload
 
 The endpoint is the region where a bucket is located.
 
-> #### Tip
+> **Tip**
 >
 > For more information about Aliyun OSS regions and endpoints, see [here](https://help.aliyun.com/document_detail/31837.html).
  
