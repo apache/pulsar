@@ -63,7 +63,7 @@ This example uses Pulsar 2.8.0.
 
 ## Configuration
 
-> #### Note
+> **Note**
 > 
 > Before offloading data from BookKeeper to Aliyun OSS, you need to configure some properties of the Aliyun OSS offload driver.
 
