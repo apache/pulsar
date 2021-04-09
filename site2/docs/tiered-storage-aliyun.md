@@ -123,14 +123,14 @@ managedLedgerOffloadServiceEndpoint=http://oss-us-west-1-internal.aliyuncs.com
 
 To be able to access Aliyun OSS, you need to authenticate with Aliyun OSS.
 
-* Set the environment variables `ALIYUN_OSS_ACCESS_KEY_ID` and `ALIYUN_OSS_ACCESS_KEY_SECRET` in `conf/pulsar_env.sh`.
+Set the environment variables `ALIYUN_OSS_ACCESS_KEY_ID` and `ALIYUN_OSS_ACCESS_KEY_SECRET` in `conf/pulsar_env.sh`.
 
-    "export" is important so that the variables are made available in the environment of spawned processes.
+"export" is important so that the variables are made available in the environment of spawned processes.
 
-    ```bash
-    export ALIYUN_OSS_ACCESS_KEY_ID=ABC123456789
-    export ALIYUN_OSS_ACCESS_KEY_SECRET=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
-    ```
+```bash
+export ALIYUN_OSS_ACCESS_KEY_ID=ABC123456789
+export ALIYUN_OSS_ACCESS_KEY_SECRET=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
+```
 
 #### Size of block read/write
 
