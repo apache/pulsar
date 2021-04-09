@@ -75,21 +75,21 @@ You can configure the Aliyun OSS offloader driver in the configuration file `bro
 
 - **Required** configurations are as below.
   
-    Required configuration | Description | Example value
-    |---|---|---
-    `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | aliyun-oss
-    `offloadersDirectory` | Offloader directory | offloaders
-    `managedLedgerOffloadBucket` | Bucket | pulsar-topic-offload
-    `managedLedgerOffloadServiceEndpoint` | Endpoint | http://oss-cn-hongkong.aliyuncs.com 
+    | Required configuration | Description | Example value |
+    | --- | --- |--- |
+    | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | aliyun-oss |
+    | `offloadersDirectory` | Offloader directory | offloaders |
+    | `managedLedgerOffloadBucket` | Bucket | pulsar-topic-offload |
+    | `managedLedgerOffloadServiceEndpoint` | Endpoint | http://oss-cn-hongkong.aliyuncs.com |
 
 - **Optional** configurations are as below.
 
-    Optional | Description | Example value
-    |---|---|---
-    `managedLedgerOffloadReadBufferSizeInBytes`|Size of block read|1 MB
-    `managedLedgerOffloadMaxBlockSizeInBytes`|Size of block write|64 MB
-    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|2
-    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|5000
+    | Optional | Description | Example value |
+    | --- | --- | --- |
+    | `managedLedgerOffloadReadBufferSizeInBytes` | Size of block read | 1 MB |
+    | `managedLedgerOffloadMaxBlockSizeInBytes` | Size of block write | 64 MB |
+    | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment. | 2 |
+    | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the production environment. | 5000 |
 
 #### Bucket (required)
 
@@ -136,20 +136,20 @@ export ALIYUN_OSS_ACCESS_KEY_SECRET=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 
 You can configure the size of a request sent to or read from Aliyun OSS in the configuration file `broker.conf` or `standalone.conf`. 
 
-Configuration|Description|Default value
-|---|---|---
-`managedLedgerOffloadReadBufferSizeInBytes`|Block size for each individual read when reading back data from Aliyun OSS.|1 MB
-`managedLedgerOffloadMaxBlockSizeInBytes`|Maximum size of a "part" sent during a multipart upload to Aliyun OSS. It **cannot** be smaller than 5 MB. |64 MB
+| Configuration | Description | Default value |
+| --- | --- | --- |
+| `managedLedgerOffloadReadBufferSizeInBytes` | Block size for each individual read when reading back data from Aliyun OSS. | 1 MB |
+| `managedLedgerOffloadMaxBlockSizeInBytes` | Maximum size of a "part" sent during a multipart upload to Aliyun OSS. It **cannot** be smaller than 5 MB.  | 64 MB |
 
 ### Run Aliyun OSS offloader automatically
 
 Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically. 
 
-Threshold value|Action
-|---|---
-> 0 | It triggers the offloading operation if the topic storage reaches its threshold.
-= 0|It causes a broker to offload data as soon as possible.
-< 0 |It disables automatic offloading operation.
+| Threshold value | Action |
+| --- | --- |
+| > 0 | It triggers the offloading operation if the topic storage reaches its threshold. |
+| = 0 | It causes a broker to offload data as soon as possible. |
+| < 0 | It disables automatic offloading operation. |
 
 Automatic offloading runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, the offloader does not work until the current segment is full.
 
