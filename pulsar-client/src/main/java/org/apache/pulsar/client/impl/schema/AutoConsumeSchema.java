@@ -237,4 +237,8 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         return GenericObjectWrapper.of(value,
                 this.schema.getSchemaInfo().getType(), schemaVersion);
     }
+
+    public Schema<?> getInternalSchema() {
+        return schema;
+    }
 }
