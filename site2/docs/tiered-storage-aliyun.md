@@ -55,7 +55,7 @@ This example uses Pulsar 2.8.0.
     tiered-storage-jcloud-2.8.0.nar
     ```
 
-    > #### Note
+    > **Note**
     >
     > * If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
     > 
