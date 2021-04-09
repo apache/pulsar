@@ -141,7 +141,7 @@ Configuration|Description|Default value
 `managedLedgerOffloadReadBufferSizeInBytes`|Block size for each individual read when reading back data from Aliyun OSS.|1 MB
 `managedLedgerOffloadMaxBlockSizeInBytes`|Maximum size of a "part" sent during a multipart upload to Aliyun OSS. It **cannot** be smaller than 5 MB. |64 MB
 
-### Configure Aliyun OSS offloader to run automatically
+### Run Aliyun OSS offloader automatically
 
 Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically. 
 
