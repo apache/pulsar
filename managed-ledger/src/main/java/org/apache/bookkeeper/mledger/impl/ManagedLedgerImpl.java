@@ -2156,9 +2156,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (!lastAckedPosition.equals((PositionImpl) cursor.getMarkDeletedPosition())) {
                 try {
                     log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
-                    if (lastConfirmedEntry.compareTo(lastAckedPosition) < 0) {
-                        lastConfirmedEntry = lastAckedPosition;
-                    }
                     updateCursor((ManagedCursorImpl) cursor, lastAckedPosition);
                 } catch (Exception e) {
                     log.warn("Failed to reset cursor: {} from {} to {}. Trimming thread will retry next time.",
