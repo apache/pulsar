@@ -109,7 +109,7 @@ The endpoint is the region where a bucket is located.
 
 > **Tip**
 >
-> For more information about Aliyun OSS regions and endpoints, see [here](https://help.aliyun.com/document_detail/31837.html).
+> For more information about Aliyun OSS regions and endpoints,  see [International website](https://www.alibabacloud.com/help/doc-detail/31837.htm) or [Chinese website](https://help.aliyun.com/document_detail/31837.html).
  
 ##### Example
 
@@ -220,7 +220,6 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
     ```
     Offload was a success
     ```
-
 
     If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
