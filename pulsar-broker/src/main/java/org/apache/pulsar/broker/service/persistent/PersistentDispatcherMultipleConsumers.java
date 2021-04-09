@@ -175,7 +175,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     log.info("[{}] All consumers removed. Subscription is disconnected", name);
                     closeFuture.complete(null);
                 }
-                totalAvailablePermits = 0;
+                TOTAL_AVAILABLE_PERMITS_UPDATER.set(this, 0);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Consumer are left, reading more entries", name);
@@ -184,7 +184,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     messagesToRedeliver.add(ledgerId, entryId);
                     redeliveryTracker.addIfAbsent(PositionImpl.get(ledgerId, entryId));
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.getAvailablePermits());
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "
                                     + "New dispatcher permit count is {}", name, consumer.getAvailablePermits(),
@@ -206,7 +206,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
 
-        totalAvailablePermits += additionalNumberOfMessages;
+        TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, additionalNumberOfMessages);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Trigger new read after receiving flow control message with permits {} "
