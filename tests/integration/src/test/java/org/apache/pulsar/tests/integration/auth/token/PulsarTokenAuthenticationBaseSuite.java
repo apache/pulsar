@@ -70,9 +70,10 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
     protected ZKContainer<?> cmdContainer;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     @Override
-    public void setupCluster() throws Exception {
+    public final void setupCluster() throws Exception {
+        incrementSetupNumber();
         // Before starting the cluster, generate the secret key and the token
         // Use Zk container to have 1 container available before starting the cluster
         this.cmdContainer = new ZKContainer<>("cli-setup");
@@ -130,7 +131,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
     @AfterClass(alwaysRun = true)
     @Override
-    public void tearDownCluster() {
+    public final void tearDownCluster() throws Exception {
         super.tearDownCluster();
         cmdContainer.close();
     }

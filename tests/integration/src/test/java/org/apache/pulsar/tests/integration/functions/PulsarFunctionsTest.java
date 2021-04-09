@@ -175,10 +175,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private void testSink(SinkTester tester, boolean builtin) throws Exception {
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
         tester.startServiceContainer(pulsarCluster);
         try {
             runSinkTester(tester, builtin);
@@ -192,10 +188,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                                                         boolean builtinSink,
                                                                         SourceTester<ServiceContainerT> sourceTester)
             throws Exception {
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
         ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);
         try {
             runSinkTester(sinkTester, builtinSink);
@@ -881,10 +873,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             return;
         }
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         String inputTopicName = "persistent://public/default/test-function-local-run-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-function-local-run-" + runtime + "-output-" + randomName(8);
@@ -1011,10 +999,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         String inputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-input-" + randomName(8);
         String outputTopicName = "test-" + type + "-count-window-" + functionRuntimeType + "-output-" + randomName(8);
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
             admin.topics().createNonPartitionedTopic(inputTopicName);
             admin.topics().createNonPartitionedTopic(outputTopicName);
@@ -1173,10 +1157,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             return;
         }
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         Schema<?> schema;
         if (Runtime.JAVA == runtime) {
@@ -1370,10 +1350,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             schema = Schema.BYTES;
         }
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         String inputTopicName = "persistent://public/default/test-publish-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-publish-" + runtime + "-output-" + randomName(8);
@@ -1497,10 +1473,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             return;
         }
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         String inputTopicName = "persistent://public/default/test-serde-java-input-" + randomName(8);
         String outputTopicName = "test-publish-serde-output-" + randomName(8);
@@ -1573,10 +1545,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             return;
         }
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         Schema<?> schema;
         if (Runtime.JAVA == runtime) {
@@ -2165,10 +2133,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         String functionName = "test-autoschema-fn-" + randomName(8);
         final int numMessages = 10;
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         // submit the exclamation function
         submitFunction(
@@ -2235,12 +2199,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String outputTopic = "test-avroschema-output-" + randomName(8);
         final String functionName = "test-avroschema-fn-" + randomName(8);
         final int numMessages = 10;
-
-        if (pulsarCluster == null) {
-            log.info("pulsarClient is null");
-            this.setupCluster();
-            this.setupFunctionWorkers();
-        }
 
         @Cleanup PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
@@ -2360,10 +2318,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // This is the binlog count that contained in mysql container.
         final int numMessages = 47;
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -2457,10 +2411,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // This is the binlog count that contained in postgresql container.
         final int numMessages = 26;
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -2545,10 +2495,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // This is the binlog count that contained in mongodb container.
         final int numMessages = 17;
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -2659,10 +2605,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             return;
         }
 
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
 
         Schema<?> schema;
         if (Runtime.JAVA == runtime) {
