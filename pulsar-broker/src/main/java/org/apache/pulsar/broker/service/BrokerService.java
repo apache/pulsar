@@ -704,8 +704,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 asyncCloseFutures.add(closeChannel(listenChannelTls));
             }
 
-            acceptorGroup.shutdownGracefully();
-            workerGroup.shutdownGracefully();
+            asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(acceptorGroup));
+            asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(workerGroup));
 
             if (interceptor != null) {
                 interceptor.close();
