@@ -339,6 +339,8 @@ public class PulsarService implements AutoCloseable {
                 }
             }
 
+            metricsServlet = null;
+
             if (this.webSocketService != null) {
                 this.webSocketService.close();
             }
