@@ -111,6 +111,7 @@ public class AntiAffinityNamespaceGroupTest {
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
         config1.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setBrokerShutdownTimeoutMs(100L);
         config1.setBrokerServicePort(Optional.of(0));
         config1.setFailureDomainsEnabled(true);
         config1.setLoadBalancerEnabled(true);
@@ -131,6 +132,7 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
         config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setBrokerShutdownTimeoutMs(100L);
         config2.setBrokerServicePort(Optional.of(0));
         config2.setFailureDomainsEnabled(true);
         config2.setAdvertisedAddress("localhost");
