@@ -122,6 +122,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         final int numRecords = 10;
 
         for (SinkSpec spec : specs) {
+            log.info("Creating producer for {} on {}", spec.schema, spec.outputTopicName);
             @Cleanup Producer<Object> producer = client.newProducer(spec.schema)
                     .topic(spec.outputTopicName)
                     .create();
