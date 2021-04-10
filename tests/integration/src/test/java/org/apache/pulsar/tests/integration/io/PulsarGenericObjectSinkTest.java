@@ -161,10 +161,11 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
             for (SinkSpec spec: specs) {
                 try {
                     String logFile = "/pulsar/logs/functions/public/default/" + spec.sinkName + "/" + spec.sinkName + "-0.log";
-                    String logs = container.<String>copyFileFromContainer(log, (inputStream) -> {
+                    String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
                         return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
                     });
                     log.info("Sink {} logs", spec.sinkName);
+                    log.info("{}", logs);
                 } catch (Exception err) {
                     log.error("Cannot download logs for sink {}", spec.sinkName, err);
                 }
