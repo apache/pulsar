@@ -22,6 +22,7 @@ import lombok.Builder;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Producer;
@@ -35,8 +36,10 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
+import org.inferred.freebuilder.shaded.org.openjdk.tools.javadoc.internal.doclets.standard.Standard;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -104,54 +107,68 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 new SinkSpec("test-kv-sink-input-kvavro-sep-" + randomName(8), "test-kv-sink-kvavro-sep-" + randomName(8),
                         Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.AVRO(Pojo.class), KeyValueEncodingType.SEPARATED), new KeyValue<PojoKey, Pojo>(PojoKey.builder().keyfield1("a").build(), Pojo.builder().field1("a").field2(2).build()))
         );
-        // submit all sinks
-        for (SinkSpec spec : specs) {
-            submitSinkConnector(spec.sinkName, spec.outputTopicName, "org.apache.pulsar.tests.integration.io.TestGenericObjectSink", JAVAJAR);
-        }
-        // check all sinks
-        for (SinkSpec spec : specs) {
-            // get sink info
-            getSinkInfoSuccess(spec.sinkName);
-            getSinkStatus(spec.sinkName);
-        }
-
-        @Cleanup PulsarClient client = PulsarClient.builder()
-                .serviceUrl(container.getPlainTextServiceUrl())
-                .build();
-
-        final int numRecords = 10;
-
-        for (SinkSpec spec : specs) {
-            log.info("Creating producer for {} on {}", spec.schema, spec.outputTopicName);
-            @Cleanup Producer<Object> producer = client.newProducer(spec.schema)
-                    .topic(spec.outputTopicName)
-                    .create();
-            for (int i = 0; i < numRecords; i++) {
-                producer.newMessage()
-                        .value(spec.testValue)
-                        .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
-                        .send();
+        try {
+            // submit all sinks
+            for (SinkSpec spec : specs) {
+                submitSinkConnector(spec.sinkName, spec.outputTopicName, "org.apache.pulsar.tests.integration.io.TestGenericObjectSink", JAVAJAR);
             }
-        }
+            // check all sinks
+            for (SinkSpec spec : specs) {
+                // get sink info
+                getSinkInfoSuccess(spec.sinkName);
+                getSinkStatus(spec.sinkName);
+            }
 
-        // wait that all sinks processed all records without errors
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+            @Cleanup PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(container.getPlainTextServiceUrl())
+                    .build();
+
+            final int numRecords = 10;
 
             for (SinkSpec spec : specs) {
-                Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-                    SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
-                    assertEquals(status.getInstances().size(), 1);
-                    assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords);
-                    assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
-                    assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
-                });
+                log.info("Creating producer for {} on {}", spec.schema, spec.outputTopicName);
+                @Cleanup Producer<Object> producer = client.newProducer(spec.schema)
+                        .topic(spec.outputTopicName)
+                        .create();
+                for (int i = 0; i < numRecords; i++) {
+                    producer.newMessage()
+                            .value(spec.testValue)
+                            .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
+                            .send();
+                }
             }
-        }
+
+            // wait that all sinks processed all records without errors
+            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+
+                for (SinkSpec spec : specs) {
+                    Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                        SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
+                        assertEquals(status.getInstances().size(), 1);
+                        assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords);
+                        assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
+                        assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
+                    });
+                }
+            }
 
 
-        for (SinkSpec spec : specs) {
-            deleteSink(spec.sinkName);
-            getSinkInfoNotFound(spec.sinkName);
+            for (SinkSpec spec : specs) {
+                deleteSink(spec.sinkName);
+                getSinkInfoNotFound(spec.sinkName);
+            }
+        } finally {
+            for (SinkSpec spec: specs) {
+                try {
+                    String logFile = "/pulsar/logs/functions/public/default/" + spec.sinkName + "/" + spec.sinkName + "-0.log";
+                    String logs = container.<String>copyFileFromContainer(log, (inputStream) -> {
+                        return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+                    });
+                    log.info("Sink {} logs", spec.sinkName);
+                } catch (Exception err) {
+                    log.error("Cannot download logs for sink {}", spec.sinkName, err);
+                }
+            }
         }
     }
 
