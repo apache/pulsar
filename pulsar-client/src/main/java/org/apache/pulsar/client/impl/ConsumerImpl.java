@@ -856,10 +856,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             cnx.ctx().writeAndFlush(Commands.newFlow(consumerId, numMessages))
                     .addListener(writeFuture -> {
-                        if (!writeFuture.isSuccess()) {
-                            if (log.isDebugEnabled()){
+                        if (log.isDebugEnabled()) {
+                            if (!writeFuture.isSuccess()) {
                                 log.debug("Consumer {} failed to send {} permits to broker: {}", consumerId, numMessages,
                                         writeFuture.cause().getMessage());
+                            } else {
+                                log.debug("Consumer {} sent {} permits to broker", consumerId, numMessages);
                             }
                         }
                     });
