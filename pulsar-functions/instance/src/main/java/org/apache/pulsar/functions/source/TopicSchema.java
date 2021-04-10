@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -97,7 +98,7 @@ public class TopicSchema {
      * If the topic is already created, we should be able to fetch the schema type (avro, json, ...)
      */
     private SchemaType getSchemaTypeOrDefault(String topic, Class<?> clazz) {
-        if (GenericRecord.class.isAssignableFrom(clazz)) {
+        if (GenericObject.class.isAssignableFrom(clazz)) {
             return SchemaType.AUTO_CONSUME;
         } else if (byte[].class.equals(clazz)
                 || ByteBuf.class.equals(clazz)
