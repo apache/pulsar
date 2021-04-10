@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.io;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.KVRecord;
@@ -41,13 +42,30 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
     }
 
     public void write(Record<GenericObject> record) {
+        log.info("properties", record.getProperties());
         log.info("received record {} {}", record, record.getClass());
         log.info("schema {}", record.getSchema());
         log.info("native schema {}", record.getSchema().getNativeSchema().orElse(null));
 
+        String expectedRecordType = record.getProperties().getOrDefault("expectedType", "MISSING");
+        if (!expectedRecordType.equals(record.getSchema().getSchemaInfo().getType().name())) {
+            throw new RuntimeException("Unexpected record type "+record.getSchema().getSchemaInfo().getType().name() +" is not "+expectedRecordType);
+        }
+
         log.info("value {}", record.getValue());
         log.info("value schema type {}", record.getValue().getSchemaType());
         log.info("value native object {}", record.getValue().getNativeObject());
+
+        if (record.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchema kvSchema = (KeyValueSchema) record.getSchema();
+            log.info("key schema type {}", kvSchema.getKeySchema());
+            log.info("value schema type {}", kvSchema.getValueSchema());
+            log.info("key encoding {}", kvSchema.getKeyValueEncodingType());
+
+            KeyValue keyValue = (KeyValue) record.getValue().getNativeObject();
+            log.info("kvkey {}", keyValue.getKey());
+            log.info("kvvalue {}", keyValue.getValue());
+        }
     }
 
     @Override

@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
@@ -71,16 +72,37 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         private int field2;
     }
 
+    @Data
+    @Builder
+    public static final class PojoKey {
+        private String keyfield1;
+    }
+
     @Test(groups = {"sink"})
     public void testGenericObjectSink() throws Exception {
         // we are not using a parametrized test in order to save resources
         // we create N sinks, send the records and verify each sink
         // sinks execution happens in parallel
+
+        // cases:
+        // primitives: string, int
+        // avro/json
+        // keyvalue of primitives, INLINE and SEPARATED
+        // keyvalue of AVRO records, INLINE and SEPARATED
+
         List<SinkSpec> specs = Arrays.asList(
                 new SinkSpec("test-kv-sink-input-string-" + randomName(8), "test-kv-sink-string-" + randomName(8), Schema.STRING, "foo"),
                 new SinkSpec("test-kv-sink-input-int-" + randomName(8), "test-kv-sink-int-" + randomName(8), Schema.INT32, 123),
+                new SinkSpec("test-kv-sink-input-kvprimitive-" + randomName(8), "test-kv-sink-kvprimitive-" + randomName(8),
+                        Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.INLINE), new KeyValue<String, Integer>("foo", 123)),
+                new SinkSpec("test-kv-sink-input-kvprimitive-sep-" + randomName(8), "test-kv-sink-kvprimitive-sep-" + randomName(8),
+                        Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.SEPARATED), new KeyValue<String, Integer>("foo", 123)),
                 new SinkSpec("test-kv-sink-input-avro-" + randomName(8), "test-kv-sink-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
-                new SinkSpec("test-kv-sink-input-json-" + randomName(8), "test-kv-sink-json-" + randomName(8), Schema.JSON(Pojo.class), Pojo.builder().field1("a").field2(2).build())
+                new SinkSpec("test-kv-sink-input-json-" + randomName(8), "test-kv-sink-json-" + randomName(8), Schema.JSON(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
+                new SinkSpec("test-kv-sink-input-kvavro-" + randomName(8), "test-kv-sink-kvavro-" + randomName(8),
+                        Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.AVRO(Pojo.class), KeyValueEncodingType.INLINE), new KeyValue<PojoKey, Pojo>(PojoKey.builder().keyfield1("a").build(), Pojo.builder().field1("a").field2(2).build())),
+                new SinkSpec("test-kv-sink-input-kvavro-sep-" + randomName(8), "test-kv-sink-kvavro-sep-" + randomName(8),
+                        Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.AVRO(Pojo.class), KeyValueEncodingType.SEPARATED), new KeyValue<PojoKey, Pojo>(PojoKey.builder().keyfield1("a").build(), Pojo.builder().field1("a").field2(2).build()))
         );
         // submit all sinks
         for (SinkSpec spec : specs) {
@@ -104,7 +126,10 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                     .topic(spec.outputTopicName)
                     .create();
             for (int i = 0; i < numRecords; i++) {
-                producer.send(spec.testValue);
+                producer.newMessage()
+                        .value(spec.testValue)
+                        .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
+                        .send();
             }
         }
 
