@@ -45,6 +45,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -231,8 +232,13 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 .until(() -> txnMap.size() == 100);
     }
 
-    @Test
-    public void testEndTransactionOpRetry() throws Exception {
+    @DataProvider(name = "txnStatus")
+    public Object[][] txnStatus() {
+        return new Object[][] { { TxnStatus.OPEN }, { TxnStatus.ABORTING }, { TxnStatus.COMMITTING } };
+    }
+
+    @Test(dataProvider = "txnStatus")
+    public void testEndTransactionOpRetry(TxnStatus txnStatus) throws Exception {
         int timeOut = 3000;
         pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
         Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS)
@@ -245,20 +251,28 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         method.setAccessible(true);
         Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
                 .until(() -> (Boolean) method.invoke(transactionMetadataStore));
-        TxnID txnID = transactionMetadataStore.newTransaction(timeOut).get();
+        TxnID txnID = transactionMetadataStore.newTransaction(timeOut - 2000).get();
         TxnMeta txnMeta = transactionMetadataStore.getTxnMeta(txnID).get();
+        txnMeta.updateTxnStatus(txnStatus, TxnStatus.OPEN);
 
         Field field = TransactionMetadataStoreState.class.getDeclaredField("state");
         field.setAccessible(true);
         field.set(transactionMetadataStore, TransactionMetadataStoreState.State.None);
+
         try {
             pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue()).get();
             fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof CoordinatorException.TransactionMetadataStoreStateException);
+            if (txnStatus == TxnStatus.OPEN || txnStatus == TxnStatus.COMMITTING) {
+                assertTrue(e.getCause() instanceof CoordinatorException.TransactionMetadataStoreStateException);
+            } else if (txnStatus == TxnStatus.ABORTING) {
+                assertTrue(e.getCause() instanceof CoordinatorException.InvalidTxnStatusException);
+            } else {
+                fail();
+            }
         }
 
-        assertEquals(txnMeta.status(), TxnStatus.OPEN);
+        assertEquals(txnMeta.status(), txnStatus);
 
         field = TransactionMetadataStoreState.class.getDeclaredField("state");
         field.setAccessible(true);

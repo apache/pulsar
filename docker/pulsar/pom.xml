@@ -30,6 +30,11 @@
   <name>Apache Pulsar :: Docker Images :: Pulsar Latest Version</name>
   <packaging>pom</packaging>
 
+  <properties>
+    <skipBuildPythonClient>false</skipBuildPythonClient>
+    <skipCopyPythonClients>false</skipCopyPythonClients>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>

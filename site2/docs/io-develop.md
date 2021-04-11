@@ -237,3 +237,42 @@ You can use [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-pl
   </executions>
 </plugin>
 ```
+
+## Monitor
+
+Pulsar connectors enable you to move data in and out of Pulsar easily. It is important to ensure that the running connectors are healthy at any time. You can monitor Pulsar connectors that have been deployed with the following methods:
+
+- Check the metrics provided by Pulsar.
+
+  Pulsar connectors expose the metrics that can be collected and used for monitoring the health of **Java** connectors. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
+
+- Set and check your customized metrics.
+
+  In addition to the metrics provided by Pulsar, Pulsar allows you to customize metrics for **Java** connectors. Function workers collect user-defined metrics to Prometheus automatically and you can check them in Grafana.
+
+Here is an example of how to customize metrics for a Java connector.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Java-->
+
+```
+public class TestMetricSink implements Sink<String> {
+
+        @Override
+        public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+            sinkContext.recordMetric("foo", 1);
+        }
+
+        @Override
+        public void write(Record<String> record) throws Exception {
+
+        }
+
+        @Override
+        public void close() throws Exception {
+
+        }
+    }
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->

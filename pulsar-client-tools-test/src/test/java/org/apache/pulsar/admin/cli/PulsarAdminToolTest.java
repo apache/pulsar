@@ -126,6 +126,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("healthcheck"));
         verify(mockBrokers).healthcheck();
+
+        brokers.run(split("version"));
+        verify(mockBrokers).getVersion();
     }
 
     @Test
@@ -533,6 +536,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-max-consumers-per-subscription myprop/clust/ns1"));
         verify(mockNamespaces).getMaxConsumersPerSubscription("myprop/clust/ns1");
 
+        namespaces.run(split("remove-max-consumers-per-subscription myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxConsumersPerSubscription("myprop/clust/ns1");
+
         namespaces.run(split("set-max-consumers-per-subscription myprop/clust/ns1 -c 3"));
         verify(mockNamespaces).setMaxConsumersPerSubscription("myprop/clust/ns1", 3);
 
@@ -929,6 +935,13 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", 99);
         cmdTopics.run(split("set-max-unacked-messages-per-subscription persistent://myprop/clust/ns1/ds1 -m 99"));
         verify(mockTopics, times(2)).setMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", 99);
+
+        cmdTopics.run(split("get-compaction-threshold persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getCompactionThreshold("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("set-compaction-threshold persistent://myprop/clust/ns1/ds1 -t 10k"));
+        verify(mockTopics).setCompactionThreshold("persistent://myprop/clust/ns1/ds1", 10 * 1024);
+        cmdTopics.run(split("remove-compaction-threshold persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeCompactionThreshold("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-max-message-size persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getMaxMessageSize("persistent://myprop/clust/ns1/ds1");

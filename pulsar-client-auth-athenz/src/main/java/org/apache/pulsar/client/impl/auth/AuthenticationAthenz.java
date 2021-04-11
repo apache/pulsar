@@ -64,7 +64,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private String roleHeader = null;
     // If auto prefetching is enabled, application will not complete until the static method
     // ZTSClient.cancelPrefetch() is called.
-    // cf. https://github.com/yahoo/athenz/issues/544
+    // cf. https://github.com/AthenZ/athenz/issues/544
     private boolean autoPrefetchEnabled = false;
     private long cachedRoleTokenTimestamp;
     private String roleToken;

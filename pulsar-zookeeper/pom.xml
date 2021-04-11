@@ -39,12 +39,12 @@
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper-jute</artifactId>
     </dependency>
-    
+
     <dependency>
        <groupId>io.dropwizard.metrics</groupId>
        <artifactId>metrics-core</artifactId>
@@ -98,9 +98,9 @@
         <artifactId>aspectj-maven-plugin</artifactId>
         <version>${aspectj-maven-plugin.version}</version>
         <configuration>
-          <complianceLevel>1.8</complianceLevel>
-          <source>1.8</source>
-          <target>1.8</target>
+          <complianceLevel>${maven.compiler.target}</complianceLevel>
+          <source>${maven.compiler.source}</source>
+          <target>${maven.compiler.target}</target>
           <showWeaveInfo>true</showWeaveInfo>
           <weaveDependencies>
             <weaveDependency>

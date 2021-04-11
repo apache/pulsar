@@ -1578,7 +1578,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     synchronized void createLedgerAfterClosed() {
         STATE_UPDATER.set(this, State.CreatingLedger);
-        this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
+        this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
         mbean.startDataLedgerCreateOp();
         asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
     }

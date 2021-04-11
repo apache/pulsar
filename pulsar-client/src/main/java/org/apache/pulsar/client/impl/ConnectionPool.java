@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.netty.ChannelFutures.toCompletableFuture;
+import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -338,14 +339,6 @@ public class ConnectionPool implements Closeable {
     @VisibleForTesting
     int getPoolSize() {
         return pool.values().stream().mapToInt(Map::size).sum();
-    }
-
-    public static int signSafeMod(long dividend, int divisor) {
-        int mod = (int) (dividend % divisor);
-        if (mod < 0) {
-            mod += divisor;
-        }
-        return mod;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConnectionPool.class);

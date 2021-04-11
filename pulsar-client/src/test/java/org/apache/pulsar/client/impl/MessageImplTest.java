@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 import java.util.concurrent.CompletableFuture;
@@ -29,10 +33,14 @@ import org.apache.pulsar.client.impl.schema.BooleanSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
+import static org.testng.AssertJUnit.fail;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.any;
@@ -415,5 +423,64 @@ public class MessageImplTest {
         builder.setNullValue(true);
         MessageImpl<Boolean> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), BooleanSchema.of());
         assertNull(msg.getValue());
+    }
+
+    @Test(timeOut = 30000)
+    public void testMessageBrokerAndEntryMetadataTimestampMissed() {
+        int MOCK_BATCH_SIZE = 10;
+        String data = "test-message";
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
+        byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+
+        try {
+            // test BrokerTimestamp not set.
+            MessageMetadata messageMetadata = new MessageMetadata()
+                    .setPublishTime(1)
+                    .setProducerName("test")
+                    .setSequenceId(1);
+            byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
+            BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata()
+                            .setIndex(MOCK_BATCH_SIZE - 1);
+
+            int brokerMetaSize = brokerMetadata.getSerializedSize();
+            ByteBuf  brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+            brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
+            brokerMeta.writeInt(brokerMetaSize);
+            brokerMetadata.writeTo(brokerMeta);
+
+            CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+            compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
+            MessageImpl messageWithEntryMetadata = MessageImpl.deserializeBrokerEntryMetaDataFirst(compositeByteBuf);
+            MessageImpl message = MessageImpl.deserializeSkipBrokerEntryMetaData(compositeByteBuf);
+            message.setBrokerEntryMetadata(messageWithEntryMetadata.getBrokerEntryMetadata());
+            assertTrue(message.isExpired(100));
+
+            // test BrokerTimestamp set.
+            byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
+            byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+            messageMetadata = new MessageMetadata()
+                    .setPublishTime(System.currentTimeMillis())
+                    .setProducerName("test")
+                    .setSequenceId(1);
+            byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
+            brokerMetadata = new BrokerEntryMetadata()
+                    .setBrokerTimestamp(System.currentTimeMillis())
+                    .setIndex(MOCK_BATCH_SIZE - 1);
+
+            brokerMetaSize = brokerMetadata.getSerializedSize();
+            brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
+            brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
+            brokerMeta.writeInt(brokerMetaSize);
+            brokerMetadata.writeTo(brokerMeta);
+
+            compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+            compositeByteBuf.addComponents(true, brokerMeta, byteBuf);
+            messageWithEntryMetadata = MessageImpl.deserializeBrokerEntryMetaDataFirst(compositeByteBuf);
+            message = MessageImpl.deserializeSkipBrokerEntryMetaData(compositeByteBuf);
+            message.setBrokerEntryMetadata(messageWithEntryMetadata.getBrokerEntryMetadata());
+            assertFalse(message.isExpired(24 * 3600));
+        } catch (IOException e) {
+            fail();
+        }
     }
 }

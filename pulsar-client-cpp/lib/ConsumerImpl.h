@@ -43,6 +43,7 @@
 #include <lib/stats/ConsumerStatsImpl.h>
 #include <lib/stats/ConsumerStatsDisabled.h>
 #include <queue>
+#include <atomic>
 
 using namespace pulsar;
 
@@ -73,11 +74,10 @@ class ConsumerImpl : public ConsumerImplBase,
     ~ConsumerImpl();
     void setPartitionIndex(int partitionIndex);
     int getPartitionIndex();
-    void receiveMessages(const ClientConnectionPtr& cnx, unsigned int count);
+    void sendFlowPermitsToBroker(const ClientConnectionPtr& cnx, int numMessages);
     uint64_t getConsumerId();
     void messageReceived(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
                          bool& isChecksumValid, proto::MessageMetadata& msgMetadata, SharedBuffer& payload);
-    int incrementAndGetPermits(uint64_t cnxSequenceId);
     void messageProcessed(Message& msg);
     inline proto::CommandSubscribe_SubType getSubType();
     inline proto::CommandSubscribe_InitialPosition getInitialPosition();
@@ -150,7 +150,7 @@ class ConsumerImpl : public ConsumerImplBase,
                                    const proto::MessageMetadata& metadata, SharedBuffer& payload);
     void discardCorruptedMessage(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageId,
                                  proto::CommandAck::ValidationError validationError);
-    void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int numberOfPermits = 1);
+    void increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int delta = 1);
     void drainIncomingMessageQueue(size_t count);
     uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage,
                                                 int redeliveryCount);
@@ -185,14 +185,14 @@ class ConsumerImpl : public ConsumerImplBase,
     Optional<MessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;
     std::queue<ReceiveCallback> pendingReceives_;
-    int availablePermits_;
+    std::atomic_int availablePermits_;
+    const int receiverQueueRefillThreshold_;
     uint64_t consumerId_;
     std::string consumerName_;
     std::string consumerStr_;
     int32_t partitionIndex_;
     Promise<Result, ConsumerImplBaseWeakPtr> consumerCreatedPromise_;
-    bool messageListenerRunning_;
-    std::mutex messageListenerMutex_;
+    std::atomic_bool messageListenerRunning_;
     CompressionCodecProvider compressionCodecProvider_;
     UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;

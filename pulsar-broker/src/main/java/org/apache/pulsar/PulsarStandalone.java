@@ -375,7 +375,9 @@ public class PulsarStandalone implements AutoCloseable {
             }
 
             // Create marker for "global" cluster
-            if (!admin.clusters().getClusters().contains(globalCluster)) {
+            try {
+                admin.clusters().getCluster(globalCluster);
+            } catch (PulsarAdminException.NotFoundException ex) {
                 admin.clusters().createCluster(globalCluster, new ClusterData(null, null));
             }
 

@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -292,7 +293,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public boolean isExpired(int messageTTLInSeconds) {
-        return messageTTLInSeconds != 0 && (brokerEntryMetadata == null
+        return messageTTLInSeconds != 0 && (brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp()
                 ? (System.currentTimeMillis() >
                     getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
                 : (System.currentTimeMillis() >
@@ -300,7 +301,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public boolean publishedEarlierThan(long timestamp) {
-        return brokerEntryMetadata == null ? getPublishTime() < timestamp
+        return brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp() ? getPublishTime() < timestamp
                 : brokerEntryMetadata.getBrokerTimestamp() < timestamp;
     }
 
@@ -359,8 +360,16 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    private KeyValueSchema getKeyValueSchema() {
+        if (schema instanceof AutoConsumeSchema) {
+            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema();
+        } else {
+            return (KeyValueSchema) schema;
+        }
+    }
+
     private T getKeyValueBySchemaVersion() {
-        KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        KeyValueSchema kvSchema = getKeyValueSchema();
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             return (T) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
@@ -370,7 +379,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     private T getKeyValue() {
-        KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        KeyValueSchema kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             return (T) kvSchema.decode(getKeyBytes(), getData(), null);
         } else {

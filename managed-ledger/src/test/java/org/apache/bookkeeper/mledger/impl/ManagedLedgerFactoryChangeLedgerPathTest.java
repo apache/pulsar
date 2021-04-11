@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.*;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -58,6 +59,41 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
             .setAckQuorumSize(1)
             .setMetadataAckQuorumSize(1)
             .setMetadataAckQuorumSize(1);
+        ManagedLedger ledger = factory.open("test-ledger", config);
+        ManagedCursor cursor = ledger.openCursor("test-c1");
+
+        for (int i = 0; i < 10; i++) {
+            String entry = "entry" + i;
+            ledger.addEntry(entry.getBytes("UTF8"));
+        }
+
+        List<Entry> entryList = cursor.readEntries(10);
+        Assert.assertEquals(10, entryList.size());
+
+        for (int i = 0; i < 10; i++) {
+            Entry entry = entryList.get(i);
+            Assert.assertEquals(("entry" + i).getBytes("UTF8"), entry.getData());
+        }
+        factory.shutdown();
+    }
+    @Test()
+    public void testChangeZKPath2() throws Exception {
+        ClientConfiguration configuration = new ClientConfiguration();
+        String zkConnectString = zkUtil.getZooKeeperConnectString() + "/test";
+        configuration.setMetadataServiceUri("zk://" + zkConnectString + "/ledgers");
+        configuration.setUseV2WireProtocol(true);
+        configuration.setEnableDigestTypeAutodetection(true);
+        configuration.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
+
+        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(configuration, zkConnectString,managedLedgerFactoryConfig);
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnsembleSize(1)
+                .setWriteQuorumSize(1)
+                .setAckQuorumSize(1)
+                .setMetadataAckQuorumSize(1)
+                .setMetadataAckQuorumSize(1);
         ManagedLedger ledger = factory.open("test-ledger", config);
         ManagedCursor cursor = ledger.openCursor("test-c1");
 
