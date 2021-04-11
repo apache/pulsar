@@ -131,7 +131,7 @@ public class CLITest extends PulsarTestSuite {
                 "topics",
                 "list",
                 "--topic-domain",
-                "non-persistent",
+                "non_persistent",
                 namespace);
 
         assertFalse(result.getStdout().contains(persistentTopicName));
@@ -145,7 +145,8 @@ public class CLITest extends PulsarTestSuite {
                 "none",
                 namespace);
 
-        assertTrue(result.getStdout().contains("Invalid topic domain: 'none'"));
+        assertTrue(result.getStdout().contains("Invalid value for --topic-domain parameter. " +
+                "Allowed values:[persistent, non_persistent]"));
 
         producer1.close();
         producer2.close();

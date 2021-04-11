@@ -259,7 +259,7 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = {"-td", "--topic-domain"}, description = "Allowed topic domain (persistent, non-persistent).")
+        @Parameter(names = {"-td", "--topic-domain"}, description = "Allowed topic domain (persistent, non_persistent).")
         private TopicDomain topicDomain;
 
         @Override
