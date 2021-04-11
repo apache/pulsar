@@ -3941,6 +3941,28 @@ public interface Namespaces {
     void setProperty(String namespace, String key, String value) throws PulsarAdminException;
 
     /**
+     * Set key value pair properties for a namespace asynchronously.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * @param namespace
+     *              Namespace name
+     * @param properties
+     *              key value pair properties
+     */
+    CompletableFuture<Void> setPropertiesAsync(String namespace, Map<String, String> properties);
+
+    /**
+     * Set key value pair properties for a namespace.
+     * If the property absents, a new property will added. Otherwise, the new value will overwrite.
+     *
+     * @param namespace
+     *              Namespace name
+     * @param properties
+     *              key value pair properties
+     */
+    void setProperties(String namespace, Map<String, String> properties) throws PulsarAdminException;
+
+    /**
      * Get property value for a given key.
      * If the property absents, will return null.
      *
@@ -3983,6 +4005,40 @@ public interface Namespaces {
     String getProperty(String namespace, String key) throws PulsarAdminException;
 
     /**
+     * Get all properties of a namespace asynchronously.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getPropertiesAsync();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     *
+     * @return key value pair properties.
+     */
+    CompletableFuture<Map<String, String>> getPropertiesAsync(String namespace);
+
+    /**
+     * Get all properties of a namespace.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().getProperties();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     *
+     * @return key value pair properties.
+     */
+    Map<String, String> getProperties(String namespace) throws PulsarAdminException;
+
+    /**
      * Remove a property for a given key.
      * Return value of the property if the property exists, otherwise return null.
      *
@@ -4023,4 +4079,34 @@ public interface Namespaces {
      * @return value of the property.
      */
     String removeProperty(String namespace, String key) throws PulsarAdminException;
+
+    /**
+     * Clear all properties of a namespace asynchronously.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().clearPropertiesAsync();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     */
+    CompletableFuture<Void> clearPropertiesAsync(String namespace);
+
+    /**
+     * Clear all properties of a namespace.
+     *
+     * <p/>
+     * Example:
+     *
+     * <pre>
+     *     admin.namespaces().clearProperties();
+     * </pre>
+     *
+     * @param namespace
+     *              Namespace name
+     */
+    void clearProperties(String namespace) throws PulsarAdminException;
 }

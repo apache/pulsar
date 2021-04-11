@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -1971,6 +1972,15 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals("a1", admin.namespaces().getProperty(namespace, "a"));
         assertEquals("b", admin.namespaces().removeProperty(namespace, "b"));
         assertNull(admin.namespaces().getProperty(namespace, "b"));
+        admin.namespaces().clearProperties(namespace);
+        assertEquals(admin.namespaces().getProperties(namespace).size(), 0);
+        Map<String, String> properties = new HashMap<>();
+        properties.put("aaa", "aaa");
+        properties.put("bbb", "bbb");
+        admin.namespaces().setProperties(namespace, properties);
+        assertEquals(admin.namespaces().getProperties(namespace), properties);
+        admin.namespaces().clearProperties(namespace);
+        assertEquals(admin.namespaces().getProperties(namespace).size(), 0);
     }
 
 }

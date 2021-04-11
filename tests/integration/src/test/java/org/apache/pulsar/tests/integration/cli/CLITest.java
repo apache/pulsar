@@ -179,6 +179,29 @@ public class CLITest extends PulsarTestSuite {
                 "a",
                 namespace);
         assertTrue(result.getStdout().isEmpty());
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "set-properties",
+                "-p",
+                "a=a,b=b,c=c",
+                namespace);
+        assertTrue(result.getStdout().isEmpty());
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "get-properties",
+                namespace);
+        assertFalse(result.getStdout().isEmpty());
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "clear-properties",
+                namespace);
+        assertTrue(result.getStdout().isEmpty());
     }
 
     @Test
