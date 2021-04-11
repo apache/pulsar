@@ -38,7 +38,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
@@ -53,7 +53,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 
-@Slf4j
 public class MessageImpl<T> implements Message<T> {
 
     protected MessageId messageId;
@@ -337,7 +336,6 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public T getValue() {
-        log.info("getValue {} {} {}", schema.getSchemaInfo().getType(), this, schema);
         if (schema.getSchemaInfo() != null && SchemaType.KEY_VALUE == schema.getSchemaInfo().getType()) {
             if (schema.supportSchemaVersioning()) {
                 return getKeyValueBySchemaVersion();
