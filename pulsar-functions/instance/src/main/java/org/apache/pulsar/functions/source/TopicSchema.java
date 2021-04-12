@@ -124,7 +124,7 @@ public class TopicSchema {
             || ByteBuffer.class.equals(clazz)) {
             return SchemaType.NONE;
         } else if (GenericObject.class.isAssignableFrom(clazz)) {
-            // the function is taking generic record/objet, so we do auto schema detection
+            // the function is taking generic record/object, so we do auto schema detection
             return SchemaType.AUTO_CONSUME;
         } else if (String.class.equals(clazz)) {
             // If type is String, then we use schema type string, otherwise we fallback on default schema

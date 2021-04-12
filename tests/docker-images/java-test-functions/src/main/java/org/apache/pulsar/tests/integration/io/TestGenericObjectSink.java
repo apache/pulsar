@@ -36,6 +36,7 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
     }
 
     public void write(Record<GenericObject> record) {
+
         log.info("properties", record.getProperties());
         log.info("received record {} {}", record, record.getClass());
         log.info("schema {}", record.getSchema());
@@ -51,6 +52,7 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         log.info("value native object {}", record.getValue().getNativeObject());
 
         if (record.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            // assert that we are able to access the schema (leads to ClassCastException if there is a problem)
             KeyValueSchema kvSchema = (KeyValueSchema) record.getSchema();
             log.info("key schema type {}", kvSchema.getKeySchema());
             log.info("value schema type {}", kvSchema.getValueSchema());
@@ -60,6 +62,9 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
             log.info("kvkey {}", keyValue.getKey());
             log.info("kvvalue {}", keyValue.getValue());
         }
+        log.info("value {}", record.getValue());
+        log.info("value schema type {}", record.getValue().getSchemaType());
+        log.info("value native object {}", record.getValue().getNativeObject());
     }
 
     @Override
