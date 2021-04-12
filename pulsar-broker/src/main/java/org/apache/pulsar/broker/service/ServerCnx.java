@@ -146,7 +146,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private State state;
     private volatile boolean isActive = true;
     String authRole = null;
-    AuthenticationDataSource authenticationData;
+    private volatile AuthenticationDataSource authenticationData;
     AuthenticationProvider authenticationProvider;
     AuthenticationState authState;
     // In case of proxy, if the authentication credentials are forwardable,
@@ -591,9 +591,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // Authentication has completed. It was either:
             // 1. the 1st time the authentication process was done, in which case we'll
             //    a `CommandConnected` response
-            // 2. an authentication refresh, in which case we don't need to do anything else
+            // 2. an authentication refresh, in which case we need to refresh authenticationData
 
             String newAuthRole = authState.getAuthRole();
+
+            // Refresh the auth data.
+            this.authenticationData = authState.getAuthDataSource();
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Auth data refreshed for role={}", remoteAddress, this.authRole);
+            }
 
             if (!useOriginalAuthState) {
                 this.authRole = newAuthRole;
