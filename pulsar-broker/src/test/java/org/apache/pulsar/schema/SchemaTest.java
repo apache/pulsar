@@ -23,7 +23,11 @@ import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTes
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
+
 import com.google.common.collect.Sets;
 
 import java.nio.charset.StandardCharsets;
@@ -304,10 +308,19 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testKeyValueSchema() throws Exception {
+    public void testKeyValueSchemaINLINE() throws Exception {
+        testKeyValueSchema(KeyValueEncodingType.INLINE);
+    }
+
+    @Test
+    public void testKeyValueSchemaSEPARATED() throws Exception {
+        testKeyValueSchema(KeyValueEncodingType.SEPARATED);
+    }
+
+    private void testKeyValueSchema(KeyValueEncodingType keyValueEncodingType) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
-        final String topicName = "test-string-schema";
+        final String topicName = "test-kv-schema-" + randomName(16);
 
         final String topic = TopicName.get(
                 TopicDomain.persistent.value(),
@@ -322,18 +335,16 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
 
         Producer<KeyValue<String, Integer>> producer = pulsarClient
-                .newProducer(Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.INLINE))
+                .newProducer(Schema.KeyValue(Schema.STRING, Schema.INT32, keyValueEncodingType))
                 .topic(topic)
                 .create();
 
-        producer.send(new KeyValue<>("foo", 123));
-
-        Consumer<KeyValue<String, Integer>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.INLINE))
+        Consumer<KeyValue<String, Integer>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.STRING, Schema.INT32, keyValueEncodingType))
                 .subscriptionName("test-sub")
                 .topic(topic)
                 .subscribe();
 
-        Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+        Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME()) // keyValueEncodingType autodetected
                 .subscriptionName("test-sub2")
                 .topic(topic)
                 .subscribe();
@@ -343,6 +354,79 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<KeyValue<String, Integer>> message = consumer.receive();
         Message<GenericRecord> message2 = consumer2.receive();
         assertEquals(message.getValue(), message2.getValue().getNativeObject());
+
+        if (keyValueEncodingType == KeyValueEncodingType.SEPARATED) {
+            // with "SEPARATED encoding the routing key is the key of the KeyValue
+            assertArrayEquals("foo".getBytes(StandardCharsets.UTF_8), message.getKeyBytes());
+            assertArrayEquals("foo".getBytes(StandardCharsets.UTF_8), message2.getKeyBytes());
+        } else {
+            assertNull(message.getKey());
+            assertNull(message2.getKey());
+        }
+
+        producer.close();
+        consumer.close();
+        consumer2.close();
+    }
+
+    @Test
+    public void testKeyValueSchemaWithStructsINLINE() throws Exception {
+        testKeyValueSchema(KeyValueEncodingType.INLINE);
+    }
+
+    @Test
+    public void testKeyValueSchemaWithStructsSEPARATED() throws Exception {
+        testKeyValueSchema(KeyValueEncodingType.SEPARATED);
+    }
+
+    private void testKeyValueSchemaWithStructs(KeyValueEncodingType keyValueEncodingType) throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test-kv-schema-" + randomName(16);
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        Producer<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> producer = pulsarClient
+                .newProducer(Schema.KeyValue(Schema.AVRO(Schemas.PersonOne.class), Schema.AVRO(Schemas.PersonTwo.class), keyValueEncodingType))
+                .topic(topic)
+                .create();
+
+        Consumer<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.AVRO(Schemas.PersonOne.class), Schema.AVRO(Schemas.PersonTwo.class), keyValueEncodingType))
+                .subscriptionName("test-sub")
+                .topic(topic)
+                .subscribe();
+
+        Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME()) // keyValueEncodingType autodetected
+                .subscriptionName("test-sub2")
+                .topic(topic)
+                .subscribe();
+
+        Schemas.PersonOne key = new Schemas.PersonOne(8787);
+        Schemas.PersonTwo value = new Schemas.PersonTwo(323, "foo");
+        producer.send(new KeyValue<>(key, value));
+
+        Message<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> message = consumer.receive();
+        Message<GenericRecord> message2 = consumer2.receive();
+        assertEquals(message.getValue(), message2.getValue().getNativeObject());
+
+        if (keyValueEncodingType == KeyValueEncodingType.SEPARATED) {
+            // with "SEPARATED encoding the routing key is the key of the KeyValue
+            assertNotNull(message.getKeyBytes());
+            assertNotNull(message2.getKeyBytes());
+        } else {
+            assertNull(message.getKey());
+            assertNull(message2.getKey());
+        }
 
         producer.close();
         consumer.close();

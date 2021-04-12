@@ -373,7 +373,14 @@ public class MessageImpl<T> implements Message<T> {
         KeyValueSchema kvSchema = getKeyValueSchema();
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return (T) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+            org.apache.pulsar.common.schema.KeyValue keyValue =
+                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+            if (schema instanceof AutoConsumeSchema) {
+                return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
+                        schema.getSchemaInfo().getType(), schemaVersion);
+            } else {
+                return (T) keyValue;
+            }
         } else {
             return schema.decode(getData(), schemaVersion);
         }
@@ -382,7 +389,14 @@ public class MessageImpl<T> implements Message<T> {
     private T getKeyValue() {
         KeyValueSchema kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return (T) kvSchema.decode(getKeyBytes(), getData(), null);
+            org.apache.pulsar.common.schema.KeyValue keyValue =
+                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
+            if (schema instanceof AutoConsumeSchema) {
+                return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
+                        schema.getSchemaInfo().getType(), null);
+            } else {
+                return (T) keyValue;
+            }
         } else {
             return schema.decode(getData());
         }
