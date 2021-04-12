@@ -193,7 +193,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                     });
                     log.info("Sink {} logs", spec.sinkName);
                     log.info("{}", logs);
-                } catch (Exception err) {
+                } catch (Throwable err) {
                     log.error("Cannot download logs for sink {}", spec.sinkName, err);
                 }
             }
