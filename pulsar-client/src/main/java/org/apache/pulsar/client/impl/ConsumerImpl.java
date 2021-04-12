@@ -1863,8 +1863,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
-                booleanFuture.complete(true);
-                return booleanFuture;
+                //this situation will occur when :
+                // 1.We haven't read yet 2.The connection was reset multiple times
+                // 3.Broker has pushed messages to ReceiverQueue, but messages were cleaned due to connection reset
+                seekAsync(startMessageId).whenComplete((ignore, e) -> {
+                    if (e != null) {
+                        booleanFuture.complete(false);
+                    } else {
+                        booleanFuture.complete(true);
+                    }
+                });
+                return  booleanFuture;
             }
 
             getLastMessageIdAsync().thenAccept(messageId -> {
