@@ -178,7 +178,7 @@ public class CLITest extends PulsarTestSuite {
                 "-k",
                 "a",
                 namespace);
-        assertTrue(result.getStdout().isEmpty());
+        assertTrue(result.getStdout().contains("null"));
 
         result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
