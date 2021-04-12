@@ -69,7 +69,7 @@ public class PulsarClientImplTest {
     private PulsarClientImpl clientImpl;
     private EventLoopGroup eventLoopGroup;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");
@@ -78,10 +78,16 @@ public class PulsarClientImplTest {
         clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        clientImpl.close();
-        eventLoopGroup.shutdownGracefully().get();
+        if (clientImpl != null) {
+            clientImpl.close();
+            clientImpl = null;
+        }
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+            eventLoopGroup = null;
+        }
     }
 
     @Test

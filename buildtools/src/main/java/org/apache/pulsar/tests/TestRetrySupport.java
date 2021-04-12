@@ -40,7 +40,7 @@ public abstract class TestRetrySupport {
     private int failedSetupNumber = -1;
     private int cleanedUpSetupNumber;
 
-    @BeforeMethod(groups = { "setup", "flaky", "extra" })
+    @BeforeMethod(alwaysRun = true)
     public final void stateCheck(Method method) throws Exception {
         // run cleanup and setup if the current setup number is the one where a failure happened
         // this is to cleanup state before retrying
@@ -59,7 +59,7 @@ public abstract class TestRetrySupport {
         }
     }
 
-    @AfterMethod(alwaysRun = true, groups = { "setup", "flaky", "extra" })
+    @AfterMethod(alwaysRun = true)
     public final void failureCheck(ITestResult testResult, Method method) {
         // track the setup number where the failure happened
         if (!testResult.isSuccess()) {

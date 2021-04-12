@@ -93,7 +93,7 @@ public abstract class BookKeeperClusterTestCase {
         this.numBookies = numBookies;
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         // enable zookeeper `zookeeper.4lw.commands.whitelist`
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");
@@ -211,7 +211,7 @@ public abstract class BookKeeperClusterTestCase {
         tmpDirs.add(f);
         f.delete();
         f.mkdir();
-        
+
         int port = 0;
         return newServerConfiguration(port, zkUtil.getZooKeeperConnectString(), f, new File[] { f }, ledgerRootPath);
     }
