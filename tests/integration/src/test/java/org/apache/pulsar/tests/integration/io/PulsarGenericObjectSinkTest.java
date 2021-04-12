@@ -85,10 +85,10 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         testGenericObjectSink(false);
     }
 
-    @Test(groups = {"sink"})
-    public void testGenericObjectSinkPrecreateTopicAndSchemaThenSubmitSink() throws Exception {
-        testGenericObjectSink(true);
-    }
+//    @Test(groups = {"sink"})
+//    public void testGenericObjectSinkPrecreateTopicAndSchemaThenSubmitSink() throws Exception {
+//        testGenericObjectSink(true);
+//    }
 
     private void testGenericObjectSink(boolean precreateTopicWithSchema) throws Exception {
         // two variants of the test:
