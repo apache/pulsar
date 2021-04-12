@@ -329,6 +329,11 @@ public class PulsarService implements AutoCloseable {
             }
 
             // close the service in reverse order v.s. in which they are started
+            if (this.resourceUsageTransportManager != null) {
+                this.resourceUsageTransportManager.close();
+                this.resourceUsageTransportManager = null;
+            }
+
             if (this.webService != null) {
                 try {
                     this.webService.close();

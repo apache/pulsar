@@ -688,12 +688,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String resourceUsageTransportClassName = "";
 
     @FieldContext(
-            category = CATEGORY_POLICIES,
-            doc = "Topic to publish usage reports to if resourceUsagePublishToTopic is enabled."
-    )
-    private String resourceUsageTransportPublishTopicName = "non-persistent://pulsar/system/resource-usage";
-
-    @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
             doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
