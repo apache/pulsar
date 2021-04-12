@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.common.util;
 
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -41,7 +41,7 @@ import java.util.function.BiConsumer;
  * any "downstream" dependent futures. A cancellation or timeout that happens in any "upstream"
  * future will get handled.
  */
-class CompletableFutureCancellationHandler {
+public class CompletableFutureCancellationHandler {
     private volatile boolean cancelled;
     private volatile Runnable cancelAction;
     private final AtomicBoolean cancelHandled = new AtomicBoolean();
