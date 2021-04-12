@@ -135,6 +135,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1781,8 +1782,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
         if (transactionMetadataStoreService == null) {
-            ServiceUnitNotReadyException ex =
-                    new ServiceUnitNotReadyException("Transaction manager is not started or not enabled");
+            CoordinatorException.CoordinatorNotFoundException ex =
+                    new CoordinatorException.CoordinatorNotFoundException("Transaction manager is not started or not enabled");
             ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
                     BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
             return;
