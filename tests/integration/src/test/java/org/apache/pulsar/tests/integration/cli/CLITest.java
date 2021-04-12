@@ -160,7 +160,7 @@ public class CLITest extends PulsarTestSuite {
                 "-k",
                 "a",
                 namespace);
-        assertEquals("a", result.getStdout());
+        assertTrue(result.getStdout().contains("a"));
 
         result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
@@ -169,7 +169,7 @@ public class CLITest extends PulsarTestSuite {
                 "-k",
                 "a",
                 namespace);
-        assertEquals("a", result.getStdout());
+        assertTrue(result.getStdout().contains("a"));
 
         result = container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
