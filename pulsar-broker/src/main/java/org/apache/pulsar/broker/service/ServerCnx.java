@@ -1783,7 +1783,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 service.pulsar().getTransactionMetadataStoreService();
         if (transactionMetadataStoreService == null) {
             CoordinatorException.CoordinatorNotFoundException ex =
-                    new CoordinatorException.CoordinatorNotFoundException("Transaction manager is not started or not enabled");
+                    new CoordinatorException.CoordinatorNotFoundException(
+                                               "Transaction manager is not started or not enabled");
             ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
                     BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
             return;
