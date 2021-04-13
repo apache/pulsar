@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.messaging;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -39,7 +40,7 @@ import org.testng.annotations.Test;
 public class DelayMessagingTest extends PulsarTestSuite {
 
     @Test(dataProvider = "ServiceUrls")
-    public void delayMsgBlockTest(String serviceUrl) throws Exception {
+    public void delayMsgBlockTest(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
@@ -50,7 +51,7 @@ public class DelayMessagingTest extends PulsarTestSuite {
         String deadLetterTopic = topic + "-DLT";
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(serviceUrl).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()

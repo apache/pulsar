@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.upgrade;
 import static java.util.stream.Collectors.joining;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.ImmutableMap;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -44,9 +45,11 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
 
     protected static final int ENTRIES_PER_LEDGER = 1024;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     @Override
-    public void setupCluster() throws Exception {
+    public final void setupCluster() throws Exception {
+        incrementSetupNumber();
+
         final String clusterName = Stream.of(this.getClass().getSimpleName(), randomName(5))
                 .filter(s -> !s.isEmpty())
                 .collect(joining("-"));
@@ -72,19 +75,19 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
 
     @AfterClass(alwaysRun = true)
     @Override
-    public void tearDownCluster() {
+    public final void tearDownCluster() throws Exception {
         super.tearDownCluster();
     }
 
     @Test(dataProvider = "ServiceUrlAndTopics")
-    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+    public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
         String topicName = generateTopicName("testpubconsume", isPersistent);
 
         int numMessages = 10;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl)
+                .serviceUrl(serviceUrl.get())
                 .build();
 
         @Cleanup

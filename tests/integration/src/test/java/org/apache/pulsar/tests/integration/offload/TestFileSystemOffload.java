@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.Test;
 
@@ -28,18 +29,18 @@ import java.util.Map;
 public class TestFileSystemOffload extends TestBaseOffload {
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
-        super.testPublishOffloadAndConsumeViaCLI(serviceUrl, adminUrl);
+    public void testPublishOffloadAndConsumeViaCLI(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+        super.testPublishOffloadAndConsumeViaCLI(serviceUrl.get(), adminUrl.get());
     }
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testPublishOffloadAndConsumeViaThreshold(String serviceUrl, String adminUrl) throws Exception {
-        super.testPublishOffloadAndConsumeViaThreshold(serviceUrl, adminUrl);
+    public void testPublishOffloadAndConsumeViaThreshold(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+        super.testPublishOffloadAndConsumeViaThreshold(serviceUrl.get(), adminUrl.get());
     }
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testPublishOffloadAndConsumeDeletionLag(String serviceUrl, String adminUrl) throws Exception {
-        super.testPublishOffloadAndConsumeDeletionLag(serviceUrl, adminUrl);
+    public void testPublishOffloadAndConsumeDeletionLag(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+        super.testPublishOffloadAndConsumeDeletionLag(serviceUrl.get(), adminUrl.get());
 
     }
 
