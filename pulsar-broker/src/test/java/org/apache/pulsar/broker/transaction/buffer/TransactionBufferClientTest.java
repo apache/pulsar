@@ -21,34 +21,48 @@ package org.apache.pulsar.broker.transaction.buffer;
 import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
 import org.apache.pulsar.broker.transaction.coordinator.TransactionMetaStoreTestBase;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
 import org.testng.annotations.AfterClass;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyObject;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 @Test(groups = "broker")
 public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
@@ -92,18 +106,18 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         super.afterPulsarStart();
         brokerServices = new BrokerService[pulsarServices.length];
         for (int i = 0; i < pulsarServices.length; i++) {
-            Subscription mockSubscription = Mockito.mock(Subscription.class);
+            Subscription mockSubscription = mock(Subscription.class);
             Mockito.when(mockSubscription.endTxn(Mockito.anyLong(),
                     Mockito.anyLong(), Mockito.anyInt(), Mockito.anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
 
-            Topic mockTopic = Mockito.mock(Topic.class);
+            Topic mockTopic = mock(Topic.class);
             Mockito.when(mockTopic.endTxn(any(), Mockito.anyInt(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
             Mockito.when(mockTopic.getSubscription(any())).thenReturn(mockSubscription);
 
             ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topicMap =
-                    Mockito.mock(ConcurrentOpenHashMap.class);
+                    mock(ConcurrentOpenHashMap.class);
             Mockito.when(topicMap.get(Mockito.anyString())).thenReturn(
                     CompletableFuture.completedFuture(Optional.of(mockTopic)));
 
@@ -122,8 +136,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.commitTxnOnTopic(topic, 1L, i, Long.MIN_VALUE));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            assertEquals(futures.get(i).get().getMostSigBits(), 1L);
+            assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
     }
 
@@ -135,8 +149,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.abortTxnOnTopic(topic, 1L, i, Long.MIN_VALUE));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            assertEquals(futures.get(i).get().getMostSigBits(), 1L);
+            assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
     }
 
@@ -148,8 +162,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.commitTxnOnSubscription(topic, "test", 1L, i, -1L));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            assertEquals(futures.get(i).get().getMostSigBits(), 1L);
+            assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
     }
 
@@ -161,8 +175,40 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.abortTxnOnSubscription(topic, "test", 1L, i, -1L));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            assertEquals(futures.get(i).get().getMostSigBits(), 1L);
+            assertEquals(futures.get(i).get().getLeastSigBits(), i);
+        }
+    }
+
+    @Test
+    public void testTransactionBufferClientTimeout() throws Exception {
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        NamespaceService namespaceService = mock(NamespaceService.class);
+        HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
+        doReturn(new CompletableFuture<>()).when(namespaceService).getBundleAsync(anyObject());
+        TransactionBufferHandlerImpl transactionBufferHandler = new TransactionBufferHandlerImpl(connectionPool,
+                namespaceService, hashedWheelTimer);
+        CompletableFuture<TxnID> completableFuture =
+                transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1);
+
+        Field field = TransactionBufferHandlerImpl.class.getDeclaredField("pendingRequests");
+        field.setAccessible(true);
+        ConcurrentSkipListMap<Long, Object> pendingRequests =
+                (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
+
+        assertEquals(pendingRequests.size(), 1);
+
+        Awaitility.await().atLeast(2, TimeUnit.SECONDS).atMost(6, TimeUnit.SECONDS).until(() -> {
+            if (pendingRequests.size() == 0) {
+                return true;
+            }
+            return false;
+        });
+
+        try {
+            completableFuture.get();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionBufferClientException.RequestTimeoutException);
         }
     }
 }
