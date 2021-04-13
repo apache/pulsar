@@ -32,15 +32,18 @@ public class ConsumerUnsubscribeTest {
 
     MockBrokerService mockBrokerService;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void setup() {
         mockBrokerService = new MockBrokerService();
         mockBrokerService.start();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardown() {
-        mockBrokerService.stop();
+        if (mockBrokerService != null) {
+            mockBrokerService.stop();
+            mockBrokerService = null;
+        }
     }
 
     @Test

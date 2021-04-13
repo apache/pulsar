@@ -19,7 +19,7 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import static org.testng.Assert.assertEquals;
-
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.StandaloneContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -42,12 +42,12 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         return new Object[][] {
                 // plain text, persistent topic
                 {
-                        container.getPlainTextServiceUrl(),
+                        stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
                         true,
                 },
                 // plain text, non-persistent topic
                 {
-                        container.getPlainTextServiceUrl(),
+                        stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
                         false
                 }
         };
@@ -57,14 +57,23 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
     public Object[][] serviceUrlAndHttpUrl() {
         return new Object[][] {
                 {
-                        container.getPlainTextServiceUrl(),
-                        container.getHttpServiceUrl(),
+                        stringSupplier(() -> getContainer().getPlainTextServiceUrl()),
+                        stringSupplier(() -> getContainer().getHttpServiceUrl()),
                 }
         };
     }
 
     protected Network network;
+
     protected StandaloneContainer container;
+
+    public StandaloneContainer getContainer() {
+        return container;
+    }
+
+    private static Supplier<String> stringSupplier(Supplier<String> supplier) {
+        return supplier;
+    }
 
     protected void startCluster(final String pulsarImageName) throws Exception {
         network = Network.newNetwork();

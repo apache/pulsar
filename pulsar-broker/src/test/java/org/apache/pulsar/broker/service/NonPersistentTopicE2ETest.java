@@ -49,7 +49,7 @@ import static org.testng.Assert.assertTrue;
 
 public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
-    @BeforeMethod(groups = "broker")
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();

@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -37,12 +38,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class SmokeTest {
+public class SmokeTest extends TestRetrySupport {
 
     private PulsarContainer pulsarContainer;
 
-    @BeforeClass
-    public void setup(){
+    @Override
+    @BeforeClass(alwaysRun = true)
+    public final void setup(){
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
     }
@@ -85,8 +87,9 @@ public class SmokeTest {
         Assert.assertEquals(admin.namespaces().getNamespaces("public"), expectedNamespacesList);
     }
 
+    @Override
     @AfterClass(alwaysRun = true)
-    public void cleanup(){
+    public final void cleanup(){
         pulsarContainer.stop();
     }
 

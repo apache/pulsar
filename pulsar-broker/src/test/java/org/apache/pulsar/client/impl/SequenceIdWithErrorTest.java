@@ -19,13 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.Collections;
-
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
-import org.apache.pulsar.broker.service.BrokerBkEnsemblesTests;
+import org.apache.pulsar.broker.service.BkEnsemblesTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -34,8 +32,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
-public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
+@Test(groups = "quarantine")
+public class SequenceIdWithErrorTest extends BkEnsemblesTestBase {
 
     /**
      * Test that sequence id from a producer is correct when there are send errors
@@ -77,15 +75,5 @@ public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
         }
 
         client.close();
-    }
-
-    @Test(enabled = false)
-    public void testCrashBrokerWithoutCursorLedgerLeak() {
-        // Ignore test
-    }
-
-    @Test(enabled = false)
-    public void testSkipCorruptDataLedger() {
-        // Ignore test
     }
 }

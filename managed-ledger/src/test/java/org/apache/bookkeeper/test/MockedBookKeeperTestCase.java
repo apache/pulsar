@@ -36,7 +36,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 /**
  * A class runs several bookie servers for testing.
@@ -66,8 +65,8 @@ public abstract class MockedBookKeeperTestCase {
         this.numBookies = numBookies;
     }
 
-    @BeforeMethod(groups = { "broker" })
-    public void setUp(Method method) throws Exception {
+    @BeforeMethod(alwaysRun = true)
+    public final void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
         try {
             // start bookkeeper service
@@ -81,10 +80,20 @@ public abstract class MockedBookKeeperTestCase {
         factory = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
 
         zkc.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        setUpTestCase();
     }
 
-    @AfterMethod(alwaysRun = true, groups = { "broker" })
-    public void tearDown(Method method) {
+    protected void setUpTestCase() throws Exception {
+
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public final void tearDown(Method method) {
+        try {
+            cleanUpTestCase();
+        } catch (Exception e) {
+            LOG.error("tearDown Error", e);
+        }
         try {
             LOG.info("@@@@@@@@@ stopping " + method);
             factory.shutdown();
@@ -97,14 +106,18 @@ public abstract class MockedBookKeeperTestCase {
         }
     }
 
-    @BeforeClass(groups = { "broker" })
-    public void setUpClass() {
+    protected void cleanUpTestCase() throws Exception {
+
+    }
+
+    @BeforeClass(alwaysRun = true)
+    public final void setUpClass() {
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
-    @AfterClass(alwaysRun = true, groups = { "broker" })
-    public void tearDownClass() {
+    @AfterClass(alwaysRun = true)
+    public final void tearDownClass() {
         if (executor != null) {
             executor.shutdown();
         }

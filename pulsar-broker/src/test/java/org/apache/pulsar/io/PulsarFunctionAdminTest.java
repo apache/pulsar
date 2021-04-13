@@ -84,7 +84,7 @@ public class PulsarFunctionAdminTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionAdminTest.class);
 
-    @BeforeMethod(groups = "broker")
+    @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
 
         log.info("--- Setting up method {} ---", method.getName());

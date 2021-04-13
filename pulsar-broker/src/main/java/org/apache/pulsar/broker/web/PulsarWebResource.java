@@ -263,7 +263,7 @@ public abstract class PulsarWebResource {
                     (isClientAuthenticated(clientAppId)), clientAppId);
         }
 
-        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                 .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
@@ -319,7 +319,7 @@ public abstract class PulsarWebResource {
     protected void validateClusterForTenant(String tenant, String cluster) {
         TenantInfo tenantInfo;
         try {
-            tenantInfo = pulsar().getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+            tenantInfo = pulsar().getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (RestException e) {
             log.warn("Failed to get tenant admin data for tenant {}", tenant);
@@ -876,7 +876,7 @@ public abstract class PulsarWebResource {
     }
 
     protected TenantResources tenantResources() {
-        return pulsar().getPulsarResources().getTenatResources();
+        return pulsar().getPulsarResources().getTenantResources();
     }
 
     protected ClusterResources clusterResources() {

@@ -99,6 +99,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         resetConfig();
     }
 
+    protected PulsarService getPulsar() {
+        return pulsar;
+    }
+
     protected final void resetConfig() {
         this.conf = getDefaultConf();
     }
