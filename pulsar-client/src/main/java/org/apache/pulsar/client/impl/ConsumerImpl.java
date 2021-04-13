@@ -895,27 +895,29 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         setState(State.Closing);
 
-        closeConsumerTasks();
+        CompletableFuture<Void> closeConsumerTasksFuture = closeConsumerTasksAsync();
 
-        long requestId = client.newRequestId();
+        return closeConsumerTasksFuture.thenCompose(ignore -> {
+            long requestId = client.newRequestId();
 
-        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        ClientCnx cnx = cnx();
-        if (null == cnx) {
-            cleanupAtClose(closeFuture, null);
-        } else {
-            ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
-            cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
-                boolean ignoreException = !cnx.ctx().channel().isActive();
-                if (ignoreException && exception != null) {
-                    log.debug("Exception ignored in closing consumer", exception);
-                }
-                cleanupAtClose(closeFuture, ignoreException ? null : exception);
-                return null;
-            });
-        }
+            CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+            ClientCnx cnx = cnx();
+            if (null == cnx) {
+                cleanupAtClose(closeFuture, null);
+            } else {
+                ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
+                cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
+                    boolean ignoreException = !cnx.ctx().channel().isActive();
+                    if (ignoreException && exception != null) {
+                        log.debug("Exception ignored in closing consumer", exception);
+                    }
+                    cleanupAtClose(closeFuture, ignoreException ? null : exception);
+                    return null;
+                });
+            }
 
-        return closeFuture;
+            return closeFuture;
+        });
     }
 
     private void cleanupAtClose(CompletableFuture<Void> closeFuture, Throwable exception) {
@@ -934,30 +936,57 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void closeConsumerTasks() {
+        try {
+            closeConsumerTasksAsync().get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Error during closeConsumerTask for topic: {}", topic, e);
+        }
+    }
+
+    private CompletableFuture<Void> closeConsumerTasksAsync() {
         unAckedMessageTracker.close();
         if (possibleSendToDeadLetterTopicMessages != null) {
             possibleSendToDeadLetterTopicMessages.clear();
         }
 
+        CompletableFuture<Void> closeDLPFuture = closeDeadLetterProducerAsync();
+
+        // Close DLP before flushing acks
+        return closeDLPFuture.thenApply(ignore -> {
+            acknowledgmentsGroupingTracker.close();
+            if (batchReceiveTimeout != null) {
+                batchReceiveTimeout.cancel();
+            }
+            stats.getStatTimeout().ifPresent(Timeout::cancel);
+            return null;
+        });
+    }
+
+    /**
+     * If the DeadLetter Producer is set, close it. Failure while closing the producer
+     * is logged and then ignored.
+     */
+    private CompletableFuture<Void> closeDeadLetterProducerAsync() {
+        CompletableFuture<Void> closeDLPFuture = CompletableFuture.completedFuture(null);
         if (deadLetterProducer != null) {
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer != null) {
-                    deadLetterProducer.thenApplyAsync(Producer::closeAsync);
+                    closeDLPFuture = deadLetterProducer.thenCompose(Producer::closeAsync);
                     deadLetterProducer = null;
                 }
             } catch (Exception e) {
-                log.error("Error closing deadLetterProducer for topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
+                log.error("Error trying to close deadLetterProducer for topic: {}", deadLetterPolicy.getDeadLetterTopic(), e);
             } finally {
                 createProducerLock.writeLock().unlock();
             }
         }
-
-        acknowledgmentsGroupingTracker.close();
-        if (batchReceiveTimeout != null) {
-            batchReceiveTimeout.cancel();
-        }
-        stats.getStatTimeout().ifPresent(Timeout::cancel);
+        return closeDLPFuture.handle((ignore, exception) -> {
+            if (exception != null) {
+                log.error("Error while closing deadLetterProducer for topic: {}", deadLetterPolicy.getDeadLetterTopic(), exception);
+            }
+            return null;
+        });
     }
 
     private void failPendingReceive() {
