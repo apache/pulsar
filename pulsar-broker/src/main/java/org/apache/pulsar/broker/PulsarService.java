@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -48,6 +49,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -236,7 +238,7 @@ public class PulsarService implements AutoCloseable {
     private PulsarResources pulsarResources;
 
     public enum State {
-        Init, Started, Closed
+        Init, Started, Closing, Closed
     }
 
     private volatile State state;
@@ -308,10 +310,17 @@ public class PulsarService implements AutoCloseable {
         try {
             closeAsync().get();
         } catch (ExecutionException e) {
-            if (e.getCause() instanceof PulsarServerException) {
-                throw (PulsarServerException) e.getCause();
+            Throwable cause = e.getCause();
+            if (cause instanceof PulsarServerException) {
+                throw (PulsarServerException) cause;
+            } else if (cause instanceof TimeoutException) {
+                if (getConfiguration().getBrokerShutdownTimeoutMs() < 1000L) {
+                    // ignore shutdown timeout when it's less than 1000ms (in tests)
+                } else {
+                    throw new PulsarServerException(cause);
+                }
             } else {
-                throw new PulsarServerException(e.getCause());
+                throw new PulsarServerException(cause);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -327,6 +336,7 @@ public class PulsarService implements AutoCloseable {
             if (closeFuture != null) {
                 return closeFuture;
             }
+            state = State.Closing;
 
             // close the service in reverse order v.s. in which they are started
             if (this.webService != null) {
@@ -457,13 +467,13 @@ public class PulsarService implements AutoCloseable {
                 configurationMetadataStore.close();
             }
 
-            state = State.Closed;
-            isClosedCondition.signalAll();
-
-            CompletableFuture<Void> shutdownFuture =
-                    CompletableFuture.allOf(asyncCloseFutures.toArray(new CompletableFuture[0]));
-            closeFuture = shutdownFuture;
-            return shutdownFuture;
+            closeFuture = addTimeoutHandling(FutureUtil.waitForAllAndSupportCancel(asyncCloseFutures));
+            closeFuture.handle((v, t) -> {
+                state = State.Closed;
+                isClosedCondition.signalAll();
+                return null;
+            });
+            return closeFuture;
         } catch (Exception e) {
             PulsarServerException pse;
             if (e instanceof CompletionException && e.getCause() instanceof MetadataStoreException) {
@@ -478,6 +488,20 @@ public class PulsarService implements AutoCloseable {
         } finally {
             mutex.unlock();
         }
+    }
+
+    private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
+        ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory(getClass().getSimpleName() + "-shutdown"));
+        FutureUtil.addTimeoutHandling(future,
+                Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
+                shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
+        future.handle((v, t) -> {
+            // shutdown the shutdown executor
+            shutdownExecutor.shutdown();
+            return null;
+        });
+        return future;
     }
 
     /**
