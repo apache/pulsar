@@ -506,6 +506,7 @@ public class NonPersistentSubscription implements Subscription {
         this.lastActive = System.currentTimeMillis();
     }
 
+    @Override
     public int getNumberOfSameAddressConsumers(final String clientAddress) {
         int count = 0;
         if (clientAddress != null) {

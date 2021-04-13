@@ -28,7 +28,6 @@ import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -134,14 +133,7 @@ public class Producer {
         this.accessMode = accessMode;
         this.topicEpoch = topicEpoch;
 
-        if (cnx.hasHAProxyMessage()) {
-            this.clientAddress = cnx.getHAProxyMessage().sourceAddress();
-        } else if (cnx.clientAddress() instanceof InetSocketAddress) {
-            InetSocketAddress inetAddress = (InetSocketAddress) cnx.clientAddress();
-            this.clientAddress = inetAddress.getAddress().getHostAddress();
-        } else {
-            this.clientAddress = null;
-        }
+        this.clientAddress = cnx.clientSourceAddress();
     }
 
     @Override

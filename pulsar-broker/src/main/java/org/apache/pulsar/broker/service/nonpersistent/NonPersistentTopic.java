@@ -590,13 +590,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public int getNumberOfSameAddressConsumers(final String clientAddress) {
-        int count = 0;
-        if (clientAddress != null) {
-            for (NonPersistentSubscription subscription : subscriptions.values()) {
-                count += subscription.getNumberOfSameAddressConsumers(clientAddress);
-            }
-        }
-        return count;
+        return getNumberOfSameAddressConsumers(clientAddress, subscriptions.values());
     }
 
     @Override

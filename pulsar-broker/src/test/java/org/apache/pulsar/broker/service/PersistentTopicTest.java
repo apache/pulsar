@@ -558,6 +558,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(cnx).isActive();
         doReturn(true).when(cnx).isWritable();
         doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
+        doReturn(address.getHostAddress()).when(cnx).clientSourceAddress();
         doReturn(new PulsarCommandSenderImpl(null, cnx)).when(cnx).getCommandSender();
 
         return new Producer(topic, cnx, producerId, producerNameBase + producerId, role, false, null,
@@ -988,6 +989,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(cnx).isActive();
         doReturn(true).when(cnx).isWritable();
         doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
+        doReturn(address.getHostAddress()).when(cnx).clientSourceAddress();
         doReturn(new PulsarCommandSenderImpl(null, cnx)).when(cnx).getCommandSender();
 
         return new Consumer(sub, SubType.Shared, topic.getName(), consumerId, 0, consumerNameBase + consumerId, 50000,

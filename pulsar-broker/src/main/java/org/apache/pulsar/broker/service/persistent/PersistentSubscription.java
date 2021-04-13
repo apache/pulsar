@@ -1097,6 +1097,7 @@ public class PersistentSubscription implements Subscription {
         return dispatcher.checkAndUnblockIfStuck();
     }
 
+    @Override
     public int getNumberOfSameAddressConsumers(final String clientAddress) {
         int count = 0;
         if (clientAddress != null) {

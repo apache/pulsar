@@ -23,7 +23,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -175,14 +174,7 @@ public class Consumer {
             this.pendingAcks = null;
         }
 
-        if (cnx.hasHAProxyMessage()) {
-            this.clientAddress = cnx.getHAProxyMessage().sourceAddress();
-        } else if (cnx.clientAddress() instanceof InetSocketAddress) {
-            InetSocketAddress inetAddress = (InetSocketAddress) cnx.clientAddress();
-            this.clientAddress = inetAddress.getAddress().getHostAddress();
-        } else {
-            this.clientAddress = null;
-        }
+        this.clientAddress = cnx.clientSourceAddress();
     }
 
     public SubType subType() {

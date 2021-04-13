@@ -107,6 +107,8 @@ public interface Subscription {
 
     CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark);
 
+    int getNumberOfSameAddressConsumers(String clientAddress);
+
     // Subscription utils
     static boolean isCumulativeAckMode(SubType subType) {
         return SubType.Exclusive.equals(subType) || SubType.Failover.equals(subType);
