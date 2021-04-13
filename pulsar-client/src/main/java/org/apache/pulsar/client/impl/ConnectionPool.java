@@ -110,22 +110,20 @@ public class ConnectionPool implements Closeable {
     }
 
     void closeAllConnections() {
-        pool.values().forEach(map -> {
-            map.values().forEach(future -> {
-                if (future.isDone()) {
-                    if (!future.isCompletedExceptionally()) {
-                        // Connection was already created successfully, the join will not throw any exception
-                        future.join().close();
-                    } else {
-                        // If the future already failed, there's nothing we have to do
-                    }
+        pool.values().forEach(map -> map.values().forEach(future -> {
+            if (future.isDone()) {
+                if (!future.isCompletedExceptionally()) {
+                    // Connection was already created successfully, the join will not throw any exception
+                    future.join().close();
                 } else {
-                    // The future is still pending: just register to make sure it gets closed if the operation will
-                    // succeed
-                    future.thenAccept(ClientCnx::close);
+                    // If the future already failed, there's nothing we have to do
                 }
-            });
-        });
+            } else {
+                // The future is still pending: just register to make sure it gets closed if the operation will
+                // succeed
+                future.thenAccept(ClientCnx::close);
+            }
+        }));
     }
 
     /**
@@ -164,7 +162,7 @@ public class ConnectionPool implements Closeable {
             log.debug("Connection for {} not found in cache", logicalAddress);
         }
 
-        final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<ClientCnx>();
+        final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<>();
 
         // Trigger async connect to broker
         createConnection(physicalAddress).thenAccept(channel -> {
@@ -228,7 +226,7 @@ public class ConnectionPool implements Closeable {
      */
     private CompletableFuture<Channel> createConnection(InetSocketAddress unresolvedAddress) {
         int port;
-        CompletableFuture<List<InetAddress>> resolvedAddress = null;
+        CompletableFuture<List<InetAddress>> resolvedAddress;
         try {
             if (isSniProxy) {
                 URI proxyURI = new URI(clientConfig.getProxyServiceUrl());
@@ -255,15 +253,11 @@ public class ConnectionPool implements Closeable {
     private CompletableFuture<Channel> connectToResolvedAddresses(Iterator<InetAddress> unresolvedAddresses, int port, InetSocketAddress sniHost) {
         CompletableFuture<Channel> future = new CompletableFuture<>();
 
-        connectToAddress(unresolvedAddresses.next(), port, sniHost).thenAccept(channel -> {
-            // Successfully connected to server
-            future.complete(channel);
-        }).exceptionally(exception -> {
+        // Successfully connected to server
+        connectToAddress(unresolvedAddresses.next(), port, sniHost).thenAccept(future::complete).exceptionally(exception -> {
             if (unresolvedAddresses.hasNext()) {
                 // Try next IP address
-                connectToResolvedAddresses(unresolvedAddresses, port, sniHost).thenAccept(channel -> {
-                    future.complete(channel);
-                }).exceptionally(ex -> {
+                connectToResolvedAddresses(unresolvedAddresses, port, sniHost).thenAccept(future::complete).exceptionally(ex -> {
                     // This is already unwinding the recursive call
                     future.completeExceptionally(ex);
                     return null;
@@ -321,7 +315,9 @@ public class ConnectionPool implements Closeable {
     @Override
     public void close() throws IOException {
         try {
-            eventLoopGroup.shutdownGracefully(0, 10, TimeUnit.SECONDS).await();
+            if (!eventLoopGroup.isShutdown()) {
+                eventLoopGroup.shutdownGracefully(0, 10, TimeUnit.SECONDS).await();
+            }
         } catch (InterruptedException e) {
             log.warn("EventLoopGroup shutdown was interrupted", e);
         }

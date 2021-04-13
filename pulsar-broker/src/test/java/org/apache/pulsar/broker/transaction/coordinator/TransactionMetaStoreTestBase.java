@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.transaction.coordinator;
 
 import java.util.Optional;
-
 import org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -27,13 +26,15 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 
-public class TransactionMetaStoreTestBase {
+public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionMetaStoreTestBase.class);
 
@@ -46,8 +47,9 @@ public class TransactionMetaStoreTestBase {
 
     protected TransactionCoordinatorClient transactionCoordinatorClient;
 
-    protected void setup() throws Exception {
-        log.info("---- Initializing SLAMonitoringTest -----");
+    @BeforeClass(alwaysRun = true)
+    protected final void setup() throws Exception {
+        log.info("---- Initializing {} -----", getClass().getSimpleName());
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
@@ -92,19 +94,26 @@ public class TransactionMetaStoreTestBase {
         transactionCoordinatorClient.start();
 
         Thread.sleep(3000);
+
+        afterSetup();
     }
 
-    public void afterPulsarStart() throws Exception {
-        log.info("[afterPulsarStart]");
+    protected void afterSetup() throws Exception {
+        // template methods to override in subclasses
+    }
+
+
+    protected void afterPulsarStart() throws Exception {
+        // template methods to override in subclasses
     }
 
     @AfterClass(alwaysRun = true)
-    public void shutdownAll() throws Exception {
-        for (PulsarService service : pulsarServices) {
-            if (service != null) {
-                service.close();
-            }
-        }
+    public final void shutdownAll() throws Exception {
+        cleanup();
+    }
+
+    @Override
+    protected void cleanup() throws Exception {
         for (PulsarAdmin admin : pulsarAdmins) {
             if (admin != null) {
                 admin.close();
@@ -113,5 +122,11 @@ public class TransactionMetaStoreTestBase {
         if (pulsarClient != null) {
             pulsarClient.close();
         }
+        for (PulsarService service : pulsarServices) {
+            if (service != null) {
+                service.close();
+            }
+        }
+        Mockito.reset();
     }
 }

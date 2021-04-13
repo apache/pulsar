@@ -79,7 +79,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     private final static String NAMESPACE1 = TENANT + "/ns1";
     private final static String TOPIC = NAMESPACE1 + "/test-topic";
 
-    @BeforeMethod(groups = "broker")
+    @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
         setBrokerCount(1);
         internalSetup();

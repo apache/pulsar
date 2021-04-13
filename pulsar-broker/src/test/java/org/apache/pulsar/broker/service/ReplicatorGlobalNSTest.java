@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker")
+@Test(groups = "quarantine")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;

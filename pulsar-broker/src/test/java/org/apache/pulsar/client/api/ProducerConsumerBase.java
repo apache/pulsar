@@ -33,7 +33,7 @@ import org.testng.annotations.BeforeMethod;
 public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
-    @BeforeMethod(groups = { "broker", "websocket", "broker-api", "broker-discovery", "broker-impl", "extra", "flaky" })
+    @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
     }

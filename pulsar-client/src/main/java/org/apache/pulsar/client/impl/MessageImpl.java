@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -359,20 +360,42 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    private KeyValueSchema getKeyValueSchema() {
+        if (schema instanceof AutoConsumeSchema) {
+            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema();
+        } else {
+            return (KeyValueSchema) schema;
+        }
+    }
+
     private T getKeyValueBySchemaVersion() {
-        KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        KeyValueSchema kvSchema = getKeyValueSchema();
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return (T) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+            org.apache.pulsar.common.schema.KeyValue keyValue =
+                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+            if (schema instanceof AutoConsumeSchema) {
+                return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
+                        schema.getSchemaInfo().getType(), schemaVersion);
+            } else {
+                return (T) keyValue;
+            }
         } else {
             return schema.decode(getData(), schemaVersion);
         }
     }
 
     private T getKeyValue() {
-        KeyValueSchema kvSchema = (KeyValueSchema) schema;
+        KeyValueSchema kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            return (T) kvSchema.decode(getKeyBytes(), getData(), null);
+            org.apache.pulsar.common.schema.KeyValue keyValue =
+                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
+            if (schema instanceof AutoConsumeSchema) {
+                return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
+                        schema.getSchemaInfo().getType(), null);
+            } else {
+                return (T) keyValue;
+            }
         } else {
             return schema.decode(getData());
         }

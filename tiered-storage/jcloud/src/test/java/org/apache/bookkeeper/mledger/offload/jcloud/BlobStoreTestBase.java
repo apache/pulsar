@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-public class BlobStoreTestBase {
+public abstract class BlobStoreTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
     public final static String BUCKET = "pulsar-unittest";
@@ -36,7 +36,7 @@ public class BlobStoreTestBase {
     protected BlobStoreContext context = null;
     protected BlobStore blobStore = null;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void start() throws Exception {
         if (Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))) {
             log.info("TestReal AWS S3, bucket: {}", BUCKET);

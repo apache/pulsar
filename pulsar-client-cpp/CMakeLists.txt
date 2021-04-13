@@ -91,8 +91,8 @@ set(OPENSSL_ROOT_DIR /usr/lib64/)
 ### This part is to find and keep SSL dynamic libs in RECORD_OPENSSL_SSL_LIBRARY and RECORD_OPENSSL_CRYPTO_LIBRARY
 ### After find the libs, will unset related cache, and will not affact another same call to find_package.
 if (APPLE)
-    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
-    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
+    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/ /opt/homebrew/opt/openssl/include)
+    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/ /opt/homebrew/opt/openssl)
 endif ()
 
 set(OPENSSL_USE_STATIC_LIBS FALSE)
@@ -225,11 +225,6 @@ if (BUILD_PYTHON_WRAPPER)
 
     find_package(Boost REQUIRED COMPONENTS ${BOOST_PYTHON_NAME_FOUND})
 endif (BUILD_PYTHON_WRAPPER)
-
-if (APPLE)
-    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
-    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
-endif ()
 
 find_package(OpenSSL REQUIRED)
 
