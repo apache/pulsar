@@ -20,6 +20,7 @@ package org.apache.pulsar.broker;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -76,7 +77,7 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
             future.get(service.getConfiguration().getBrokerShutdownTimeoutMs(), TimeUnit.MILLISECONDS);
 
             LOG.info("Completed graceful shutdown. Exiting");
-        } catch (TimeoutException e) {
+        } catch (TimeoutException | CancellationException e) {
             LOG.warn("Graceful shutdown timeout expired. Closing now");
         } catch (Exception e) {
             LOG.error("Failed to perform graceful shutdown, Exiting anyway", e);
