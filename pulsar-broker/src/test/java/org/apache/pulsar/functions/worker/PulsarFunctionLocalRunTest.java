@@ -161,7 +161,7 @@ public class PulsarFunctionLocalRunTest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     void loadPulsarApiExamples() throws MalformedURLException, ClassNotFoundException {
         pulsarApiExamplesClassLoader = new URLClassLoader(new URL[]{getPulsarApiExamplesJar().toURI().toURL()},
                 Thread.currentThread().getContextClassLoader());
@@ -176,7 +176,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
         log.info("--- Setting up method {} ---", method.getName());
 

@@ -74,7 +74,7 @@ public class ZookeeperCacheTest {
     private OrderedScheduler executor;
     private ScheduledExecutorService scheduledExecutor;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     void setup() throws Exception {
         zkClient = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
     }
@@ -84,7 +84,7 @@ public class ZookeeperCacheTest {
         zkClient.shutdown();
     }
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     void classSetup() throws Exception {
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("ZookeeperCacheTest").build();
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();

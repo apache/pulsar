@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
-@Test(groups = "broker")
+@Test(groups = "quarantine")
 public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     protected String methodName;

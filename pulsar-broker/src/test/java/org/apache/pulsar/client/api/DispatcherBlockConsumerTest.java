@@ -70,14 +70,14 @@ import com.google.common.collect.Sets;
 public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(DispatcherBlockConsumerTest.class);
 
-    @BeforeMethod(groups = { "broker" })
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterMethod(alwaysRun = true, groups = { "broker" })
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

@@ -34,7 +34,7 @@ jobs:
   unit-tests:
     name:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: checkout
@@ -83,6 +83,10 @@ jobs:
       - name: run unit test 'BROKER_GROUP_1'
         if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: ./build/run_unit_group.sh BROKER_GROUP_1
+
+      - name: print JVM thread dumps when cancelled
+        if: cancelled()
+        run: ./build/pulsar_ci_tool.sh print_thread_dumps
 
       - name: package surefire artifacts
         if: failure()
