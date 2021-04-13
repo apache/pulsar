@@ -1178,15 +1178,11 @@ flexible messaging model and an intuitive client API.</description>
           <shutdown>kill</shutdown>
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
+          <systemPropertyVariables>
+            <testRealAWS>${testRealAWS}</testRealAWS>
+            <testRetryCount>${testRetryCount}</testRetryCount>
+          </systemPropertyVariables>
           <properties>
-            <property>
-              <name>testRealAWS</name>
-              <value>${testRealAWS}</value>
-            </property>
-            <property>
-              <name>testRetryCount</name>
-              <value>${testRetryCount}</value>
-            </property>
             <property>
               <name>listener</name>
               <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>

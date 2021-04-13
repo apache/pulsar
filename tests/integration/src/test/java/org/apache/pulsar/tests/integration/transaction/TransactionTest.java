@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.transaction;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -72,9 +73,9 @@ public class TransactionTest extends TransactionTestBase {
      * 2. The balance update messages amount sum should be 0.
      */
     @Test(dataProvider = "ServiceUrls")
-    public void transferNormalTest(String serviceUrl) throws Exception {
+    public void transferNormalTest(Supplier<String> serviceUrl) throws Exception {
         log.info("transfer normal test start.");
-        PulsarClient pulsarClient = PulsarClient.builder().enableTransaction(true).serviceUrl(serviceUrl).build();
+        PulsarClient pulsarClient = PulsarClient.builder().enableTransaction(true).serviceUrl(serviceUrl.get()).build();
 
         final int transferCount = 20;
         final String transferTopic = "transfer-" + randomName(6);
@@ -114,7 +115,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscribe();
         log.info("balance update consumer create finished");
 
-        while(true) {
+        while (true) {
             Message<TransferOperation> message = transferConsumer.receive(10, TimeUnit.SECONDS);
             if (message == null) {
                 break;

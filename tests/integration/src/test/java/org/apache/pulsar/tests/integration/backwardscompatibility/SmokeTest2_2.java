@@ -19,17 +19,18 @@
 
 package org.apache.pulsar.tests.integration.backwardscompatibility;
 
+import java.util.function.Supplier;
 import org.testng.annotations.Test;
 
 public class SmokeTest2_2 extends PulsarStandaloneTestSuite2_2 {
 
     @Test(dataProvider = "StandaloneServiceUrlAndTopics")
-    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
-        super.testPublishAndConsume(serviceUrl, isPersistent);
+    public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
+        super.testPublishAndConsume(serviceUrl.get(), isPersistent);
     }
 
     @Test(dataProvider = "StandaloneServiceUrlAndTopics")
-    public void testBatchMessagePublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
-        super.testBatchMessagePublishAndConsume(serviceUrl, isPersistent);
+    public void testBatchMessagePublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
+        super.testBatchMessagePublishAndConsume(serviceUrl.get(), isPersistent);
     }
 }
