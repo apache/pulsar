@@ -92,6 +92,7 @@ class PULSAR_PUBLIC Client {
      *
      * @param topic the name of the topic where to produce
      * @param callback the callback that is triggered when the producer is created successfully or not
+     * @param callback Callback function that is invoked when the operation is completed
      */
     void createProducerAsync(const std::string& topic, CreateProducerCallback callback);
 
@@ -100,7 +101,7 @@ class PULSAR_PUBLIC Client {
      * topic
      *
      * @param topic the name of the topic where to produce
-     * @param configuration the customized ProducerConfiguration
+     * @param conf the customized ProducerConfiguration
      */
     void createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                              CreateProducerCallback callback);
@@ -109,7 +110,8 @@ class PULSAR_PUBLIC Client {
      * Subscribe to a given topic and subscription combination with the default ConsumerConfiguration
      *
      * @param topic the topic name
-     * @param subscription the subscription name
+     * @param subscriptionName the subscription name
+     * @param[out] consumer the consumer instance to be returned
      * @return ResultOk if it subscribes to the topic successfully
      */
     Result subscribe(const std::string& topic, const std::string& subscriptionName, Consumer& consumer);
@@ -118,7 +120,8 @@ class PULSAR_PUBLIC Client {
      * Subscribe to a given topic and subscription combination with the customized ConsumerConfiguration
      *
      * @param topic the topic name
-     * @param subscription the subscription name
+     * @param subscriptionName the subscription name
+     * @param[out] consumer the consumer instance to be returned
      * @return ResultOk if it subscribes to the topic successfully
      */
     Result subscribe(const std::string& topic, const std::string& subscriptionName,
@@ -129,7 +132,7 @@ class PULSAR_PUBLIC Client {
      * ConsumerConfiguration
      *
      * @param topic the topic name
-     * @param subscription the subscription name
+     * @param subscriptionName the subscription name
      * @param callback the callback that is triggered when a given topic and subscription combination with the
      * default ConsumerConfiguration are asynchronously subscribed successfully or not
      */
@@ -141,8 +144,8 @@ class PULSAR_PUBLIC Client {
      * ConsumerConfiguration
      *
      * @param topic the topic name
-     * @param subscription the subscription name
-     * @param configuration the customized ConsumerConfiguration
+     * @param subscriptionName the subscription name
+     * @param conf the customized ConsumerConfiguration
      * @param callback the callback that is triggered when a given topic and subscription combination with the
      * customized ConsumerConfiguration are asynchronously subscribed successfully or not
      */
@@ -151,12 +154,21 @@ class PULSAR_PUBLIC Client {
 
     /**
      * Subscribe to multiple topics under the same namespace.
+     *
+     * @param topics a list of topic names to subscribe to
+     * @param subscriptionName the subscription name
+     * @param[out] consumer the consumer instance to be returned
      */
     Result subscribe(const std::vector<std::string>& topics, const std::string& subscriptionName,
                      Consumer& consumer);
 
     /**
      * Subscribe to multiple topics with the customized ConsumerConfiguration under the same namespace
+     *
+     * @param topics a list of topic names to subscribe to
+     * @param subscriptionName the subscription name
+     * @param conf the customized ConsumerConfiguration
+     * @param[out] consumer the consumer instance to be returned
      */
     Result subscribe(const std::vector<std::string>& topics, const std::string& subscriptionName,
                      const ConsumerConfiguration& conf, Consumer& consumer);
@@ -166,7 +178,7 @@ class PULSAR_PUBLIC Client {
      ConsumerConfiguration
      *
      * @param topics the topic list
-     * @param subscription the subscription name
+     * @param subscriptionName the subscription name
      * @param callback the callback that is triggered when a list of topics and subscription combination using
      the default ConsumerConfiguration are asynchronously subscribed successfully or not
 
@@ -179,8 +191,8 @@ class PULSAR_PUBLIC Client {
      * ConsumerConfiguration
      *
      * @param topics the topic list
-     * @param subscription the subscription name
-     * @param configuration the customized ConsumerConfiguration
+     * @param subscriptionName the subscription name
+     * @param conf the customized ConsumerConfiguration
      * @param callback the callback that is triggered when a list of topics and subscription combination using
      * the customized ConsumerConfiguration are asynchronously subscribed successfully or not
      */

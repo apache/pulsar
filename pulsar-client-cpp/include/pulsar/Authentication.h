@@ -307,7 +307,7 @@ class PULSAR_PUBLIC AuthAthenz : public Authentication {
      * The required parameter keys are “tenantDomain”, “tenantService”, “providerDomain”, “privateKey”, and
      * “ztsUrl”
      *
-     * @param parameter the key-value to construct ZTS client
+     * @param params the key-value to construct ZTS client
      * @see http://pulsar.apache.org/docs/en/security-athenz/
      */
     static AuthenticationPtr create(ParamMap& params);
@@ -352,14 +352,14 @@ class Oauth2TokenResult {
     /**
      * Set the access token string
      *
-     * @param AccessToken the access token string
+     * @param accessToken the access token string
      */
     Oauth2TokenResult& setAccessToken(const std::string& accessToken);
 
     /**
      * Set the ID token
      *
-     * @param IdToken the ID token
+     * @param idToken the ID token
      */
     Oauth2TokenResult& setIdToken(const std::string& idToken);
 
@@ -367,14 +367,14 @@ class Oauth2TokenResult {
      * Set the refresh token which can be used to obtain new access tokens using the same authorization grant
      * or null for none
      *
-     * @param RefreshToken the refresh token
+     * @param refreshToken the refresh token
      */
     Oauth2TokenResult& setRefreshToken(const std::string& refreshToken);
 
     /**
      * Set the token lifetime
      *
-     * @param ExpiresIn the token lifetime
+     * @param expiresIn the token lifetime
      */
     Oauth2TokenResult& setExpiresIn(const int64_t expiresIn);
 
