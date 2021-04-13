@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -708,6 +709,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int Consumers = 5;
 
         List<Future<AtomicBoolean>> futures = Lists.newArrayList();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(Consumers + 1);
 
@@ -1727,6 +1729,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int Consumers = 10;
 
         List<Future<Void>> futures = Lists.newArrayList();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(Consumers + 1);
 
@@ -3465,7 +3468,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
                     } finally {
                         factory2.shutdown();
-                    }   
+                    }
                 });
 
         factory1.shutdown();

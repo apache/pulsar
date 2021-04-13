@@ -126,7 +126,7 @@ public class SLAMonitoringTest {
     @AfterClass(alwaysRun = true)
     public void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdown();
+        executor.shutdownNow();
         executor = null;
 
         for (int i = 0; i < BROKER_COUNT; i++) {
