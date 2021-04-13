@@ -53,12 +53,7 @@ import org.testng.annotations.Test;
 public class SLAMonitoringTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
-    ExecutorService executor =
-            new ThreadPoolExecutor(5,
-                    20,
-                    30,
-                    TimeUnit.SECONDS,
-                    new LinkedBlockingQueue<>());
+    ExecutorService executor;
 
     private static final int BROKER_COUNT = 5;
     private final int[] brokerWebServicePorts = new int[BROKER_COUNT];
@@ -68,8 +63,14 @@ public class SLAMonitoringTest {
     private final PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
     private final ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     void setup() throws Exception {
+        executor =
+                new ThreadPoolExecutor(5,
+                        20,
+                        30,
+                        TimeUnit.SECONDS,
+                        new LinkedBlockingQueue<>());
         log.info("---- Initializing SLAMonitoringTest -----");
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
@@ -126,6 +127,7 @@ public class SLAMonitoringTest {
     public void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         executor.shutdown();
+        executor = null;
 
         for (int i = 0; i < BROKER_COUNT; i++) {
             pulsarAdmins[i].close();

@@ -57,11 +57,6 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final SpscArrayQueue<Entry> entryQueue;
 
-    //this is for replay
-    private final PositionImpl lastConfirmedEntry;
-
-    private PositionImpl currentLoadPosition;
-
     private final long tcId;
 
     private final String topicName;
@@ -74,9 +69,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         this.managedLedger = managedLedgerFactory.open(topicName, managedLedgerConfig);
         this.cursor =  managedLedger.openCursor(TRANSACTION_SUBSCRIPTION_NAME,
                 CommandSubscribe.InitialPosition.Earliest);
-        this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();
         this.entryQueue = new SpscArrayQueue<>(2000);
-        this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
     }
 
     @Override
@@ -169,13 +162,11 @@ public class MLTransactionLogImpl implements TransactionLog {
         public void start() {
             TransactionMetadataEntry transactionMetadataEntry = new TransactionMetadataEntry();
 
-            while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
-                fillEntryQueueCallback.fillQueue();
+            while (fillEntryQueueCallback.fillQueue() || entryQueue.size() > 0) {
                 Entry entry = entryQueue.poll();
                 if (entry != null) {
                     try {
                         ByteBuf buffer = entry.getDataBuffer();
-                        currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                         transactionMetadataEntry.parseFrom(buffer, buffer.readableBytes());
                         transactionLogReplayCallback.handleMetadataEntry(entry.getPosition(), transactionMetadataEntry);
                     } finally {
@@ -197,12 +188,17 @@ public class MLTransactionLogImpl implements TransactionLog {
 
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
 
-        void fillQueue() {
+        boolean fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(100, this);
+                    return true;
+                } else {
+                    return false;
                 }
+            } else {
+                return true;
             }
         }
 

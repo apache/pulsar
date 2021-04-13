@@ -56,7 +56,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-api")
+@Test(groups = "quarantine")
 public class ClientDeduplicationFailureTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -69,7 +69,7 @@ public class ClientDeduplicationFailureTest {
     final String tenant = "external-repl-prop";
     String primaryHost;
 
-    @BeforeMethod(timeOut = 300000)
+    @BeforeMethod(timeOut = 300000, alwaysRun = true)
     void setup(Method method) throws Exception {
         log.info("--- Setting up method {} ---", method.getName());
 
@@ -180,7 +180,7 @@ public class ClientDeduplicationFailureTest {
         }
     }
 
-    @Test(timeOut = 300000)
+    @Test(timeOut = 300000, groups = "quarantine")
     public void testClientDeduplicationCorrectnessWithFailure() throws Exception {
         final String namespacePortion = "dedup";
         final String replNamespace = tenant + "/" + namespacePortion;

@@ -113,9 +113,18 @@ public class BacklogQuotaManagerTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         try {
-            admin.close();
-            pulsar.close();
-            bkEnsemble.stop();
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } catch (Throwable t) {
             LOG.error("Error cleaning up broker test setup state", t);
             fail("Broker test cleanup failed");

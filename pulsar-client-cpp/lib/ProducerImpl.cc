@@ -255,6 +255,7 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
     // without holding producer mutex.
     for (auto& op : pendingMessagesQueue_) {
         callbacks->opSendMsgs.push_back(op);
+        releaseSemaphoreForSendOp(op);
     }
 
     if (batchMessageContainer_) {
@@ -262,6 +263,8 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
         if (batchMessageContainer_->createOpSendMsg(opSendMsg) == ResultOk) {
             callbacks->opSendMsgs.emplace_back(opSendMsg);
         }
+
+        releaseSemaphoreForSendOp(opSendMsg);
         batchMessageContainer_->clear();
     }
     pendingMessagesQueue_.clear();

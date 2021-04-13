@@ -63,7 +63,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
     // Credentials File, which contains "client_id" and "client_secret"
     private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
@@ -109,7 +109,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
                 .authentication(authentication));
     }
 
-    @AfterMethod(alwaysRun = true, groups = "broker-api")
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

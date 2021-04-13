@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.ABORTING;
+import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.COMMITTING;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
@@ -32,8 +34,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
+import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.RequestTimeoutException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -219,10 +223,10 @@ public class TransactionMetadataStoreService {
         TxnStatus newStatus;
         switch (txnAction) {
             case TxnAction.COMMIT_VALUE:
-                newStatus = TxnStatus.COMMITTING;
+                newStatus = COMMITTING;
                 break;
             case TxnAction.ABORT_VALUE:
-                newStatus = TxnStatus.ABORTING;
+                newStatus = ABORTING;
                 break;
             default:
                 UnsupportedTxnActionException exception =
@@ -232,22 +236,81 @@ public class TransactionMetadataStoreService {
                 return completableFuture;
         }
 
-        completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
-                .thenCompose(ignored -> endTxnInTransactionBuffer(txnID, txnAction));
-        completableFuture.exceptionally(e -> {
+        getTxnMeta(txnID).thenAccept(txnMeta -> {
+            TxnStatus txnStatus = txnMeta.status();
+            if (txnStatus == TxnStatus.OPEN) {
+                updateTxnStatus(txnID, newStatus, TxnStatus.OPEN).thenAccept(v ->
+                        endTxnInTransactionBuffer(txnID, txnAction).thenAccept(a ->
+                                completableFuture.complete(null)).exceptionally(e -> {
+                            if (!isRetryableException(e.getCause())) {
+                                LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
+                                        + "TxnAction : {}", txnID, txnAction, e);
+                            } else {
+                                if (LOG.isDebugEnabled()) {
+                                    LOG.debug("EndTxnInTransactionBuffer retry! TxnId : {}, "
+                                            + "TxnAction : {}", txnID, txnAction, e);
+                                }
+                                transactionOpRetryTimer.newTimeout(timeout ->
+                                        endTransaction(txnID, txnAction),
+                                        endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+
+                            }
+                            completableFuture.completeExceptionally(e);
+                            return null;
+                        })).exceptionally(e -> {
                     if (!isRetryableException(e.getCause())) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("End transaction op retry fail! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
-                        }
+                        LOG.error("EndTransaction UpdateTxnStatus fail! TxnId : {}, "
+                                + "TxnAction : {}", txnID, txnAction, e);
                     } else {
                         if (LOG.isDebugEnabled()) {
-                            LOG.debug("End transaction op retry! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
+                            LOG.debug("EndTransaction UpdateTxnStatus op retry! TxnId : {}, "
+                                    + "TxnAction : {}", txnID, txnAction, e);
                         }
                         transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction),
                                 endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+
                     }
+                    completableFuture.completeExceptionally(e);
                     return null;
                 });
+            } else {
+                if ((txnStatus == COMMITTING && txnAction == TxnAction.COMMIT.getValue())
+                        || (txnStatus == ABORTING && txnAction == TxnAction.ABORT.getValue())) {
+                    endTxnInTransactionBuffer(txnID, txnAction).thenAccept(k ->
+                            completableFuture.complete(null)).exceptionally(e -> {
+                        if (isRetryableException(e.getCause())) {
+                            if (LOG.isDebugEnabled()) {
+                                LOG.debug("EndTxnInTransactionBuffer retry! TxnId : {}, "
+                                        + "TxnAction : {}", txnID, txnAction, e);
+                            }
+                            transactionOpRetryTimer.newTimeout(timeout ->
+                                            endTransaction(txnID, txnAction),
+                                    endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                        } else {
+                            LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
+                                    + "TxnAction : {}", txnID, txnAction, e);
+                        }
+                        completableFuture.completeExceptionally(e);
+                        return null;
+                    });
+                } else {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("EndTxnInTransactionBuffer op retry! TxnId : {}, TxnAction : {}", txnID, txnAction);
+                    }
+                    completableFuture.completeExceptionally(new InvalidTxnStatusException(txnID, newStatus, txnStatus));
+                }
+            }
+        }).exceptionally(e -> {
+            if (isRetryableException(e.getCause())) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("End transaction op retry! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
+                }
+                transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction),
+                        endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+            }
+            completableFuture.completeExceptionally(e);
+            return null;
+        });
         return completableFuture;
     }
 
@@ -259,7 +322,7 @@ public class TransactionMetadataStoreService {
                 return null;
             }
         }).exceptionally(e -> {
-            if (isRetryableException(e)) {
+            if (isRetryableException(e.getCause())) {
                 endTransaction(txnID, TxnAction.ABORT_VALUE);
             } else {
                 if (LOG.isDebugEnabled()) {
@@ -331,7 +394,9 @@ public class TransactionMetadataStoreService {
         if (e instanceof TransactionMetadataStoreStateException
                 || e instanceof RequestTimeoutException
                 || e instanceof ManagedLedgerException
-                || e instanceof PulsarClientException.BrokerPersistenceException) {
+                || e instanceof BrokerPersistenceException
+                || e instanceof LookupException
+                || e instanceof ReachMaxPendingOpsException) {
             return true;
         } else {
             return false;
@@ -340,9 +405,9 @@ public class TransactionMetadataStoreService {
 
     private CompletableFuture<Void> endTxnInTransactionMetadataStore(TxnID txnID, int txnAction) {
         if (TxnAction.COMMIT.getValue() == txnAction) {
-            return updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING);
+            return updateTxnStatus(txnID, TxnStatus.COMMITTED, COMMITTING);
         } else if (TxnAction.ABORT.getValue() == txnAction) {
-            return updateTxnStatus(txnID, TxnStatus.ABORTED, TxnStatus.ABORTING);
+            return updateTxnStatus(txnID, TxnStatus.ABORTED, ABORTING);
         } else {
             return FutureUtil.failedFuture(new InvalidTxnStatusException("Unsupported txnAction " + txnAction));
         }

@@ -39,18 +39,20 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ConsumerImplTest {
 
 
-    private final ExecutorProvider executorProvider = new ExecutorProvider(1,"ConsumerImplTest");
+    private ExecutorProvider executorProvider;
     private ConsumerImpl<byte[]> consumer;
     private ConsumerConfigurationData consumerConf;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setUp() {
+        executorProvider = new ExecutorProvider(1, "ConsumerImplTest");
         consumerConf = new ConsumerConfigurationData<>();
         PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock();
         ClientConfigurationData clientConf = client.getConfiguration();
@@ -64,6 +66,14 @@ public class ConsumerImplTest {
                 executorProvider, -1, false, subscribeFuture, null, null, null,
                 true);
         consumer.setState(HandlerState.State.Ready);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (executorProvider != null) {
+            executorProvider.shutdownNow();
+            executorProvider = null;
+        }
     }
 
     @Test(invocationTimeOut = 1000)

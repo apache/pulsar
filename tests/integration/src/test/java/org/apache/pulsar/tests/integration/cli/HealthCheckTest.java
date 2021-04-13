@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
@@ -44,7 +45,7 @@ import org.testng.annotations.Test;
 /**
  * Test the healthcheck command.
  */
-public class HealthCheckTest {
+public class HealthCheckTest extends TestRetrySupport {
 
     private final static Logger log = LoggerFactory.getLogger(HealthCheckTest.class);
 
@@ -56,14 +57,16 @@ public class HealthCheckTest {
 
     private PulsarCluster pulsarCluster = null;
 
-    @BeforeMethod
-    public void setupCluster() throws Exception {
+    @BeforeMethod(alwaysRun = true)
+    public final void setup() throws Exception {
+        incrementSetupNumber();
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDownCluster() {
+    public final void cleanup() {
+        markCurrentSetupNumberCleaned();
         if (pulsarCluster != null) {
             pulsarCluster.stop();
             pulsarCluster = null;

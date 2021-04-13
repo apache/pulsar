@@ -28,8 +28,8 @@ import org.testng.annotations.Test;
  */
 @Test(groups = "broker")
 public class PersistentDispatcherFailoverConsumerStreamingDispatcherTest extends PersistentDispatcherFailoverConsumerTest {
-    
-    @BeforeMethod
+
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         super.setup();
         pulsar.getConfiguration().setStreamingDispatch(true);
