@@ -22,10 +22,22 @@ package org.apache.pulsar.functions.instance.stats;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 
+/**
+ * Internal representation of Prometheus Collector Registry
+ */
 public abstract class FunctionCollectorRegistry extends CollectorRegistry {
     public static FunctionCollectorRegistry getDefaultImplementation() {
         return new FunctionCollectorRegistryImpl();
     }
 
+    /**
+     * Register a metric if it does not yet exist.  If it does exist, then return the existing metric.
+     * Currently, only needed by the LocalRunner when running in threaded and exposing metrics via a http server.
+     * This method helps resolve the conflict in which multiple instances within the LocalRunner process try to register the same metric.
+     * @param metricName the name of the metric
+     * @param collector the metric object e.g. Count, Gauge, etc.
+     * @param <T>
+     * @return If the metric with the name `metricName` already exists, return the existing metric object.  If not, return null
+     */
     public abstract <T extends Collector> T registerIfNotExist(String metricName, T collector);
 }
