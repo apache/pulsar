@@ -106,7 +106,6 @@ public class PulsarFunctionTestUtils {
             parsed.put(name, m);
         });
 
-        log.info("parsed metrics: {}", parsed);
         return parsed;
     }
 
