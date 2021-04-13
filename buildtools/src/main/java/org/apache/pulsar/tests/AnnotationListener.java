@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.testng.IAnnotationTransformer;
 import org.testng.annotations.ITestAnnotation;
+import org.testng.internal.annotations.DisabledRetryAnalyzer;
 
 public class AnnotationListener implements IAnnotationTransformer {
 
@@ -38,7 +39,9 @@ public class AnnotationListener implements IAnnotationTransformer {
                           Class testClass,
                           Constructor testConstructor,
                           Method testMethod) {
-        annotation.setRetryAnalyzer(RetryAnalyzer.class);
+        if (annotation.getRetryAnalyzerClass() == DisabledRetryAnalyzer.class) {
+            annotation.setRetryAnalyzer(RetryAnalyzer.class);
+        }
 
         // Enforce default test timeout
         if (annotation.getTimeOut() == 0) {

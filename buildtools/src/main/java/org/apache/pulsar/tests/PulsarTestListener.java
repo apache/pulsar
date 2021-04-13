@@ -19,10 +19,10 @@
 package org.apache.pulsar.tests;
 
 import java.util.Arrays;
-
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
+import org.testng.SkipException;
 import org.testng.internal.thread.ThreadTimeoutException;
 
 public class PulsarTestListener implements ITestListener {
@@ -41,9 +41,11 @@ public class PulsarTestListener implements ITestListener {
 
     @Override
     public void onTestFailure(ITestResult result) {
-        System.out.format("!!!!!!!!! FAILURE-- %s.%s(%s)-------\n", result.getTestClass(),
-                result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
-
+        FailFastNotifier.FailFastEventsSingleton.getInstance().setSkipOnNextTest();
+        if (!(result.getThrowable() instanceof SkipException)) {
+            System.out.format("!!!!!!!!! FAILURE-- %s.%s(%s)-------\n", result.getTestClass(),
+                    result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
+        }
         if (result.getThrowable() instanceof ThreadTimeoutException) {
             System.out.println("====== THREAD DUMPS ======");
             System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
