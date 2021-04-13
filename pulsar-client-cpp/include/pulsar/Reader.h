@@ -68,8 +68,18 @@ class PULSAR_PUBLIC Reader {
      */
     Result readNext(Message& msg, int timeoutMs);
 
+    /**
+     * Close the reader and stop the broker to push more messages
+     *
+     * @return ResultOk if the reader is closed successfully
+     */
     Result close();
 
+    /**
+     * Asynchronously close the reader and stop the broker to push more messages
+     *
+     * @param callback the callback that is triggered when the reader is closed
+     */
     void closeAsync(ResultCallback callback);
 
     /**
