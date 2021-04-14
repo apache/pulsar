@@ -48,7 +48,7 @@ public class PulsarMultiListenersWithoutInternalListenerNameTest extends MockedP
     //
     private String host;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         this.executorService = Executors.newFixedThreadPool(1);
@@ -69,7 +69,7 @@ public class PulsarMultiListenersWithoutInternalListenerNameTest extends MockedP
         clientBuilder.listenerName("internal");
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testFindBrokerWithListenerName() throws Throwable {
         admin.clusters().createCluster("localhost", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo();

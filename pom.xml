@@ -81,10 +81,10 @@ flexible messaging model and an intuitive client API.</description>
     <maven.compiler.target>1.8</maven.compiler.target>
 
     <!--config keys to congiure test selection -->
-    <include>*</include>
+    <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
     <groups/>
-    <excludedGroups/>
+    <excludedGroups>quarantine</excludedGroups>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -1185,7 +1185,7 @@ flexible messaging model and an intuitive client API.</description>
           <properties>
             <property>
               <name>listener</name>
-              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener</value>
             </property>
           </properties>
         </configuration>

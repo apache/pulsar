@@ -112,7 +112,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final int RECEIVE_TIMEOUT_SHORT_MILLIS = 100;
     private static final int RECEIVE_TIMEOUT_MEDIUM_MILLIS = 500;
 
-    @BeforeMethod(groups = { "broker", "flaky" })
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -140,7 +140,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @AfterMethod(alwaysRun = true, groups = { "broker" })
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -740,7 +740,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     // This is to test that the flow control counter doesn't get corrupted while concurrent receives during
     // reconnections
-    @Test(dataProvider = "batch")
+    @Test(dataProvider = "batch", groups = "quarantine")
     public void testConcurrentConsumerReceiveWhileReconnect(int batchMessageDelayMs) throws Exception {
         final int recvQueueSize = 100;
         final int numConsumersThreads = 10;
@@ -2332,7 +2332,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
+    @Test(dataProvider = "ackReceiptEnabled", groups = "quarantine")
     public void testRedeliveryFailOverConsumer(boolean ackReceiptEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2715,7 +2715,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer4.unsubscribe();
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testRedeliveryOfFailedMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

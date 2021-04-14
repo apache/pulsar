@@ -18,19 +18,20 @@
  */
 package org.apache.pulsar.tests;
 
-import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
+import org.testng.SkipException;
+import org.testng.util.RetryAnalyzerCount;
 
-public class RetryAnalyzer implements IRetryAnalyzer {
-
-    private int count = 0;
-
+public class RetryAnalyzer extends RetryAnalyzerCount {
     // Only try again once
     private static final int MAX_RETRIES = Integer.parseInt(System.getProperty("testRetryCount", "1"));
 
-    @Override
-    public boolean retry(ITestResult result) {
-        return count++ < MAX_RETRIES;
+    public RetryAnalyzer() {
+        setCount(MAX_RETRIES);
     }
 
+    @Override
+    public boolean retryMethod(ITestResult result) {
+        return !(result.getThrowable() instanceof SkipException);
+    }
 }

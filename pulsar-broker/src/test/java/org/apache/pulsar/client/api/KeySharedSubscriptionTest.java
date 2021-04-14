@@ -93,7 +93,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         };
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -630,7 +630,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         assertTrue(readPosition.getEntryId() < 1000);
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testRemoveFirstConsumer() throws Exception {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
@@ -885,7 +885,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Assert.assertNotNull(consumer3.receive(1, TimeUnit.SECONDS));
     }
 
-    @Test(dataProvider = "partitioned")
+    @Test(dataProvider = "partitioned", groups = "quarantine")
     public void testOrderingWithConsumerListener(boolean partitioned) throws Exception {
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         if (partitioned) {
