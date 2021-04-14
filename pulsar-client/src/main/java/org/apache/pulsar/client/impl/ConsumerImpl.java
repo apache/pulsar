@@ -246,7 +246,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.negativeAcksTracker = new NegativeAcksTracker(this, conf);
         this.resetIncludeHead = conf.isResetIncludeHead();
         this.createTopicIfDoesNotExist = createTopicIfDoesNotExist;
-        this.maxPendingChunkedMessage = conf.getMaxPendingChuckedMessage();
+        this.maxPendingChunkedMessage = conf.getMaxPendingChunkedMessage();
         this.pendingChunkedMessageUuidQueue = new GrowableArrayBlockingQueue<>();
         this.expireTimeOfIncompleteChunkedMessageMillis = conf.getExpireTimeOfIncompleteChunkedMessageMillis();
         this.autoAckOldestChunkedMessageOnQueueFull = conf.isAutoAckOldestChunkedMessageOnQueueFull();
@@ -1145,7 +1145,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.debug("Chunked message completed chunkId {}, total-chunks {}, msgId {} sequenceId {}",
                     msgMetadata.getChunkId(), msgMetadata.getNumChunksFromMsg(), msgId, msgMetadata.getSequenceId());
         }
-        // remove buffer from the map, add chucked messageId to unack-message tracker, and reduce pending-chunked-message count
+        // remove buffer from the map, add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
         chunkedMessagesMap.remove(msgMetadata.getUuid());
         unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
         pendingChunkedMessageCount--;
