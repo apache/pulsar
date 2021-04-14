@@ -71,8 +71,8 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         for (Map.Entry<String, ConsumerConfig<T>> e : configs.entrySet()) {
             String topic = e.getKey();
             ConsumerConfig<T> conf = e.getValue();
-            log.info("Creating consumers for topic : {}, schema : {}, schemaInfo: {}",
-                    topic, conf.getSchema(), conf.getSchema().getSchemaInfo());
+            log.info("Creating consumers for topic : {}, schema : {}",
+                    topic, conf.getSchema());
 
             ConsumerBuilder<T> cb = pulsarClient.newConsumer(conf.getSchema())
                     .subscriptionName(pulsarSourceConfig.getSubscriptionName())

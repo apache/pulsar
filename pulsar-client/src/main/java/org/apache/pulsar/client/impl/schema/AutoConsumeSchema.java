@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.schema;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
-import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
@@ -78,27 +77,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        if (schema == null) {
-            SchemaInfo schemaInfo = null;
-            try {
-                schemaInfo = schemaInfoProvider.getLatestSchema().get();
-                if (schemaInfo == null) {
-                    // schemaless topic
-                    schemaInfo = BytesSchema.of().getSchemaInfo();
-                }
-            } catch (InterruptedException | ExecutionException e ) {
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-                log.error("Can't get last schema for topic {} use AutoConsumeSchema", topicName);
-                throw new SchemaSerializationException(e.getCause());
-            }
-            // schemaInfo null means that there is no schema attached to the topic.
-            schema = generateSchema(schemaInfo);
-            schema.setSchemaInfoProvider(schemaInfoProvider);
-            log.info("Configure {} schema for topic {} : {}",
-                    componentName, topicName, schemaInfo.getSchemaDefinition());
-        }
+        fetchSchema();
         ensureSchemaInitialized();
         return adapt(schema.decode(bytes, schemaVersion), schemaVersion);
     }
@@ -114,6 +93,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     @Override
     public SchemaInfo getSchemaInfo() {
+        fetchSchema();
         if (schema == null) {
             return null;
         }
@@ -144,7 +124,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         }
     }
 
-    private Schema<?> generateSchema(SchemaInfo schemaInfo) {
+    private static Schema<?> generateSchema(SchemaInfo schemaInfo) {
         // when using `AutoConsumeSchema`, we use the schema associated with the messages as schema reader
         // to decode the messages.
         final boolean useProvidedSchemaAsReaderSchema = false;
@@ -246,5 +226,46 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     public Schema<?> getInternalSchema() {
         return schema;
+    }
+
+
+    private void fetchSchema() {
+        if (schema == null) {
+            if (schemaInfoProvider == null) {
+                // this case is possible when you create Schema.AUTO_CONSUME() and call getSchemaInfo
+                // without attaching the Schema to a Consumer
+                log.error("Can't get accurate schema information for topic {} " +
+                        "using AutoConsumeSchema because SchemaInfoProvider is not set yet", topicName);
+            } else {
+                SchemaInfo schemaInfo = null;
+                try {
+                    schemaInfo = schemaInfoProvider.getLatestSchema().get();
+                    if (schemaInfo == null) {
+                        // schemaless topic
+                        schemaInfo = BytesSchema.of().getSchemaInfo();
+                    }
+                } catch (InterruptedException | ExecutionException e) {
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
+                    log.error("Can't get last schema for topic {} using AutoConsumeSchema", topicName);
+                    throw new SchemaSerializationException(e.getCause());
+                }
+                // schemaInfo null means that there is no schema attached to the topic.
+                schema = generateSchema(schemaInfo);
+                schema.setSchemaInfoProvider(schemaInfoProvider);
+                log.info("Configure {} schema for topic {} : {}",
+                        componentName, topicName, schemaInfo.getSchemaDefinition());
+            }
+        }
+    }
+
+    @Override
+    public String toString() {
+        if (schema != null && schema.getSchemaInfo() != null) {
+            return "AUTO_CONSUME(schematype=" + schema.getSchemaInfo().getType() + ")";
+        } else {
+            return "AUTO_CONSUME(uninitialized)";
+        }
     }
 }
