@@ -27,13 +27,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker-impl")
 public class ConsumerUnsubscribeTest {
 
     MockBrokerService mockBrokerService;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void setup() {
         mockBrokerService = new MockBrokerService();
         mockBrokerService.start();
@@ -41,7 +40,10 @@ public class ConsumerUnsubscribeTest {
 
     @AfterClass(alwaysRun = true)
     public void teardown() {
-        mockBrokerService.stop();
+        if (mockBrokerService != null) {
+            mockBrokerService.stop();
+            mockBrokerService = null;
+        }
     }
 
     @Test

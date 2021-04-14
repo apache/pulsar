@@ -27,18 +27,17 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
-
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -58,9 +57,10 @@ import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.apache.pulsar.functions.worker.PulsarFunctionTestTemporaryDirectory;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.PulsarWorkerService.PulsarClientCreator;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -74,21 +74,20 @@ import org.testng.annotations.Test;
 
 /**
  * Test Pulsar function TLS authentication
- *
  */
+@Test(groups = "broker-io")
 public class PulsarFunctionTlsTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
     ServiceConfiguration config;
     WorkerConfig workerConfig;
-    URL urlTls;
     PulsarWorkerService functionsWorkerService;
     final String tenant = "external-repl-prop";
     String pulsarFunctionsNamespace = tenant + "/use/pulsar-function-admin";
     String workerId;
     WorkerServer workerServer;
     PulsarAdmin functionAdmin;
-    private List<String> namespaceList = new LinkedList<>();
+    private final List<String> namespaceList = new LinkedList<>();
 
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
@@ -96,6 +95,7 @@ public class PulsarFunctionTlsTest {
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionTlsTest.class);
+    private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod
     void setup(Method method) throws Exception {
@@ -169,15 +169,23 @@ public class PulsarFunctionTlsTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        functionAdmin.close();
-        bkEnsemble.stop();
-        workerServer.stop();
-        functionsWorkerService.stop();
+        try {
+            functionAdmin.close();
+            bkEnsemble.stop();
+            workerServer.stop();
+            functionsWorkerService.stop();
+        } finally {
+            if (tempDirectory != null) {
+                tempDirectory.delete();
+            }
+        }
     }
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
-                                                           PulsarAdmin mockPulsarAdmin) throws Exception {
+                                                           PulsarAdmin mockPulsarAdmin) {
         workerConfig = new WorkerConfig();
+        tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+        tempDirectory.useTemporaryDirectoriesForWorkerConfig(workerConfig);
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);
         workerConfig.setSchedulerClassName(
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
@@ -231,7 +239,7 @@ public class PulsarFunctionTlsTest {
     }
 
     @Test
-    public void testAuthorization() throws Exception {
+    public void testAuthorization() {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -254,16 +262,24 @@ public class PulsarFunctionTlsTest {
 
     }
 
-    protected static FunctionConfig createFunctionConfig(String jarFile, String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String jarFile,
+                                                         String tenant,
+                                                         String namespace,
+                                                         String functionName,
+                                                         String sourceTopic,
+                                                         String sinkTopic,
+                                                         String subscriptionName) {
 
         File file = new File(jarFile);
         try {
-            ClassLoaderUtils.loadJar(file);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Failed to load user jar " + file, e);
+            ClassLoader classLoader = ClassLoaderUtils.loadJar(file);
+            if (classLoader instanceof Closeable) {
+                ((Closeable) classLoader).close();
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to load user jar " + file, e);
         }
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
-        Class<?> typeArg = byte[].class;
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);

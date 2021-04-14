@@ -55,8 +55,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- */
+@Test(groups = "broker")
 public class BacklogQuotaManagerTest {
     PulsarService pulsar;
     ServiceConfiguration config;
@@ -80,9 +79,9 @@ public class BacklogQuotaManagerTest {
             config = new ServiceConfiguration();
             config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(Optional.ofNullable(0));
+            config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
-            config.setBrokerServicePort(Optional.ofNullable(0));
+            config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
             config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
@@ -114,9 +113,18 @@ public class BacklogQuotaManagerTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         try {
-            admin.close();
-            pulsar.close();
-            bkEnsemble.stop();
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } catch (Throwable t) {
             LOG.error("Error cleaning up broker test setup state", t);
             fail("Broker test cleanup failed");

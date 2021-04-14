@@ -35,6 +35,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -54,15 +55,16 @@ import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.*;
 import static org.testng.Assert.assertEquals;
 
-public class SimpleProducerConsumerTest {
+public class SimpleProducerConsumerTest extends TestRetrySupport {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
     private PulsarContainer pulsarContainer;
     private URI lookupUrl;
     private PulsarClient pulsarClient;
 
-    @BeforeClass
-    public void setup() throws PulsarClientException, URISyntaxException, PulsarAdminException {
+    @Override
+    @BeforeClass(alwaysRun = true)
+    public void setup() throws Exception {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
@@ -79,8 +81,9 @@ public class SimpleProducerConsumerTest {
         admin.close();
     }
 
+    @Override
     @AfterClass(alwaysRun = true)
-    public void cleanup() throws PulsarClientException {
+    public void cleanup() throws Exception {
         pulsarClient.close();
         pulsarContainer.stop();
         pulsarContainer.close();

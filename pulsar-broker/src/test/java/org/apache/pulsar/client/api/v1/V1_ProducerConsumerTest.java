@@ -86,12 +86,13 @@ import org.testng.annotations.Test;
 /**
  * Basic tests using the deprecated client APIs from Pulsar-1.x
  */
+@Test(groups = "flaky")
 public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(V1_ProducerConsumerTest.class);
     private static final long BATCHING_MAX_PUBLISH_DELAY_THRESHOLD = 1;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -361,8 +362,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             Assert.assertTrue(e instanceof PulsarClientException.AlreadyClosedException);
         }
 
-
-
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic6")
                 .subscriptionName("my-subscriber-name")
@@ -631,7 +630,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(groups = "quarantine")
     public void testActiveAndInActiveConsumerEntryCacheBehavior() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2077,7 +2076,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2153,7 +2152,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testRSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2238,7 +2237,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testEncryptionFailure() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -2369,7 +2368,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // Receive should proceed and discard encrypted messages
         msg = consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
+        Assert.assertNull(msg, "Message received even after ConsumerCryptoFailureAction.DISCARD is set.");
 
         log.info("-- Exiting {} test --", methodName);
     }

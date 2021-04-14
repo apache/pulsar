@@ -63,6 +63,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class TopicReaderTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TopicReaderTest.class);
 
@@ -513,13 +514,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         class EncKeyReader implements CryptoKeyReader {
 
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -583,13 +584,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testMultiReaderECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         class EncKeyReader implements CryptoKeyReader {
 
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+            final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
@@ -652,7 +653,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader.close();
     }
 
-    @Test(groups = "encryption")
+    @Test
     public void testDefaultCryptoKeyReader() throws Exception {
         final String topic = "persistent://my-property/my-ns/test-reader-default-crypto-key-reader"
                 + System.currentTimeMillis();

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
@@ -116,6 +117,8 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         String readBack2 = new String(record.getValue().getValue());
         assertTrue(line2.contains(readBack2));
         assertNull(record.getValue().getKey());
+        assertTrue(record.getPartitionId().isPresent());
+        assertFalse(record.getPartitionIndex().isPresent());
         log.info("read line2: {}", readBack2);
         record.ack();
 

@@ -36,10 +36,14 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.core.classloader.annotations.*;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -66,6 +70,14 @@ import static org.testng.Assert.assertEquals;
 /**
  * Tests for {@link StreamingEntryReader}
  */
+@PowerMockIgnore({
+        "javax.management.*",
+        "javax.xml.parsers.*",
+        "com.sun.org.apache.xerces.internal.jaxp.*",
+        "ch.qos.logback.*",
+        "org.slf4j.*",
+        "org.apache.logging.*"})
+@Test(groups = "flaky")
 @PrepareForTest({ManagedLedgerImpl.class})
 public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
@@ -79,8 +91,8 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
     private ManagedLedgerImpl ledger;
     private ManagedCursor cursor;
 
-    @BeforeMethod
-    public void setup() throws Exception {
+    @Override
+    protected void setUpTestCase() throws Exception {
         scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
         orderedExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(1)
@@ -96,10 +108,22 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         when(mockBrokerService.getTopicOrderedExecutor()).thenReturn(orderedExecutor);
         doAnswer(new Answer<Void>() {
             @Override
-            public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+            public Void answer(InvocationOnMock invocationOnMock) {
                 return null;
             }
         }).when(mockDispatcher).notifyConsumersEndOfTopic();
+    }
+
+    @Override
+    protected void cleanUpTestCase() {
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdownNow();
+            scheduledExecutorService = null;
+        }
+        if (orderedExecutor != null) {
+            orderedExecutor.shutdownNow();
+            orderedExecutor = null;
+        }
     }
 
     @Test
@@ -179,7 +203,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
         // Only 2 entries should be read with this request.
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
         assertEquals(entries.size(), 2);
         // Assert cursor's read position has been properly updated to the third entry, since we should only read
         // 2 retries with previous request
@@ -187,13 +211,13 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         reset(ledger);
         readComplete.set(false);
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
         readComplete.set(false);
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
         readComplete.set(false);
         streamingEntryReader.asyncReadEntries(6, size * 2 + 1, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
+        await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> readComplete.get());
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         assertEquals(entries.size(), 8);
         for (int i = 0; i < entries.size(); i++) {
@@ -226,11 +250,11 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         ).when(mockDispatcher).readEntryComplete(any(Entry.class), any(PendingReadEntryRequest.class));
 
         streamingEntryReader.asyncReadEntries(5,  100, null);
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 5);
+        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 5);
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
         streamingEntryReader.asyncReadEntries(5, 100, null);
         // We only write 7 entries initially so only 7 entries can be read.
-        await().atMost(300, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 7);
+        await().atMost(500, TimeUnit.MILLISECONDS).until(() -> entryCount.get() == 7);
         // Add new entry and await for it to be send to reader.
         entryProcessed.set(false);
         ledger.addEntry("message-7".getBytes(Encoding));
@@ -277,7 +301,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         // Only return 5 entries
         doAnswer(new Answer<Void>() {
             @Override
-            public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+            public Void answer(InvocationOnMock invocationOnMock) {
                 AsyncCallbacks.ReadEntryCallback cb = invocationOnMock.getArgument(1, AsyncCallbacks.ReadEntryCallback.class);
                 PositionImpl position = invocationOnMock.getArgument(0, PositionImpl.class);
                 int c = count.getAndIncrement();

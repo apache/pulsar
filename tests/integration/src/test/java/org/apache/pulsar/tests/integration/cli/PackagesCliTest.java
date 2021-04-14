@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -35,13 +36,14 @@ import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PackagesCliTest {
+public class PackagesCliTest extends TestRetrySupport {
 
     private final static String clusterNamePrefix = "packages-service";
     private PulsarCluster pulsarCluster;
 
-    @BeforeClass
-    public void setup() throws Exception {
+    @BeforeClass(alwaysRun = true)
+    public final void setup() throws Exception {
+        incrementSetupNumber();
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName(String.format("%s-%s", clusterNamePrefix, RandomStringUtils.randomAlphabetic(6)))
             .brokerEnvs(getPackagesManagementServiceEnvs())
@@ -51,7 +53,8 @@ public class PackagesCliTest {
     }
 
     @AfterClass(alwaysRun = true)
-    public void teardown() {
+    public final void cleanup() {
+        markCurrentSetupNumberCleaned();
         if (pulsarCluster != null) {
             pulsarCluster.stop();
             pulsarCluster = null;

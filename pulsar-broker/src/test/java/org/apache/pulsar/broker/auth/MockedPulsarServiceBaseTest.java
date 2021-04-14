@@ -99,10 +99,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         resetConfig();
     }
 
+    protected PulsarService getPulsar() {
+        return pulsar;
+    }
+
     protected final void resetConfig() {
         this.conf = getDefaultConf();
     }
-
 
     protected final void internalSetup() throws Exception {
         incrementSetupNumber();
@@ -269,9 +272,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
 
-        PulsarService pulsar = startBrokerWithoutAuthorization(conf);
-
-        return pulsar;
+        return startBrokerWithoutAuthorization(conf);
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
@@ -424,7 +425,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setAdvertisedAddress("localhost");
         configuration.setClusterName(configClusterName);
         // there are TLS tests in here, they need to use localhost because of the certificate
-        configuration.setAdvertisedAddress("localhost");
         configuration.setManagedLedgerCacheSizeMB(8);
         configuration.setActiveConsumerFailoverDelayTimeMillis(0);
         configuration.setDefaultNumberOfNamespaceBundles(1);

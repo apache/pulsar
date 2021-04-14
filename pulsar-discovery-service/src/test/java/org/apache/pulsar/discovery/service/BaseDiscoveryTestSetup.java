@@ -18,31 +18,28 @@
  */
 package org.apache.pulsar.discovery.service;
 
-import static org.apache.pulsar.discovery.service.web.ZookeeperCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.apache.pulsar.broker.resources.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.KeeperException.Code;
 
 
 public class BaseDiscoveryTestSetup {
 
     protected ServiceConfig config;
     protected DiscoveryService service;
-    protected MockZooKeeper mockZooKeeper;
+    private MockZooKeeper mockZooKeeper;
+    protected MetadataStoreExtended zkStore;
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
 
@@ -56,8 +53,10 @@ public class BaseDiscoveryTestSetup {
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 
         mockZooKeeper = createMockZooKeeper();
+        zkStore = new ZKMetadataStore(mockZooKeeper);
+        zkStore.put(LOADBALANCE_BROKERS_ROOT, "".getBytes(StandardCharsets.UTF_8),
+                Optional.of(-1L));
         service = spy(new DiscoveryService(config));
-        doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(service).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(service).createConfigurationMetadataStore();
         service.start();
@@ -66,26 +65,19 @@ public class BaseDiscoveryTestSetup {
 
     protected void cleanup() throws Exception {
         mockZooKeeper.shutdown();
+        zkStore.close();
         service.close();
     }
 
     protected MockZooKeeper createMockZooKeeper() throws Exception {
         MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
-
-        ZkUtils.createFullPathOptimistic(zk, LOADBALANCE_BROKERS_ROOT,
-                "".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
         return zk;
     }
 
-    protected ZooKeeperClientFactory mockZooKeeperClientFactory = new ZooKeeperClientFactory() {
-
-        @Override
-        public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType,
-                int zkSessionTimeoutMillis) {
-            // Always return the same instance (so that we don't loose the mock ZK content on broker restart
-            return CompletableFuture.completedFuture(mockZooKeeper);
-        }
-    };
-
+    protected void simulateStoreError(String string, Code sessionexpired) {
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+            return op == MockZooKeeper.Op.GET
+                && path.equals("/admin/partitioned-topics/test/local/ns/persistent/my-topic-2");
+        });
+    }
 }

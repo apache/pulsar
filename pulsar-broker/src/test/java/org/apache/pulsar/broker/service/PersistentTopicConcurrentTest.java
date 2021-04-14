@@ -58,10 +58,11 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 
 import com.google.common.collect.Lists;
+import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker")
 public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
+
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
@@ -71,7 +72,6 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     private ManagedCursor cursorMock;
 
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
-    final String failTopicName = "persistent://prop/use/ns-abc/failTopic";
     final String successSubName = "successSub";
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
@@ -85,8 +85,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
-        final ManagedCursor cursor = ledger.openCursor("c1");
-        cursorMock = cursor;
+        cursorMock = ledger.openCursor("c1");
         ledgerMock = ledger;
         mlFactoryMock = factory;
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
@@ -114,7 +113,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         }
     }
 
-    // @Test
+    @Test(enabled = false)
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -176,7 +175,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    // @Test
+    @Test(enabled = false)
     public void testConcurrentTopicGCAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -244,7 +243,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    // @Test
+    @Test(enabled = false)
     public void testConcurrentTopicDeleteAndUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -306,7 +305,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    // @Test
+    @Test(enabled = false)
     public void testConcurrentTopicDeleteAndSubsUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();

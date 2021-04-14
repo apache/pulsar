@@ -50,6 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "websocket")
 public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     protected String methodName;
 
@@ -95,7 +96,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    public void socketTest() throws InterruptedException, GeneralSecurityException {
+    public void socketTest() throws GeneralSecurityException {
         String consumerUri =
                 "wss://localhost:" + proxyServer.getListenPortHTTPS().get() + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
         String producerUri = "wss://localhost:" + proxyServer.getListenPortHTTPS().get() + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";

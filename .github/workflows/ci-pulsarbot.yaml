@@ -37,9 +37,6 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 100
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Execute pulsarbot command
         id:   pulsarbot

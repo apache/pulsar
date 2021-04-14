@@ -680,6 +680,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " non-backlog consumers as well.")
     private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = false;
 
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Default policy for publishing usage reports to system topic is disabled."
+            + "This enables publishing of usage reports"
+    )
+    private String resourceUsageTransportClassName = "";
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Topic to publish usage reports to if resourceUsagePublishToTopic is enabled."
+    )
+    private String resourceUsageTransportPublishTopicName = "non-persistent://pulsar/system/resource-usage";
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
+    )
+    private int resourceUsageTransportPublishIntervalInSecs = 60;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,
@@ -1223,7 +1243,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "a single bookie.\n" +
             "If this flag is enabled, the client will use one single bookie (by " +
             "preference) to read all entries for a ledger.")
-    private boolean bookkeeperEnableStickyReads = false;
+    private boolean bookkeeperEnableStickyReads = true;
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the client security provider factory class name. "
             + "Default: org.apache.bookkeeper.tls.TLSContextFactory")
@@ -1802,6 +1822,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Interval between checks to see if topics with compaction policies need to be compacted"
     )
     private int brokerServiceCompactionMonitorIntervalInSeconds = 60;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "The estimated backlog size is greater than this threshold, compression will be triggered.\n"
+            + "Using a value of 0, is disabling compression check."
+    )
+    private long brokerServiceCompactionThresholdInBytes = 0;
 
     @FieldContext(
         category = CATEGORY_SCHEMA,

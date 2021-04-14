@@ -25,6 +25,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -38,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
  * Test base for tests requires a bk ensemble.
  */
 @Slf4j
-public abstract class BkEnsemblesTestBase {
+public abstract class BkEnsemblesTestBase extends TestRetrySupport {
 
     protected PulsarService pulsar;
     protected ServiceConfiguration config;
@@ -57,12 +58,14 @@ public abstract class BkEnsemblesTestBase {
         this.numberOfBookies = numberOfBookies;
     }
 
-    protected void configurePulsar(ServiceConfiguration config) throws Exception {
+    protected void configurePulsar(ServiceConfiguration config) {
         //overridable by subclasses
     }
 
-    @BeforeMethod
+    @Override
+    @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
+        incrementSetupNumber();
         try {
             // start local bookie and zookeeper
             bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0, () -> 0);
@@ -98,8 +101,10 @@ public abstract class BkEnsemblesTestBase {
         }
     }
 
+    @Override
     @AfterMethod(alwaysRun = true)
-    protected void shutdown() throws Exception {
+    protected void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         admin.close();
         pulsar.close();
         bkEnsemble.stop();

@@ -39,6 +39,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+@Test(groups = "broker-api")
 public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPulsarServiceBaseTest {
 
     private ExecutorService executorService;
@@ -47,7 +48,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     //
     private String host;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         this.executorService = Executors.newFixedThreadPool(1);
@@ -69,7 +70,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         clientBuilder.listenerName("internal");
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testFindBrokerWithListenerName() throws Throwable {
         admin.clusters().createCluster("localhost", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo();

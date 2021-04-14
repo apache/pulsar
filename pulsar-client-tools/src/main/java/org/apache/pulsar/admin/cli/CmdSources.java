@@ -171,6 +171,8 @@ public class CmdSources extends CmdBase {
         protected String secretsProviderClassName;
         @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
         protected String secretsProviderConfig;
+        @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server")
+        protected String metricsPortStart;
 
         private void mergeArgs() {
             if (!isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;

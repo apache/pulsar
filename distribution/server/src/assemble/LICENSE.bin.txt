@@ -355,24 +355,24 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.19.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty
-    - io.netty-netty-buffer-4.1.51.Final.jar
-    - io.netty-netty-codec-4.1.51.Final.jar
-    - io.netty-netty-codec-dns-4.1.51.Final.jar
-    - io.netty-netty-codec-http-4.1.51.Final.jar
-    - io.netty-netty-codec-http2-4.1.51.Final.jar
-    - io.netty-netty-codec-socks-4.1.51.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.51.Final.jar
-    - io.netty-netty-common-4.1.51.Final.jar
-    - io.netty-netty-handler-4.1.51.Final.jar
-    - io.netty-netty-handler-proxy-4.1.51.Final.jar
-    - io.netty-netty-resolver-4.1.51.Final.jar
-    - io.netty-netty-resolver-dns-4.1.51.Final.jar
-    - io.netty-netty-transport-4.1.51.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.51.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.51.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.51.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.51.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.33.Final.jar
+    - io.netty-netty-buffer-4.1.60.Final.jar
+    - io.netty-netty-codec-4.1.60.Final.jar
+    - io.netty-netty-codec-dns-4.1.60.Final.jar
+    - io.netty-netty-codec-http-4.1.60.Final.jar
+    - io.netty-netty-codec-http2-4.1.60.Final.jar
+    - io.netty-netty-codec-socks-4.1.60.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.60.Final.jar
+    - io.netty-netty-common-4.1.60.Final.jar
+    - io.netty-netty-handler-4.1.60.Final.jar
+    - io.netty-netty-handler-proxy-4.1.60.Final.jar
+    - io.netty-netty-resolver-4.1.60.Final.jar
+    - io.netty-netty-resolver-dns-4.1.60.Final.jar
+    - io.netty-netty-transport-4.1.60.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.60.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.60.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.60.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.60.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.36.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
@@ -420,31 +420,31 @@ The Apache Software License, Version 2.0
     - org.apache.distributedlog-distributedlog-protocol-4.13.0.jar
     - org.apache.bookkeeper.stats-codahale-metrics-provider-4.13.0.jar
   * Apache HTTP Client
-    - org.apache.httpcomponents-httpclient-4.5.5.jar
-    - org.apache.httpcomponents-httpcore-4.4.9.jar
+    - org.apache.httpcomponents-httpclient-4.5.13.jar
+    - org.apache.httpcomponents-httpcore-4.4.13.jar
  * AirCompressor
     - io.airlift-aircompressor-0.16.jar
  * AsyncHttpClient
     - org.asynchttpclient-async-http-client-2.12.1.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-http-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-io-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-security-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-server-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-util-9.4.35.v20201120.jar
-    - org.eclipse.jetty-jetty-util-ajax-9.4.35.v20201120.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.35.v20201120.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.35.v20201120.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.35.v20201120.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.35.v20201120.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.35.v20201120.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.35.v20201120.jar
+    - org.eclipse.jetty-jetty-client-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-http-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-io-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-security-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-server-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-util-9.4.39.v20210325.jar
+    - org.eclipse.jetty-jetty-util-ajax-9.4.39.v20210325.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.39.v20210325.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.39.v20210325.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.39.v20210325.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.39.v20210325.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.39.v20210325.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.39.v20210325.jar
  * SnakeYaml -- org.yaml-snakeyaml-1.26.jar
  * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.3.4.jar
@@ -481,8 +481,8 @@ The Apache Software License, Version 2.0
   * Jodah
     - net.jodah-typetools-0.5.0.jar
   * Apache Avro
-    - org.apache.avro-avro-1.9.1.jar
-    - org.apache.avro-avro-protobuf-1.9.1.jar
+    - org.apache.avro-avro-1.10.2.jar
+    - org.apache.avro-avro-protobuf-1.10.2.jar
   * Apache Curator
     - org.apache.curator-curator-client-5.1.0.jar
     - org.apache.curator-curator-framework-5.1.0.jar

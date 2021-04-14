@@ -150,6 +150,7 @@ where command is one of:
     zookeeper-shell     Open a ZK shell client
     broker-tool         CLI to operate a specific broker
     tokens              Utility to create authentication tokens
+    version             Get the current version of pulsar
 
     help                This help message
 
@@ -365,7 +366,9 @@ elif [ $COMMAND == "sql-worker" ]; then
     check_presto_libraries
     exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
-      exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
+    exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
+elif [ $COMMAND == "version" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.PulsarVersionStarter $@
 elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
     pulsar_help;
 else

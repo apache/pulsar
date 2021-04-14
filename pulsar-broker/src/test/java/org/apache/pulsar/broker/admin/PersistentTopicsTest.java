@@ -83,6 +83,7 @@ import org.testng.annotations.Test;
 @PrepareForTest(PersistentTopics.class)
 @PowerMockIgnore("com.sun.management.*")
 @Slf4j
+@Test(groups = "broker")
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;

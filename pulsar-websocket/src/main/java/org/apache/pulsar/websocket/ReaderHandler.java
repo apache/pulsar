@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
@@ -91,6 +92,14 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                     .receiverQueueSize(receiverQueueSize);
             if (queryParams.containsKey("readerName")) {
                 builder.readerName(queryParams.get("readerName"));
+            }
+            if (queryParams.containsKey("cryptoFailureAction")) {
+                String action = queryParams.get("cryptoFailureAction");
+                try {
+                    builder.cryptoFailureAction(ConsumerCryptoFailureAction.valueOf(action));
+                } catch (Exception e) {
+                    log.warn("Failed to configure cryptoFailureAction {} , {}", action, e.getMessage());
+                }
             }
 
             this.reader = builder.create();

@@ -39,7 +39,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-
+@Test(groups = "broker-impl")
 public class ConsumerAckResponseTest extends ProducerConsumerBase {
 
     private final static TransactionImpl transaction = mock(TransactionImpl.class);
@@ -63,7 +63,7 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testAckResponse() throws PulsarClientException, InterruptedException, ExecutionException {
+    public void testAckResponse() throws PulsarClientException, InterruptedException {
         String topic = "testAckResponse";
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)

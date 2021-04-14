@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.ExecutionException;
 
+@Test(groups = "broker")
 public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final String NAMESPACE1 = "system-topic/namespace-1";
@@ -51,7 +52,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private NamespaceEventsSystemTopicFactory systemTopicFactory;
     private SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setSystemTopicEnabled(true);
