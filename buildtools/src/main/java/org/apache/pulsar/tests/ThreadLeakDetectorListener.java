@@ -32,9 +32,8 @@ import org.slf4j.LoggerFactory;
  */
 public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(ThreadLeakDetectorListener.class);
-    private static final boolean
-            THREAD_LEAK_DETECTOR_ENABLED = Boolean.valueOf(System.getProperty("testThreadLeakDetector",
-            "true"));
+    private static final boolean THREAD_LEAK_DETECTOR_ENABLED
+            = Boolean.parseBoolean(System.getProperty("testThreadLeakDetector", "true"));
     private Set<ThreadKey> capturedThreadKeys;
 
     @Override

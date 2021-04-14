@@ -18,40 +18,9 @@
 # under the License.
 #
 
-set -e
-set -o pipefail
-set -o errexit
-
-# solution for printing output in "set -x" trace mode without tracing the echo calls
-shopt -s expand_aliases
-echo_and_restore_trace() {
-  builtin echo "$@"
-  [ $trace_enabled -eq 1 ] && set -x || true
-}
-alias echo='{ [[ $- =~ .*x.* ]] && trace_enabled=1 || trace_enabled=0; set +x; } 2> /dev/null; echo_and_restore_trace'
-
-MVN_COMMAND='mvn -B -ntp'
-MVN_COMMAND_WITH_RETRY="build/retry.sh ${MVN_COMMAND}"
-MVN_TEST_COMMAND="${MVN_COMMAND_WITH_RETRY} test"
-
-echo -n "Test Group : $TEST_GROUP"
-
-# Test Groups  -- start --
-function broker_group_1() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker'
-}
-
-function broker_group_2() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming'
-}
-
-function broker_client_api() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-api'
-}
-
-function broker_client_impl() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-impl'
-}
+# set -e
+# set -o pipefail
+# set -o errexit
 
 # prints summaries of failed tests to console
 # by using the targer/surefire-reports files
@@ -82,31 +51,75 @@ function print_testng_failures() {
   )
 }
 
-function broker_flaky() {
-  echo "::endgroup::"
-  echo "::group::Running quarantined tests"
-  $MVN_COMMAND test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
-    -DtestForkCount=2 -Dexclude='**/Replicator*Test.java' ||
-    print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
-  # run quarantined Replicator tests separately
-  $MVN_COMMAND test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
-    -DtestForkCount=1 -DtestReuseFork=false -Dinclude='**/Replicator*Test.java' || \
-    print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined Replicator*Test failures"
-  echo "::endgroup::"
-  echo "::group::Running flaky tests"
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=1 -DtestReuseFork=false
-  echo "::endgroup::"
+function retry_failed() {
+  if [ "$RESULT" -ne 0 -a ! -d "$MODULE/target/surefire-reports" ]; then
+    # No surefire reports and error means compilation error, don't try to rerun
+    exit $RESULT
+  fi
+  if [ "$RESULT" -ne 0 ]; then
+    pip install "junitparser==1.4.1"
+    $MVN_TEST_COMMAND -pl $MODULE -Dtest="$(python build/failed.py $MODULE/target)" -DtestFailFast=false -DtestForkCount=1
+    RESULT=$?
+    exit $RESULT
+  fi
 }
 
+# solution for printing output in "set -x" trace mode without tracing the echo calls
+shopt -s expand_aliases
+echo_and_restore_trace() {
+  builtin echo "$@"
+  [ $trace_enabled -eq 1 ] && set -x || true
+}
+alias echo='{ [[ $- =~ .*x.* ]] && trace_enabled=1 || trace_enabled=0; set +x; } 2> /dev/null; echo_and_restore_trace'
+
+MVN_COMMAND='mvn -B -ntp'
+MVN_COMMAND_WITH_RETRY="build/retry.sh ${MVN_COMMAND}"
+MVN_TEST_COMMAND="${MVN_COMMAND_WITH_RETRY} test"
+MVN_TEST_COMMAND_NO_RETRY="${MVN_COMMAND} test"
+
+echo -n "Test Group : $TEST_GROUP"
+
+# Test Groups  -- start --
+function broker_group_1() {
+  $MVN_TEST_COMMAND_NO_RETRY -q -pl pulsar-broker -Dgroups='broker'
+  RESULT=$?
+  MODULE=pulsar-broker
+  retry_failed
+}
+
+function broker_group_2() {
+  $MVN_TEST_COMMAND_NO_RETRY -q -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming'
+  RESULT=$?
+  MODULE=pulsar-broker
+  retry_failed
+}
+
+function broker_client_api() {
+  $MVN_TEST_COMMAND_NO_RETRY -q -pl pulsar-broker -Dgroups='broker-api'
+  RESULT=$?
+  MODULE=pulsar-broker
+  retry_failed
+}
+
+function broker_client_impl() {
+  $MVN_TEST_COMMAND_NO_RETRY -q -pl pulsar-broker -Dgroups='broker-impl'
+  RESULT=$?
+  MODULE=pulsar-broker
+  retry_failed
+}
+
+function broker_flaky() {
+  $MVN_TEST_COMMAND_NO_RETRY -q -pl pulsar-broker -Dgroups='flaky,quarantine' -DexcludedGroups=''
+  RESULT=$?
+  MODULE=pulsar-broker
+  retry_failed
+ }
+
 function proxy() {
-  echo "::endgroup::"
-  echo "::group::Running quarantined pulsar-proxy tests"
-  $MVN_COMMAND test -pl pulsar-proxy -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false ||
-    print_testng_failures pulsar-proxy/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
-  echo "::endgroup::"
-  echo "::group::Running pulsar-proxy tests"
-  $MVN_TEST_COMMAND -pl pulsar-proxy
-  echo "::endgroup::"
+  $MVN_TEST_COMMAND_NO_RETRY -q -pl pulsar-proxy -DexcludedGroups=''
+  RESULT=$?
+  MODULE=pulsar-proxy
+  retry_failed
 }
 
 function other() {

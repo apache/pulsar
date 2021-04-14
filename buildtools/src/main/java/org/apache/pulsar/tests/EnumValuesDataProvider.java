@@ -31,7 +31,7 @@ import org.testng.annotations.DataProvider;
  */
 public abstract class EnumValuesDataProvider {
     @DataProvider
-    public static final Object[][] values(Method testMethod) {
+    public static Object[][] values(Method testMethod) {
         Class<?> enumClass = Arrays.stream(testMethod.getParameterTypes())
                 .findFirst()
                 .filter(Class::isEnum)
@@ -45,8 +45,6 @@ public abstract class EnumValuesDataProvider {
     public static Object[][] toDataProviderArray(Class<? extends Enum<?>> enumClass) {
         Enum<?>[] enumValues = enumClass.getEnumConstants();
         return Stream.of(enumValues)
-                .map(enumValue -> new Object[]{enumValue})
-                .collect(Collectors.toList())
-                .toArray(new Object[0][]);
+                .map(enumValue -> new Object[]{enumValue}).toArray(Object[][]::new);
     }
 }

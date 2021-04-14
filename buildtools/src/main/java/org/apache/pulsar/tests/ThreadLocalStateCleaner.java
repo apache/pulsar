@@ -54,8 +54,8 @@ public final class ThreadLocalStateCleaner {
     // use reflection to clear the state of the given thread local and thread
     public <T> void cleanupThreadLocal(ThreadLocal<?> threadLocal, Thread thread,
                                        BiConsumer<Thread, T> cleanedValueListener) {
-        Objects.nonNull(threadLocal);
-        Objects.nonNull(thread);
+        Objects.requireNonNull(threadLocal);
+        Objects.requireNonNull(thread);
         try {
             Object threadLocalMap = GET_THREADLOCAL_MAP_METHOD.invoke(threadLocal, thread);
             if (threadLocalMap != null) {
@@ -85,8 +85,8 @@ public final class ThreadLocalStateCleaner {
 
     public <T> T getThreadLocalValue(ThreadLocal<?> threadLocal, Thread thread)
             throws InvocationTargetException, IllegalAccessException {
-        Objects.nonNull(threadLocal);
-        Objects.nonNull(thread);
+        Objects.requireNonNull(threadLocal);
+        Objects.requireNonNull(thread);
         Object threadLocalMap = GET_THREADLOCAL_MAP_METHOD.invoke(threadLocal, thread);
         if (threadLocalMap != null) {
             return getCurrentValue(threadLocal, threadLocalMap);
@@ -115,7 +115,7 @@ public final class ThreadLocalStateCleaner {
 
     // cleanup thread local state on all active threads
     public <T> void cleanupThreadLocal(ThreadLocal<?> threadLocal, BiConsumer<Thread, T> cleanedValueListener) {
-        Objects.nonNull(threadLocal);
+        Objects.requireNonNull(threadLocal);
         for (Thread thread : ThreadUtils.getAllThreads()) {
             cleanupThreadLocal(threadLocal, thread, cleanedValueListener);
         }

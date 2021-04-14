@@ -40,7 +40,7 @@ import org.testng.SkipException;
  */
 public class FailFastNotifier
         implements IInvokedMethodListener {
-    private static final boolean FAIL_FAST_ENABLED = Boolean.valueOf(
+    private static final boolean FAIL_FAST_ENABLED = Boolean.parseBoolean(
             System.getProperty("testFailFast", "true"));
 
     static class FailFastEventsSingleton {
