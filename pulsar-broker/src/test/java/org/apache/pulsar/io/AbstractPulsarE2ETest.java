@@ -85,14 +85,14 @@ import lombok.ToString;
 public abstract class AbstractPulsarE2ETest {
 
 	public static final Logger log = LoggerFactory.getLogger(AbstractPulsarE2ETest.class);
-	
+
     protected final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     protected final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
     protected final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     protected final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
     protected final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
     protected final String tenant = "external-repl-prop";
-	
+
 	protected LocalBookkeeperEnsemble bkEnsemble;
 	protected ServiceConfiguration config;
 	protected WorkerConfig workerConfig;
@@ -106,12 +106,12 @@ public abstract class AbstractPulsarE2ETest {
 	protected String workerId;
 	protected PulsarFunctionTestTemporaryDirectory tempDirectory;
     protected FileServer fileServer;
-    
+
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
-    
+
     @BeforeMethod(alwaysRun = true)
     public void setup(Method method) throws Exception {
         log.info("--- Setting up method {} ---", method.getName());
@@ -198,6 +198,9 @@ public abstract class AbstractPulsarE2ETest {
             clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
                     workerConfig.getBrokerClientAuthenticationParameters());
         }
+        if (pulsarClient != null) {
+            pulsarClient.close();
+        }
         pulsarClient = clientBuilder.build();
 
         TenantInfo propAdmin = new TenantInfo();
@@ -229,23 +232,23 @@ public abstract class AbstractPulsarE2ETest {
         	if (fileServer != null) {
               fileServer.stop();
         	}
-        	
+
         	if (pulsarClient != null) {
               pulsarClient.close();
         	}
-        	
+
         	if (admin != null) {
               admin.close();
         	}
-        	
+
         	if (functionsWorkerService != null) {
               functionsWorkerService.stop();
         	}
-        	
+
         	if (pulsar != null) {
               pulsar.close();
         	}
-            
+
         	if (bkEnsemble != null) {
               bkEnsemble.stop();
         	}

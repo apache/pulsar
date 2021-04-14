@@ -87,6 +87,9 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
 
         afterPulsarStart();
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder().
             serviceUrl(pulsarServices[0].getBrokerServiceUrl())
             .build();

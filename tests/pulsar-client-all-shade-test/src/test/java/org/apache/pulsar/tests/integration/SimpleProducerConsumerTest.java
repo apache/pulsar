@@ -73,20 +73,26 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                 .build();
         lookupUrl = new URI(pulsarContainer.getPlainTextPulsarBrokerUrl());
 
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         admin.tenants().createTenant("my-property",
                 new TenantInfo(new HashSet<>(Arrays.asList("appid1", "appid2")), Collections.singleton("standalone")));
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
-        admin.close();
     }
 
     @Override
     @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
-        pulsarClient.close();
-        pulsarContainer.stop();
-        pulsarContainer.close();
+        if (pulsarClient != null) {
+            pulsarClient.close();
+            pulsarClient = null;
+        }
+        if (pulsarContainer != null) {
+            pulsarContainer.stop();
+            pulsarContainer.close();
+            pulsarContainer = null;
+        }
     }
 
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {

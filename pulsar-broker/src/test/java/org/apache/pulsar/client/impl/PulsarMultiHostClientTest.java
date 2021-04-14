@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -95,9 +96,9 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
             url = "pulsar://localhost:51000,localhost:51001";
         }
 
-        PulsarClient client;
         try {
-            client = PulsarClient.builder()
+            @Cleanup
+            PulsarClient client = PulsarClient.builder()
                 .serviceUrl(url)
                 .statsInterval(0, TimeUnit.SECONDS)
                 .operationTimeout(3, TimeUnit.SECONDS)

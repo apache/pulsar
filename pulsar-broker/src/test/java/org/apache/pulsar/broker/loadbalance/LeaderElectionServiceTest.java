@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -80,6 +81,7 @@ public class LeaderElectionServiceTest {
         adminClient.clusters().createCluster(clusterName, new ClusterData("http://localhost:8080"));
         adminClient.tenants().createTenant(tenant, new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(clusterName)));
         adminClient.namespaces().createNamespace(tenant + "/" + namespace, 16);
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl("pulsar://localhost:6650")
                 .startingBackoffInterval(1, TimeUnit.MILLISECONDS)
@@ -101,7 +103,6 @@ public class LeaderElectionServiceTest {
                 .topic("persistent://" + tenant + "/" + namespace + "/1p")
                 .create();
         producer.getTopic();
-        pulsar.close();
 
     }
 

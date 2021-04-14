@@ -3980,6 +3980,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/one-partitioned-topic";
         final String subscriptionName = "my-sub-";
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().listenerThreads(10).serviceUrl(lookupUrl.toString()).build();
 
         // create partitioned topic
@@ -4024,7 +4025,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(listenerThreads.size(), partitions - 1);
         // unblock the listener thread
         blockedMessageLatch.countDown();
-        pulsarClient.close();
         log.info("-- Exiting {} test --", methodName);
     }
 }

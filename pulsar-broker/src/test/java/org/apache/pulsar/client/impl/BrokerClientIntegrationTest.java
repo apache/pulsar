@@ -600,10 +600,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      */
     @Test
     public void testMaxConcurrentTopicLoading() throws Exception {
-
-        final PulsarClientImpl pulsarClient;
-        final PulsarClientImpl pulsarClient2;
-
         final String topicName = "persistent://prop/usw/my-ns/cocurrentLoadingTopic";
         int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
         final int concurrentLookupRequests = 20;
@@ -617,39 +613,38 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
             String lookupUrl = pulsar.getBrokerServiceUrl();
 
-            pulsarClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
+            try (PulsarClientImpl pulsarClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
                     .statsInterval(0, TimeUnit.SECONDS).maxNumberOfRejectedRequestPerConnection(0).build();
+                 PulsarClientImpl pulsarClient2 = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
+                    .statsInterval(0, TimeUnit.SECONDS).ioThreads(concurrentLookupRequests)
+                         .connectionsPerBroker(20).build()) {
 
-            pulsarClient2 = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
-                    .statsInterval(0, TimeUnit.SECONDS).ioThreads(concurrentLookupRequests).connectionsPerBroker(20)
-                    .build();
+                ProducerImpl<byte[]> producer =
+                        (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+                ClientCnx cnx = producer.cnx();
+                assertTrue(cnx.channel().isActive());
 
-            ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
-            ClientCnx cnx = producer.cnx();
-            assertTrue(cnx.channel().isActive());
+                final List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
+                final int totalProducers = 10;
+                CountDownLatch latch = new CountDownLatch(totalProducers);
+                for (int i = 0; i < totalProducers; i++) {
+                    executor.submit(() -> {
+                        final String randomTopicName1 = topicName + randomUUID().toString();
+                        final String randomTopicName2 = topicName + randomUUID().toString();
+                        // pass producer-name to avoid exception: producer is already connected to topic
+                        synchronized (futures) {
+                            futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
+                            futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
+                        }
+                        latch.countDown();
+                    });
+                }
 
-            final List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
-            final int totalProducers = 10;
-            CountDownLatch latch = new CountDownLatch(totalProducers);
-            for (int i = 0; i < totalProducers; i++) {
-                executor.submit(() -> {
-                    final String randomTopicName1 = topicName + randomUUID().toString();
-                    final String randomTopicName2 = topicName + randomUUID().toString();
-                    // pass producer-name to avoid exception: producer is already connected to topic
-                    synchronized (futures) {
-                        futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
-                        futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
-                    }
-                    latch.countDown();
-                });
+                latch.await();
+                synchronized (futures) {
+                    FutureUtil.waitForAll(futures).get();
+                }
             }
-
-            latch.await();
-            synchronized (futures) {
-                FutureUtil.waitForAll(futures).get();
-            }
-            pulsarClient.close();
-            pulsarClient2.close();
         } finally {
             // revert back to original value
             pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(concurrentTopic);
@@ -664,11 +659,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test
     public void testCloseConnectionOnInternalServerError() throws Exception {
 
-        final PulsarClient pulsarClient;
-
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
 
-        pulsarClient = PulsarClient.builder()
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
@@ -690,7 +684,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
         // connection must be closed
         assertFalse(cnx.channel().isActive());
-        pulsarClient.close();
     }
 
     @Test
@@ -749,6 +742,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace("my-property/global/lookup");
 
         final int operationTimeOut = 500;
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).operationTimeout(operationTimeOut, TimeUnit.MILLISECONDS).build();
         CountDownLatch latch = new CountDownLatch(1);
@@ -765,7 +759,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         Set<ProducerBase<byte[]>> producers = (Set<ProducerBase<byte[]>>) prodField
                 .get(pulsarClient);
         assertTrue(producers.isEmpty());
-        pulsarClient.close();
         log.info("-- Exiting {} test --", methodName);
     }
 

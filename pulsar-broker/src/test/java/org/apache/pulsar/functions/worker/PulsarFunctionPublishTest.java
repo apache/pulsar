@@ -186,6 +186,9 @@ public class PulsarFunctionPublishTest {
             clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
                     workerConfig.getBrokerClientAuthenticationParameters());
         }
+        if (pulsarClient != null) {
+            pulsarClient.close();
+        }
         pulsarClient = clientBuilder.build();
 
         TenantInfo propAdmin = new TenantInfo();

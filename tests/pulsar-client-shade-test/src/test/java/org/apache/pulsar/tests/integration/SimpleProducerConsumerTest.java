@@ -88,9 +88,15 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
     @Override
     @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
-        pulsarClient.close();
-        pulsarContainer.stop();
-        pulsarContainer.close();
+        if (pulsarClient != null) {
+            pulsarClient.close();
+            pulsarClient = null;
+        }
+        if (pulsarContainer != null) {
+            pulsarContainer.stop();
+            pulsarContainer.close();
+            pulsarContainer = null;
+        }
     }
 
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
