@@ -92,7 +92,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(V1_ProducerConsumerTest.class);
     private static final long BATCHING_MAX_PUBLISH_DELAY_THRESHOLD = 1;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -361,7 +361,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         } catch (PulsarClientException e) {
             Assert.assertTrue(e instanceof PulsarClientException.AlreadyClosedException);
         }
-        
+
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic6")
                 .subscriptionName("my-subscriber-name")
@@ -630,7 +630,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(groups = "quarantine")
     public void testActiveAndInActiveConsumerEntryCacheBehavior() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

@@ -84,6 +84,10 @@ jobs:
         if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: ./build/run_unit_group.sh BROKER_GROUP_2
 
+      - name: print JVM thread dumps when cancelled
+        if: cancelled()
+        run: ./build/pulsar_ci_tool.sh print_thread_dumps
+
       - name: package surefire artifacts
         if: failure()
         run: |

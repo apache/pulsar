@@ -21,12 +21,14 @@ package org.apache.pulsar.client.impl.schema;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -234,7 +236,15 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         if (this.schema == null) {
             throw new IllegalStateException("Cannot decode a message without schema");
         }
-        return GenericObjectWrapper.of(value,
-                this.schema.getSchemaInfo().getType(), schemaVersion);
+        return wrapPrimitiveObject(value, schema.getSchemaInfo().getType(), schemaVersion);
+    }
+
+    public static GenericRecord wrapPrimitiveObject(Object value, SchemaType type, byte[] schemaVersion) {
+        return GenericObjectWrapper.of(value, type, schemaVersion);
+    }
+
+
+    public Schema<?> getInternalSchema() {
+        return schema;
     }
 }

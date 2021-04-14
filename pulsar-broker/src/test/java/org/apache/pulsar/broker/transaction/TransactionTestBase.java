@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
@@ -58,7 +59,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 
 @Slf4j
-public class TransactionTestBase {
+public abstract class TransactionTestBase extends TestRetrySupport {
 
     public final static String CLUSTER_NAME = "test";
 
@@ -79,6 +80,7 @@ public class TransactionTestBase {
     private NonClosableMockBookKeeper mockBookKeeper;
 
     public void internalSetup() throws Exception {
+        incrementSetupNumber();
         init();
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()).build());
@@ -222,6 +224,7 @@ public class TransactionTestBase {
     };
 
     protected final void internalCleanup() {
+        markCurrentSetupNumberCleaned();
         try {
             // if init fails, some of these could be null, and if so would throw
             // an NPE in shutdown, obscuring the real error

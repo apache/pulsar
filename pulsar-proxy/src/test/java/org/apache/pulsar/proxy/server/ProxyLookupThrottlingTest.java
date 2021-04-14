@@ -47,7 +47,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Override
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
         internalSetup();
 
@@ -70,10 +70,12 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
-        proxyService.close();
+        if (proxyService != null) {
+            proxyService.close();
+        }
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testLookup() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()

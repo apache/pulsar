@@ -93,7 +93,7 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class PersistentTopicE2ETest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -1429,7 +1429,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(msgInRate > 0);
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testBrokerConnectionStats() throws Exception {
 
         BrokerService brokerService = this.pulsar.getBrokerService();

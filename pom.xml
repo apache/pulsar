@@ -81,10 +81,10 @@ flexible messaging model and an intuitive client API.</description>
     <maven.compiler.target>1.8</maven.compiler.target>
 
     <!--config keys to congiure test selection -->
-    <include>*</include>
+    <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
     <groups/>
-    <excludedGroups/>
+    <excludedGroups>quarantine</excludedGroups>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -108,7 +108,7 @@ flexible messaging model and an intuitive client API.</description>
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.60.Final</netty.version>
     <netty-tc-native.version>2.0.36.Final</netty-tc-native.version>
-    <jetty.version>9.4.35.v20201120</jetty.version>
+    <jetty.version>9.4.39.v20210325</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.10.9</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
@@ -1178,18 +1178,14 @@ flexible messaging model and an intuitive client API.</description>
           <shutdown>kill</shutdown>
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
+          <systemPropertyVariables>
+            <testRealAWS>${testRealAWS}</testRealAWS>
+            <testRetryCount>${testRetryCount}</testRetryCount>
+          </systemPropertyVariables>
           <properties>
             <property>
-              <name>testRealAWS</name>
-              <value>${testRealAWS}</value>
-            </property>
-            <property>
-              <name>testRetryCount</name>
-              <value>${testRetryCount}</value>
-            </property>
-            <property>
               <name>listener</name>
-              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener</value>
             </property>
           </properties>
         </configuration>
@@ -1449,6 +1445,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.so</exclude>
             <exclude>**/*.so.*</exclude>
             <exclude>**/*.dylib</exclude>
+            <exclude>src/test/resources/*.txt</exclude>
           </excludes>
         </configuration>
       </plugin>

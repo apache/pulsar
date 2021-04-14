@@ -29,10 +29,9 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class PersistentTopicStreamingDispatcherE2ETest extends PersistentTopicE2ETest {
 
-    @BeforeMethod
     @Override
-    protected void setup() throws Exception {
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
         conf.setStreamingDispatch(true);
-        super.baseSetup();
     }
 }

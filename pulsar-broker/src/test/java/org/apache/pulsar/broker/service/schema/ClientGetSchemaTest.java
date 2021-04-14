@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import java.util.function.Supplier;
 import lombok.Cleanup;
 
 import org.apache.pulsar.client.api.Consumer;
@@ -64,7 +65,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         public int age;
     }
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -96,16 +97,20 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
 
     @DataProvider(name = "serviceUrl")
     public Object[] serviceUrls() {
-        return new String[] {
-                pulsar.getBrokerServiceUrl(),
-                pulsar.getWebServiceAddress()
+        return new Object[] {
+                stringSupplier(() -> getPulsar().getBrokerServiceUrl()),
+                stringSupplier(() -> getPulsar().getWebServiceAddress())
         };
     }
 
+    private static Supplier<String> stringSupplier(Supplier<String> supplier) {
+        return supplier;
+    }
+
     @Test(dataProvider = "serviceUrl")
-    public void testGetSchema(String serviceUrl) throws Exception {
+    public void testGetSchema(Supplier<String> serviceUrl) throws Exception {
         @Cleanup
-        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl(serviceUrl).build();
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
         assertEquals(client.getSchema("non-existing-topic").join(), Optional.empty());
         assertEquals(client.getSchema(topicBytes).join(), Optional.empty());
@@ -117,7 +122,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
     /**
      * It validates if schema ledger is deleted or non recoverable then it will clean up schema storage for the topic
      * and make the topic available.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -141,7 +146,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         BookkeeperSchemaStorage schemaStrogate = (BookkeeperSchemaStorage) pulsar.getSchemaStorage();
         long schemaLedgerId = schemaStrogate.getSchemaLedgerList(key).get(0);
 
-        // (2) break schema locator by deleting schema-ledger 
+        // (2) break schema locator by deleting schema-ledger
         schemaStrogate.getBookKeeper().deleteLedger(schemaLedgerId);
 
         admin.topics().unload(fqtnOne);
