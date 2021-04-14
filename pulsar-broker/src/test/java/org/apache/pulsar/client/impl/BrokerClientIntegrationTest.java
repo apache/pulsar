@@ -385,6 +385,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertNull(msg);
 
         // subscribe consumer2 with supporting batch version
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
                 .topic(topicName)
@@ -406,7 +407,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         consumer2.close();
         producer.close();
         batchProducer.close();
-        newPulsarClient.close();
         log.info("-- Exiting {} test --", methodName);
     }
 

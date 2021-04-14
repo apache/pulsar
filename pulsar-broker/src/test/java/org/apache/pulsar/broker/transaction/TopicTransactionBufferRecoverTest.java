@@ -112,6 +112,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+            pulsarClient = null;
+        }
         super.internalCleanup();
     }
 

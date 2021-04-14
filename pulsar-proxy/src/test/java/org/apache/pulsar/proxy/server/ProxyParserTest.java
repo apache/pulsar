@@ -218,6 +218,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl(proxyService.getServiceUrl());
+        @Cleanup
         PulsarClient client = getClientActiveConsumerChangeNotSupported(conf);
 
         Producer<byte[]> producer = client.newProducer().topic(topic).create();
@@ -237,6 +238,8 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         producer.close();
         consumer.close();
         client.close();
+        // shutdown EventLoopGroup created in getClientActiveConsumerChangeNotSupported method
+        ((PulsarClientImpl) client).getCnxPool().close();
     }
 
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)

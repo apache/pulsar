@@ -71,6 +71,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
 
     @Test
     public void testCreateConsumerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
+        @Cleanup
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
         try {
             pulsarClient.newConsumer()

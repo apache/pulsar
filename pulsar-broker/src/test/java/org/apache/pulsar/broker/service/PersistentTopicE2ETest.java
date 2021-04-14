@@ -1061,6 +1061,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. shared consumer on an exclusive sub fails
         try {
+            @Cleanup
             PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -1071,6 +1072,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 2. failover consumer on an exclusive sub fails
         try {
+            @Cleanup
             PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Failover).subscribe();
@@ -1082,6 +1084,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 3. disconnected sub can be converted in shared
         consumer1.close();
         try {
+            @Cleanup
             PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -1092,6 +1095,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 4. exclusive fails on shared sub
         try {
+            @Cleanup
             PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -1103,6 +1107,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 5. disconnected sub can be converted in failover
         consumer2.close();
         try {
+            @Cleanup
             PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Failover).subscribe();
@@ -1114,6 +1119,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 5. exclusive consumer can connect after failover disconnects
         consumer3.close();
         try {
+            @Cleanup
             PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscriptionType(SubscriptionType.Exclusive).subscribe();

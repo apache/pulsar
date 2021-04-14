@@ -442,7 +442,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             }
         }, 3, 1000);
         try {
-
+            @Cleanup
             PulsarClient proxyClient = createPulsarClient("pulsar://localhost:" + proxyService.getListenPortTls().get(), PulsarClient.builder());
             Consumer<byte[]> consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
@@ -452,7 +452,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                 Assert.fail("Failure expected for this test case");
             }
             consumer.close();
-            proxyClient.close();
         } catch (Exception ex) {
             if (!expectFailure) {
                 Assert.fail("This test case should not fail");
