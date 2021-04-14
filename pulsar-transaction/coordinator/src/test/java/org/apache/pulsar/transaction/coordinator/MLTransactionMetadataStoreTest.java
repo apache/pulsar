@@ -19,10 +19,13 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
@@ -31,6 +34,7 @@ import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
@@ -39,6 +43,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import static org.testng.Assert.assertEquals;
 
 public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
@@ -66,17 +72,17 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
             }
             if (transactionMetadataStore.checkIfReady()) {
                 TxnID txnID = transactionMetadataStore.newTransaction(5000).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.OPEN);
+                assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.OPEN);
 
                 List<String> partitions = new ArrayList<>();
                 partitions.add("pt-1");
                 partitions.add("pt-2");
                 transactionMetadataStore.addProducedPartitionToTxn(txnID, partitions).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(), partitions);
+                assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(), partitions);
 
                 partitions.add("pt-3");
                 transactionMetadataStore.addProducedPartitionToTxn(txnID, partitions).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(),
+                assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(),
                         partitions);
 
                 List<TransactionSubscription> subscriptions = new ArrayList<>();
@@ -86,11 +92,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 Assert.assertTrue(transactionMetadataStore.getTxnMeta(txnID).get().ackedPartitions().containsAll(subscriptions));
 
                 transactionMetadataStore.addAckedPartitionToTxn(txnID, subscriptions).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(),
+                assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(),
                         partitions);
 
                 transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTING);
+                assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTING);
 
                 transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
 
@@ -106,6 +112,52 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 Thread.sleep(100);
             }
         }
+    }
+
+    @DataProvider(name = "isUseManagedLedger")
+    public Object[][] versions() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(dataProvider = "isUseManagedLedger")
+    public void testRecoverSequenceId(boolean isUseManagedLedger) throws Exception {
+        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        factoryConf.setMaxCacheSize(0);
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc, factoryConf);
+        TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(3);
+        MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
+                managedLedgerConfig);
+        MLTransactionMetadataStore transactionMetadataStore =
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new TransactionTimeoutTrackerImpl());
+
+        Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
+        TxnID txnID = transactionMetadataStore.newTransaction(100).get();
+        transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
+        if (isUseManagedLedger) {
+            transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
+        }
+        assertEquals(txnID.getLeastSigBits(), 0);
+        Field field = MLTransactionLogImpl.class.getDeclaredField("managedLedger");
+        field.setAccessible(true);
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) field.get(mlTransactionLog);
+        Position position = managedLedger.getLastConfirmedEntry();
+
+        if (isUseManagedLedger) {
+            Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
+                managedLedger.rollCurrentLedgerIfFull();
+                return !managedLedger.ledgerExists(position.getLedgerId());
+            });
+        }
+        transactionMetadataStore =
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new TransactionTimeoutTrackerImpl());
+
+        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
+        txnID = transactionMetadataStore.newTransaction(100000).get();
+        assertEquals(txnID.getLeastSigBits(), 1);
     }
 
     @Test
@@ -130,8 +182,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
             if (transactionMetadataStore.checkIfReady()) {
                 TxnID txnID1 = transactionMetadataStore.newTransaction(1000).get();
                 TxnID txnID2 = transactionMetadataStore.newTransaction(1000).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID1).get(), TxnStatus.OPEN);
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID2).get(), TxnStatus.OPEN);
+                assertEquals(transactionMetadataStore.getTxnStatus(txnID1).get(), TxnStatus.OPEN);
+                assertEquals(transactionMetadataStore.getTxnStatus(txnID2).get(), TxnStatus.OPEN);
 
                 List<String> partitions = new ArrayList<>();
                 partitions.add("pt-1");
@@ -171,14 +223,14 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                         subscriptions.add(new TransactionSubscription("topic3", "sub3"));
                         TxnMeta txnMeta1 = transactionMetadataStoreTest.getTxnMeta(txnID1).get();
                         TxnMeta txnMeta2 = transactionMetadataStoreTest.getTxnMeta(txnID2).get();
-                        Assert.assertEquals(txnMeta1.producedPartitions(), partitions);
-                        Assert.assertEquals(txnMeta2.producedPartitions(), partitions);
-                        Assert.assertEquals(txnMeta1.ackedPartitions().size(), subscriptions.size());
-                        Assert.assertEquals(txnMeta2.ackedPartitions().size(), subscriptions.size());
+                        assertEquals(txnMeta1.producedPartitions(), partitions);
+                        assertEquals(txnMeta2.producedPartitions(), partitions);
+                        assertEquals(txnMeta1.ackedPartitions().size(), subscriptions.size());
+                        assertEquals(txnMeta2.ackedPartitions().size(), subscriptions.size());
                         Assert.assertTrue(subscriptions.containsAll(txnMeta1.ackedPartitions()));
                         Assert.assertTrue(subscriptions.containsAll(txnMeta2.ackedPartitions()));
-                        Assert.assertEquals(txnMeta1.status(), TxnStatus.COMMITTING);
-                        Assert.assertEquals(txnMeta2.status(), TxnStatus.COMMITTING);
+                        assertEquals(txnMeta1.status(), TxnStatus.COMMITTING);
+                        assertEquals(txnMeta2.status(), TxnStatus.COMMITTING);
                         transactionMetadataStoreTest
                                 .updateTxnStatus(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
                         transactionMetadataStoreTest
@@ -197,7 +249,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                             Assert.assertTrue(e.getCause() instanceof TransactionNotFoundException);
                         }
                         TxnID txnID = transactionMetadataStoreTest.newTransaction(1000).get();
-                        Assert.assertEquals(txnID.getLeastSigBits(), 2L);
+                        assertEquals(txnID.getLeastSigBits(), 2L);
                         break;
                     } else {
                         checkReplayRetryCount++;
@@ -232,8 +284,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
             if (transactionMetadataStore.checkIfReady()) {
                 TxnID txnID1 = transactionMetadataStore.newTransaction(1000).get();
                 TxnID txnID2 = transactionMetadataStore.newTransaction(1000).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID1).get(), TxnStatus.OPEN);
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID2).get(), TxnStatus.OPEN);
+                assertEquals(transactionMetadataStore.getTxnStatus(txnID1).get(), TxnStatus.OPEN);
+                assertEquals(transactionMetadataStore.getTxnStatus(txnID2).get(), TxnStatus.OPEN);
 
                 List<String> partitions = new ArrayList<>();
                 partitions.add("pt-1");
@@ -262,7 +314,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 Field field = mlTransactionLog.getClass().getDeclaredField("cursor");
                 field.setAccessible(true);
                 ManagedCursor cursor = (ManagedCursor) field.get(mlTransactionLog);
-                Assert.assertEquals(cursor.getMarkDeletedPosition(), cursor.getManagedLedger().getLastConfirmedEntry());
+                assertEquals(cursor.getMarkDeletedPosition(), cursor.getManagedLedger().getLastConfirmedEntry());
 
                 break;
             } else {

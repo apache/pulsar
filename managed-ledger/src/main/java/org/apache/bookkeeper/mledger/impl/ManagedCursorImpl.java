@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -84,6 +85,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
@@ -584,6 +586,48 @@ public class ManagedCursorImpl implements ManagedCursor {
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition);
         ledger.asyncReadEntries(op);
+    }
+
+    public CompletableFuture<Entry> readLastConfirmEntry() {
+
+        CompletableFuture<Entry> completableFuture = new CompletableFuture<>();
+        if (isClosed()) {
+            completableFuture.completeExceptionally(new ManagedLedgerException("Cursor was already closed"));
+            return completableFuture;
+        }
+
+        if (getManagedLedger().getLastConfirmedEntry() != null
+                && getManagedLedger().getLastConfirmedEntry().getEntryId() != -1) {
+            PENDING_READ_OPS_UPDATER.incrementAndGet(this);
+            OpReadEntry op = OpReadEntry.create(this, (PositionImpl) getManagedLedger().getLastConfirmedEntry(),
+                    1, new ReadEntriesCallback() {
+                        @Override
+                        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                            if (entries.size() == 0) {
+                                completableFuture.complete(null);
+                            } else if (entries.size() == 1) {
+                                completableFuture.complete(entries.get(0));
+                            } else {
+                                completableFuture.completeExceptionally(
+                                        new InvalidCursorPositionException("readLastConfirmEntry "
+                                                + "is more than one entry!"));
+                            }
+
+                            PENDING_READ_OPS_UPDATER.decrementAndGet(ManagedCursorImpl.this);
+                        }
+
+                        @Override
+                        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                            completableFuture.completeExceptionally(exception);
+                            PENDING_READ_OPS_UPDATER.decrementAndGet(ManagedCursorImpl.this);
+                        }
+                    }, null, (PositionImpl) getManagedLedger().getLastConfirmedEntry());
+
+            ledger.asyncReadEntries(op);
+        } else {
+            completableFuture.complete(null);
+        }
+        return completableFuture;
     }
 
     @Override

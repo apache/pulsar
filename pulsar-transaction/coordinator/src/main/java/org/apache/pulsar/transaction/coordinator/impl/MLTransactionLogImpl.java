@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -66,11 +67,15 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final String topicName;
 
+    private final MLTransactionLogInterceptor mlTransactionLogInterceptor;
+
     public MLTransactionLogImpl(TransactionCoordinatorID tcID,
                                 ManagedLedgerFactory managedLedgerFactory,
                                 ManagedLedgerConfig managedLedgerConfig) throws Exception {
         this.topicName = TRANSACTION_LOG_PREFIX + tcID;
         this.tcId = tcID.getId();
+        this.mlTransactionLogInterceptor = new MLTransactionLogInterceptor();
+        managedLedgerConfig.setManagedLedgerInterceptor(this.mlTransactionLogInterceptor);
         this.managedLedger = managedLedgerFactory.open(topicName, managedLedgerConfig);
         this.cursor =  managedLedger.openCursor(TRANSACTION_SUBSCRIPTION_NAME,
                 CommandSubscribe.InitialPosition.Earliest);
@@ -120,6 +125,7 @@ public class MLTransactionLogImpl implements TransactionLog {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 buf.release();
+                mlTransactionLogInterceptor.setMaxSequenceId(transactionMetadataEntry.getMaxSequenceId());
                 completableFuture.complete(position);
             }
 
@@ -188,7 +194,23 @@ public class MLTransactionLogImpl implements TransactionLog {
                     }
                 }
             }
-            transactionLogReplayCallback.replayComplete();
+            ((ManagedCursorImpl) cursor).readLastConfirmEntry().thenAccept(entry -> {
+                if (entry != null) {
+                    TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
+                    ByteBuf buffer = entry.getDataBuffer();
+                    currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+                    lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
+                    transactionLogReplayCallback.initSequenceId(lastConfirmEntry.getMaxSequenceId());
+                } else if (managedLedger.getProperties()
+                        .get(MLTransactionLogInterceptor.MAX_SEQUENCE_ID) != null) {
+                    transactionLogReplayCallback.initSequenceId(Long.parseLong(managedLedger.getProperties()
+                            .get(MLTransactionLogInterceptor.MAX_SEQUENCE_ID)));
+                }
+                transactionLogReplayCallback.replayComplete();
+            }).exceptionally(e -> {
+                log.error("[{}] MLTransactionLog recover fail!", topicName, e);
+                return null;
+            });
         }
     }
 

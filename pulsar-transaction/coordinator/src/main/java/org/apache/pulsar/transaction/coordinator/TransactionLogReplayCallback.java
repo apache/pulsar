@@ -39,4 +39,11 @@ public interface TransactionLogReplayCallback {
      */
     void handleMetadataEntry(Position position, TransactionMetadataEntry transactionMetadataEntry);
 
+    /**
+     * Init sequence ID.
+     *
+     * @param initSequenceId the init sequenceID of this transaction log.
+     */
+    void initSequenceId(long initSequenceId);
+
 }
