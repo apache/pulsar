@@ -164,7 +164,7 @@ public class LoadBalancerTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdown();
+        executor.shutdownNow();
 
         for (int i = 0; i < BROKER_COUNT; i++) {
             pulsarAdmins[i].close();
@@ -609,7 +609,7 @@ public class LoadBalancerTest {
     private void createNamespace(PulsarService pulsar, String namespace, int numBundles) throws Exception {
         Policies policies = new Policies();
         policies.bundles = getBundles(numBundles);
-        String zpath = AdminResource.path(POLICIES, namespace);        
+        String zpath = AdminResource.path(POLICIES, namespace);
         pulsar.getPulsarResources().getNamespaceResources().create(zpath, policies);
 
     }

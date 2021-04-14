@@ -42,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -347,6 +348,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             stopBroker();
             startBroker();
             // produce message concurrently
+            @Cleanup("shutdownNow")
             ExecutorService executor = Executors.newFixedThreadPool(5);
             AtomicBoolean failed = new AtomicBoolean(false);
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
@@ -384,7 +386,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // but as message should be dropped at broker: broker should not receive the message
             assertNotEquals(messageSet.size(), totalProduceMessages);
 
-            executor.shutdown();
             producer.close();
         } finally {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
@@ -849,6 +850,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
+            @Cleanup("shutdownNow")
             ExecutorService executor = Executors.newFixedThreadPool(5);
             byte[] msgData = "testData".getBytes();
             final int totalProduceMessages = 200;
@@ -876,7 +878,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             producer.close();
             consumer.close();
             consumer2.close();
-            executor.shutdown();
         } finally {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
         }
@@ -1032,7 +1033,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         void shutdownReplicationCluster() throws Exception {
             log.info("--- Shutting down ---");
-            executor.shutdown();
+            executor.shutdownNow();
 
             admin1.close();
             admin2.close();
