@@ -18,20 +18,31 @@
  */
 package org.apache.pulsar.tests;
 
-import org.testng.ITestResult;
-import org.testng.SkipException;
-import org.testng.util.RetryAnalyzerCount;
+import org.testng.annotations.Test;
 
-public class RetryAnalyzer extends RetryAnalyzerCount {
-    // Only try again once
-    static final int MAX_RETRIES = Integer.parseInt(System.getProperty("testRetryCount", "1"));
+public class DefaultTestRetriesTest {
+    int invocationCountA;
+    int invocationCountB;
+    int invocationCountC;
 
-    public RetryAnalyzer() {
-        setCount(MAX_RETRIES);
+    @Test
+    void testMethodA() {
+        if (invocationCountA++ < RetryAnalyzer.MAX_RETRIES) {
+            throw new IllegalStateException("Sample failure to trigger retry.");
+        }
     }
 
-    @Override
-    public boolean retryMethod(ITestResult result) {
-        return !(result.getThrowable() instanceof SkipException);
+    @Test
+    void testMethodB() {
+        if (invocationCountB++ < RetryAnalyzer.MAX_RETRIES) {
+            throw new IllegalStateException("Sample failure to trigger retry.");
+        }
+    }
+
+    @Test
+    void testMethodC() {
+        if (invocationCountC++ < RetryAnalyzer.MAX_RETRIES) {
+            throw new IllegalStateException("Sample failure to trigger retry.");
+        }
     }
 }
