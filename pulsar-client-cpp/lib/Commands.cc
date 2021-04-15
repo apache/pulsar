@@ -256,8 +256,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo,
                                     CommandSubscribe_InitialPosition subscriptionInitialPosition,
-                                    bool replicateSubscriptionState,
-                                    KeySharedPolicy keySharedPolicy) {
+                                    bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
