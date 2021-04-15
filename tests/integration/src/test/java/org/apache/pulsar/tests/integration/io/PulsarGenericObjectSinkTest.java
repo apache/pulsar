@@ -43,6 +43,7 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
@@ -172,7 +173,16 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                     try {
                         String logFile = "/pulsar/logs/functions/public/default/" + spec.sinkName + "/" + spec.sinkName + "-0.log";
                         String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
-                            return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+                            ByteArrayOutputStream oo = new ByteArrayOutputStream();
+                            // copy first 1MB of logs
+                            for (int j = 0; j < 1024*1024*1024; j++) {
+                                int r = inputStream.read();
+                                if (r == -1) {
+                                    break;
+                                }
+                                oo.write(r);
+                            }
+                            return oo.toString(StandardCharsets.UTF_8.name());
                         });
                         log.info("Sink {} logs", spec.sinkName);
                         log.info("{}", logs);
