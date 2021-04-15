@@ -30,13 +30,13 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
-import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -291,10 +291,6 @@ public class PulsarStandalone implements AutoCloseable {
                                    });
         broker.start();
 
-        if (config.isTransactionCoordinatorEnabled()) {
-            broker.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
-        }
-
         final String cluster = config.getClusterName();
 
         if (!config.isTlsEnabled()) {
@@ -338,15 +334,18 @@ public class PulsarStandalone implements AutoCloseable {
             createSampleNameSpace(clusterData, cluster);
         }
 
-        createDefaultNameSpace(cluster);
+        //create default namespace
+        createNameSpace(cluster, TopicName.PUBLIC_TENANT, TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE);
+        //create pulsar system namespace
+        createNameSpace(cluster, NamespaceName.SYSTEM_NAMESPACE.getTenant(), NamespaceName.SYSTEM_NAMESPACE.toString());
+        if (config.isTransactionCoordinatorEnabled()) {
+            admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        }
 
         log.debug("--- setup completed ---");
     }
 
-    private void createDefaultNameSpace(String cluster) {
-        // Create a public tenant and default namespace
-        final String publicTenant = TopicName.PUBLIC_TENANT;
-        final String defaultNamespace = TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE;
+    private void createNameSpace(String cluster, String publicTenant, String defaultNamespace) {
         try {
             if (!admin.tenants().getTenants().contains(publicTenant)) {
                 admin.tenants().createTenant(publicTenant,
