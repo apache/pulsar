@@ -77,7 +77,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
-            config.setBrokerShutdownTimeoutMs(100L);
+            config.setBrokerShutdownTimeoutMs(0L);
             config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);

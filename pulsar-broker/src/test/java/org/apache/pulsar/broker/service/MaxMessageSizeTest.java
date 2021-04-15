@@ -63,7 +63,7 @@ public class MaxMessageSizeTest {
             configuration.setAdvertisedAddress("localhost");
             configuration.setWebServicePort(Optional.of(0));
             configuration.setClusterName("max_message_test");
-            configuration.setBrokerShutdownTimeoutMs(100L);
+            configuration.setBrokerShutdownTimeoutMs(0L);
             configuration.setBrokerServicePort(Optional.of(0));
             configuration.setAuthorizationEnabled(false);
             configuration.setAuthenticationEnabled(false);

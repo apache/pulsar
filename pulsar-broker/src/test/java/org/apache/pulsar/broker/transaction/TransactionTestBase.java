@@ -119,7 +119,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
             conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
-            conf.setBrokerShutdownTimeoutMs(100L);
+            conf.setBrokerShutdownTimeoutMs(0L);
             conf.setBrokerServicePort(Optional.of(0));
             conf.setBrokerServicePortTls(Optional.of(0));
             conf.setAdvertisedAddress("localhost");
