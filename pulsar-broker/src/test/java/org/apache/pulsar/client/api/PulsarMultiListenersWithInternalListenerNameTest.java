@@ -94,7 +94,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         clientBuilder.listenerName("internal");
     }
 
-    @Test(groups = "quarantine")
+    @Test
     public void testFindBrokerWithListenerName() throws Throwable {
         admin.clusters().createCluster("localhost", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo();
