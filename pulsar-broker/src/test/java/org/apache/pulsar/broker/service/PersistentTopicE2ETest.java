@@ -78,6 +78,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -739,10 +740,14 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         admin.namespaces().createNamespace("prop/ns-delete-schema", 3);
         admin.topics().createPartitionedTopic(topic, partitions);
 
-        Producer producer = pulsarClient
+        Producer<Schemas.BytesRecord> producer = pulsarClient
                 .newProducer(Schema.JSON(Schemas.BytesRecord.class))
                 .topic(topic)
+                .enableBatching(false)
                 .create();
+        for (int i = 0; i < partitions; i++) {
+            producer.send(new Schemas.BytesRecord());
+        }
         producer.close();
 
         CompletableFuture[] asyncFutures = new CompletableFuture[partitions];

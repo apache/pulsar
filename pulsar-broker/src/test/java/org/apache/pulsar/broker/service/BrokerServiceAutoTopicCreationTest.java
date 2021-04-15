@@ -24,6 +24,7 @@ import static org.testng.Assert.fail;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -102,7 +103,14 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getConfiguration().setDefaultNumPartitions(3);
 
         final String topicString = "persistent://prop/ns-abc/partitioned-topic-1";
-        pulsarClient.newProducer().topic(topicString).create();
+        final Producer<byte[]> producer = pulsarClient.newProducer().topic(topicString).enableBatching(false).create();
+        for (int i = 0; i < 3; i++) {
+            try {
+                producer.newMessage().value("msg".getBytes()).send();
+            } catch (Throwable e) {
+                fail();
+            }
+        }
 
         assertTrue(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
         for (int i = 0; i < 3; i++) {
