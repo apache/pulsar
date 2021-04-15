@@ -358,12 +358,12 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * 
      * @param replicateSubscriptionState whether the subscription status should be replicated
      */
-    void setReplicateSubscriptionState(bool replicateSubscriptionState);
+    void setReplicateSubscriptionStateEnabled(bool enabled);
 
     /**
      * @return whether the subscription status should be replicated
      */
-    bool getReplicateSubscriptionState() const;
+    bool isReplicateSubscriptionStateEnabled() const;
 
     /**
      * Check whether the message has a specific property attached.
