@@ -143,21 +143,26 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
 
                 // wait that the sinks processed all records without errors
                 log.info("waiting for sink {}", spec.sinkName);
-                Awaitility.await()
-                            .atMost(5, TimeUnit.MINUTES)
-                            .pollDelay(20, TimeUnit.SECONDS)
-                            .ignoreExceptions()
-                            .alias("waiting for sink "+spec.sinkName)
-                            .untilAsserted(() -> {
-                                        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
-                                            SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
-                                            log.info("sink {} status {}", spec.sinkName, status);
-                                            assertEquals(status.getInstances().size(), 1, "problem (instances) with sink " + spec.sinkName);
-                                            assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords, "problem (too few records) with sink " + spec.sinkName);
-                                            assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0, "problem (too many exceptions) with sink " + spec.sinkName);
-                                            assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0, "problem (too many system exceptions) with sink " + spec.sinkName);
-                                        }
-                    });
+                for (int i = 0; i < 60; i++) {
+                    try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+                        SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
+                        log.info("sink {} status {}", spec.sinkName, status);
+                        if (status.getInstances().size() > 0 &&
+                                status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords) {
+                            break;
+                        }
+                    }
+                    Thread.sleep(10000);
+                }
+
+                try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+                    SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
+                    log.info("sink {} status {}", spec.sinkName, status);
+                    assertEquals(status.getInstances().size(), 1, "problem (instances) with sink " + spec.sinkName);
+                    assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords, "problem (too few records) with sink " + spec.sinkName);
+                    assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0, "problem (too many exceptions) with sink " + spec.sinkName);
+                    assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0, "problem (too many system exceptions) with sink " + spec.sinkName);
+                }
 
 
                     deleteSink(spec.sinkName);
@@ -192,6 +197,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         };
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
+        log.info(result.getStdout());
         assertTrue(
                 result.getStdout().contains("\"Created successfully\""),
                 result.getStdout());
@@ -206,6 +212,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 "--namespace", "default",
                 "--name", sinkName
         );
+        log.info(result.getStdout());
         assertTrue(result.getStdout().contains("\"name\": \"" + sinkName + "\""));
     }
 
@@ -218,6 +225,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 "--namespace", "default",
                 "--name", sinkName
         );
+        log.info(result.getStdout());
         assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
