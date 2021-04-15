@@ -44,6 +44,7 @@ struct ConsumerConfigurationImpl {
     bool readCompacted;
     InitialPosition subscriptionInitialPosition;
     int patternAutoDiscoveryPeriod;
+    bool replicateSubscriptionState;
     std::map<std::string, std::string> properties;
     KeySharedPolicy keySharedPolicy;
 

@@ -590,7 +590,8 @@ class Client:
                   properties=None,
                   pattern_auto_discovery_period=60,
                   initial_position=InitialPosition.Latest,
-                  crypto_key_reader=None
+                  crypto_key_reader=None,
+                  replicate_subscription_state=False
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -666,6 +667,9 @@ class Client:
         * crypto_key_reader:
            Symmetric encryption class implementation, configuring public key encryption messages for the producer
            and private key decryption messages for the consumer
+        * replicate_subscription_state:
+          Set whether the subscription status should be replicated.
+          Default: `False`.
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
@@ -706,6 +710,8 @@ class Client:
 
         if crypto_key_reader:
             conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
+
+        conf.replicate_subscription_state(replicate_subscription_state)
 
         c = Consumer()
         if isinstance(topic, str):

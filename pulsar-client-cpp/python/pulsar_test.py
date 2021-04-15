@@ -96,6 +96,10 @@ class PulsarTest(TestCase):
         conf.consumer_name("my-name")
         self.assertEqual(conf.consumer_name(), "my-name")
 
+        self.assertEqual(conf.replicate_subscription_state(), False)
+        conf.replicate_subscription_state(True)
+        self.assertEqual(conf.replicate_subscription_state(), True)
+
     def test_simple_producer(self):
         client = Client(self.serviceUrl)
         producer = client.create_producer('my-python-topic')
