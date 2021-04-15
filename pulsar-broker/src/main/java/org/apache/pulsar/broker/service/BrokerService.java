@@ -47,13 +47,11 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -61,7 +59,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -77,12 +74,10 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import javax.ws.rs.core.Response;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -749,10 +744,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                     log.warn("Error in closing delayedDeliveryTrackerFactory", e);
                                 }
 
-                                asyncCloseFutures.add(GracefulExecutorServiceShutdownHandler
-                                        .shutdownGracefully(
-                                                (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
-                                                        * pulsar.getConfiguration().getBrokerShutdownTimeoutMs()),
+                                asyncCloseFutures.add(GracefulExecutorServicesShutdown
+                                        .initiate()
+                                        .timeout(
+                                                Duration.ofMillis(
+                                                        (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
+                                                                * pulsar.getConfiguration()
+                                                                .getBrokerShutdownTimeoutMs())))
+                                        .shutdown(
                                                 statsUpdater,
                                                 inactivityMonitor,
                                                 messageExpiryMonitor,
@@ -763,7 +762,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                                 topicOrderedExecutor,
                                                 topicPublishRateLimiterMonitor,
                                                 brokerPublishRateLimiterMonitor,
-                                                deduplicationSnapshotMonitor));
+                                                deduplicationSnapshotMonitor)
+                                        .handle());
 
                                 CompletableFuture<Void> combined =
                                         FutureUtil.waitForAllAndSupportCancel(asyncCloseFutures);
@@ -800,85 +800,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return NettyFutureUtil.toCompletableFutureVoid(
                 eventLoopGroup.shutdownGracefully(quietPeriod,
                         timeout, TimeUnit.MILLISECONDS));
-    }
-
-    @Slf4j
-    private static class GracefulExecutorServiceShutdownHandler {
-        private final ScheduledExecutorService shutdownScheduler = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory(getClass().getSimpleName()));
-        private final List<ExecutorService> executors;
-        private final CompletableFuture<Void> future;
-        private final long timeoutMs;
-
-        private GracefulExecutorServiceShutdownHandler(long timeoutMs, ExecutorService... executorServices) {
-            this.timeoutMs = timeoutMs;
-            executors = Arrays.stream(executorServices)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-            future = new CompletableFuture<>();
-        }
-
-        static CompletableFuture<Void> shutdownGracefully(long timeoutMs, ExecutorService... executorServices) {
-            return new GracefulExecutorServiceShutdownHandler(timeoutMs, executorServices).doShutdownGracefully();
-        }
-
-        private CompletableFuture<Void> doShutdownGracefully() {
-            log.info("Shutting down {} executors.", executors.size());
-            executors.forEach(ExecutorService::shutdown);
-            FutureUtil.whenCancelledOrTimedOut(future, () -> {
-                terminate();
-            });
-            checkCompletion();
-            if (!shutdownScheduler.isShutdown()) {
-                try {
-                    shutdownScheduler.schedule(this::terminate, timeoutMs, TimeUnit.MILLISECONDS);
-                } catch (RejectedExecutionException e) {
-                    // ignore
-                }
-            }
-            return future;
-        }
-
-        private void terminate() {
-            for (ExecutorService executor : executors) {
-                if (!executor.isTerminated()) {
-                    log.info("Shutting down forcefully executor {}", executor);
-                    for (Runnable runnable : executor.shutdownNow()) {
-                        log.info("Execution in progress for runnable instance of {}: {}", runnable.getClass(),
-                                runnable);
-                    }
-                }
-            }
-            shutdown();
-        }
-
-        private void shutdown() {
-            if (!shutdownScheduler.isShutdown()) {
-                log.info("Shutting down scheduler.");
-                shutdownScheduler.shutdown();
-            }
-        }
-
-        private void scheduleCheck() {
-            if (!shutdownScheduler.isShutdown()) {
-                try {
-                    shutdownScheduler
-                            .schedule(this::checkCompletion, Math.max(timeoutMs / 100, 10), TimeUnit.MILLISECONDS);
-                } catch (RejectedExecutionException e) {
-                    // ignore
-                }
-            }
-        }
-
-        private void checkCompletion() {
-            if (executors.stream().filter(executor -> !executor.isTerminated()).count() > 0) {
-                scheduleCheck();
-            } else {
-                log.info("Shutdown completed.");
-                future.complete(null);
-                shutdown();
-            }
-        }
     }
 
     private CompletableFuture<Void> closeChannel(Channel channel) {
