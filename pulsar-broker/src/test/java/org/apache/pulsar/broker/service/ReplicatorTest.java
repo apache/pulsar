@@ -258,6 +258,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         replicationClients.put("r3", pulsarClient);
 
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(5);
         for (int i = 0; i < 5; i++) {
             executor.submit(() -> {
@@ -274,8 +275,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .createProducerAsync(
                         Mockito.any(ProducerConfigurationData.class),
                         Mockito.any(Schema.class), eq(null));
-
-        executor.shutdown();
     }
 
     @DataProvider(name = "namespace")

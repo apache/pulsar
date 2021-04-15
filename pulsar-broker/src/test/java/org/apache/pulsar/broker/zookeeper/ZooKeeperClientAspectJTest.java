@@ -96,7 +96,7 @@ public class ZooKeeperClientAspectJTest {
                 localZkc.close();
             }
 
-            executor.shutdown();
+            executor.shutdownNow();
         }
     }
 
@@ -195,7 +195,7 @@ public class ZooKeeperClientAspectJTest {
                 localZkc.close();
             }
 
-            executor.shutdown();
+            executor.shutdownNow();
         }
     }
 
@@ -282,7 +282,7 @@ public class ZooKeeperClientAspectJTest {
                 localZkc.close();
             }
 
-            executor.shutdown();
+            executor.shutdownNow();
         }
     }
 

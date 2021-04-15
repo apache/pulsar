@@ -68,7 +68,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     @Test(timeOut = 30000)

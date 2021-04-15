@@ -29,6 +29,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -82,6 +83,7 @@ public class DistributedIdGeneratorTest {
 
         CyclicBarrier barrier = new CyclicBarrier(Threads);
         CountDownLatch counter = new CountDownLatch(Threads);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         List<String> results = Collections.synchronizedList(Lists.newArrayList());
@@ -112,8 +114,6 @@ public class DistributedIdGeneratorTest {
         // Check the list contains no duplicates
         Set<String> set = Sets.newHashSet(results);
         assertEquals(set.size(), results.size());
-
-        executor.shutdown();
     }
 
     @Test

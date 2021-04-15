@@ -139,7 +139,7 @@ public class SchedulerManagerTest {
 
     @AfterMethod(alwaysRun = true)
     public void stop() {
-        this.executor.shutdown();
+        this.executor.shutdownNow();
     }
 
     @Test
@@ -153,7 +153,7 @@ public class SchedulerManagerTest {
                 .build();
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
-        
+
         ThreadRuntimeFactory factory = mock(ThreadRuntimeFactory.class);
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
