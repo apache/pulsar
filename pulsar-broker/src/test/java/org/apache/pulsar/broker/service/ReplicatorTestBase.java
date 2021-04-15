@@ -245,7 +245,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
         if (executor != null) {
-            executor.shutdown();
+            executor.shutdownNow();
             executor = null;
         }
 

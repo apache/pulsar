@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import lombok.Cleanup;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.ILoggerFactory;
@@ -52,6 +53,7 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
                     + service.getSafeWebServiceAddress() + ", broker url=" + service.getSafeBrokerServiceUrl());
         }
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("shutdown-thread"));
 
         try {

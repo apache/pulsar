@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.GrowablePriorityLongPairQueue.LongPair;
 import org.testng.annotations.Test;
 
@@ -162,6 +163,7 @@ public class GrowablePriorityLongPairQueueTest {
     @Test
     public void concurrentInsertions() throws Throwable {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -189,13 +191,12 @@ public class GrowablePriorityLongPairQueueTest {
         }
 
         assertEquals(queue.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
         GrowablePriorityLongPairQueue map = new GrowablePriorityLongPairQueue();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -223,8 +224,6 @@ public class GrowablePriorityLongPairQueueTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
