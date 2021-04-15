@@ -340,7 +340,7 @@ public class PulsarStandalone implements AutoCloseable {
         createNameSpace(cluster, NamespaceName.SYSTEM_NAMESPACE.getTenant(), NamespaceName.SYSTEM_NAMESPACE.toString());
         if (config.isTransactionCoordinatorEnabled()) {
             if (!admin.namespaces().getTopics(NamespaceName.SYSTEM_NAMESPACE.toString())
-                    .contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString()))
+                    .contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString()))
             admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
         }
 
