@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -114,6 +115,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
             Assert.assertTrue(produceSocket.getBuffer().size() > 0);
             Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
         } finally {
+            @Cleanup("shutdownNow")
             ExecutorService executor = newFixedThreadPool(1);
             try {
                 executor.submit(() -> {
@@ -128,7 +130,6 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
             } catch (Exception e) {
                 log.error("failed to close clients ", e);
             }
-            executor.shutdownNow();
         }
     }
 

@@ -93,7 +93,7 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class PersistentTopicE2ETest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -334,6 +334,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final int recvQueueSize = 100;
         final int numConsumersThreads = 10;
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final CyclicBarrier barrier = new CyclicBarrier(numConsumersThreads + 1);
@@ -376,7 +377,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 2. flow control works the same as single consumer single thread
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         assertEquals(getAvailablePermits(subRef), recvQueueSize);
-        executor.shutdown();
     }
 
     @Test(enabled = false)
@@ -395,6 +395,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
 
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         CountDownLatch latch = new CountDownLatch(1);
         executor.submit(() -> {
@@ -442,8 +443,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         assertTrue(subRef.getDispatcher().isConsumerConnected());
-
-        executor.shutdown();
     }
 
     @Test
@@ -1398,7 +1397,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         field.setAccessible(true);
         ScheduledExecutorService statsUpdater = (ScheduledExecutorService) field.get(brokerService);
         // disable statsUpdate to calculate rates explicitly
-        statsUpdater.shutdown();
+        statsUpdater.shutdownNow();
 
         final String namespace = "prop/ns-abc";
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1429,7 +1428,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(msgInRate > 0);
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testBrokerConnectionStats() throws Exception {
 
         BrokerService brokerService = this.pulsar.getBrokerService();

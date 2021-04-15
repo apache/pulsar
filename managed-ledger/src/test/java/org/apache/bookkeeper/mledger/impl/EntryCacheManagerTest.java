@@ -48,9 +48,8 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     ManagedLedgerImpl ml1;
     ManagedLedgerImpl ml2;
 
-    @BeforeMethod
-    public void setup(Method method) throws Exception {
-        super.setUp(method);
+    @Override
+    protected void setUpTestCase() throws Exception {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).build();
 
         ml1 = mock(ManagedLedgerImpl.class);

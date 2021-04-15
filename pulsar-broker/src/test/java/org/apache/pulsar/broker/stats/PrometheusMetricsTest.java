@@ -32,6 +32,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.text.NumberFormat;
 import java.util.Arrays;
@@ -49,6 +50,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -73,7 +75,7 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class PrometheusMetricsTest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -893,9 +895,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
-    // Investigate issue
-    // java.lang.AssertionError: line pulsar_broker_publish_latency{cluster="test",quantile="0.0"} +Inf does not match pattern
-    // ^(\w+)\{([^\}]+)\}\s(-?[\d\w\.-]+)(\s(\d+))?$ expected [true] but found [false]
     @Test
     public void testExpiringTokenMetrics() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -957,9 +956,26 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
-    // Investigate issue
-    // java.lang.AssertionError: line pulsar_broker_publish_latency{cluster="test",quantile="0.0"} +Inf does not match pattern
-    // ^(\w+)\{([^\}]+)\}\s(-?[\d\w\.-]+)(\s(\d+))?$ expected [true] but found [false]
+    @Test
+    public void testParsingWithPositiveInfinityValue() {
+        Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} +Inf");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.get(0).tags.get("quantile"), "0.0");
+        assertEquals(cm.get(0).value, Double.POSITIVE_INFINITY);
+    }
+
+    @Test
+    public void testParsingWithNegativeInfinityValue() {
+        Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} -Inf");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals(cm.get(0).tags.get("quantile"), "0.0");
+        assertEquals(cm.get(0).value, Double.NEGATIVE_INFINITY);
+    }
+
     @Test
     public void testManagedCursorPersistStats() throws Exception {
         final String subName = "my-sub";
@@ -1083,6 +1099,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, count);
     }
 
+    @Test
+    void testParseMetrics() throws IOException {
+        String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
+                .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);
+        parseMetrics(sampleMetrics);
+    }
 
     /**
      * Hacky parsing of Prometheus text format. Should be good enough for unit tests
@@ -1095,7 +1117,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // or
         // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
         // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s(-?[\\d\\w\\.-]+)(\\s(\\d+))?$");
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
         Splitter.on("\n").split(metrics).forEach(line -> {

@@ -25,6 +25,7 @@
             <class name="org.apache.pulsar.tests.integration.functions.PulsarStateTest" />
             <class name="org.apache.pulsar.tests.integration.io.GenericRecordSourceTest" />
             <class name="org.apache.pulsar.tests.integration.io.PulsarSourcePropertyTest"/>
+            <class name="org.apache.pulsar.tests.integration.io.PulsarGenericObjectSinkTest"/>
         </classes>
     </test>
 </suite>

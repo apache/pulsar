@@ -30,6 +30,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -63,8 +64,8 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
+import org.apache.bookkeeper.mledger.offload.OffloadersCache;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -85,6 +86,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
+import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
@@ -179,6 +181,7 @@ public class PulsarService implements AutoCloseable {
     private GlobalZooKeeperCache globalZkCache;
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
     private Compactor compactor;
+    private ResourceUsageTransportManager resourceUsageTransportManager;
 
     private final ScheduledExecutorService executor;
     private final ScheduledExecutorService cacheExecutor;
@@ -187,7 +190,7 @@ public class PulsarService implements AutoCloseable {
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
-    private Offloaders offloaderManager = new Offloaders();
+    private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
@@ -341,6 +344,8 @@ public class PulsarService implements AutoCloseable {
                 }
             }
 
+            metricsServlet = null;
+
             if (this.webSocketService != null) {
                 this.webSocketService.close();
             }
@@ -397,7 +402,10 @@ public class PulsarService implements AutoCloseable {
                 client = null;
             }
 
-            nsService = null;
+            if (nsService != null) {
+                nsService.close();
+                nsService = null;
+            }
 
             if (compactorExecutor != null) {
                 compactorExecutor.shutdown();
@@ -427,7 +435,7 @@ public class PulsarService implements AutoCloseable {
                 schemaRegistryService.close();
             }
 
-            offloaderManager.close();
+            offloadersCache.close();
 
             if (protocolHandlers != null) {
                 protocolHandlers.close();
@@ -436,6 +444,11 @@ public class PulsarService implements AutoCloseable {
 
             if (transactionBufferClient != null) {
                 transactionBufferClient.close();
+            }
+
+            if (transactionExecutor != null) {
+                transactionExecutor.shutdown();
+                transactionExecutor = null;
             }
 
             if (coordinationService != null) {
@@ -583,8 +596,6 @@ public class PulsarService implements AutoCloseable {
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
 
-            this.offloaderManager = OffloaderUtils.searchForOffloaders(
-                    config.getOffloadersDirectory(), config.getNarExtractionDirectory());
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
             this.brokerInterceptor = BrokerInterceptors.load(config);
@@ -737,6 +748,15 @@ public class PulsarService implements AutoCloseable {
             // start packages management service if necessary
             if (config.isEnablePackagesManagement()) {
                 this.startPackagesManagementService();
+            }
+
+            // Start the task to publish resource usage, if necessary
+            if (config.getResourceUsageTransportClassName() != null
+              && config.getResourceUsageTransportClassName() != "") {
+                Class<?> clazz = Class.forName(config.getResourceUsageTransportClassName());
+                Constructor<?> ctor = clazz.getConstructor(PulsarService.class);
+                Object object = ctor.newInstance(new Object[] { this });
+                this.resourceUsageTransportManager = (ResourceUsageTransportManager) object;
             }
 
             final String bootstrapMessage = "bootstrap service "
@@ -1083,7 +1103,10 @@ public class PulsarService implements AutoCloseable {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(
+                Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
+                        offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
+
+                LedgerOffloaderFactory offloaderFactory = offloaders.getOffloaderFactory(
                         offloadPolicies.getManagedLedgerOffloadDriver());
                 try {
                     return offloaderFactory.create(
@@ -1370,6 +1393,10 @@ public class PulsarService implements AutoCloseable {
 
     public TopicPoliciesService getTopicPoliciesService() {
         return topicPoliciesService;
+    }
+
+    public ResourceUsageTransportManager getResourceUsageTransportManager() {
+        return resourceUsageTransportManager;
     }
 
     public void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {

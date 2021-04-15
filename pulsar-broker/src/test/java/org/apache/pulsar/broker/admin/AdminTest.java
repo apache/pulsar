@@ -474,7 +474,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // clear caches to load data from metadata-store again
         MetadataCacheImpl<TenantInfo> cache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
-                .getTenatResources().getCache();
+                .getTenantResources().getCache();
         AbstractMetadataStore store = (AbstractMetadataStore) cache.getStore();
         cache.invalidateAll();
         store.invalidateAll();

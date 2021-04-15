@@ -16,30 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import common_job_properties
+syntax = "proto2";
 
-// This job deploys a snapshot of latest master to artifactory nightly
-mavenJob('pulsar_release_nightly_snapshot') {
-  description('runs a `mvn clean deploy` of the nightly snapshot for pulsar.')
+package pulsar.resource.usage;
+option java_package = "org.apache.pulsar.broker.service.resource.usage";
+option optimize_for = SPEED;
 
-  // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+message NetworkUsage {
+  required uint64 bytesPerPeriod = 1;
+  required uint64 messagesPerPeriod = 2;
+}
 
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(
-      delegate,
-      'H 12 * * *',
-      false)
+message StorageUsage {
+  required uint64 totalBytes = 1;
+}
 
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Release Snapshot',
-      '/release-snapshot')
+message ResourceUsage {
+  // owner is the key(ID) of the entity that reports the usage
+  // It could be a resource-group or tenant, namespace or a topic
+  required string owner = 1;
+  optional NetworkUsage publish = 2;
+  optional NetworkUsage dispatch = 3;
+  optional StorageUsage storage = 4;
+}
 
-  // Set maven parameters.
-  common_job_properties.setMavenConfig(delegate)
+message ResourceUsageInfo {
+  // Name of the broker
+  required string broker = 1;
 
-  // Maven build project.
-  goals('clean package deploy -DskipTests')
+  repeated ResourceUsage usageMap = 2;
 }

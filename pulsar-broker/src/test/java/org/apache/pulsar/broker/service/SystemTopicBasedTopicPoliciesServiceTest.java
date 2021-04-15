@@ -52,7 +52,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private NamespaceEventsSystemTopicFactory systemTopicFactory;
     private SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setSystemTopicEnabled(true);

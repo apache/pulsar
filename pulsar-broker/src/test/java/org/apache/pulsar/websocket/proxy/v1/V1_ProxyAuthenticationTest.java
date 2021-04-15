@@ -39,6 +39,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.v1.V1_ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -96,6 +97,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
+        @Cleanup("shutdownNow")
         ExecutorService executor = newFixedThreadPool(1);
         try {
             executor.submit(() -> {
@@ -110,7 +112,6 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         } catch (Exception e) {
             log.error("failed to close clients ", e);
         }
-        executor.shutdownNow();
 
         super.internalCleanup();
         if (service != null) {

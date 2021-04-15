@@ -114,8 +114,8 @@ public class OffloaderUtils {
         }
     }
 
-    public static Offloaders searchForOffloaders(String connectorsDirectory, String narExtractionDirectory) throws IOException {
-        Path path = Paths.get(connectorsDirectory).toAbsolutePath();
+    public static Offloaders searchForOffloaders(String offloadersPath, String narExtractionDirectory) throws IOException {
+        Path path = Paths.get(offloadersPath).toAbsolutePath();
         log.info("Searching for offloaders in {}", path);
 
         Offloaders offloaders = new Offloaders();

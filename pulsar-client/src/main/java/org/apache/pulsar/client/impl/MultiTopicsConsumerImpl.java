@@ -97,8 +97,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
-
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
     private final ConsumerStatsRecorder stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
@@ -386,6 +386,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         } finally {
             lock.writeLock().unlock();
         }
+
         return result;
     }
 
@@ -595,18 +596,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void redeliverUnacknowledgedMessages() {
-        lock.writeLock().lock();
-        try {
-            consumers.values().stream().forEach(consumer -> {
-                consumer.redeliverUnacknowledgedMessages();
-                consumer.unAckedChunkedMessageIdSequenceMap.clear();
-            });
-            incomingMessages.clear();
-            resetIncomingMessageSize();
-            unAckedMessageTracker.clear();
-        } finally {
-            lock.writeLock().unlock();
-        }
+        consumers.values().stream().forEach(consumer -> {
+            consumer.redeliverUnacknowledgedMessages();
+            consumer.unAckedChunkedMessageIdSequenceMap.clear();
+        });
+        incomingMessages.clear();
+        resetIncomingMessageSize();
+        unAckedMessageTracker.clear();
+
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 

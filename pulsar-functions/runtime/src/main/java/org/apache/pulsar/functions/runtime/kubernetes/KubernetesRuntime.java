@@ -191,7 +191,7 @@ public class KubernetesRuntime implements Runtime {
                       Integer grpcPort,
                       String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer,
-                      String functinoInstanceClassPath,
+                      String functionInstanceClassPath,
                       String downloadDirectory) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
@@ -214,7 +214,7 @@ public class KubernetesRuntime implements Runtime {
         this.memoryOverCommitRatio = memoryOverCommitRatio;
         this.authenticationEnabled = authenticationEnabled;
         this.manifestCustomizer = manifestCustomizer;
-        this.functionInstanceClassPath = functinoInstanceClassPath;
+        this.functionInstanceClassPath = functionInstanceClassPath;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -275,7 +275,7 @@ public class KubernetesRuntime implements Runtime {
                         pythonDependencyRepository,
                         pythonExtraDependencyRepository,
                         narExtractionDirectory,
-                        functinoInstanceClassPath,
+                        functionInstanceClassPath,
                         true,
                         pulsarAdminUrl));
 

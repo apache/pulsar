@@ -49,14 +49,25 @@ public class JodaTimeTest extends PulsarTestSuite {
     private PulsarClient client;
     private PulsarAdmin admin;
 
-    @BeforeMethod
-    public void setup() throws Exception {
+    public void setupCluster() throws Exception {
+        super.setupCluster();
         this.client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
         this.admin = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
                 .build();
+    }
+
+    @Override
+    public void tearDownCluster() throws Exception {
+        if (client != null) {
+            client.close();
+        }
+        if (admin != null) {
+            admin.close();
+        }
+        super.tearDownCluster();
     }
 
     @Data

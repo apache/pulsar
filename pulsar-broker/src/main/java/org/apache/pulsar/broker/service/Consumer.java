@@ -39,7 +39,6 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -67,7 +66,6 @@ public class Consumer {
     private final SubType subType;
     private final TransportCnx cnx;
     private final String appId;
-    private AuthenticationDataSource authenticationData;
     private final String topicName;
     private final int partitionIdx;
     private final InitialPosition subscriptionInitialPosition;
@@ -83,7 +81,7 @@ public class Consumer {
 
     private long lastConsumedTimestamp;
     private long lastAckedTimestamp;
-    private Rate chuckedMessageRate;
+    private Rate chunkedMessageRate;
 
     // Represents how many messages we can safely send to the consumer without
     // overflowing its receiving queue. The consumer will use Flow commands to
@@ -144,12 +142,11 @@ public class Consumer {
         this.keySharedMeta = keySharedMeta;
         this.cnx = cnx;
         this.msgOut = new Rate();
-        this.chuckedMessageRate = new Rate();
+        this.chunkedMessageRate = new Rate();
         this.msgRedeliver = new Rate();
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
         this.appId = appId;
-        this.authenticationData = cnx.getAuthenticationData();
         this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
@@ -253,7 +250,7 @@ public class Consumer {
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
         msgOutCounter.add(totalMessages);
         bytesOutCounter.add(totalBytes);
-        chuckedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
+        chunkedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
 
 
         return cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
@@ -573,12 +570,13 @@ public class Consumer {
 
     public void updateRates() {
         msgOut.calculateRate();
-        chuckedMessageRate.calculateRate();
+        chunkedMessageRate.calculateRate();
         msgRedeliver.calculateRate();
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateRedeliver = msgRedeliver.getRate();
-        stats.chuckedMessageRate = chuckedMessageRate.getRate();
+        stats.chuckedMessageRate = chunkedMessageRate.getRate();
+        stats.chunkedMessageRate = chunkedMessageRate.getRate();
     }
 
     public void updateStats(ConsumerStats consumerStats) {
@@ -626,8 +624,8 @@ public class Consumer {
         TopicName topicName = TopicName.get(subscription.getTopicName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationService().canConsume(topicName, appId, authenticationData,
-                        subscription.getName())) {
+                if (cnx.getBrokerService().getAuthorizationService().canConsume(topicName, appId,
+                        cnx.getAuthenticationData(), subscription.getName())) {
                     return;
                 }
             } catch (Exception e) {

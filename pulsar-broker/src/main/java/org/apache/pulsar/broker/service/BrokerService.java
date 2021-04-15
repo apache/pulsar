@@ -696,11 +696,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
 
-            if (listenChannel != null) {
+            if (listenChannel != null && listenChannel.isOpen()) {
                 asyncCloseFutures.add(closeChannel(listenChannel));
             }
 
-            if (listenChannelTls != null) {
+            if (listenChannelTls != null && listenChannelTls.isOpen()) {
                 asyncCloseFutures.add(closeChannel(listenChannelTls));
             }
 

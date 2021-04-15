@@ -128,7 +128,7 @@ public class PerformanceConsumer {
         String listenerName = null;
 
         @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-        private int maxPendingChuckedMessage = 0;
+        private int maxPendingChunkedMessage = 0;
 
         @Parameter(names = { "-ac",
                 "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
@@ -328,8 +328,8 @@ public class PerformanceConsumer {
                 .autoAckOldestChunkedMessageOnQueueFull(arguments.autoAckOldestChunkedMessageOnQueueFull)
                 .enableBatchIndexAcknowledgment(arguments.batchIndexAck)
                 .replicateSubscriptionState(arguments.replicatedSubscription);
-        if (arguments.maxPendingChuckedMessage > 0) {
-            consumerBuilder.maxPendingChuckedMessage(arguments.maxPendingChuckedMessage);
+        if (arguments.maxPendingChunkedMessage > 0) {
+            consumerBuilder.maxPendingChunkedMessage(arguments.maxPendingChunkedMessage);
         }
         if (arguments.expireTimeOfIncompleteChunkedMessageMs > 0) {
             consumerBuilder.expireTimeOfIncompleteChunkedMessage(arguments.expireTimeOfIncompleteChunkedMessageMs,
