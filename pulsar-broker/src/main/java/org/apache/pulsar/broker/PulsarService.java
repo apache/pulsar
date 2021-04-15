@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -313,12 +314,10 @@ public class PulsarService implements AutoCloseable {
             Throwable cause = e.getCause();
             if (cause instanceof PulsarServerException) {
                 throw (PulsarServerException) cause;
-            } else if (cause instanceof TimeoutException) {
-                if (getConfiguration().getBrokerShutdownTimeoutMs() < 1000L) {
-                    // ignore shutdown timeout when it's less than 1000ms (in tests)
-                } else {
-                    throw new PulsarServerException(cause);
-                }
+            } else if (getConfiguration().getBrokerShutdownTimeoutMs() == 0
+                    && (cause instanceof TimeoutException || cause instanceof CancellationException)) {
+                // ignore shutdown timeout when timeout is 0, which is primarily used in tests
+                // to forcefully shutdown the broker
             } else {
                 throw new PulsarServerException(cause);
             }
