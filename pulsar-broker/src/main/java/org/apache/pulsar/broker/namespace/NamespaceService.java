@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -114,7 +115,7 @@ import org.slf4j.LoggerFactory;
  *
  * @see org.apache.pulsar.broker.PulsarService
  */
-public class NamespaceService {
+public class NamespaceService implements AutoCloseable {
 
     public enum AddressType {
         BROKER_URL, LOOKUP_URL
@@ -1385,6 +1386,17 @@ public class NamespaceService {
                         ownedBundle.getNamespaceBundle(), ex);
                     pulsar.getShutdownService().shutdown(-1);
                 }
+            }
+        });
+    }
+
+    @Override
+    public void close() {
+        namespaceClients.forEach((cluster, client) -> {
+            try {
+                client.shutdown();
+            } catch (PulsarClientException e) {
+                LOG.warn("Error shutting down namespace client for cluster {}", cluster, e);
             }
         });
     }
