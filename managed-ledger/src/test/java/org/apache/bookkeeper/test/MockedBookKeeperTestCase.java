@@ -119,10 +119,10 @@ public abstract class MockedBookKeeperTestCase {
     @AfterClass(alwaysRun = true)
     public final void tearDownClass() {
         if (executor != null) {
-            executor.shutdown();
+            executor.shutdownNow();
         }
         if (cachedExecutor != null) {
-            cachedExecutor.shutdown();
+            cachedExecutor.shutdownNow();
         }
     }
 

@@ -39,7 +39,6 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -67,7 +66,6 @@ public class Consumer {
     private final SubType subType;
     private final TransportCnx cnx;
     private final String appId;
-    private AuthenticationDataSource authenticationData;
     private final String topicName;
     private final int partitionIdx;
     private final InitialPosition subscriptionInitialPosition;
@@ -149,7 +147,6 @@ public class Consumer {
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
         this.appId = appId;
-        this.authenticationData = cnx.getAuthenticationData();
         this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
@@ -626,8 +623,8 @@ public class Consumer {
         TopicName topicName = TopicName.get(subscription.getTopicName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationService().canConsume(topicName, appId, authenticationData,
-                        subscription.getName())) {
+                if (cnx.getBrokerService().getAuthorizationService().canConsume(topicName, appId,
+                        cnx.getAuthenticationData(), subscription.getName())) {
                     return;
                 }
             } catch (Exception e) {

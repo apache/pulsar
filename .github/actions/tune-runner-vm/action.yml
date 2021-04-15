@@ -17,33 +17,15 @@
 # under the License.
 #
 
-name: Pulsar Bot
-on:
-  issue_comment:
-    types: [created]
-  pull_request:
-    types: [closed]
-
-env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
-
-jobs:
-
-  action-runner:
-    name:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-
-      - name: Tune Runner VM
-        uses: ./.github/actions/tune-runner-vm
-
-      - name: Execute pulsarbot command
-        id:   pulsarbot
-        if: github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/pulsarbot')
-        env:
-          GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
-        uses: apache/pulsar-test-infra/pulsarbot@master
+name: Tune Runner VM performance
+description: tunes the GitHub Runner VM operation system
+runs:
+  using: composite
+  steps:
+    - run: |
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            # Ensure that reverse lookups for current hostname are handled properly
+            # Add the current IP address, long hostname and short hostname record to /etc/hosts file
+            echo -e "$(ip addr show eth0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)\t$(hostname -f) $(hostname -s)" | sudo tee -a /etc/hosts
+        fi
+      shell: bash
