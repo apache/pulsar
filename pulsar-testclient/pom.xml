@@ -94,6 +94,13 @@
 			<groupId>org.hdrhistogram</groupId>
 			<artifactId>HdrHistogram</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20201115</version>
+			<scope>test</scope>
+		</dependency>
+
 
 	</dependencies>
 </project>
