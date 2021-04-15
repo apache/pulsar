@@ -245,6 +245,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         final String topic = "non-persistent://my-property/my-ns/partitioned-topic";
         admin.topics().createPartitionedTopic(topic, numPartitions);
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -289,7 +290,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
-        client.close();
     }
 
     /**
@@ -543,8 +543,11 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             NonPersistentTopicStats stats;
             SubscriptionStats subStats;
 
+            @Cleanup
             PulsarClient client1 = PulsarClient.builder().serviceUrl(replication.url1.toString()).build();
+            @Cleanup
             PulsarClient client2 = PulsarClient.builder().serviceUrl(replication.url2.toString()).build();
+            @Cleanup
             PulsarClient client3 = PulsarClient.builder().serviceUrl(replication.url3.toString()).build();
 
             ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) client1.newConsumer().topic(globalTopicName)
@@ -663,10 +666,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             consumer1.close();
             repl2Consumer.close();
             repl3Consumer.close();
-            client1.close();
-            client2.close();
-            client3.close();
-
         } finally {
             replication.shutdownReplicationCluster();
         }

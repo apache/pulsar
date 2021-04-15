@@ -64,6 +64,19 @@ public class SchemaTest extends PulsarTestSuite {
             .build();
     }
 
+    @Override
+    public void tearDownCluster() throws Exception {
+        if (client != null) {
+            client.close();
+            client = null;
+        }
+        if (admin != null) {
+            admin.close();
+            admin = null;
+        }
+        super.tearDownCluster();
+    }
+
     @Test
     public void testCreateSchemaAfterDeletion() throws Exception {
         final String tenant = PUBLIC_TENANT;

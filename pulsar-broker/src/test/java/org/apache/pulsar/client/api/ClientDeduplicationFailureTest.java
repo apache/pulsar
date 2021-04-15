@@ -108,6 +108,9 @@ public class ClientDeduplicationFailureTest {
         ClusterData clusterData = new ClusterData(url.toString());
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).maxBackoffInterval(1, TimeUnit.SECONDS);
         pulsarClient = clientBuilder.build();
 

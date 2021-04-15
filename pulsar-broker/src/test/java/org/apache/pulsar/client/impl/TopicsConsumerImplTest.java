@@ -1141,6 +1141,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test(timeOut = testTimeout)
     public void testSubscriptionMustCompleteWhenOperationTimeoutOnMultipleTopics() throws PulsarClientException {
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(lookupUrl.toString())
                 .ioThreads(2)
