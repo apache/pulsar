@@ -90,6 +90,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             expected.put(key, value);
         }
         // 3 Trigger compaction
+        @Cleanup("shutdownNow")
         ScheduledExecutorService compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         TwoPhaseCompactor twoPhaseCompactor = new TwoPhaseCompactor(config,
@@ -117,7 +118,6 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             }
         }, 50, 1000);
 
-        compactionScheduler.shutdownNow();
         producer.close();
     }
 
@@ -448,5 +448,5 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         sinkConfig.setCleanupSubscription(true);
         return sinkConfig;
     }
-    
+
 }

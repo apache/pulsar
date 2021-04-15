@@ -535,6 +535,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
         final int maxConccurentLookupRequest = pulsar.getConfiguration().getMaxConcurrentLookupRequest();
         final int concurrentLookupRequests = 20;
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
         try {
             stopBroker();
@@ -582,7 +583,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             assertEquals(failed.get(), 1);
         } finally {
             conf.setMaxConcurrentLookupRequest(maxConccurentLookupRequest);
-            executor.shutdownNow();
         }
     }
 
@@ -607,6 +607,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         final String topicName = "persistent://prop/usw/my-ns/cocurrentLoadingTopic";
         int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
         final int concurrentLookupRequests = 20;
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
 
         try {
@@ -652,7 +653,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         } finally {
             // revert back to original value
             pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(concurrentTopic);
-            executor.shutdownNow();
         }
     }
 

@@ -39,6 +39,9 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
 
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
       - name: Changed files check
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
