@@ -45,6 +45,7 @@ import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -96,19 +97,13 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         // we create N sinks, send the records and verify each sink
         // sinks execution happens in parallel
 
-        // cases:
-        // primitive string, keyvalue of primitives, keyvalue of AVRO records (INLINE and SEPARATED)
-
         List<SinkSpec> specs = Arrays.asList(
                 new SinkSpec(prefix + "test-kv-sink-input-string-" + randomName(8), prefix + "test-kv-sink-string-" + randomName(8), Schema.STRING, "foo"),
                 new SinkSpec(prefix + "test-kv-sink-input-kvprimitive-" + randomName(8), prefix + "test-kv-sink-kvprimitive-inline-" + randomName(8),
                         Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.INLINE), new KeyValue<String, Integer>("foo", 123)),
-                new SinkSpec(prefix + "test-kv-sink-input-kvprimitive-" + randomName(8), prefix + "test-kv-sink-kvprimitive-separated-" + randomName(8),
-                        Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.SEPARATED), new KeyValue<String, Integer>("foo", 123)),
-                new SinkSpec(prefix + "test-kv-sink-input-kvavro-" + randomName(8), prefix + "test-kv-sink-kvavro-inline-" + randomName(8),
-                        Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.AVRO(Pojo.class), KeyValueEncodingType.INLINE), new KeyValue<PojoKey, Pojo>(PojoKey.builder().keyfield1("a").build(), Pojo.builder().field1("a").field2(2).build())),
                 new SinkSpec(prefix + "test-kv-sink-input-kvavro-" + randomName(8), prefix + "test-kv-sink-kvavro-sep-" + randomName(8),
-                        Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.AVRO(Pojo.class), KeyValueEncodingType.SEPARATED), new KeyValue<PojoKey, Pojo>(PojoKey.builder().keyfield1("a").build(), Pojo.builder().field1("a").field2(2).build()))
+                        Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.AVRO(Pojo.class), KeyValueEncodingType.SEPARATED),
+                        new KeyValue<PojoKey, Pojo>(PojoKey.builder().keyfield1("a").build(), Pojo.builder().field1("a").field2(2).build()))
         );
 
         for (SinkSpec spec : specs) {
@@ -148,18 +143,19 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
 
                     log.info("waiting for sink {}", spec.sinkName);
-                    try {
-                        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-                            SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
-                            assertEquals(status.getInstances().size(), 1);
-                            assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords);
-                            assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
-                            assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
-                        });
-                    } catch (AssertionError err) {
-                        throw new AssertionError("Error on sink " + spec.sinkName + ": " + err, err);
-                    }
 
+                    Awaitility.await()
+                            .atMost(10, TimeUnit.MINUTES) // slow CI ?
+                            .ignoreExceptions()
+                            .alias("waiting for sink "+spec.sinkName)
+                            .untilAsserted(() -> {
+                        SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
+                        log.info("sink {} status {}", spec.sinkName, status);
+                        assertEquals(status.getInstances().size(), 1, "problem (instances) with sink "+spec.sinkName);
+                        assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords, "problem (too few records) with sink "+spec.sinkName);
+                        assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0, "problem (too many exceptions) with sink "+spec.sinkName);
+                        assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0, "problem (too many system exceptions) with sink "+spec.sinkName);
+                    });
                 }
 
 
