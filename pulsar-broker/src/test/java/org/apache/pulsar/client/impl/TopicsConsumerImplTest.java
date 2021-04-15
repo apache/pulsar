@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.util.Timeout;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -283,6 +284,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         log.info("start async consume");
         CountDownLatch latch = new CountDownLatch(totalMessages);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(1);
         executor.execute(() -> IntStream.range(0, totalMessages).forEach(index ->
             consumer.receiveAsync()
@@ -310,7 +312,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
-        executor.shutdownNow();
     }
 
     @Test(timeOut = testTimeout)

@@ -40,6 +40,9 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
 
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
       - name: Changed files check
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
@@ -83,6 +86,10 @@ jobs:
       - name: run unit test 'BROKER_CLIENT_IMPL'
         if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
         run: ./build/run_unit_group.sh BROKER_CLIENT_IMPL
+
+      - name: print JVM thread dumps when cancelled
+        if: cancelled()
+        run: ./build/pulsar_ci_tool.sh print_thread_dumps
 
       - name: package surefire artifacts
         if: failure()

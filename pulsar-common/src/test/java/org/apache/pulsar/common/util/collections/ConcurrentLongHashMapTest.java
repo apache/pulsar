@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongFunction;
 
+import lombok.Cleanup;
 import org.testng.annotations.Test;
 
 public class ConcurrentLongHashMapTest {
@@ -167,6 +168,7 @@ public class ConcurrentLongHashMapTest {
     @Test
     public void concurrentInsertions() throws Throwable {
         ConcurrentLongHashMap<String> map = new ConcurrentLongHashMap<>();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -195,13 +197,12 @@ public class ConcurrentLongHashMapTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
         ConcurrentLongHashMap<String> map = new ConcurrentLongHashMap<>();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -230,13 +231,12 @@ public class ConcurrentLongHashMapTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void stressConcurrentInsertionsAndReads() throws Throwable {
         ConcurrentLongHashMap<String> map = new ConcurrentLongHashMap<>(4, 1);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final int writeThreads = 16;
         final int readThreads = 16;
@@ -282,7 +282,6 @@ public class ConcurrentLongHashMapTest {
             future.get();
         }
         assertEquals(map.size(), n * writeThreads);
-        executor.shutdown();
     }
 
     @Test

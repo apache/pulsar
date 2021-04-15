@@ -49,15 +49,17 @@ public class ClientErrorsTest {
 
     private final String ASSERTION_ERROR = "AssertionError";
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void setup() {
         mockBrokerService = new MockBrokerService();
         mockBrokerService.start();
     }
 
-    @AfterClass(alwaysRun = true, groups = "broker-api")
+    @AfterClass(alwaysRun = true)
     public void teardown() {
-        mockBrokerService.stop();
+        if (mockBrokerService != null) {
+            mockBrokerService.stop();
+        }
     }
 
     @Test

@@ -54,7 +54,7 @@ import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ReplicatorTestBase extends TestRetrySupport {
+public abstract class ReplicatorTestBase extends TestRetrySupport {
     URL url1;
     URL urlTls1;
     ServiceConfiguration config1 = new ServiceConfiguration();
@@ -245,7 +245,7 @@ public class ReplicatorTestBase extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
         if (executor != null) {
-            executor.shutdown();
+            executor.shutdownNow();
             executor = null;
         }
 

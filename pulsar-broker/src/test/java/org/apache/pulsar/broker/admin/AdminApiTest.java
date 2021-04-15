@@ -1346,6 +1346,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(bundles.getBundles().get(i).toString(), splitRange[i]);
         }
 
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         try {
@@ -1403,7 +1404,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         producer.close();
-        executorService.shutdown();
     }
 
     @Test

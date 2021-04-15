@@ -35,7 +35,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
@@ -70,7 +69,6 @@ public class Producer {
     private Rate chuckedMessageRate;
     // it records msg-drop rate only for non-persistent topic
     private final Rate msgDrop;
-    private AuthenticationDataSource authenticationData;
 
     private volatile long pendingPublishAcks = 0;
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
@@ -105,7 +103,6 @@ public class Producer {
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
-        this.authenticationData = cnx.getAuthenticationData();
         this.msgIn = new Rate();
         this.chuckedMessageRate = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
@@ -625,7 +622,7 @@ public class Producer {
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
                 if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, appId,
-                        authenticationData)) {
+                        cnx.getAuthenticationData())) {
                     return;
                 }
             } catch (Exception e) {

@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.TlsProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -133,6 +134,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
             log.error(t.getMessage());
             Assert.fail(t.getMessage());
         } finally {
+            @Cleanup("shutdownNow")
             ExecutorService executor = newFixedThreadPool(1);
             try {
                 executor.submit(() -> {
@@ -147,7 +149,6 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
             } catch (Exception e) {
                 log.error("failed to close clients ", e);
             }
-            executor.shutdownNow();
         }
     }
 
