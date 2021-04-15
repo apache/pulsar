@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar;
 
+import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
 import com.beust.jcommander.Parameter;
 import com.google.common.collect.Sets;
 import java.io.File;
@@ -30,7 +32,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -337,11 +338,11 @@ public class PulsarStandalone implements AutoCloseable {
         //create default namespace
         createNameSpace(cluster, TopicName.PUBLIC_TENANT, TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE);
         //create pulsar system namespace
-        createNameSpace(cluster, NamespaceName.SYSTEM_NAMESPACE.getTenant(), NamespaceName.SYSTEM_NAMESPACE.toString());
-        if (config.isTransactionCoordinatorEnabled()) {
-            if (!admin.namespaces().getTopics(NamespaceName.SYSTEM_NAMESPACE.toString())
-                    .contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString()))
-            admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE.toString());
+        if (config.isTransactionCoordinatorEnabled() && !admin.namespaces()
+                .getTopics(SYSTEM_NAMESPACE.toString())
+                .contains(TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString())) {
+            admin.topics().createPartitionedTopic(TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
         }
 
         log.debug("--- setup completed ---");
