@@ -118,7 +118,7 @@ public abstract class BookKeeperClusterTestCase {
         stopBKCluster();
         // stop zookeeper service
         stopZKCluster();
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     /**

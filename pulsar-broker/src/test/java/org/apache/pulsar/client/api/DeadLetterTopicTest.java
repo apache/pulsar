@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,6 +192,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         //1 start 3 parallel consumers
         List<Consumer<String>> consumers = new ArrayList<>();
         final AtomicInteger totalReceived = new AtomicInteger(0);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(consumerCount);
         for (int i = 0; i < consumerCount; i++) {
             executor.execute(() -> {
@@ -245,7 +247,6 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         assertEquals(totalInDeadLetter, messageCount);
 
         //6 clean up
-        executor.shutdownNow();
         producer.close();
         deadLetterConsumer.close();
         for (Consumer<String> consumer : consumers) {

@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -505,6 +506,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 .subscriptionName(subName)
                 .startMessageIdInclusive()
                 .receiverQueueSize(recvQueueSize).subscribe();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final CyclicBarrier barrier = new CyclicBarrier(numConsumersThreads + 1);
@@ -597,8 +599,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 Assert.assertEquals(consumerImpl.getAvailablePermits(), numConsumersThreads));
         Assert.assertEquals(consumerImpl.numMessagesInQueue(), recvQueueSize - numConsumersThreads);
         consumer.close();
-
-        executor.shutdownNow();
     }
 
     @Test
@@ -760,6 +760,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         log.info(" start receiving messages :");
         CountDownLatch latch = new CountDownLatch(totalMsg);
         // receive messages
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(1);
         receiveAsync(consumer, totalMsg, 0, latch, consumeMsgs, executor);
 
@@ -773,7 +774,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         producer.close();
         consumer.close();
-        executor.shutdownNow();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -804,6 +804,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         log.info(" start receiving messages :");
         CountDownLatch latch = new CountDownLatch(totalMsg);
         // receive messages
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(1);
         receiveAsync(consumer, totalMsg, 0, latch, consumeMsgs, executor);
 
@@ -817,7 +818,6 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         producer.close();
         consumer.close();
-        executor.shutdownNow();
         log.info("-- Exiting {} test --", methodName);
     }
 
