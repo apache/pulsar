@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -40,6 +41,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.Cleanup;
@@ -145,7 +147,16 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             assertEquals(consumer.getConsumers().size(), 3);
 
             // When produce, a sub-producer is created for each partition which means the partitions are created
-            PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic).create();
+            PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+                    .enableBatching(false).topic(topic).create();
+            for (int i = 0; i < 3; i++) {
+                try {
+                    producer.newMessage().value("msg".getBytes()).send();
+                } catch (Throwable e) {
+                    log.info("Exception: ", e);
+                    fail();
+                }
+            }
             assertEquals(producer.getProducers().size(), 3);
 
             consumer.close();

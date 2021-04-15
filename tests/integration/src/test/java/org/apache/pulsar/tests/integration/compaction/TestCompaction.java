@@ -182,7 +182,7 @@ public class TestCompaction extends PulsarTestSuite {
                 .messageRouter(new MessageRouter() {
                     @Override
                     public int choosePartition(Message<?> msg, TopicMetadata metadata) {
-                        return Integer.parseInt(msg.getKey()) % metadata.numPartitions();
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) % metadata.numPartitions() : 0;
                     }
                 })
                 .create()

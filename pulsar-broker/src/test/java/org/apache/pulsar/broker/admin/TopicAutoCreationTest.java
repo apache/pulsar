@@ -20,6 +20,8 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+
 import java.util.List;
 import java.util.UUID;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -57,7 +59,16 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
+                .enableBatching(false)
                 .create();
+
+        for (int i = 0; i < 3; i++) {
+            try {
+                producer.newMessage().value("msg".getBytes()).send();
+            } catch (Throwable e) {
+                fail();
+            }
+        }
 
         List<String> partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
         List<String> topics = admin.topics().getList(namespaceName);

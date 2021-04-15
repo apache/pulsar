@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
@@ -1533,6 +1534,17 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
 
         // check producer/consumer auto create partitioned topic
+        final Function<Producer<byte[]>, Producer<byte[]>> send = (p) -> {
+            for (int i = 0; i < 3; i++) {
+                try {
+                    p.newMessage().value("msg".getBytes()).send();
+                } catch (Throwable e) {
+                    log.info("Exception: ", e);
+                    fail();
+                }
+            }
+            return p;
+        };
         cleanup();
         conf.setMaxTopicsPerNamespace(0);
         conf.setDefaultNumPartitions(3);
@@ -1544,8 +1556,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
 
-        pulsarClient.newProducer().topic(topic + "1").create().close();
-        pulsarClient.newProducer().topic(topic + "2").create().close();
+        send.apply(pulsarClient.newProducer().topic(topic + "1").enableBatching(false).create()).close();
+        send.apply(pulsarClient.newProducer().topic(topic + "2").enableBatching(false).create()).close();
         pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
 
         try {
@@ -1558,7 +1570,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // remove namespace limit
         admin.namespaces().removeMaxTopicsPerNamespace(namespace);
         for (int i = 0; i < 10; ++i) {
-            pulsarClient.newProducer().topic(topic + "_p" + i).create().close();
+            send.apply(pulsarClient.newProducer().topic(topic + "_p" + i).enableBatching(false).create()).close();
             pulsarClient.newConsumer().topic(topic + "_c" + i).subscriptionName("test_sub").subscribe().close();
         }
 

@@ -68,6 +68,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -685,6 +686,17 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testSetMaxProducers() throws Exception {
         Integer maxProducers = 2;
         log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
+        final Function<Producer<byte[]>, Producer<byte[]>> send = (p) -> {
+            for (int i = 0; i < 2; i++) {
+                try {
+                    p.newMessage().value("msg".getBytes()).send();
+                } catch (Throwable e) {
+                    log.info("Exception: ", e);
+                    fail();
+                }
+            }
+            return p;
+        };
 
         Awaitility.await().atMost(3, TimeUnit.SECONDS)
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
@@ -695,8 +707,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getMaxProducers(persistenceTopic), maxProducers));
 
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
-        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        Producer<byte[]> producer1 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
+        Producer<byte[]> producer2 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
         Producer<byte[]> producer3 = null;
 
         try {
@@ -717,6 +729,17 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testRemoveMaxProducers() throws Exception {
         Integer maxProducers = 2;
         log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
+        final Function<Producer<byte[]>, Producer<byte[]>> send = (p) -> {
+            for (int i = 0; i < 2; i++) {
+                try {
+                    p.newMessage().value("msg".getBytes()).send();
+                } catch (Throwable e) {
+                    log.info("Exception: ", e);
+                    fail();
+                }
+            }
+            return p;
+        };
 
         Awaitility.await().atMost(3, TimeUnit.SECONDS)
                 .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(testTopic)));
@@ -727,8 +750,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getMaxProducers(persistenceTopic), maxProducers));
 
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
-        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
-        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        Producer<byte[]> producer1 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
+        Producer<byte[]> producer2 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
         Producer<byte[]> producer3 = null;
         Producer<byte[]> producer4 = null;
 
@@ -747,7 +770,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().atMost(3, TimeUnit.SECONDS)
                 .untilAsserted(() -> Assert.assertNull(admin.topics().getMaxProducers(persistenceTopic)));
 
-        producer3 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        producer3 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
         Assert.assertNotNull(producer3);
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
 

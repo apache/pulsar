@@ -417,7 +417,11 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         long resetTimeInMillis = TimeUnit.SECONDS
                 .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
         admin.topics().createPartitionedTopic(topicName, partitions);
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+        for (int i = 0; i < 2; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
         // Disable pre-fetch in consumer to track the messages received
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscription").subscribe();
@@ -463,7 +467,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         for (PersistentSubscription sub : subs) {
             backlogs += sub.getNumberOfEntriesInBacklog(false);
         }
-        assertEquals(backlogs, 10);
+        assertEquals(backlogs, 12);
     }
 
     @Test

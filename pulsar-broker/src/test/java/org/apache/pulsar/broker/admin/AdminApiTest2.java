@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import javax.ws.rs.core.Response.Status;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -1521,6 +1522,17 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
 
         // check producer/consumer auto create partitioned topic
+        final Function<Producer<byte[]>, Producer<byte[]>> send = (p) -> {
+            for (int i = 0; i < 3; i++) {
+                try {
+                    p.newMessage().value("msg".getBytes()).send();
+                } catch (Throwable e) {
+                    log.info("Exception: ", e);
+                    fail();
+                }
+            }
+            return p;
+        };
         super.internalCleanup();
         conf.setMaxTopicsPerNamespace(10);
         conf.setDefaultNumPartitions(3);
@@ -1530,8 +1542,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
 
-        pulsarClient.newProducer().topic(topic + "1").create().close();
-        pulsarClient.newProducer().topic(topic + "2").create().close();
+        send.apply(pulsarClient.newProducer().topic(topic + "1").enableBatching(false).create()).close();
+        send.apply(pulsarClient.newProducer().topic(topic + "2").enableBatching(false).create()).close();
         pulsarClient.newConsumer().topic(topic + "3").subscriptionName("test_sub").subscribe().close();
         try {
             pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
