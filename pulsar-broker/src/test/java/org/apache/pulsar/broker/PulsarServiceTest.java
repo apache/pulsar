@@ -23,6 +23,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.AssertJUnit.assertSame;
 import java.util.Optional;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -33,12 +34,14 @@ import org.testng.annotations.Test;
 public class PulsarServiceTest {
 
     @Test
-    public void testGetWorkerService() {
+    public void testGetWorkerService() throws Exception {
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setZookeeperServers("localhost");
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(true);
+        configuration.setBrokerShutdownTimeoutMs(0L);
         WorkerService expectedWorkerService = mock(WorkerService.class);
+        @Cleanup
         PulsarService pulsarService = spy(new PulsarService(configuration, new WorkerConfig(),
                 Optional.of(expectedWorkerService), (exitCode) -> {}));
 
@@ -56,6 +59,8 @@ public class PulsarServiceTest {
         configuration.setZookeeperServers("localhost");
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(false);
+        configuration.setBrokerShutdownTimeoutMs(0L);
+        @Cleanup
         PulsarService pulsarService = new PulsarService(configuration, new WorkerConfig(),
                 Optional.empty(), (exitCode) -> {});
 

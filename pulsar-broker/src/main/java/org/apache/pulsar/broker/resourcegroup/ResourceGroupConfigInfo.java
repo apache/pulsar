@@ -16,15 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
 
-import org.testng.annotations.Test;
+// This is an interim file; it will be replaced by a class that the
+// config-manager will provide.
 
-@Test(groups = "broker-api")
-public class PulsarMultiListenersWithoutInternalListenerNameTest extends
-        PulsarMultiListenersWithInternalListenerNameTest {
+package org.apache.pulsar.broker.resourcegroup;
 
-    public PulsarMultiListenersWithoutInternalListenerNameTest() {
-        super(false);
-    }
+import io.swagger.annotations.ApiModel;
+import lombok.Data;
+
+@Data
+@ApiModel(value = "ResourceGroupConfigInfo", description = "Information needed to create or update a resource group.")
+public class ResourceGroupConfigInfo {
+    private String name;
+    private long publishBytesPerPeriod;
+    private long publishMessagesPerPeriod;
+    private long dispatchBytesPerPeriod;
+    private long dispatchMessagesPerPeriod;
 }
