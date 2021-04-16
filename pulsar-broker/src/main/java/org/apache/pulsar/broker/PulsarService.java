@@ -495,7 +495,7 @@ public class PulsarService implements AutoCloseable {
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
         future.handle((v, t) -> {
             // shutdown the shutdown executor
-            shutdownExecutor.shutdown();
+            shutdownExecutor.shutdownNow();
             return null;
         });
         return future;
