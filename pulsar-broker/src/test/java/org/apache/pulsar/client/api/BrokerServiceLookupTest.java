@@ -379,6 +379,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
+        conf2.setBrokerShutdownTimeoutMs(0L);
         conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerShutdownTimeoutMs(0L);
         conf2.setBrokerServicePort(Optional.of(0));
@@ -918,6 +919,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             final String namespace = "my-property/my-ns";
             // (1) Start broker-1
             ServiceConfiguration conf2 = new ServiceConfiguration();
+            conf2.setBrokerShutdownTimeoutMs(0L);
             conf2.setAdvertisedAddress("localhost");
             conf2.setBrokerShutdownTimeoutMs(0L);
             conf2.setBrokerServicePort(Optional.of(0));

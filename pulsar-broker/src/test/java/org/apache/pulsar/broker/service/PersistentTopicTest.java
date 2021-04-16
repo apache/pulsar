@@ -164,6 +164,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         svcConfig.setAdvertisedAddress("localhost");
+        svcConfig.setBrokerShutdownTimeoutMs(0L);
         pulsar = spy(new PulsarService(svcConfig));
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();

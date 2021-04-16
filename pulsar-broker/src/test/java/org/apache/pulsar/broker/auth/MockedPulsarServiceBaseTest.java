@@ -245,7 +245,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         log.info("Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
         // set shutdown timeout to 0 for forceful shutdown
-        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0);
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0L);
         pulsar.close();
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
@@ -279,6 +279,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
+        conf.setBrokerShutdownTimeoutMs(0L);
         PulsarService pulsar = spy(new PulsarService(conf));
         setupBrokerMocks(pulsar);
         pulsar.start();
