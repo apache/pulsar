@@ -162,8 +162,6 @@ public class PulsarCluster {
                         .withEnv("zookeeperServers", ZKContainer.NAME)
                         .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                         .withEnv("clusterName", clusterName)
-//                        .withEnv("PULSAR_LOG_ROOT_LEVEL", "debug")
-//                        .withEnv("PULSAR_LOG_LEVEL","debug")
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")

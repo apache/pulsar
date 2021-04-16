@@ -35,7 +35,6 @@ import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
 import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -45,7 +44,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Test Pulsar Schema.
@@ -56,14 +54,6 @@ public class SchemaTest extends PulsarTestSuite {
     private PulsarClient client;
     private PulsarAdmin admin;
 
-    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
-            String clusterName,
-            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
-        specBuilder.numBrokers(1);
-        specBuilder.numFunctionWorkers(0);
-        return specBuilder;
-    }
-
     public void setupCluster() throws Exception {
         super.setupCluster();
         this.client = PulsarClient.builder()
@@ -72,19 +62,6 @@ public class SchemaTest extends PulsarTestSuite {
         this.admin = PulsarAdmin.builder()
             .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
             .build();
-    }
-
-    @Override
-    public void tearDownCluster() throws Exception {
-        if (client != null) {
-            client.close();
-            client = null;
-        }
-        if (admin != null) {
-            admin.close();
-            admin = null;
-        }
-        super.tearDownCluster();
     }
 
     @Test

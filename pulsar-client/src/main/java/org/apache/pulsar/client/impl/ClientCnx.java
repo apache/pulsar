@@ -48,7 +48,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.net.ssl.SSLSession;
 import lombok.Getter;
-import lombok.ToString;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
@@ -150,7 +149,6 @@ public class ClientCnx extends PulsarHandler {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
 
-    @ToString
     private static class RequestTime {
         private final long creationTimeNanos;
         final long requestId;
@@ -216,7 +214,6 @@ public class ClientCnx extends PulsarHandler {
             if (log.isDebugEnabled()) {
                 log.debug("{} Connected to broker", ctx.channel());
             }
-            log.info("{} Connected through no proxy to broker", ctx.channel());
         } else {
             log.info("{} Connected through proxy to target broker at {}", ctx.channel(), proxyToTargetBrokerAddress);
         }
@@ -796,11 +793,7 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleGetSchemaResponse(CommandGetSchemaResponse commandGetSchemaResponse) {
-        log.info("handleGetSchemaResponse {}", commandGetSchemaResponse);
         checkArgument(state == State.Ready);
-        CommandGetSchemaResponse clone = new CommandGetSchemaResponse();
-        clone.copyFrom(commandGetSchemaResponse);
-        commandGetSchemaResponse = clone;
 
         long requestId = commandGetSchemaResponse.getRequestId();
 
@@ -853,7 +846,6 @@ public class ClientCnx extends PulsarHandler {
     private <T> void sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
                                                                  RequestType requestType, boolean flush,
                                                                  TimedCompletableFuture<T> future) {
-        log.info("sendRequestAndHandleTimeout requestId {} type {}", requestId, requestType);
         pendingRequests.put(requestId, future);
         if (flush) {
             ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
@@ -884,9 +876,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public CompletableFuture<Optional<SchemaInfo>> sendGetSchema(ByteBuf request, long requestId) {
-        log.info("sendGetSchema requestId {}", requestId);
         return sendGetRawSchema(request, requestId).thenCompose(commandGetSchemaResponse -> {
-            log.info("commandGetSchemaResponse {}", commandGetSchemaResponse);
             if (commandGetSchemaResponse.hasErrorCode()) {
                 // Request has failed
                 ServerError rc = commandGetSchemaResponse.getErrorCode();
@@ -1137,10 +1127,8 @@ public class ClientCnx extends PulsarHandler {
     }
 
     private void checkRequestTimeout() {
-        log.info("checkRequestTimeout {}", requestTimeoutQueue);
         while (!requestTimeoutQueue.isEmpty()) {
             RequestTime request = requestTimeoutQueue.peek();
-            log.info("checkRequestTimeout {}", request);
             if (request == null || !request.isTimedOut(operationTimeoutMs)) {
                 // if there is no request that is timed out then exit the loop
                 break;

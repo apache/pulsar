@@ -75,7 +75,6 @@ public class TransactionTest extends TransactionTestBase {
     @Test(dataProvider = "ServiceUrls")
     public void transferNormalTest(Supplier<String> serviceUrl) throws Exception {
         log.info("transfer normal test start.");
-        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().enableTransaction(true).serviceUrl(serviceUrl.get()).build();
 
         final int transferCount = 20;

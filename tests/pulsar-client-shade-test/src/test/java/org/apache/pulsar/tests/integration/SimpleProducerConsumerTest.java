@@ -69,7 +69,6 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
     @Override
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
-        incrementSetupNumber();
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
@@ -89,16 +88,9 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
     @Override
     @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
-        markCurrentSetupNumberCleaned();
-        if (pulsarClient != null) {
-            pulsarClient.close();
-            pulsarClient = null;
-        }
-        if (pulsarContainer != null) {
-            pulsarContainer.stop();
-            pulsarContainer.close();
-            pulsarContainer = null;
-        }
+        pulsarClient.close();
+        pulsarContainer.stop();
+        pulsarContainer.close();
     }
 
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
@@ -286,19 +278,16 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
-        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer1 = newPulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
-        @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient1.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
-        @Cleanup
         PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer3 = newPulsarClient2.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
@@ -339,6 +328,9 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         consumer1.close();
         consumer2.close();
         consumer3.close();
+        newPulsarClient.close();
+        newPulsarClient1.close();
+        newPulsarClient2.close();
     }
 
     @Test

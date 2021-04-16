@@ -18,24 +18,17 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
-import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import lombok.Builder;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
@@ -43,12 +36,13 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
+import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Test behaviour of simple sinks
@@ -77,119 +71,61 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         private int field2;
     }
 
-    @Data
-    @Builder
-    public static final class PojoKey {
-        private String keyfield1;
-    }
-
     @Test(groups = {"sink"})
-    public void testGenericObjectSinkSubmitSinkAndThenProduce() throws Exception {
-        testGenericObjectSink(false);
-//        testGenericObjectSink(true);
-    }
-
-    private void testGenericObjectSink(boolean precreateTopicWithSchema) throws Exception {
-        // two variants of the test:
-        // create the topic and set a schema -> then create the sink: the sink starts and detects the schema
-        // create the sink and then produce messages -> the sink creates the topic and sets the schema
-        String prefix = precreateTopicWithSchema ? "manually-created-" : "sink-created-";
-
+    public void testGenericObjectSink() throws Exception {
         // we are not using a parametrized test in order to save resources
         // we create N sinks, send the records and verify each sink
         // sinks execution happens in parallel
-
         List<SinkSpec> specs = Arrays.asList(
-                new SinkSpec(prefix + "test-kv-sink-input-string-" + randomName(8), prefix + "test-kv-sink-string-" + randomName(8), Schema.STRING, "foo")
-//                new SinkSpec(prefix + "test-kv-sink-input-kvprimitive-" + randomName(8), prefix + "test-kv-sink-kvprimitive-inline-" + randomName(8),
-//                        Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.INLINE), new KeyValue<String, Integer>("foo", 123)),
-//                new SinkSpec(prefix + "test-kv-sink-input-kvavro-" + randomName(8), prefix + "test-kv-sink-kvavro-sep-" + randomName(8),
-//                        Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.AVRO(Pojo.class), KeyValueEncodingType.SEPARATED),
-//                        new KeyValue<PojoKey, Pojo>(PojoKey.builder().keyfield1("a").build(), Pojo.builder().field1("a").field2(2).build()))
+                new SinkSpec("test-kv-sink-input-string-" + randomName(8), "test-kv-sink-string-" + randomName(8), Schema.STRING, "foo"),
+                new SinkSpec("test-kv-sink-input-int-" + randomName(8), "test-kv-sink-int-" + randomName(8), Schema.INT32, 123),
+                new SinkSpec("test-kv-sink-input-avro-" + randomName(8), "test-kv-sink-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
+                new SinkSpec("test-kv-sink-input-json-" + randomName(8), "test-kv-sink-json-" + randomName(8), Schema.JSON(Pojo.class), Pojo.builder().field1("a").field2(2).build())
         );
+        // submit all sinks
+        for (SinkSpec spec : specs) {
+            submitSinkConnector(spec.sinkName, spec.outputTopicName, "org.apache.pulsar.tests.integration.io.TestGenericObjectSink", JAVAJAR);
+        }
+        // check all sinks
+        for (SinkSpec spec : specs) {
+            // get sink info
+            getSinkInfoSuccess(spec.sinkName);
+            getSinkStatus(spec.sinkName);
+        }
+
+        @Cleanup PulsarClient client = PulsarClient.builder()
+                .serviceUrl(container.getPlainTextServiceUrl())
+                .build();
+
+        final int numRecords = 10;
 
         for (SinkSpec spec : specs) {
-            try {
-                @Cleanup PulsarClient client = PulsarClient.builder()
-                        .serviceUrl(container.getPlainTextServiceUrl())
-                        .build();
-
-                if (precreateTopicWithSchema) {
-                        log.info("Pre creating producer for {} on {} in order to set the schema", spec.schema, spec.outputTopicName);
-                        @Cleanup Producer<Object> producer = client.newProducer(spec.schema)
-                                .topic(spec.outputTopicName)
-                                .create();
-
-                }
-
-                submitSinkConnector(spec.sinkName, spec.outputTopicName, "org.apache.pulsar.tests.integration.io.TestGenericObjectSink", JAVAJAR);
-                // get sink info
-                getSinkInfoSuccess(spec.sinkName);
-                getSinkStatus(spec.sinkName);
-
-                final int numRecords = 1;
-
-                log.info("Creating producer for {} on {}", spec.schema, spec.outputTopicName);
-                try (Producer<Object> producer = client.newProducer(spec.schema)
-                        .topic(spec.outputTopicName)
-                        .create();) {
-                    for (int i = 0; i < numRecords; i++) {
-                        MessageId messageId = producer.newMessage()
-                                .value(spec.testValue)
-                                .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
-                                .send();
-                        log.info("sent message with ID {}", messageId);
-                    }
-                }
-
-                // wait that the sinks processed all records without errors
-                log.info("waiting for sink {}", spec.sinkName);
-                for (int i = 0; i < 60; i++) {
-                    try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
-                        SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
-                        log.info("sink {} status {}", spec.sinkName, status);
-                        if (status.getInstances().size() > 0 &&
-                                status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords) {
-                            break;
-                        }
-                    }
-                    Thread.sleep(10000);
-                }
-
-                try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
-                    SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
-                    log.info("sink {} status {}", spec.sinkName, status);
-                    assertEquals(status.getInstances().size(), 1, "problem (instances) with sink " + spec.sinkName);
-                    assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords, "problem (too few records) with sink " + spec.sinkName);
-                    assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0, "problem (too many exceptions) with sink " + spec.sinkName);
-                    assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0, "problem (too many system exceptions) with sink " + spec.sinkName);
-                }
-
-
-                    deleteSink(spec.sinkName);
-                    getSinkInfoNotFound(spec.sinkName);
-
-            } finally {
-                    try {
-                        String logFile = "/pulsar/logs/functions/public/default/" + spec.sinkName + "/" + spec.sinkName + "-0.log";
-                        String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
-                            ByteArrayOutputStream oo = new ByteArrayOutputStream();
-                            // copy first 1MB of logs
-                            for (int j = 0; j < 1024*1024*1024; j++) {
-                                int r = inputStream.read();
-                                if (r == -1) {
-                                    break;
-                                }
-                                oo.write(r);
-                            }
-                            return oo.toString(StandardCharsets.UTF_8.name());
-                        });
-                        log.info("Sink {} logs", spec.sinkName);
-                        log.info("{}", logs);
-                    } catch (Throwable err) {
-                        log.error("Cannot download logs for sink {}", spec.sinkName, err);
-                    }
+            @Cleanup Producer<Object> producer = client.newProducer(spec.schema)
+                    .topic(spec.outputTopicName)
+                    .create();
+            for (int i = 0; i < numRecords; i++) {
+                producer.send(spec.testValue);
             }
+        }
+
+        // wait that all sinks processed all records without errors
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
+
+            for (SinkSpec spec : specs) {
+                Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                    SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
+                    assertEquals(status.getInstances().size(), 1);
+                    assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords);
+                    assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
+                    assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
+                });
+            }
+        }
+
+
+        for (SinkSpec spec : specs) {
+            deleteSink(spec.sinkName);
+            getSinkInfoNotFound(spec.sinkName);
         }
     }
 
@@ -207,7 +143,6 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         };
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
-        log.info(result.getStdout());
         assertTrue(
                 result.getStdout().contains("\"Created successfully\""),
                 result.getStdout());
@@ -222,7 +157,6 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 "--namespace", "default",
                 "--name", sinkName
         );
-        log.info(result.getStdout());
         assertTrue(result.getStdout().contains("\"name\": \"" + sinkName + "\""));
     }
 
@@ -235,7 +169,6 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 "--namespace", "default",
                 "--name", sinkName
         );
-        log.info(result.getStdout());
         assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 

@@ -46,7 +46,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -103,15 +102,8 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
     @Override
     @AfterClass(alwaysRun = true)
-    public final void cleanup() throws PulsarClientException {
+    public final void cleanup() {
         markCurrentSetupNumberCleaned();
-        if (client != null) {
-            client.close();
-        }
-        if (admin != null) {
-            admin.close();
-        }
-
         try {
             ledgerManager.close();
         } catch (IOException e) {
