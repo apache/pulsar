@@ -16,15 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.common.util;
 
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.testng.Assert.assertTrue;
+import org.testng.annotations.Test;
 
 public class CompletableFutureCancellationHandlerTest {
 

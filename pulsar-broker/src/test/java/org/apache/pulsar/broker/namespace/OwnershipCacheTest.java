@@ -120,7 +120,7 @@ public class OwnershipCacheTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        executor.shutdown();
+        executor.shutdownNow();
         zkCache.stop();
         zkc.close();
         otherZkc.close();

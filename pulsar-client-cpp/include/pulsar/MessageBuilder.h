@@ -42,6 +42,13 @@ class PULSAR_PUBLIC MessageBuilder {
      * Set content of the message. The message contents will be managed by the system.
      */
     MessageBuilder& setContent(const void* data, size_t size);
+
+    /**
+     * Set the content of the message
+     *
+     * @param data the content of the message
+     * @see setContent(const void*, size_t)
+     */
     MessageBuilder& setContent(const std::string& data);
 
     /**

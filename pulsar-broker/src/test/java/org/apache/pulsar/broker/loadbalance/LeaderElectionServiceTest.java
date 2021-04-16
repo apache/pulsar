@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.loadbalance;
 import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -47,7 +49,7 @@ public class LeaderElectionServiceTest {
 
     private LocalBookkeeperEnsemble bkEnsemble;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
@@ -61,48 +63,62 @@ public class LeaderElectionServiceTest {
     }
 
     @Test
-    public void anErrorShouldBeThrowBeforeLeaderElected() throws PulsarServerException, PulsarClientException, PulsarAdminException {
+    public void anErrorShouldBeThrowBeforeLeaderElected() throws PulsarServerException, PulsarClientException,
+            PulsarAdminException {
         final String clusterName = "elect-test";
         ServiceConfiguration config = new ServiceConfiguration();
-        config.setBrokerServicePort(Optional.of(6650));
-        config.setWebServicePort(Optional.of(8080));
+        config.setBrokerShutdownTimeoutMs(0L);
+        config.setBrokerServicePort(Optional.of(0));
+        config.setWebServicePort(Optional.of(0));
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        @Cleanup
         PulsarService pulsar = Mockito.spy(new MockPulsarService(config));
         pulsar.start();
 
+        // mock pulsar.getLeaderElectionService() in a thread safe way
+        AtomicReference<LeaderElectionService> leaderElectionServiceReference = new AtomicReference<>();
+        Mockito.doAnswer(invocation -> leaderElectionServiceReference.get())
+                .when(pulsar).getLeaderElectionService();
+
         // broker and webService is started, but leaderElectionService not ready
-        Mockito.doReturn(null).when(pulsar).getLeaderElectionService();
         final String tenant = "elect";
         final String namespace = "ns";
-        PulsarAdmin adminClient = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").build();
-        adminClient.clusters().createCluster(clusterName, new ClusterData("http://localhost:8080"));
-        adminClient.tenants().createTenant(tenant, new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(clusterName)));
+        @Cleanup
+        PulsarAdmin adminClient = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
+        adminClient.clusters().createCluster(clusterName, new ClusterData(pulsar.getWebServiceAddress()));
+        adminClient.tenants().createTenant(tenant, new TenantInfo(Sets.newHashSet("appid1", "appid2"),
+                Sets.newHashSet(clusterName)));
         adminClient.namespaces().createNamespace(tenant + "/" + namespace, 16);
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl("pulsar://localhost:6650")
+                .serviceUrl(pulsar.getBrokerServiceUrl())
                 .startingBackoffInterval(1, TimeUnit.MILLISECONDS)
                 .maxBackoffInterval(100, TimeUnit.MILLISECONDS)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
         checkLookupException(tenant, namespace, client);
 
-        // broker, webService and leaderElectionService is started, but elect not ready;
+        // setup LeaderElectionService mock in a thread safe way
         LeaderElectionService leaderElectionService = Mockito.mock(LeaderElectionService.class);
-        Mockito.doReturn(leaderElectionService).when(pulsar).getLeaderElectionService();
+        AtomicReference<LeaderBroker> leaderBrokerReference = new AtomicReference<>();
+        Mockito.when(leaderElectionService.isLeader()).thenAnswer(invocation ->
+                leaderBrokerReference.get() != null);
+        Mockito.when(leaderElectionService.getCurrentLeader())
+                .thenAnswer(invocation -> Optional.ofNullable(leaderBrokerReference.get()));
+        leaderElectionServiceReference.set(leaderElectionService);
+
+        // broker, webService and leaderElectionService is started, but elect not ready;
         checkLookupException(tenant, namespace, client);
 
         // broker, webService and leaderElectionService is started, and elect is done;
-        Mockito.when(leaderElectionService.isLeader()).thenReturn(true);
-        Mockito.when(leaderElectionService.getCurrentLeader()).thenReturn(Optional.of(new LeaderBroker("http://localhost:8080")));
+        leaderBrokerReference.set(new LeaderBroker(pulsar.getWebServiceAddress()));
 
         Producer<byte[]> producer = client.newProducer()
                 .topic("persistent://" + tenant + "/" + namespace + "/1p")
                 .create();
         producer.getTopic();
-        pulsar.close();
-
     }
 
     private void checkLookupException(String tenant, String namespace, PulsarClient client) {

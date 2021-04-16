@@ -107,8 +107,8 @@ public abstract class MockedBookKeeperTestCase {
 
     @AfterClass(alwaysRun = true)
     public void tearDownClass() {
-        executor.shutdown();
-        cachedExecutor.shutdown();
+        executor.shutdownNow();
+        cachedExecutor.shutdownNow();
     }
 
     /**

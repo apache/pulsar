@@ -98,6 +98,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -109,6 +112,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+            pulsarClient = null;
+        }
         super.internalCleanup();
     }
 
