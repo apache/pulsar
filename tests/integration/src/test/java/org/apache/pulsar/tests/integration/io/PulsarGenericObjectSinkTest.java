@@ -39,6 +39,7 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
 import static org.testng.Assert.assertEquals;
@@ -84,13 +85,11 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         // sinks execution happens in parallel
         List<SinkSpec> specs = Arrays.asList(
                 new SinkSpec("test-kv-sink-input-string-" + randomName(8), "test-kv-sink-string-" + randomName(8), Schema.STRING, "foo"),
-                new SinkSpec("test-kv-sink-input-int-" + randomName(8), "test-kv-sink-int-" + randomName(8), Schema.INT32, 123),
-                new SinkSpec("test-kv-sink-input-kv-string-int-" + randomName(8), "test-kv-sink-int-" + randomName(8), Schema.KeyValue(String.class, Integer.class), new KeyValue<>("foo", 123)),
-                new SinkSpec("test-kv-sink-input-avro-" + randomName(8), "test-kv-sink-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build())
+                new SinkSpec("test-kv-sink-input-avro-" + randomName(8), "test-kv-sink-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
+                new SinkSpec("test-kv-sink-input-kv-string-int-" + randomName(8), "test-kv-sink-int-" + randomName(8), Schema.KeyValue(String.class, Integer.class), new KeyValue<>("foo", 123))
         );
         // submit all sinks
         for (SinkSpec spec : specs) {
-
             submitSinkConnector(spec.sinkName, spec.outputTopicName, "org.apache.pulsar.tests.integration.io.TestGenericObjectSink", JAVAJAR);
         }
         // check all sinks
@@ -99,7 +98,6 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
             getSinkInfoSuccess(spec.sinkName);
             getSinkStatus(spec.sinkName);
         }
-
 
         final int numRecords = 10;
 
@@ -112,21 +110,28 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                         .value(spec.testValue)
                         .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
                         .send();
-                log.info("sent message with ID {}", messageId);
+                log.info("sent message {} {}  with ID {}", spec.testValue, spec.schema.getSchemaInfo().getType().toString(), messageId);
             }
         }
 
         // wait that all sinks processed all records without errors
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
-
             for (SinkSpec spec : specs) {
-                Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                log.info("waiting for sink {}", spec.sinkName);
+                Awaitility
+                        .await()
+                        .pollDelay(10, TimeUnit.SECONDS)
+                        .atMost(5, TimeUnit.MINUTES)
+                        .ignoreExceptions()
+                        .untilAsserted(() -> {
                     SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
+                    log.info("sink {} status {}", spec.sinkName, status);
                     assertEquals(status.getInstances().size(), 1);
                     assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords);
                     assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
                     assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
                 });
+                log.info("sink {} is okay", spec.sinkName);
             }
         }
 
