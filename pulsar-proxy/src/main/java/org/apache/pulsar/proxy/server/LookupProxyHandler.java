@@ -359,30 +359,28 @@ public class LookupProxyHandler {
 
     public void handleGetSchema(CommandGetSchema commandGetSchema) {
         getSchemaRequests.inc();
-
-        log.info("[{}] Received GetSchema {}", clientAddress, commandGetSchema);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Received GetSchema {}", clientAddress, commandGetSchema);
+        }
 
         final long clientRequestId = commandGetSchema.getRequestId();
         String serviceUrl = getServiceUrl(clientRequestId);
         String topic = commandGetSchema.getTopic();
-        log.info("serviceUrl {}", serviceUrl);
 
         if(!StringUtils.isNotBlank(serviceUrl)) {
             return;
         }
         InetSocketAddress addr = getAddr(serviceUrl, clientRequestId);
-        log.info("addr {}", addr);
 
         if(addr == null){
             return;
         }
-
-        log.info("Getting connections to '{}' for getting schema of topic '{}' with clientReq Id '{}'",
+        if (log.isDebugEnabled()) {
+            log.debug("Getting connections to '{}' for getting schema of topic '{}' with clientReq Id '{}'",
                     addr, topic, clientRequestId);
-
+        }
 
         proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
-            log.info("got connection {}", clientCnx);
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
@@ -392,9 +390,7 @@ public class LookupProxyHandler {
             }
             command = Commands.newGetSchema(requestId, topic,
                     Optional.ofNullable(schemaVersion).map(BytesSchemaVersion::of));
-            log.info("sendGetRawSchema {} {}", command, requestId);
             clientCnx.sendGetRawSchema(command, requestId).whenComplete((r, t) -> {
-                log.info("sendGetRawSchema result {} {}", r, t);
                 if (t != null) {
                     log.warn("[{}] Failed to get schema {}: {}", clientAddress, topic, t);
                     proxyConnection.ctx().writeAndFlush(
@@ -403,16 +399,16 @@ public class LookupProxyHandler {
                     proxyConnection.ctx().writeAndFlush(
                         Commands.newGetSchemaResponse(clientRequestId, r));
                 }
-                log.info("sendGetRawSchema result done");
+
                 proxyConnection.getConnectionPool().releaseConnection(clientCnx);
             });
         }).exceptionally(ex -> {
-            log.info("sendGetRawSchema error {}", ex);
             // Failed to connect to backend broker
             proxyConnection.ctx().writeAndFlush(
                     Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
             return null;
         });
+
     }
 
     private String getServiceUrl(long clientRequestId) {
