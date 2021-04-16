@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.testclient;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import org.json.JSONObject;
 
 import java.nio.charset.StandardCharsets;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class TestDefaultMessageFormatter {
 
@@ -34,18 +36,27 @@ public class TestDefaultMessageFormatter {
         byte[] formatted = new DefaultMessageFormatter().formatMessage(producerName, msgId, message);
         String jsonString = new String(formatted, StandardCharsets.UTF_8);
 
-        JSONObject obj = new JSONObject(jsonString);
-        String prod = obj.getString("producer");
-        int mid = obj.getInt("msgId");
-        long nt = obj.getLong("nanoTime");
-        float f1 = obj.getFloat("float1");
-        float f2 = obj.getFloat("float2");
-        long l1 = obj.getLong("long1");
-        long l2 = obj.getLong("long2");
-        long i1 = obj.getLong("int1");
-        long i2 = obj.getLong("int2");
-        String str = obj.getString("str");
-        long l3 = obj.getLong("long3");
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        JsonNode obj = null;
+        try {
+            obj = objectMapper.readValue(jsonString, JsonNode.class);
+
+        } catch(Exception jpe) {
+            Assert.fail("Exception parsing json");
+        }
+
+        String prod = obj.get("producer").asText();
+        int mid = obj.get("msgId").asInt();
+        long nt = obj.get("nanoTime").asLong();
+        float f1 = obj.get("float1").floatValue();
+        float f2 = obj.get("float2").floatValue();
+        long l1 = obj.get("long1").asLong();
+        long l2 = obj.get("long2").asLong();
+        long i1 = obj.get("int1").asInt();
+        long i2 = obj.get("int2").asInt();
+        String str = obj.get("str").asText();
+        long l3 = obj.get("long3").asLong();
         Assert.assertEquals(producerName, prod);
         Assert.assertEquals(msgId, mid);
         Assert.assertTrue( nt > 0);
