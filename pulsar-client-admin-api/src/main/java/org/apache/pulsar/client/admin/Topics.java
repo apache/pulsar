@@ -3206,4 +3206,17 @@ public interface Topics {
      */
     CompletableFuture<Message<byte[]>> examineMessageAsync(String topic, String initialPosition, long messagePosition)
             throws PulsarAdminException;
+
+    /**
+     * Truncate a topic asynchronously.
+     * <p/>
+     * The latest ledger cannot be deleted.
+     * <p/>
+     *
+     * @param topic
+     *            topic name
+     *
+     * @return a future that can be used to track when the topic is truncated
+     */
+    CompletableFuture<Void> truncateAsync(String topic);
 }

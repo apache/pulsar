@@ -325,4 +325,9 @@ public class MockManagedLedger implements ManagedLedger {
         final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
         return CompletableFuture.completedFuture(build);
     }
+
+    @Override
+    public void asyncTruncate(AsyncCallbacks.TruncateLedgerCallback callback, Object ctx) {
+
+    }
 }

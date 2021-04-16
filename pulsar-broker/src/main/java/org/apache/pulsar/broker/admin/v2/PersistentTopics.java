@@ -3105,5 +3105,28 @@ public class PersistentTopics extends PersistentTopicsBase {
         });
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/truncate")
+    @ApiOperation(value = "Truncate a topic.",
+            notes = "The topic cannot be truncated if it has retention constraint."
+                    + "You can choose to ignore retention constraid to delete ledgers.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void truncateTopic(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic){
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalTruncateTopic();
+
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
 }

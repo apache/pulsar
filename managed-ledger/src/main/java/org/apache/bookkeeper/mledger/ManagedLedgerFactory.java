@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -159,5 +160,15 @@ public interface ManagedLedgerFactory {
      * @throws ManagedLedgerException
      */
     void shutdown() throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Tuncate a managed ledger.
+     * The latest ledger cannot be deleted
+     *
+     * @param name
+     * @param callback
+     * @param ctx
+     */
+    void asyncTruncate(String name, TruncateLedgerCallback callback, Object ctx);
 
 }

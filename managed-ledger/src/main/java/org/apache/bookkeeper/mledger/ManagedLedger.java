@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -600,4 +601,10 @@ public interface ManagedLedger {
      * will got null if corresponding ledger not exists.
      */
     CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId);
+
+    /**
+     * Truncate ledgers
+     * The latest ledger cannot be deleted
+     */
+    void asyncTruncate(TruncateLedgerCallback callback, Object ctx);
 }

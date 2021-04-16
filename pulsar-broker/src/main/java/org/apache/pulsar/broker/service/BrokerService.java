@@ -77,6 +77,7 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -2586,6 +2587,47 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         return true;
+    }
+
+    public CompletableFuture<Void> truncateTopic(String topic) {
+        Optional<Topic> optTopic = getTopicReference(topic);
+        if (optTopic.isPresent()) {
+            Topic t = optTopic.get();
+
+            // v2 topics have a global name so check if the topic is replicated.
+            if (t.isReplicated()) {
+                // Delete is disallowed on global topic
+                final List<String> clusters = t.getReplicators().keys();
+                log.error("Delete forbidden topic {} is replicated on clusters {}", topic, clusters);
+                return FutureUtil.failedFuture(
+                        new IllegalStateException("Delete forbidden topic is replicated on clusters " + clusters));
+            }
+        }
+
+        // Topic is not loaded, though we still might be able to delete from metadata
+        TopicName tn = TopicName.get(topic);
+        if (!tn.isPersistent()) {
+            // Nothing to do if it's not persistent
+            return CompletableFuture.completedFuture(null);
+        }
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        managedLedgerFactory.asyncTruncate(tn.getPersistenceNamingEncoding(), new TruncateLedgerCallback() {
+
+            @Override
+            public void truncateLedgerComplete(Object ctx) {
+                future.complete(null);
+            }
+
+            @Override
+            public void truncateLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+
+        return future;
+
     }
 
     public void setInterceptor(BrokerInterceptor interceptor) {

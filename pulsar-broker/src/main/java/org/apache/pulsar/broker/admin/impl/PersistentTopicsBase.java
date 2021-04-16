@@ -3911,4 +3911,20 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }
     }
+
+    protected void internalTruncateTopic() {
+
+        try {
+            pulsar().getBrokerService().truncateTopic(topicName.toString()).get();
+            log.info("[{}] Successfully truncate topic {}", clientAppId(), topicName);
+        } catch (Exception e) {
+            Throwable t = e.getCause();
+            log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, t);
+            if (t instanceof MetadataNotFoundException) {
+                throw new RestException(Status.NOT_FOUND, "Topic not found");
+            } else {
+                throw new RestException(t);
+            }
+        }
+    }
 }

@@ -1113,6 +1113,13 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public CompletableFuture<Void> truncateAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "truncate"); //
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
         CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
         getRemoteMessageById(topic, ledgerId, entryId).handle((r, ex) -> {
@@ -3430,6 +3437,8 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget path = topicPath(topicName, "subscribeRate");
         return asyncDeleteRequest(path);
     }
+
+
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }

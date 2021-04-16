@@ -83,6 +83,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
@@ -2908,5 +2909,36 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Thread.sleep(1000);
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
         Assert.assertEquals(ledger.getTotalSize(), 0);
+    }
+
+    @Test(timeOut = 20000)
+    public void asyncTruncateLedger() throws Exception {
+
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
+        ManagedCursor cursor = ledger.openCursor("test-cursor");
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.close();
+        ManagedLedgerImpl ledger2 = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
+        ledger2.addEntry("test-entry-2".getBytes(Encoding));
+
+        final CountDownLatch counter = new CountDownLatch(1);
+
+        ledger.asyncTruncate(new TruncateLedgerCallback() {
+            @Override
+            public void truncateLedgerComplete(Object ctx) {
+                assertNull(ctx);
+                counter.countDown();
+            }
+            @Override
+            public void truncateLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                counter.countDown();
+            }
+        }, null);
+        counter.await();
+
+        assertTrue(ledger.getLedgersInfoAsList().size() <= 1);
     }
 }

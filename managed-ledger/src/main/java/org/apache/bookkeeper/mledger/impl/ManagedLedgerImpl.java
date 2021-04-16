@@ -91,6 +91,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -2153,6 +2154,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         scheduledExecutor.schedule(safeRun(() -> trimConsumedLedgersInBackground(promise)), 100, TimeUnit.MILLISECONDS);
     }
 
+    public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<?> promise) {
+        executor.executeOrdered(name, safeRun(() -> internalTrimLedgers(isTruncate, promise)));
+    }
+
+    private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<?> promise) {
+        scheduledExecutor.schedule(safeRun(() -> trimConsumedLedgersInBackground(isTruncate, promise)), 100, TimeUnit.MILLISECONDS);
+    }
+
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
         if (config.getLedgerOffloader() != null
                 && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
@@ -2257,9 +2266,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @throws Exception
      */
     void internalTrimConsumedLedgers(CompletableFuture<?> promise) {
+        internalTrimLedgers(false, promise);
+    }
+
+    void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
         // Ensure only one trimming operation is active
         if (!trimmerMutex.tryLock()) {
-            scheduleDeferredTrimming(promise);
+            scheduleDeferredTrimming(isTruncate, promise);
             return;
         }
 
@@ -2313,10 +2326,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
                             ls.getLedgerId());
                     break;
-                } else if (expired) {
+                } else if (expired || isTruncate) {
                     log.debug("[{}] Ledger {} has expired, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
                     ledgersToDelete.add(ls);
-                } else if (overRetentionQuota) {
+                } else if (overRetentionQuota || isTruncate) {
                     log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
                     ledgersToDelete.add(ls);
                 } else {
@@ -2340,7 +2353,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             if (STATE_UPDATER.get(this) == State.CreatingLedger // Give up now and schedule a new trimming
                     || !metadataMutex.tryLock()) { // Avoid deadlocks with other operations updating the ledgers list
-                scheduleDeferredTrimming(promise);
+                scheduleDeferredTrimming(isTruncate, promise);
                 trimmerMutex.unlock();
                 return;
             }
@@ -3731,4 +3744,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);
 
+    @Override
+    public void asyncTruncate(TruncateLedgerCallback callback, Object ctx) {
+        CompletableFuture<Object> future = CompletableFuture.completedFuture(null);
+        internalTrimLedgers(true, future);
+        future.thenAccept(ob -> {
+            callback.truncateLedgerComplete(ctx);
+        }).exceptionally(ex -> {
+            log.error("[{}] trim ledger failed", name, ex);
+            callback.truncateLedgerFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
+            return null;
+        });
+    }
 }

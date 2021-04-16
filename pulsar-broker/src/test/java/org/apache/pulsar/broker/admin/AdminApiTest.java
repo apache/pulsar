@@ -2849,4 +2849,33 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(sumMsgBacklogNoDelayed, subStats.msgBacklogNoDelayed);
         Assert.assertEquals(sumMsgDelayed, subStats.msgDelayed);
     }
+
+    @Test(timeOut = 20000)
+    public void testPersistentTopicTuncate() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        for (int i = 0; i < 2; i++) {
+            pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName(subName + i)
+                    .subscribe();
+        }
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        final int messages = 100;
+        for (int i = 0; i < messages; i++) {
+            String msg = "Hello Pulsar - " + i;
+            producer.send(msg.getBytes());
+        }
+
+        admin.topics().truncateAsync(topic);
+        Thread.sleep(5000);
+    }
 }
