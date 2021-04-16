@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
@@ -41,6 +44,7 @@ public class GracefulExecutorServicesShutdownTest {
         GracefulExecutorServicesShutdown shutdown = GracefulExecutorServicesShutdown.initiate();
         ExecutorService executorService = mock(ExecutorService.class);
         when(executorService.isTerminated()).thenReturn(true);
+        when(executorService.isShutdown()).thenReturn(true);
 
         // when
         shutdown.shutdown(executorService);
@@ -59,11 +63,18 @@ public class GracefulExecutorServicesShutdownTest {
         GracefulExecutorServicesShutdown shutdown = GracefulExecutorServicesShutdown.initiate();
         shutdown.timeout(Duration.ofMillis(500));
         ExecutorService executorService = mock(ExecutorService.class);
+        when(executorService.isShutdown()).thenReturn(true);
         AtomicBoolean terminated = new AtomicBoolean();
         when(executorService.isTerminated()).thenAnswer(invocation -> terminated.get());
         when(executorService.shutdownNow()).thenAnswer(invocation -> {
            terminated.set(true);
            return null;
+        });
+        when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation  -> {
+            long timeout = invocation.getArgument(0);
+            TimeUnit unit = invocation.getArgument(1);
+            Thread.sleep(unit.toMillis(timeout));
+            return terminated.get();
         });
 
         // when
@@ -71,10 +82,87 @@ public class GracefulExecutorServicesShutdownTest {
         CompletableFuture<Void> future = shutdown.handle();
 
         // then
-        verify(executorService, atLeastOnce()).shutdown();
         future.get(1, TimeUnit.SECONDS);
         verify(executorService, atLeastOnce()).shutdownNow();
         assertTrue(future.isDone());
     }
 
+    @Test
+    public void shouldWaitForExecutorToTerminate() throws ExecutionException, InterruptedException, TimeoutException {
+        // given
+        GracefulExecutorServicesShutdown shutdown = GracefulExecutorServicesShutdown.initiate();
+        shutdown.timeout(Duration.ofMillis(500));
+        ExecutorService executorService = mock(ExecutorService.class);
+        when(executorService.isShutdown()).thenReturn(true);
+        AtomicBoolean terminated = new AtomicBoolean();
+        when(executorService.isTerminated()).thenAnswer(invocation -> terminated.get());
+        when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation  -> {
+            long timeout = invocation.getArgument(0);
+            // wait half the time to simulate the termination completing
+            timeout = timeout / 2;
+            TimeUnit unit = invocation.getArgument(1);
+            Thread.sleep(unit.toMillis(timeout));
+            terminated.set(true);
+            return terminated.get();
+        });
+
+        // when
+        shutdown.shutdown(executorService);
+        CompletableFuture<Void> future = shutdown.handle();
+
+        // then
+        future.get(1, TimeUnit.SECONDS);
+        verify(executorService, times(1)).awaitTermination(anyLong(), any());
+        verify(executorService, never()).shutdownNow();
+        assertTrue(future.isDone());
+    }
+
+
+    @Test
+    public void shouldTerminateWhenFutureIsCancelled() throws InterruptedException {
+        // given
+        GracefulExecutorServicesShutdown shutdown = GracefulExecutorServicesShutdown.initiate();
+        shutdown.timeout(Duration.ofMillis(15000));
+        ExecutorService executorService = mock(ExecutorService.class);
+        when(executorService.isShutdown()).thenReturn(true);
+        AtomicBoolean terminated = new AtomicBoolean();
+        AtomicBoolean awaitTerminationInterrupted = new AtomicBoolean();
+        when(executorService.isTerminated()).thenAnswer(invocation -> terminated.get());
+        when(executorService.awaitTermination(anyLong(), any())).thenAnswer(invocation  -> {
+            long timeout = invocation.getArgument(0);
+            TimeUnit unit = invocation.getArgument(1);
+            try {
+                Thread.sleep(unit.toMillis(timeout));
+            } catch (InterruptedException e) {
+                awaitTerminationInterrupted.set(true);
+                Thread.currentThread().interrupt();
+                throw e;
+            }
+            throw new IllegalStateException("Thread.sleep should have been interrupted");
+        });
+        when(executorService.shutdownNow()).thenAnswer(invocation -> {
+            terminated.set(true);
+            return null;
+        });
+
+        // when
+        shutdown.shutdown(executorService);
+        CompletableFuture<Void> future = shutdown.handle();
+        future.cancel(false);
+
+        // then
+        assertTrue(awaitTerminationInterrupted.get(),
+                "awaitTermination should have been interrupted");
+        verify(executorService, times(1)).awaitTermination(anyLong(), any());
+        verify(executorService, times(1)).shutdownNow();
+    }
+
+    @Test
+    public void shouldAcceptNullReferenceAndIgnoreIt() {
+        ExecutorService executorService = null;
+        CompletableFuture<Void> future = GracefulExecutorServicesShutdown.initiate()
+                .shutdown(executorService)
+                .handle();
+        assertTrue(future.isDone());
+    }
 }

@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -40,83 +38,123 @@ import org.apache.pulsar.common.util.FutureUtil;
  */
 @Slf4j
 class GracefulExecutorServicesTerminationHandler {
-    private final ScheduledExecutorService shutdownScheduler = Executors.newSingleThreadScheduledExecutor(
-            new DefaultThreadFactory(getClass().getSimpleName()));
+    private static final long SHUTDOWN_THREAD_COMPLETION_TIMEOUT_NANOS = Duration.ofMillis(100L).toNanos();
     private final List<ExecutorService> executors;
     private final CompletableFuture<Void> future;
-    private final long timeoutMs;
-    private final long terminatedStatusPollingInterval;
+    private final Duration shutdownTimeout;
+    private final Duration terminationTimeout;
+    private final CountDownLatch shutdownThreadCompletedLatch = new CountDownLatch(1);
 
-    GracefulExecutorServicesTerminationHandler(long timeoutMs, List<ExecutorService> executorServices) {
-        this.timeoutMs = Math.max(timeoutMs, 1L);
-        this.terminatedStatusPollingInterval = Math.min(Math.max(timeoutMs / 100, 10), timeoutMs);
-        executors = executorServices.stream()
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-        future = new CompletableFuture<>();
-    }
-
-    CompletableFuture<Void> startTerminationHandler() {
-        log.info("Starting shutdown handler for {} executors.", executors.size());
+    GracefulExecutorServicesTerminationHandler(Duration shutdownTimeout, Duration terminationTimeout,
+                                               List<ExecutorService> executorServices) {
+        this.shutdownTimeout = shutdownTimeout;
+        this.terminationTimeout = terminationTimeout;
+        this.executors = Collections.unmodifiableList(new ArrayList<>(executorServices));
+        this.future = new CompletableFuture<>();
+        log.info("Starting termination handler for {} executors.", executors.size());
         for (ExecutorService executor : executors) {
             if (!executor.isShutdown()) {
                 throw new IllegalStateException(
-                        String.format("Executor %s should have been shutdown before entering the shutdown handler.",
+                        String.format("Executor %s should have been shutdown before entering the termination handler.",
                                 executor));
             }
         }
-        FutureUtil.whenCancelledOrTimedOut(future, () -> {
-            terminateExecutorsAndShutdown();
-        });
-        checkIfExecutorsHaveBeenTerminated();
-        if (!shutdownScheduler.isShutdown()) {
-            try {
-                shutdownScheduler.schedule(this::terminateExecutorsAndShutdown, timeoutMs, TimeUnit.MILLISECONDS);
-            } catch (RejectedExecutionException e) {
-                // ignore
+        if (haveExecutorsBeenTerminated()) {
+            markShutdownCompleted();
+        } else {
+            if (shutdownTimeout.isZero() || shutdownTimeout.isNegative()) {
+                terminateExecutors();
+                markShutdownCompleted();
+            } else {
+                Thread shutdownWaitingThread = new Thread(this::awaitShutdown, getClass().getSimpleName());
+                shutdownWaitingThread.start();
+                FutureUtil.whenCancelledOrTimedOut(future, () -> {
+                    shutdownWaitingThread.interrupt();
+                    waitUntilShutdownWaitingThreadIsCompleted();
+                });
             }
         }
+    }
+
+    public CompletableFuture<Void> getFuture() {
         return future;
     }
 
-    private void terminateExecutorsAndShutdown() {
-        for (ExecutorService executor : executors) {
-            if (!executor.isTerminated()) {
-                log.info("Shutting down forcefully executor {}", executor);
-                for (Runnable runnable : executor.shutdownNow()) {
-                    log.info("Execution in progress for runnable instance of {}: {}", runnable.getClass(),
-                            runnable);
+    private boolean haveExecutorsBeenTerminated() {
+        return executors.stream().allMatch(ExecutorService::isTerminated);
+    }
+
+    private void markShutdownCompleted() {
+        log.info("Shutdown completed.");
+        future.complete(null);
+    }
+
+    private void awaitShutdown() {
+        try {
+            awaitTermination(shutdownTimeout);
+            terminateExecutors();
+            markShutdownCompleted();
+        } catch (Exception e) {
+            log.error("Error in termination handler", e);
+            future.completeExceptionally(e);
+        } finally {
+            shutdownThreadCompletedLatch.countDown();
+        }
+    }
+
+    private boolean awaitTermination(Duration timeout) {
+        if (!timeout.isZero() && !timeout.isNegative()) {
+            long awaitUntilNanos = System.nanoTime() + timeout.toNanos();
+            while (!Thread.currentThread().isInterrupted() && System.nanoTime() < awaitUntilNanos) {
+                int activeExecutorsCount = executors.size();
+                for (ExecutorService executor : executors) {
+                    long remainingTimeNanos = awaitUntilNanos - System.nanoTime();
+                    if (remainingTimeNanos > 0) {
+                        try {
+                            if (executor.isTerminated()
+                                    || executor.awaitTermination(remainingTimeNanos, TimeUnit.NANOSECONDS)) {
+                                activeExecutorsCount--;
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
+                if (activeExecutorsCount == 0) {
+                    return true;
                 }
             }
         }
-        shutdown();
+        return haveExecutorsBeenTerminated();
     }
 
-    private void shutdown() {
-        if (!shutdownScheduler.isShutdown()) {
-            log.info("Shutting down scheduler.");
-            shutdownScheduler.shutdown();
+    private void terminateExecutors() {
+        for (ExecutorService executor : executors) {
+            if (!executor.isTerminated()) {
+                log.info("Shutting down forcefully executor {}", executor);
+                executor.shutdownNow();
+            }
         }
-    }
-
-    private void scheduleCheck() {
-        if (!shutdownScheduler.isShutdown()) {
-            try {
-                shutdownScheduler.schedule(this::checkIfExecutorsHaveBeenTerminated, terminatedStatusPollingInterval,
-                        TimeUnit.MILLISECONDS);
-            } catch (RejectedExecutionException e) {
-                // ignore
+        if (!Thread.currentThread().isInterrupted() && !awaitTermination(terminationTimeout)) {
+            for (ExecutorService executor : executors) {
+                if (!executor.isTerminated()) {
+                    log.warn("Executor {} didn't shutdown after waiting for termination.", executor);
+                    for (Runnable runnable : executor.shutdownNow()) {
+                        log.info("Execution in progress for runnable instance of {}: {}", runnable.getClass(),
+                                runnable);
+                    }
+                }
             }
         }
     }
 
-    private void checkIfExecutorsHaveBeenTerminated() {
-        if (executors.stream().filter(executor -> !executor.isTerminated()).count() > 0) {
-            scheduleCheck();
-        } else {
-            log.info("Shutdown completed.");
-            future.complete(null);
-            shutdown();
+    private void waitUntilShutdownWaitingThreadIsCompleted() {
+        try {
+            shutdownThreadCompletedLatch.await(terminationTimeout.toNanos()
+                    + SHUTDOWN_THREAD_COMPLETION_TIMEOUT_NANOS, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 }

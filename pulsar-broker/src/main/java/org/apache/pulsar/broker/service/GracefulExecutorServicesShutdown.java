@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This a builder like class for providing a fluent API for graceful shutdown
@@ -31,13 +32,19 @@ import java.util.concurrent.ExecutorService;
  * method. The {@link ExecutorService#shutdown()} method is called immediately.
  *
  * Calling the {@link #handle()} method returns a future which completes when all executors
- * have been terminated. The executors will be polled frequently for completion. If the shutdown times out
- * or the future is cancelled, all executors will be terminated.
+ * have been terminated.
+ *
+ * The executors will waited for completion with the {@link ExecutorService#awaitTermination(long, TimeUnit)} method.
+ * If the shutdown times out or the future is cancelled, all executors will be terminated and the termination
+ * timeout value will be used for waiting for termination.
+ * The default value for termination timeout is 10% of the shutdown timeout.
  */
 public class GracefulExecutorServicesShutdown {
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(15);
+    private static final Double DEFAULT_TERMINATION_TIMEOUT_RATIO = 0.1d;
     private final List<ExecutorService> executorServices = new ArrayList<>();
     private Duration timeout = DEFAULT_TIMEOUT;
+    private Duration terminationTimeout;
 
     private GracefulExecutorServicesShutdown() {
 
@@ -81,6 +88,17 @@ public class GracefulExecutorServicesShutdown {
     }
 
     /**
+     * Sets the timeout for waiting for executors to complete in forceful termination.
+     *
+     * @param terminationTimeout duration for the timeout
+     * @return the current instance for controlling graceful shutdown
+     */
+    public GracefulExecutorServicesShutdown terminationTimeout(Duration terminationTimeout) {
+        this.terminationTimeout = terminationTimeout;
+        return this;
+    }
+
+    /**
      * Starts the handler for polling frequently for the completed termination of enlisted executors.
      *
      * If the termination times out or the future is cancelled, all active executors will be forcefully
@@ -89,7 +107,11 @@ public class GracefulExecutorServicesShutdown {
      * @return a future which completes when all executors have terminated
      */
     public CompletableFuture<Void> handle() {
-        return new GracefulExecutorServicesTerminationHandler(timeout.toMillis(), executorServices)
-                .startTerminationHandler();
+        // if termination timeout isn't provided, calculate a termination timeout based on the shutdown timeout
+        if (terminationTimeout == null) {
+            terminationTimeout = Duration.ofNanos((long) (timeout.toNanos() * DEFAULT_TERMINATION_TIMEOUT_RATIO));
+        }
+        return new GracefulExecutorServicesTerminationHandler(timeout, terminationTimeout,
+                executorServices).getFuture();
     }
 }
