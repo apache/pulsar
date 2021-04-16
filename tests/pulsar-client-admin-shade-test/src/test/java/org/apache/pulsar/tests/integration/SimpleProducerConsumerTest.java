@@ -69,6 +69,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
     @Override
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
+        incrementSetupNumber();
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
         pulsarContainer = new PulsarContainer();
@@ -89,6 +90,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
     @Override
     @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         if (pulsarClient != null) {
             pulsarClient.close();
             pulsarClient = null;
