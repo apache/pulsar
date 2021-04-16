@@ -759,6 +759,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByClient() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)

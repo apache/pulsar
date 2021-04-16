@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -96,6 +97,7 @@ public class MaxMessageSizeTest {
     @Test
     public void testMaxMessageSetting() throws PulsarClientException {
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         String topicName = "persistent://test/message/topic1";
         Producer producer = client.newProducer().topic(topicName).sendTimeout(60, TimeUnit.SECONDS).create();
@@ -148,7 +150,6 @@ public class MaxMessageSizeTest {
         consumer.unsubscribe();
         consumer.close();
         producer.close();
-        client.close();
 
     }
 }

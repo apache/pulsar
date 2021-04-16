@@ -445,6 +445,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
             return;
         }
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().ioThreads(10).serviceUrl(lookupUrl.toString()).build();
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
         if (!batchProduce) {

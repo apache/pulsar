@@ -111,6 +111,9 @@ public class PulsarWorkerAssignmentTest {
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         final ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
+        if (pulsarClient != null) {
+            pulsarClient.close();
+        }
         pulsarClient = clientBuilder.build();
 
         final TenantInfo propAdmin = new TenantInfo();

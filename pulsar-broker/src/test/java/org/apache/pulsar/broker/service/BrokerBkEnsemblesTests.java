@@ -80,6 +80,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
 
         ZooKeeper zk = bkEnsemble.getZkClient();
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -153,8 +154,6 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
         producer.close();
         consumer.close();
-        client.close();
-
     }
 
     /**
@@ -176,6 +175,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         // Ensure intended state for autoSkipNonRecoverableData
         admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "false");
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -274,11 +274,11 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
         producer.close();
         consumer.close();
-        client.close();
     }
 
     @Test(timeOut = 20000)
     public void testTopicWithWildCardChar() throws Exception {
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -303,7 +303,6 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         Assert.assertEquals(msg.getData(), content);
         consumer.close();
         producer.close();
-        client.close();
     }
 
 

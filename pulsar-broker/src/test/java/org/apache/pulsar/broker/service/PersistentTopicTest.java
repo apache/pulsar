@@ -1525,6 +1525,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         final URL brokerUrl = new URL(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort().get());
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
@@ -1569,6 +1570,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         final URL brokerUrl = new URL(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort().get());
+        @Cleanup
         PulsarClient client = spy(PulsarClient.builder().serviceUrl(brokerUrl.toString()).build());
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;
         doReturn(new CompletableFuture<Producer>()).when(clientImpl)

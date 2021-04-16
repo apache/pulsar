@@ -64,6 +64,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -655,13 +656,31 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    public void seek(Function<String, Object> function) throws PulsarClientException {
+        try {
+            seekAsync(function).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
+        consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(function)));
+        unAckedMessageTracker.clear();
+        incomingMessages.clear();
+        resetIncomingMessageSize();
+        return FutureUtil.waitForAll(futures);
+    }
+
+    @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
-        CompletableFuture<Void> seekFuture = new CompletableFuture<>();
         MessageIdImpl targetMessageId = MessageIdImpl.convertToMessageIdImpl(messageId);
         if (targetMessageId == null || isIllegalMultiTopicsMessageId(messageId)) {
-            seekFuture.completeExceptionally(
-                    new PulsarClientException("Illegal messageId, messageId can only be earliest/latest"));
-            return seekFuture;
+            return FutureUtil.failedFuture(
+                    new PulsarClientException("Illegal messageId, messageId can only be earliest/latest")
+            );
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(targetMessageId)));
@@ -670,14 +689,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         incomingMessages.clear();
         resetIncomingMessageSize();
 
-        FutureUtil.waitForAll(futures).whenComplete((result, exception) -> {
-            if (exception != null) {
-                seekFuture.completeExceptionally(exception);
-            } else {
-                seekFuture.complete(result);
-            }
-        });
-        return seekFuture;
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override

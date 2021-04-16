@@ -710,6 +710,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList("persistent://prop-xyz/use/ns1/" + topicName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -796,6 +797,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
                 0);
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -1639,6 +1641,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/use/ns1"), Lists.newArrayList(topicName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -1776,6 +1779,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic("persistent://prop-xyz/use/ns1/ds1", 4);
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -1816,8 +1820,6 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         producer.close();
         consumer.close();
-        client.close();
-
     }
 
     /**
