@@ -36,35 +36,35 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
     }
 
     public void write(Record<GenericObject> record) {
-        try {
-            log.info("properties", record.getProperties());
-            log.info("received record {} {}", record, record.getClass());
-            log.info("schema {}", record.getSchema());
-            log.info("native schema {}", record.getSchema().getNativeSchema().orElse(null));
 
-            String expectedRecordType = record.getProperties().getOrDefault("expectedType", "MISSING");
-            log.info("expectedRecordType {}", expectedRecordType);
-            log.info("value {}", record.getValue());
-            log.info("value schema type {}", record.getValue().getSchemaType());
-            log.info("value native object {}", record.getValue().getNativeObject());
+        log.info("properties {}", record.getProperties());
+        log.info("received record {} {}", record, record.getClass());
+        log.info("schema {}", record.getSchema());
+        log.info("native schema {}", record.getSchema().getNativeSchema().orElse(null));
 
-            if (record.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE && record.getSchema() instanceof KeyValueSchema) {
-                // assert that we are able to access the schema (leads to ClassCastException if there is a problem)
-                KeyValueSchema kvSchema = (KeyValueSchema) record.getSchema();
-                log.info("key schema type {}", kvSchema.getKeySchema());
-                log.info("value schema type {}", kvSchema.getValueSchema());
-                log.info("key encoding {}", kvSchema.getKeyValueEncodingType());
-
-                KeyValue keyValue = (KeyValue) record.getValue().getNativeObject();
-                log.info("kvkey {}", keyValue.getKey());
-                log.info("kvvalue {}", keyValue.getValue());
-            }
-            log.info("value {}", record.getValue());
-            log.info("value schema type {}", record.getValue().getSchemaType());
-            log.info("value native object {}", record.getValue().getNativeObject());
-        } catch (Throwable error) {
-            log.error("Internal error", error);
+        String expectedRecordType = record.getProperties().getOrDefault("expectedType", "MISSING");
+        if (!expectedRecordType.equals(record.getSchema().getSchemaInfo().getType().name())) {
+            throw new RuntimeException("Unexpected record type "+record.getSchema().getSchemaInfo().getType().name() +" is not "+expectedRecordType);
         }
+
+        log.info("value {}", record.getValue());
+        log.info("value schema type {}", record.getValue().getSchemaType());
+        log.info("value native object {}", record.getValue().getNativeObject());
+
+        if (record.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            // assert that we are able to access the schema (leads to ClassCastException if there is a problem)
+            KeyValueSchema kvSchema = (KeyValueSchema) record.getSchema();
+            log.info("key schema type {}", kvSchema.getKeySchema());
+            log.info("value schema type {}", kvSchema.getValueSchema());
+            log.info("key encoding {}", kvSchema.getKeyValueEncodingType());
+
+            KeyValue keyValue = (KeyValue) record.getValue().getNativeObject();
+            log.info("kvkey {}", keyValue.getKey());
+            log.info("kvvalue {}", keyValue.getValue());
+        }
+        log.info("value {}", record.getValue());
+        log.info("value schema type {}", record.getValue().getSchemaType());
+        log.info("value native object {}", record.getValue().getNativeObject());
     }
 
     @Override
