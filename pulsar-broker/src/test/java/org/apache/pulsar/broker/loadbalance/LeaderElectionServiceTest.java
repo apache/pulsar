@@ -67,6 +67,7 @@ public class LeaderElectionServiceTest {
             PulsarAdminException {
         final String clusterName = "elect-test";
         ServiceConfiguration config = new ServiceConfiguration();
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setWebServicePort(Optional.of(0));
         config.setClusterName(clusterName);
