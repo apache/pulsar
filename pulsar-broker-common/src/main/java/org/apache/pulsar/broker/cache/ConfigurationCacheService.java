@@ -57,7 +57,6 @@ public class ConfigurationCacheService {
     private final ZooKeeperCache cache;
     private ZooKeeperDataCache<TenantInfo> propertiesCache;
     private ZooKeeperDataCache<Policies> policiesCache;
-    private ZooKeeperDataCache<ResourceGroup> resourcegroupsCache;
     private ZooKeeperDataCache<ClusterData> clustersCache;
     private ZooKeeperChildrenCache clustersListCache;
     private ZooKeeperChildrenCache failureDomainListCache;
@@ -101,13 +100,6 @@ public class ConfigurationCacheService {
             @Override
             public Policies deserialize(String path, byte[] content) throws Exception {
                 return ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
-            }
-        };
-
-        this.resourcegroupsCache = new ZooKeeperDataCache<ResourceGroup>(cache) {
-            @Override
-            public ResourceGroup deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, ResourceGroup.class);
             }
         };
 
@@ -197,10 +189,6 @@ public class ConfigurationCacheService {
 
     public ZooKeeperDataCache<Policies> policiesCache() {
         return this.policiesCache;
-    }
-
-    public ZooKeeperDataCache<ResourceGroup> resourcegroupsCache() {
-        return this.resourcegroupsCache;
     }
 
     public ZooKeeperDataCache<ClusterData> clustersCache() {

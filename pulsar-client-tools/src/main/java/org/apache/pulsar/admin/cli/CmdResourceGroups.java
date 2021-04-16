@@ -74,9 +74,11 @@ public class CmdResourceGroups extends CmdBase {
         void run() throws PulsarAdminException {
             String name = getOneArgument(params);
 
-
-            ResourceGroup resourcegroup = new ResourceGroup(publishRateInMsgs, publishRateInMsgs,
-                    dispatchRateInMsgs, dispatchRateInBytes);
+            ResourceGroup resourcegroup = new ResourceGroup();
+            resourcegroup.setDispatchRateInMsgs(dispatchRateInMsgs);
+            resourcegroup.setDispatchRateInBytes(dispatchRateInBytes);
+            resourcegroup.setPublishRateInMsgs(publishRateInMsgs);
+            resourcegroup.setPublishRateInBytes(publishRateInBytes);
             getAdmin().resourcegroups().createResourceGroup(name, resourcegroup);
         }
     }
@@ -107,9 +109,12 @@ public class CmdResourceGroups extends CmdBase {
         void run() throws PulsarAdminException {
             String name = getOneArgument(params);
 
+            ResourceGroup resourcegroup = new ResourceGroup();
+            resourcegroup.setDispatchRateInMsgs(dispatchRateInMsgs);
+            resourcegroup.setDispatchRateInBytes(dispatchRateInBytes);
+            resourcegroup.setPublishRateInMsgs(publishRateInMsgs);
+            resourcegroup.setPublishRateInBytes(publishRateInBytes);
 
-            ResourceGroup resourcegroup = new ResourceGroup(publishRateInMsgs, publishRateInBytes,
-                    dispatchRateInMsgs, dispatchRateInBytes);
             getAdmin().resourcegroups().updateResourceGroup(name, resourcegroup);
         }
     }

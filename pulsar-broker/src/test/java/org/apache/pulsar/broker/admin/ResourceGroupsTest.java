@@ -27,8 +27,6 @@ import org.apache.pulsar.broker.admin.v2.ResourceGroups;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -42,7 +40,6 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.*;
 
 public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
-    private static final Logger log = LoggerFactory.getLogger(ResourceGroupsTest.class);
     private ResourceGroups resourcegroups;
     private List<String> expectedRgNames = Lists.newArrayList();
     private final String testCluster = "test";
@@ -88,8 +85,12 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
         expectedRgNames.add("test-resourcegroup-one");
 
         // create resourcegroup with non default values.
-        ResourceGroup testResourceGroupTwo = new ResourceGroup(100, 10000,
-                100, 1000);
+        ResourceGroup testResourceGroupTwo = new ResourceGroup();
+        testResourceGroupTwo.setDispatchRateInBytes(10000);
+        testResourceGroupTwo.setDispatchRateInMsgs(100);
+        testResourceGroupTwo.setPublishRateInMsgs(100);
+        testResourceGroupTwo.setPublishRateInBytes(10000);
+
         resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-two", testResourceGroupTwo);
         expectedRgNames.add("test-resourcegroup-two");
 
@@ -102,8 +103,11 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
         }
 
         // update with some real values
-        ResourceGroup testResourceGroupOneUpdate = new ResourceGroup(50, 5000,
-                10, 1000);
+        ResourceGroup testResourceGroupOneUpdate = new ResourceGroup();
+        testResourceGroupOneUpdate.setDispatchRateInMsgs(50);
+        testResourceGroupOneUpdate.setDispatchRateInBytes(5000);
+        testResourceGroupOneUpdate.setPublishRateInMsgs(10);
+        testResourceGroupOneUpdate.setPublishRateInBytes(1000);
         resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-one", testResourceGroupOneUpdate);
 
         // get a non existent resourcegroup
@@ -138,8 +142,13 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
 
     @Test
     public void testNamespaceResourceGroup() throws Exception {
-        ResourceGroup testResourceGroupTwo = new ResourceGroup(100, 10000,
-                100, 1000);
+        // create resourcegroup with non default values.
+        ResourceGroup testResourceGroupTwo = new ResourceGroup();
+        testResourceGroupTwo.setDispatchRateInBytes(10000);
+        testResourceGroupTwo.setDispatchRateInMsgs(100);
+        testResourceGroupTwo.setPublishRateInMsgs(100);
+        testResourceGroupTwo.setPublishRateInBytes(10000);
+
         resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-three", testResourceGroupTwo);
         admin.namespaces().createNamespace(testNameSpace);
         // set invalid ResourceGroup in namespace
