@@ -32,40 +32,46 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
- * Shuts down one or many {@link ExecutorService}s in a graceful way.
+ * Waits for termination of {@link ExecutorService}s that have been shutdown.
  *
  * The executors will be terminated forcefully after the timeout or when the future is cancelled.
  *
  * Designed to be used via the API in {@link GracefulExecutorServicesShutdown}
  */
 @Slf4j
-class GracefulExecutorServicesShutdownHandler {
+class GracefulExecutorServicesTerminationHandler {
     private final ScheduledExecutorService shutdownScheduler = Executors.newSingleThreadScheduledExecutor(
             new DefaultThreadFactory(getClass().getSimpleName()));
     private final List<ExecutorService> executors;
     private final CompletableFuture<Void> future;
     private final long timeoutMs;
-    private final long shutdownStatusPollingInterval;
+    private final long terminatedStatusPollingInterval;
 
-    GracefulExecutorServicesShutdownHandler(long timeoutMs, List<ExecutorService> executorServices) {
+    GracefulExecutorServicesTerminationHandler(long timeoutMs, List<ExecutorService> executorServices) {
         this.timeoutMs = Math.max(timeoutMs, 1L);
-        this.shutdownStatusPollingInterval = Math.min(Math.max(timeoutMs / 100, 10), timeoutMs);
+        this.terminatedStatusPollingInterval = Math.min(Math.max(timeoutMs / 100, 10), timeoutMs);
         executors = executorServices.stream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
         future = new CompletableFuture<>();
     }
 
-    CompletableFuture<Void> startShutdownHandler() {
-        log.info("Shutting down {} executors.", executors.size());
-        executors.forEach(ExecutorService::shutdown);
+    CompletableFuture<Void> startTerminationHandler() {
+        log.info("Starting shutdown handler for {} executors.", executors.size());
+        for (ExecutorService executor : executors) {
+            if (!executor.isShutdown()) {
+                throw new IllegalStateException(
+                        String.format("Executor %s should have been shutdown before entering the shutdown handler.",
+                                executor));
+            }
+        }
         FutureUtil.whenCancelledOrTimedOut(future, () -> {
-            terminate();
+            terminateExecutorsAndShutdown();
         });
-        checkIfExecutorsHaveBeenShutdown();
+        checkIfExecutorsHaveBeenTerminated();
         if (!shutdownScheduler.isShutdown()) {
             try {
-                shutdownScheduler.schedule(this::terminate, timeoutMs, TimeUnit.MILLISECONDS);
+                shutdownScheduler.schedule(this::terminateExecutorsAndShutdown, timeoutMs, TimeUnit.MILLISECONDS);
             } catch (RejectedExecutionException e) {
                 // ignore
             }
@@ -73,7 +79,7 @@ class GracefulExecutorServicesShutdownHandler {
         return future;
     }
 
-    private void terminate() {
+    private void terminateExecutorsAndShutdown() {
         for (ExecutorService executor : executors) {
             if (!executor.isTerminated()) {
                 log.info("Shutting down forcefully executor {}", executor);
@@ -96,7 +102,7 @@ class GracefulExecutorServicesShutdownHandler {
     private void scheduleCheck() {
         if (!shutdownScheduler.isShutdown()) {
             try {
-                shutdownScheduler.schedule(this::checkIfExecutorsHaveBeenShutdown, shutdownStatusPollingInterval,
+                shutdownScheduler.schedule(this::checkIfExecutorsHaveBeenTerminated, terminatedStatusPollingInterval,
                         TimeUnit.MILLISECONDS);
             } catch (RejectedExecutionException e) {
                 // ignore
@@ -104,7 +110,7 @@ class GracefulExecutorServicesShutdownHandler {
         }
     }
 
-    private void checkIfExecutorsHaveBeenShutdown() {
+    private void checkIfExecutorsHaveBeenTerminated() {
         if (executors.stream().filter(executor -> !executor.isTerminated()).count() > 0) {
             scheduleCheck();
         } else {

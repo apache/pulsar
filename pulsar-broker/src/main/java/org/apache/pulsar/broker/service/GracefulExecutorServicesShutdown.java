@@ -81,15 +81,15 @@ public class GracefulExecutorServicesShutdown {
     }
 
     /**
-     * Starts the handler for polling frequently for the completion of enlisted executors.
+     * Starts the handler for polling frequently for the completed termination of enlisted executors.
      *
-     * If the shutdown times out or the future is cancelled, all executors will be terminated.
-     * Supports {@link CompletableFuture#cancel(boolean)} for forceful shutdown of executors.
+     * If the termination times out or the future is cancelled, all active executors will be forcefully
+     * terminated by calling {@link ExecutorService#shutdownNow()}.
      *
-     * @return a future for completion of executors
+     * @return a future which completes when all executors have terminated
      */
     public CompletableFuture<Void> handle() {
-        return new GracefulExecutorServicesShutdownHandler(timeout.toMillis(), executorServices)
-                .startShutdownHandler();
+        return new GracefulExecutorServicesTerminationHandler(timeout.toMillis(), executorServices)
+                .startTerminationHandler();
     }
 }

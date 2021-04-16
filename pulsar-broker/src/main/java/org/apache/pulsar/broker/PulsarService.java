@@ -356,7 +356,7 @@ public class PulsarService implements AutoCloseable {
                 this.webSocketService.close();
             }
 
-            GracefulExecutorServicesShutdown executorServiceShutdown =
+            GracefulExecutorServicesShutdown executorServicesShutdown =
                     GracefulExecutorServicesShutdown
                             .initiate()
                             .timeout(
@@ -386,7 +386,7 @@ public class PulsarService implements AutoCloseable {
                 this.leaderElectionService = null;
             }
 
-            executorServiceShutdown.shutdown(loadManagerExecutor);
+            executorServicesShutdown.shutdown(loadManagerExecutor);
 
             if (globalZkCache != null) {
                 globalZkCache.close();
@@ -422,11 +422,11 @@ public class PulsarService implements AutoCloseable {
                 nsService = null;
             }
 
-            executorServiceShutdown.shutdown(compactorExecutor);
-            executorServiceShutdown.shutdown(offloaderScheduler);
-            executorServiceShutdown.shutdown(executor);
-            executorServiceShutdown.shutdown(orderedExecutor);
-            executorServiceShutdown.shutdown(cacheExecutor);
+            executorServicesShutdown.shutdown(compactorExecutor);
+            executorServicesShutdown.shutdown(offloaderScheduler);
+            executorServicesShutdown.shutdown(executor);
+            executorServicesShutdown.shutdown(orderedExecutor);
+            executorServicesShutdown.shutdown(cacheExecutor);
 
             LoadManager loadManager = this.loadManager.get();
             if (loadManager != null) {
@@ -448,7 +448,7 @@ public class PulsarService implements AutoCloseable {
                 transactionBufferClient.close();
             }
 
-            executorServiceShutdown.shutdown(transactionExecutor);
+            executorServicesShutdown.shutdown(transactionExecutor);
 
             if (coordinationService != null) {
                 coordinationService.close();
@@ -462,7 +462,7 @@ public class PulsarService implements AutoCloseable {
             }
 
             // add timeout handling for closing executors
-            asyncCloseFutures.add(executorServiceShutdown.handle());
+            asyncCloseFutures.add(executorServicesShutdown.handle());
 
             closeFuture = addTimeoutHandling(FutureUtil.waitForAllAndSupportCancel(asyncCloseFutures));
             closeFuture.handle((v, t) -> {
