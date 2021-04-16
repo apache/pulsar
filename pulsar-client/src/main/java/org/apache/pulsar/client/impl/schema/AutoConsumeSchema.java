@@ -30,7 +30,10 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -239,17 +242,18 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             } else {
                 SchemaInfo schemaInfo = null;
                 try {
-                    schemaInfo = schemaInfoProvider.getLatestSchema().get();
+                    CompletableFuture<SchemaInfo> latestSchema = schemaInfoProvider.getLatestSchema();
+                    schemaInfo = latestSchema.get(1000, TimeUnit.SECONDS);
                     if (schemaInfo == null) {
                         // schemaless topic
                         schemaInfo = BytesSchema.of().getSchemaInfo();
                     }
-                } catch (InterruptedException | ExecutionException e) {
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     if (e instanceof InterruptedException) {
                         Thread.currentThread().interrupt();
                     }
                     log.error("Can't get last schema for topic {} using AutoConsumeSchema", topicName);
-                    throw new SchemaSerializationException(e.getCause());
+                    throw new SchemaSerializationException(e);
                 }
                 // schemaInfo null means that there is no schema attached to the topic.
                 schema = generateSchema(schemaInfo);

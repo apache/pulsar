@@ -28,6 +28,7 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
 import io.netty.handler.codec.haproxy.HAProxyMessage;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
@@ -66,6 +67,7 @@ import lombok.Getter;
  * Handles incoming discovery request from client and sends appropriate response back to client
  *
  */
+@Slf4j
 public class ProxyConnection extends PulsarHandler implements FutureListener<Void> {
     // ConnectionPool is used by the proxy to issue lookup requests
     private PulsarClientImpl client;
@@ -386,7 +388,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     @Override
     protected void handleGetSchema(CommandGetSchema commandGetSchema) {
         checkArgument(state == State.ProxyLookupRequests);
-
+        log.info("handleGetSchema {}", commandGetSchema);
         lookupProxyHandler.handleGetSchema(commandGetSchema);
     }
 
