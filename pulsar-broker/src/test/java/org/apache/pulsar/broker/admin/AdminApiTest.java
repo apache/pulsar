@@ -786,6 +786,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList("persistent://prop-xyz/ns1/" + topicName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -891,6 +892,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(subscriptions.size(), 0);
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -1542,6 +1544,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsar.getWebServiceAddress())
             .statsInterval(0, TimeUnit.SECONDS)
@@ -2090,6 +2093,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList(topicName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -2284,6 +2288,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop-xyz/ns1/ds1")

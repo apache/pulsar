@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.client.BookKeeper;
 import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
@@ -193,6 +194,7 @@ public class BrokerBookieIsolationTest {
             // Ok
         }
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
                 .statsInterval(-1, TimeUnit.SECONDS).build();
 
@@ -334,6 +336,7 @@ public class BrokerBookieIsolationTest {
             // Ok
         }
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
                 .statsInterval(-1, TimeUnit.SECONDS).build();
 

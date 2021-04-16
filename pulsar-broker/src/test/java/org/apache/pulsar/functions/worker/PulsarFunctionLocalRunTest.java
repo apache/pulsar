@@ -260,6 +260,9 @@ public class PulsarFunctionLocalRunTest {
                     workerConfig.getBrokerClientAuthenticationParameters());
             clientBuilder.serviceUrl(pulsar.getBrokerServiceUrlTls());
         }
+        if (pulsarClient != null) {
+            pulsarClient.close();
+        }
         pulsarClient = clientBuilder.build();
 
         TenantInfo propAdmin = new TenantInfo();

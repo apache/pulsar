@@ -265,7 +265,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscriber-name").acknowledgmentGroupTime(0, TimeUnit.SECONDS)
-                .maxPendingChuckedMessage(1).autoAckOldestChunkedMessageOnQueueFull(true)
+                .maxPendingChunkedMessage(1).autoAckOldestChunkedMessageOnQueueFull(true)
                 .ackTimeout(5, TimeUnit.SECONDS).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);

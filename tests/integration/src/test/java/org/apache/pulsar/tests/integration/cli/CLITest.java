@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -37,13 +43,6 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 /**
  * Test Pulsar CLI.
@@ -338,12 +337,15 @@ public class CLITest extends PulsarTestSuite {
 
     private void testPublishAndConsume(String topic, String sub, Schema type) throws PulsarClientException {
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
 
+        @Cleanup
         Producer<Tick> producer = client.newProducer(type)
                 .topic(topic + "-message")
                 .create();
 
+        @Cleanup
         Consumer<Tick> consumer = client.newConsumer(type)
                 .topic(topic + "-message")
                 .subscriptionName(sub)
@@ -360,10 +362,6 @@ public class CLITest extends PulsarTestSuite {
             Message<Tick> receive = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertEquals(receive.getValue(), expected);
         }
-
-        producer.close();
-        consumer.close();
-        client.close();
     }
 
     @Test

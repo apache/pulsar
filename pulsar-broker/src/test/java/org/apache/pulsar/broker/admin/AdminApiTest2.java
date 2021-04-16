@@ -1738,6 +1738,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
         final String topic = "persistent://" + myNamespace + "/testMaxSubPerTopic";
         //Create a client that can fail quickly
+        @Cleanup
         PulsarClient client = PulsarClient.builder().operationTimeout(2,TimeUnit.SECONDS)
                 .serviceUrl(brokerUrl.toString()).build();
         //We can only create 2 consumers
@@ -1777,7 +1778,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         for (Consumer<?> c : consumerList) {
             c.close();
         }
-        client.close();
     }
 
     @Test

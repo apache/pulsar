@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MockBrokerService;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -48,6 +49,7 @@ public class ConsumerUnsubscribeTest {
 
     @Test
     public void testConsumerUnsubscribeReference() throws Exception {
+        @Cleanup
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(mockBrokerService.getBrokerAddress())
                 .build();
@@ -56,6 +58,5 @@ public class ConsumerUnsubscribeTest {
         consumer.unsubscribe();
 
         assertEquals(client.consumersCount(), 0);
-        client.close();
     }
 }

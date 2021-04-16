@@ -22,15 +22,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
 import static org.powermock.api.mockito.PowerMockito.spy;
-
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
-
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
+import lombok.Cleanup;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.jute.Record;
@@ -69,8 +68,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Optional;
 
 @Test(groups = "broker")
 public class TopicOwnerTest {
@@ -518,6 +515,7 @@ public class TopicOwnerTest {
                 pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),
                 true, null);
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().
                 serviceUrl(serviceUrlForTopic1)
                 .build();
@@ -556,6 +554,7 @@ public class TopicOwnerTest {
         final String topicName = "non-persistent://my-tenant/my-ns/my-topic";
         pulsarAdmins[0].topics().createPartitionedTopic(topicName, 16);
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().
                 serviceUrl(pulsarServices[0].getBrokerServiceUrl())
                 .build();
@@ -573,6 +572,5 @@ public class TopicOwnerTest {
         }
 
         consumer.close();
-        client.close();
     }
 }
