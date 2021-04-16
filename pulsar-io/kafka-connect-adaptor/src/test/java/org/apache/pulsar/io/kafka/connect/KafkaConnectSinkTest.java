@@ -25,6 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.functions.api.Record;
@@ -91,16 +93,17 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         KafkaConnectSink sink = new KafkaConnectSink();
         sink.open(props, null);
 
+        final GenericRecord rec = getGenericRecord("value", Schema.STRING);
         Message msg = mock(MessageImpl.class);
-        when(msg.getValue()).thenReturn("value");
+        when(msg.getValue()).thenReturn(rec);
         when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, 0));
 
         final AtomicInteger status = new AtomicInteger(0);
-        Record<Object> record = PulsarRecord.<String>builder()
+        Record<GenericObject> record = PulsarRecord.<String>builder()
                 .topicName("fake-topic")
                 .message(msg)
-                .ackFunction(() -> status.incrementAndGet())
-                .failFunction(() -> status.decrementAndGet())
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
                 .schema(Schema.STRING)
                 .build();
 
@@ -115,29 +118,31 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         assertEquals("value", lines.get(0));
     }
 
-    private void recordSchemaTest(Object value, Object expected, String expectedSchema) throws Exception {
-        recordSchemaTest(value, "key",  "STRING", expected, expectedSchema);
+    private void recordSchemaTest(Object value, Schema schema, Object expected, String expectedSchema) throws Exception {
+        recordSchemaTest(value, schema, "key",  "STRING", expected, expectedSchema);
     }
 
-    private void recordSchemaTest(Object value, Object expectedKey, String expectedKeySchema,
+    private void recordSchemaTest(Object value, Schema schema, Object expectedKey, String expectedKeySchema,
                                   Object expected, String expectedSchema) throws Exception {
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
 
         KafkaConnectSink sink = new KafkaConnectSink();
         sink.open(props, null);
 
+        final GenericRecord rec = getGenericRecord(value, schema);
         Message msg = mock(MessageImpl.class);
-        when(msg.getValue()).thenReturn(value);
+        when(msg.getValue()).thenReturn(rec);
         when(msg.getKey()).thenReturn("key");
         when(msg.hasKey()).thenReturn(true);
         when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, 0));
 
         final AtomicInteger status = new AtomicInteger(0);
-        Record<Object> record = PulsarRecord.<String>builder()
+        Record<GenericObject> record = PulsarRecord.<String>builder()
                 .topicName("fake-topic")
                 .message(msg)
-                .ackFunction(() -> status.incrementAndGet())
-                .failFunction(() -> status.decrementAndGet())
+                .schema(schema)
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
                 .build();
 
         sink.write(record);
@@ -157,52 +162,74 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         assertEquals(expectedSchema, result.get("valueSchema"));
     }
 
+    private GenericRecord getGenericRecord(Object value, Schema schema) {
+        final GenericRecord rec;
+        if(value instanceof GenericRecord) {
+            rec = (GenericRecord) value;
+        } else {
+            rec = GenericObjectWrapper.builder()
+                    .nativeObject(value)
+                    .schemaType(schema != null ? schema.getSchemaInfo().getType() : null)
+                    .schemaVersion(new byte[]{ 1 }).build();
+        }
+        return rec;
+    }
+
     @Test
     public void bytesRecordSchemaTest() throws Exception {
-        recordSchemaTest("val".getBytes(StandardCharsets.US_ASCII), "val", "BYTES");
+        recordSchemaTest("val".getBytes(StandardCharsets.US_ASCII), null, "val", "BYTES");
+        recordSchemaTest("val".getBytes(StandardCharsets.US_ASCII), Schema.BYTES, "val", "BYTES");
     }
 
     @Test
     public void stringRecordSchemaTest() throws Exception {
-        recordSchemaTest("val", "val", "STRING");
+        recordSchemaTest("val", null, "val", "STRING");
+        recordSchemaTest("val", Schema.STRING, "val", "STRING");
     }
 
     @Test
     public void booleanRecordSchemaTest() throws Exception {
-        recordSchemaTest(true, true, "BOOLEAN");
+        recordSchemaTest(true, null, true, "BOOLEAN");
+        recordSchemaTest(true, Schema.BOOL, true, "BOOLEAN");
     }
 
     @Test
     public void byteRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
-        recordSchemaTest((byte)1, 1, "INT8");
+        recordSchemaTest((byte)1, null, 1, "INT8");
+        recordSchemaTest((byte)1, Schema.INT8, 1, "INT8");
     }
 
     @Test
     public void shortRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
-        recordSchemaTest((short)1, 1, "INT16");
+        recordSchemaTest((short)1, null, 1, "INT16");
+        recordSchemaTest((short)1, Schema.INT16, 1, "INT16");
     }
 
     @Test
     public void integerRecordSchemaTest() throws Exception {
-        recordSchemaTest(Integer.MAX_VALUE, Integer.MAX_VALUE, "INT32");
+        recordSchemaTest(Integer.MAX_VALUE, null, Integer.MAX_VALUE, "INT32");
+        recordSchemaTest(Integer.MAX_VALUE, Schema.INT32, Integer.MAX_VALUE, "INT32");
     }
 
     @Test
     public void longRecordSchemaTest() throws Exception {
-        recordSchemaTest(Long.MAX_VALUE, Long.MAX_VALUE, "INT64");
+        recordSchemaTest(Long.MAX_VALUE, null, Long.MAX_VALUE, "INT64");
+        recordSchemaTest(Long.MAX_VALUE, Schema.INT64, Long.MAX_VALUE, "INT64");
     }
 
     @Test
     public void floatRecordSchemaTest() throws Exception {
         // 1.0d is coming back from ObjectMapper
-        recordSchemaTest(1.0f, 1.0d, "FLOAT32");
+        recordSchemaTest(1.0f, null, 1.0d, "FLOAT32");
+        recordSchemaTest(1.0f, Schema.FLOAT, 1.0d, "FLOAT32");
     }
 
     @Test
     public void doubleRecordSchemaTest() throws Exception {
-        recordSchemaTest(Double.MAX_VALUE, Double.MAX_VALUE, "FLOAT64");
+        recordSchemaTest(Double.MAX_VALUE, null, Double.MAX_VALUE, "FLOAT64");
+        recordSchemaTest(Double.MAX_VALUE, Schema.DOUBLE, Double.MAX_VALUE, "FLOAT64");
     }
 
     @Test
@@ -213,18 +240,19 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         KafkaConnectSink sink = new KafkaConnectSink();
         sink.open(props, null);
 
+        final GenericRecord rec = getGenericRecord(obj, null);
         Message msg = mock(MessageImpl.class);
-        when(msg.getValue()).thenReturn(obj);
+        when(msg.getValue()).thenReturn(rec);
         when(msg.getKey()).thenReturn("key");
         when(msg.hasKey()).thenReturn(true);
         when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, 0));
 
         final AtomicInteger status = new AtomicInteger(0);
-        Record<Object> record = PulsarRecord.<String>builder()
+        Record<GenericObject> record = PulsarRecord.<String>builder()
                 .topicName("fake-topic")
                 .message(msg)
-                .ackFunction(() -> status.incrementAndGet())
-                .failFunction(() -> status.decrementAndGet())
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
                 .build();
 
         sink.write(record);
@@ -238,20 +266,21 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     @Test
     public void KeyValueSchemaTest() throws Exception {
         KeyValue<Integer, String> kv = new KeyValue<>(11, "value");
-        recordSchemaTest(kv, 11, "INT32", "value", "STRING");
+        recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
     }
 
     @Test
     public void offsetTest() throws Exception {
         final AtomicLong entryId = new AtomicLong(0L);
+        final GenericRecord rec = getGenericRecord("value", Schema.STRING);
         Message msg = mock(MessageImpl.class);
-        when(msg.getValue()).thenReturn("value");
+        when(msg.getValue()).thenReturn(rec);
         when(msg.getMessageId()).then(x -> new MessageIdImpl(0, entryId.getAndIncrement(), 0));
 
         final String topicName = "testTopic";
         final int partition = 1;
         final AtomicInteger status = new AtomicInteger(0);
-        Record<Object> record = PulsarRecord.<String>builder()
+        Record<GenericObject> record = PulsarRecord.<String>builder()
                 .topicName(topicName)
                 .partition(partition)
                 .message(msg)

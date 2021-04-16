@@ -33,6 +33,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkConnector;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.KVRecord;
@@ -54,7 +55,7 @@ import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.OFFSET_
 import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG;
 
 @Slf4j
-public class KafkaConnectSink implements Sink<Object> {
+public class KafkaConnectSink implements Sink<GenericObject> {
 
     private boolean unwrapKeyValueIfAvailable;
 
@@ -97,7 +98,7 @@ public class KafkaConnectSink implements Sink<Object> {
             Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
                     .setNameFormat("pulsar-io-kafka-adaptor-sink-flush-%d")
                     .build());
-    private final ConcurrentLinkedDeque<Record<Object>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
+    private final ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
     private volatile boolean isRunning = false;
 
     private Properties props = new Properties();
@@ -106,7 +107,7 @@ public class KafkaConnectSink implements Sink<Object> {
     protected String topicName;
 
     @Override
-    public void write(Record<Object> sourceRecord) {
+    public void write(Record<GenericObject> sourceRecord) {
         if (log.isDebugEnabled()) {
             log.debug("Record sending to kafka, record={}.", sourceRecord);
         }
@@ -202,7 +203,7 @@ public class KafkaConnectSink implements Sink<Object> {
             return;
         }
 
-        final Record<Object> lastNotFlushed = pendingFlushQueue.getLast();
+        final Record<GenericObject> lastNotFlushed = pendingFlushQueue.getLast();
         Map<TopicPartition, OffsetAndMetadata> currentOffsets = taskContext.currentOffsets();
 
         try {
@@ -215,9 +216,9 @@ public class KafkaConnectSink implements Sink<Object> {
         }
     }
 
-    private void ackUntil(Record<Object> lastNotFlushed, java.util.function.Consumer<Record<Object>> cb) {
+    private void ackUntil(Record<GenericObject> lastNotFlushed, java.util.function.Consumer<Record<GenericObject>> cb) {
         while (!pendingFlushQueue.isEmpty()) {
-            Record<Object> r = pendingFlushQueue.pollFirst();
+            Record<GenericObject> r = pendingFlushQueue.pollFirst();
             cb.accept(r);
             if (r == lastNotFlushed) {
                 break;
@@ -255,7 +256,7 @@ public class KafkaConnectSink implements Sink<Object> {
 
 
     @SuppressWarnings("rawtypes")
-    private SinkRecord toSinkRecord(Record<Object> sourceRecord) {
+    private SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
         final int partition = sourceRecord.getPartitionIndex().orElse(0);
         final String topic = sourceRecord.getTopicName().orElse(topicName);
         final Object key;
@@ -263,34 +264,19 @@ public class KafkaConnectSink implements Sink<Object> {
         final Schema keySchema;
         final Schema valueSchema;
 
-        if (sourceRecord instanceof KVRecord) {
-            KVRecord kvr = (KVRecord) sourceRecord;
-            if (kvr.getValue() instanceof KeyValue) {
-                key = ((KeyValue)kvr.getValue()).getKey();
-                value = ((KeyValue)kvr.getValue()).getValue();
-            } else {
-                key = kvr.getKey().orElse(null);
-                value = kvr.getValue();
-            }
-
-            keySchema = getKafkaConnectSchema(kvr.getKeySchema(), key);
-            valueSchema = getKafkaConnectSchema(kvr.getValueSchema(), value);
-        } else if (unwrapKeyValueIfAvailable && sourceRecord.getValue() instanceof KeyValue) {
-            KeyValue kv = (KeyValue) sourceRecord.getValue();
+        // sourceRecord is never instanceof KVRecord
+        // https://github.com/apache/pulsar/pull/10113
+        if (unwrapKeyValueIfAvailable && sourceRecord.getSchema() != null
+                && sourceRecord.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
+            KeyValueSchema kvSchema = (KeyValueSchema) sourceRecord.getSchema();
+            KeyValue kv = (KeyValue) sourceRecord.getValue().getNativeObject();
             key = kv.getKey();
             value = kv.getValue();
-            if (sourceRecord.getSchema() instanceof KeyValueSchema) {
-                keySchema = getKafkaConnectSchema(((KeyValueSchema)sourceRecord.getSchema()).getKeySchema(),
-                            key);
-                valueSchema = getKafkaConnectSchema(((KeyValueSchema)sourceRecord.getSchema()).getValueSchema(),
-                        key);
-            } else {
-                keySchema = getKafkaConnectSchema(null, key);
-                valueSchema = getKafkaConnectSchema(null, value);
-            }
+            keySchema = getKafkaConnectSchema(kvSchema.getKeySchema(), key);
+            valueSchema = getKafkaConnectSchema(kvSchema.getValueSchema(), value);
         } else {
             key = sourceRecord.getKey().orElse(null);
-            value = sourceRecord.getValue();
+            value = sourceRecord.getValue().getNativeObject();
             keySchema = Schema.STRING_SCHEMA;
             valueSchema = getKafkaConnectSchema(sourceRecord.getSchema(), value);
         }
