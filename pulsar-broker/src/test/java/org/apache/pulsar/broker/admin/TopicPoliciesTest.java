@@ -2008,4 +2008,32 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(timeOut = 20000)
+    public void testGetCompactionThresholdApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        assertNull(admin.topics().getCompactionThreshold(topic));
+        assertNull(admin.namespaces().getCompactionThreshold(myNamespace));
+        long brokerPolicy = pulsar.getConfiguration().getBrokerServiceCompactionThresholdInBytes();
+        assertEquals(admin.topics().getCompactionThreshold(topic, true).longValue(), brokerPolicy);
+        long namespacePolicy = 10L;
+
+        admin.namespaces().setCompactionThreshold(myNamespace, namespacePolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getCompactionThreshold(myNamespace)));
+        assertEquals(admin.topics().getCompactionThreshold(topic, true).longValue(), namespacePolicy);
+
+        long topicPolicy = 20L;
+        admin.topics().setCompactionThreshold(topic, topicPolicy);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getCompactionThreshold(topic)));
+        assertEquals(admin.topics().getCompactionThreshold(topic, true).longValue(), topicPolicy);
+
+        admin.namespaces().removeCompactionThreshold(myNamespace);
+        admin.topics().removeCompactionThreshold(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getCompactionThreshold(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getCompactionThreshold(topic)));
+        assertEquals(admin.topics().getCompactionThreshold(topic, true).longValue(), brokerPolicy);
+    }
+
 }

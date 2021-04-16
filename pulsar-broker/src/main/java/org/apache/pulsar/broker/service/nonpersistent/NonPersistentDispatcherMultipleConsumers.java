@@ -86,7 +86,8 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         consumerSet.add(consumer);
     }
 
-    private boolean isConsumersExceededOnSubscription() {
+    @Override
+    protected boolean isConsumersExceededOnSubscription() {
         final int maxConsumersPerSubscription = serviceConfig.getMaxConsumersPerSubscription();
         if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerList.size()) {
             return true;

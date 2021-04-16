@@ -189,6 +189,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |forceDeleteNamespaceAllowed| Enable you to delete a namespace forcefully. |false|
 |messageExpiryCheckIntervalInMinutes| The frequency of proactively checking and purging expired messages. |5|
 |brokerServiceCompactionMonitorIntervalInSeconds| Interval between checks to determine whether topics with compaction policies need compaction. |60|
+brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater than this threshold, compression is triggered.<br><br>Set this threshold to 0 means disabling the compression check.|N/A
 |delayedDeliveryEnabled| Whether to enable the delayed delivery for messages. If disabled, messages will be immediately delivered and there will be no tracking overhead.|true|
 |delayedDeliveryTickTimeMillis|Control the tick time for retrying on delayed delivery, which affects the accuracy of the delivery time compared to the scheduled time. By default, it is 1 second.|1000|
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
@@ -338,7 +339,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |replicatedSubscriptionsSnapshotFrequencyMillis|The frequency of snapshots for replicated subscriptions tracking.|1000|
 |replicatedSubscriptionsSnapshotTimeoutSeconds|The timeout for building a consistent snapshot for tracking replicated subscriptions state.|30|
 |replicatedSubscriptionsSnapshotMaxCachedPerSubscription|The maximum number of snapshot to be cached per subscription.|10|
-|maxMessagePublishBufferSizeInMB|The maximum memory size for broker handling messages sent from producers. If the processing message size exceeds this value, broker stops reading data from the connection. The processing messages means messages are sent to broker but broker have not sent response to the client. Usually the message are waiting to be written to bookies. It's shared across all the topics running in the same broker. The value `-1` disables the memory limitation. By default, it is 50% of direct memory.|N/A|
+|maxMessagePublishBufferSizeInMB|The maximum memory size for a broker to handle messages that are sent by producers. If the processing message size exceeds this value, the broker stops reading data from the connection. The processing messages refer to the messages that are sent to the broker but the broker has not sent response to the client. Usually the messages are waiting to be written to bookies. It is shared across all the topics running in the same broker. The value `-1` disables the memory limitation. By default, it is 50% of direct memory.|N/A|
 |messagePublishBufferCheckIntervalInMillis|Interval between checks to see if message publish buffer size exceeds the maximum. Use `0` or negative number to disable the max publish buffer limiting.|100|
 |retentionCheckIntervalInSeconds|Check between intervals to see if consumed ledgers need to be trimmed. Use 0 or negative number to disable the check.|120|
 | maxMessageSize | Set the maximum size of a message. | 5242880 |
@@ -346,10 +347,11 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 | lazyCursorRecovery | Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.| false |  
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
+|subscriptionTypesEnabled| Enable all subscription types, which are exclusive, shared, failover, and key_shared. | Exclusive, Shared, Failover, Key_Shared |
 
 ## Client
 
-The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used to publish messages to Pulsar and consume messages from Pulsar topics. This tool can be used in lieu of a client library.
+You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool to publish messages to and consume messages from Pulsar topics. You can use this tool in place of a client library.
 
 |Name|Description|Default|
 |---|---|---|
@@ -357,7 +359,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |brokerServiceUrl|  The Pulsar protocol URL for the cluster.  |pulsar://localhost:6650/|
 |authPlugin|  The authentication plugin.  ||
 |authParams|  The authentication parameters for the cluster, as a comma-separated string. ||
-|useTls|  Whether or not TLS authentication will be enforced in the cluster.  |false|
+|useTls|  Whether to enforce the TLS authentication in the cluster.  |false|
 | tlsAllowInsecureConnection | Allow TLS connections to servers whose certificate cannot be verified to have been signed by a trusted certificate authority. | false |
 | tlsEnableHostnameVerification | Whether the server hostname must match the common name of the certificate that is used by the server. | false |
 |tlsTrustCertsFilePath|||

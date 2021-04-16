@@ -23,11 +23,36 @@
 
 namespace pulsar {
 
+/**
+ * The default LoggerFactory of Client if `USE_LOG4CXX` macro was not defined during compilation.
+ *
+ *
+ * The log format is "yyyy-mm-dd hh:MM:ss.xxx <level> <thread-id> <file>:<line> | <msg>", like
+ *
+ * ```
+ * 2021-03-24 17:35:46.571 INFO  [0x10a951e00] ConnectionPool:85 | Created connection for ...
+ * ```
+ *
+ * It uses `std::cout` to prints logs to standard output. You can use this factory class to change your log
+ * level simply.
+ *
+ * ```c++
+ * #include <pulsar/SimpleLoggerFactory.h>
+ *
+ * ClientConfiguration conf;
+ * conf.setLogger(new SimpleLoggerFactory(Logger::LEVEL_DEBUG));
+ * Client client("pulsar://localhost:6650", conf);
+ * ```
+ */
 class SimpleLoggerFactory : public LoggerFactory {
    public:
-    Logger* getLogger(const std::string& fileName);
+    explicit SimpleLoggerFactory() = default;
+    explicit SimpleLoggerFactory(Logger::Level level) : level_(level) {}
 
-    static std::unique_ptr<LoggerFactory> create();
+    Logger* getLogger(const std::string& fileName) override;
+
+   private:
+    Logger::Level level_{Logger::LEVEL_INFO};
 };
 
 }  // namespace pulsar

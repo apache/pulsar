@@ -2575,6 +2575,23 @@ public interface Topics {
     CompletableFuture<Long> getCompactionThresholdAsync(String topic);
 
     /**
+     * Get the compactionThreshold for a topic. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * @param topic Topic name
+     * @throws NotAuthorizedException Don't have admin permission
+     * @throws NotFoundException Namespace does not exist
+     * @throws PulsarAdminException Unexpected error
+     */
+    Long getCompactionThreshold(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the compactionThreshold for a topic asynchronously. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * @param topic Topic name
+     */
+    CompletableFuture<Long> getCompactionThresholdAsync(String topic, boolean applied);
+
+    /**
      * Set the compactionThreshold for a topic. The maximum number of bytes
      * can have before compaction is triggered. 0 disables.
      * <p/>

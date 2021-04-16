@@ -59,9 +59,14 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
 
             executor.execute(() -> {
                 try {
-                    service.close();
-                    future.complete(null);
-                } catch (PulsarServerException e) {
+                    service.closeAsync().whenComplete((result, throwable) -> {
+                        if (throwable != null) {
+                            future.completeExceptionally(throwable);
+                        } else {
+                            future.complete(result);
+                        }
+                    });
+                } catch (Exception e) {
                     future.completeExceptionally(e);
                 }
             });

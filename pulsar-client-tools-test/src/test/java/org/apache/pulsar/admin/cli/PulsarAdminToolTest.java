@@ -933,6 +933,13 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-max-unacked-messages-per-subscription persistent://myprop/clust/ns1/ds1 -m 99"));
         verify(mockTopics, times(2)).setMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", 99);
 
+        cmdTopics.run(split("get-compaction-threshold persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getCompactionThreshold("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("set-compaction-threshold persistent://myprop/clust/ns1/ds1 -t 10k"));
+        verify(mockTopics).setCompactionThreshold("persistent://myprop/clust/ns1/ds1", 10 * 1024);
+        cmdTopics.run(split("remove-compaction-threshold persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeCompactionThreshold("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("get-max-message-size persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getMaxMessageSize("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("remove-max-message-size persistent://myprop/clust/ns1/ds1"));

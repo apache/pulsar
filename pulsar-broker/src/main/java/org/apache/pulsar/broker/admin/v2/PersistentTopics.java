@@ -2676,21 +2676,12 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void getCompactionThreshold(@Suspended final AsyncResponse asyncResponse,
                                        @PathParam("tenant") String tenant,
                                        @PathParam("namespace") String namespace,
-                                       @PathParam("topic") @Encoded String encodedTopic) {
+                                       @PathParam("topic") @Encoded String encodedTopic,
+                                       @QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        try {
-            Optional<Long> compactionThreshold = internalGetCompactionThreshold();
-            if (!compactionThreshold.isPresent()) {
-                asyncResponse.resume(Response.noContent().build());
-            } else {
-                asyncResponse.resume(compactionThreshold.get());
-            }
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        internalGetCompactionThreshold(applied).whenComplete((res, ex)
+                -> internalHandleResult(asyncResponse, res, ex, "Failed get compaction threshold"));
     }
 
     @POST

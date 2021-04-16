@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.testng.Assert.assertEquals;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
+import java.io.Closeable;
 import java.io.File;
-import java.net.MalformedURLException;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -50,8 +54,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-
 @Slf4j
 @Test(groups = "functions-worker")
 public class PulsarFunctionTlsTest {
@@ -72,6 +74,7 @@ public class PulsarFunctionTlsTest {
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
     protected String testNamespace = testTenant + "/my-ns";
+    private PulsarFunctionTestTemporaryDirectory[] tempDirectories = new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
 
     @BeforeMethod
     void setup() throws Exception {
@@ -114,6 +117,8 @@ public class PulsarFunctionTlsTest {
             config.setTlsEnabled(true);
 
             WorkerConfig workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, null);
+            tempDirectories[i] = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
+            tempDirectories[i].useTemporaryDirectoriesForWorkerConfig(workerConfig);
             workerConfig.setPulsarFunctionsNamespace("public/functions");
             workerConfig.setPulsarFunctionsCluster("my-cluster");
             workerConfig.setSchedulerClassName(
@@ -169,15 +174,23 @@ public class PulsarFunctionTlsTest {
 
     @AfterMethod(alwaysRun = true)
     void tearDown() throws Exception {
-        for (int i = 0; i < BROKER_COUNT; i++) {
-            if (pulsarServices[i] != null) {
-                pulsarServices[i].close();
+        try {
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                if (pulsarServices[i] != null) {
+                    pulsarServices[i].close();
+                }
+                if (pulsarAdmins[i] != null) {
+                    pulsarAdmins[i].close();
+                }
             }
-            if (pulsarAdmins[i] != null) {
-                pulsarAdmins[i].close();
+            bkEnsemble.stop();
+        } finally {
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                if (tempDirectories[i] != null) {
+                    tempDirectories[i].delete();
+                }
             }
         }
-        bkEnsemble.stop();
     }
 
     @Test
@@ -217,9 +230,12 @@ public class PulsarFunctionTlsTest {
     ) throws JsonProcessingException {
         File file = new File(jarFile);
         try {
-            ClassLoaderUtils.loadJar(file);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Failed to load user jar " + file, e);
+            ClassLoader classLoader = ClassLoaderUtils.loadJar(file);
+            if (classLoader instanceof Closeable) {
+                ((Closeable) classLoader).close();
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to load user jar " + file, e);
         }
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 
