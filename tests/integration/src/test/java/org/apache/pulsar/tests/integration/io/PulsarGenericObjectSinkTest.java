@@ -37,6 +37,8 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -117,21 +119,45 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         // wait that all sinks processed all records without errors
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
             for (SinkSpec spec : specs) {
-                log.info("waiting for sink {}", spec.sinkName);
-                Awaitility
-                        .await()
-                        .pollDelay(10, TimeUnit.SECONDS)
-                        .atMost(5, TimeUnit.MINUTES)
-                        .ignoreExceptions()
-                        .untilAsserted(() -> {
+                try {
+                    log.info("waiting for sink {}", spec.sinkName);
+                    for (int i = 0; i < 120; i++) {
+                        SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
+                        log.info("sink {} status {}", spec.sinkName, status);
+                        assertEquals(status.getInstances().size(), 1);
+                        SinkStatus.SinkInstanceStatus instance = status.getInstances().get(0);
+                        assertTrue(instance.getStatus().numRestarts > 0, "Sink was restarted");
+                        Thread.sleep(1000);
+                    }
+
                     SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
                     log.info("sink {} status {}", spec.sinkName, status);
                     assertEquals(status.getInstances().size(), 1);
                     assertTrue(status.getInstances().get(0).getStatus().numReadFromPulsar >= numRecords);
                     assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
+                    assertTrue(status.getInstances().get(0).getStatus().numRestarts == 0);
                     assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
-                });
-                log.info("sink {} is okay", spec.sinkName);
+                    log.info("sink {} is okay", spec.sinkName);
+                } finally {
+                    try {
+                        String logFile = "/pulsar/logs/functions/public/default/" + spec.sinkName + "/" + spec.sinkName + "-0.log";
+                        String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                            ByteArrayOutputStream oo = new ByteArrayOutputStream();
+                            // copy first 1MB of logs
+                            for (int j = 0; j < 1024 * 1024 * 1024; j++) {
+                                int r = inputStream.read();
+                                if (r == -1) {
+                                    break;
+                                }
+                                oo.write(r);
+                            }
+                            return oo.toString(StandardCharsets.UTF_8.name());
+                        });
+                        log.info("Sink {} logs", spec.sinkName, logs);
+                    } catch (Throwable err) {
+                        log.info("Cannot download sink {} logs", spec.sinkName, err);
+                    }
+                }
             }
         }
 
