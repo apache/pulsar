@@ -230,7 +230,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         return schema;
     }
 
-
+    /**
+     * It may happen that the schema is not loaded but we need it, for instance in order to call getSchemaInfo()
+     * We cannot call this method in getSchemaInfo, because getSchemaInfo is called in many
+     * places and we will introduce lots of deadlocks.
+     */
     public void fetchSchemaIfNeeded() {
         if (schema == null) {
             if (schemaInfoProvider == null) {
