@@ -22,6 +22,7 @@ import lombok.Builder;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
@@ -86,8 +87,8 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         // we create N sinks, send the records and verify each sink
         // sinks execution happens in parallel
         List<SinkSpec> specs = Arrays.asList(
-                new SinkSpec("test-kv-sink-input-string-" + randomName(8), "test-kv-sink-string-" + randomName(8), Schema.STRING, "foo"),
-                new SinkSpec("test-kv-sink-input-avro-" + randomName(8), "test-kv-sink-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
+//                new SinkSpec("test-kv-sink-input-string-" + randomName(8), "test-kv-sink-string-" + randomName(8), Schema.STRING, "foo"),
+//                new SinkSpec("test-kv-sink-input-avro-" + randomName(8), "test-kv-sink-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
                 new SinkSpec("test-kv-sink-input-kv-string-int-" + randomName(8), "test-kv-sink-int-" + randomName(8), Schema.KeyValue(String.class, Integer.class), new KeyValue<>("foo", 123))
         );
         // submit all sinks
@@ -142,18 +143,19 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                     try {
                         String logFile = "/pulsar/logs/functions/public/default/" + spec.sinkName + "/" + spec.sinkName + "-0.log";
                         String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
-                            ByteArrayOutputStream oo = new ByteArrayOutputStream();
-                            // copy first 1MB of logs
-                            for (int j = 0; j < 1024 * 1024 * 1024; j++) {
-                                int r = inputStream.read();
-                                if (r == -1) {
-                                    break;
-                                }
-                                oo.write(r);
-                            }
-                            return oo.toString(StandardCharsets.UTF_8.name());
+                            return IOUtils.toString(inputStream, "utf-8");
+//                            ByteArrayOutputStream oo = new ByteArrayOutputStream();
+//                            // copy first 1MB of logs
+//                            for (int j = 0; j < 1024 * 1024 * 1024; j++) {
+//                                int r = inputStream.read();
+//                                if (r == -1) {
+//                                    break;
+//                                }
+//                                oo.write(r);
+//                            }
+//                            return oo.toString(StandardCharsets.UTF_8.name());
                         });
-                        log.info("Sink {} logs", spec.sinkName, logs);
+                        log.info("Sink {} logs {}", spec.sinkName, logs);
                     } catch (Throwable err) {
                         log.info("Cannot download sink {} logs", spec.sinkName, err);
                     }
@@ -208,6 +210,8 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 "--namespace", "default",
                 "--name", sinkName
         );
+        log.info(result.getStdout());
+        log.info(result.getStderr());
         assertTrue(result.getStdout().contains("\"running\" : true"));
     }
 
