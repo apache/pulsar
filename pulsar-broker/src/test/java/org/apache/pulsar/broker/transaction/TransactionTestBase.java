@@ -83,8 +83,14 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         incrementSetupNumber();
         init();
 
+        if (admin != null) {
+            admin.close();
+        }
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()).build());
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl()).build();
     }
 
