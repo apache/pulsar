@@ -797,9 +797,6 @@ public class ClientCnx extends PulsarHandler {
 
         long requestId = commandGetSchemaResponse.getRequestId();
 
-        // clone
-        commandGetSchemaResponse = new CommandGetSchemaResponse().copyFrom(commandGetSchemaResponse);
-
         CompletableFuture<CommandGetSchemaResponse> future = (CompletableFuture<CommandGetSchemaResponse>) pendingRequests
                 .remove(requestId);
         if (future == null) {
@@ -813,10 +810,6 @@ public class ClientCnx extends PulsarHandler {
     protected void handleGetOrCreateSchemaResponse(CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
         checkArgument(state == State.Ready);
         long requestId = commandGetOrCreateSchemaResponse.getRequestId();
-
-        // clone
-        commandGetOrCreateSchemaResponse = new CommandGetOrCreateSchemaResponse().copyFrom(commandGetOrCreateSchemaResponse);
-
         CompletableFuture<CommandGetOrCreateSchemaResponse> future = (CompletableFuture<CommandGetOrCreateSchemaResponse>) pendingRequests
                 .remove(requestId);
         if (future == null) {

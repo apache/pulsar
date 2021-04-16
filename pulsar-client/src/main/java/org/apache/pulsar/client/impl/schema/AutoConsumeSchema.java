@@ -80,7 +80,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     @Override
     public GenericRecord decode(byte[] bytes, byte[] schemaVersion) {
-        fetchSchema();
+        fetchSchemaIfNeeded();
         ensureSchemaInitialized();
         return adapt(schema.decode(bytes, schemaVersion), schemaVersion);
     }
@@ -96,7 +96,6 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     @Override
     public SchemaInfo getSchemaInfo() {
-        fetchSchema();
         if (schema == null) {
             return null;
         }
@@ -232,7 +231,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
 
-    private void fetchSchema() {
+    public void fetchSchemaIfNeeded() {
         if (schema == null) {
             if (schemaInfoProvider == null) {
                 // this case is possible when you create Schema.AUTO_CONSUME() and call getSchemaInfo
@@ -243,7 +242,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                 SchemaInfo schemaInfo = null;
                 try {
                     CompletableFuture<SchemaInfo> latestSchema = schemaInfoProvider.getLatestSchema();
-                    schemaInfo = latestSchema.get(1000, TimeUnit.SECONDS);
+                    schemaInfo = latestSchema.get(10000, TimeUnit.MILLISECONDS);
                     if (schemaInfo == null) {
                         // schemaless topic
                         schemaInfo = BytesSchema.of().getSchemaInfo();
