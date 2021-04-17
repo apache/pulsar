@@ -235,18 +235,15 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
      * We cannot call this method in getSchemaInfo, because getSchemaInfo is called in many
      * places and we will introduce lots of deadlocks.
      */
-    public void fetchSchemaIfNeeded() {
+    public void fetchSchemaIfNeeded() throws SchemaSerializationException {
         if (schema == null) {
             if (schemaInfoProvider == null) {
-                // this case is possible when you create Schema.AUTO_CONSUME() and call getSchemaInfo
-                // without attaching the Schema to a Consumer
-                log.error("Can't get accurate schema information for topic {} " +
-                        "using AutoConsumeSchema because SchemaInfoProvider is not set yet", topicName);
+                throw new SchemaSerializationException("Can't get accurate schema information for topic " + topicName +
+                                                "using AutoConsumeSchema because SchemaInfoProvider is not set yet");
             } else {
                 SchemaInfo schemaInfo = null;
                 try {
-                    CompletableFuture<SchemaInfo> latestSchema = schemaInfoProvider.getLatestSchema();
-                    schemaInfo = latestSchema.get(10000, TimeUnit.MILLISECONDS);
+                    schemaInfo = schemaInfoProvider.getLatestSchema().get();
                     if (schemaInfo == null) {
                         // schemaless topic
                         schemaInfo = BytesSchema.of().getSchemaInfo();
