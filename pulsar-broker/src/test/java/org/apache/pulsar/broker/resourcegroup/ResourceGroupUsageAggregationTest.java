@@ -239,7 +239,6 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
     final String NsName = "test";
     final String TenantAndNsName = TenantName + "/" + NsName;
     final String TestProduceConsumeTopicName = "/test/prod-cons-topic";
-    final String INTERNAL_TOPIC = "non-persistent://" + TenantAndNsName + "/resource-usage-internal";
     final String PRODUCE_CONSUME_PERSISTENT_TOPIC = "persistent://" + TenantAndNsName + TestProduceConsumeTopicName;
     final String PRODUCE_CONSUME_NON_PERSISTENT_TOPIC =
                                                 "non-persistent://" + TenantAndNsName + TestProduceConsumeTopicName;
@@ -247,7 +246,6 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
 
     // Initial set up for transport manager and producer/consumer clusters/tenants/namespaces/topics.
     private void prepareData() throws PulsarAdminException {
-        this.conf.setResourceUsageTransportPublishTopicName(INTERNAL_TOPIC);
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
 
         this.conf.setAllowAutoTopicCreation(true);

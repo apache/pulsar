@@ -242,16 +242,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(ResourceGroupServiceTest.class);
 
-    private static final String TEST_PRODUCE_CONSUME_TOPIC =
-            "non-persistent://prod-cons-tenant/prod-cons-ns/prod-cons-topic";
-
-    // Set up configuration that is required to be able to use the transport manager.
-    // private static final String INTERNAL_USAGE_TOPIC = "non-persistent://rusage-tenant/rusage-ns/rusage-topic";
-    private static final String INTERNAL_USAGE_TOPIC = TEST_PRODUCE_CONSUME_TOPIC;
-
     private static final int PUBLISH_INTERVAL_SECS = 500;
     private void prepareData() throws PulsarAdminException {
-        this.conf.setResourceUsageTransportPublishTopicName(INTERNAL_USAGE_TOPIC);
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
         admin.clusters().createCluster("test", new ClusterData(pulsar.getBrokerServiceUrl()));
     }
