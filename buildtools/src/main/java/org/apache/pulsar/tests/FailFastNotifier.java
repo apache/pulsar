@@ -75,6 +75,11 @@ public class FailFastNotifier
     @Override
     public void onTestFailure(ITestResult result) {
         FailFastNotifier.FailFastEventsSingleton.getInstance().setSkipOnNextTest();
+        // Hide FailFastSkipExceptions and mark the test as skipped
+        if (result.getThrowable() instanceof FailFastSkipException) {
+            result.setThrowable(null);
+            result.setStatus(ITestResult.SKIP);
+        }
     }
 
     @Override
