@@ -167,8 +167,11 @@ public interface SystemTopicClient<T> {
         SystemTopicClient<T> getSystemTopic();
     }
 
+    /**
+     * A topic is a system topic if and only if its local name has the defined prefix.
+     */
     static boolean isSystemTopic(TopicName topicName) {
-        return EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicName.getLocalName());
+        return topicName.getLocalName().startsWith(EventsTopicNames.SYSTEM_TOPIC_LOCAL_NAME_PREFIX);
     }
 
 }

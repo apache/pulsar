@@ -19,28 +19,24 @@
 package org.apache.pulsar.common.events;
 
 /**
- * System topic name for the event type.
+ * System topic names for each {@link EventType}.
  */
 public class EventsTopicNames {
 
+    /**
+     * All event topics are system topics.
+     * A topic is a system topic if and only if its local name has this prefix.
+     */
+    public static final String SYSTEM_TOPIC_LOCAL_NAME_PREFIX = "__";
 
     /**
      * Local topic name for the namespace events.
      */
-    public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
+    public static final String NAMESPACE_EVENTS_LOCAL_NAME = SYSTEM_TOPIC_LOCAL_NAME_PREFIX + "change_events";
 
     /**
      * Local topic name for the namespace events.
      */
-    public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
-
-    public static boolean checkTopicIsEventsNames(String topicName) {
-        if (topicName.endsWith(NAMESPACE_EVENTS_LOCAL_NAME)) {
-            return true;
-        } else if (topicName.endsWith(TRANSACTION_BUFFER_SNAPSHOT)) {
-            return true;
-        } else {
-            return false;
-        }
-    }
+    public static final String TRANSACTION_BUFFER_SNAPSHOT =
+            SYSTEM_TOPIC_LOCAL_NAME_PREFIX + "transaction_buffer_snapshot";
 }

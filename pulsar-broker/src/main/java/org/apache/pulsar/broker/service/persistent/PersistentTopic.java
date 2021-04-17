@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.persistent;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -101,6 +100,7 @@ import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -306,7 +306,7 @@ public class PersistentTopic extends AbstractTopic
         checkReplicatedSubscriptionControllerState();
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(topic)
+                && !SystemTopicClient.isSystemTopic(TopicName.get(topic))
                 && !topicName.getEncodedLocalName().startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
                 && !topicName.getEncodedLocalName().startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)) {
             this.transactionBuffer = brokerService.getPulsar()
@@ -652,7 +652,8 @@ public class PersistentTopic extends AbstractTopic
         }
 
         try {
-            if (!topic.endsWith(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)
+            // TODO can all system topics have any type of subscription?
+            if (!TopicName.get(topic).getLocalName().equals(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)
                     && !checkSubscriptionTypesEnable(subType)) {
                 future.completeExceptionally(
                         new NotAllowedException("Topic[{" + topic + "}] don't support "

@@ -130,7 +130,6 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.FieldContext;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
@@ -2482,7 +2481,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public boolean isAllowAutoTopicCreation(final TopicName topicName) {
         //System topic can always be created automatically
-        if (EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME.equals(topicName.getLocalName())
+        if (SystemTopicClient.isSystemTopic(topicName)
                 && pulsar.getConfiguration().isSystemTopicEnabled()) {
             return true;
         }

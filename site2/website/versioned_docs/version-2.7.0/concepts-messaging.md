@@ -222,7 +222,7 @@ Topic name component | Description
 `persistent` / `non-persistent` | This identifies the type of topic. Pulsar supports two kind of topics: [persistent](concepts-architecture-overview.md#persistent-storage) and [non-persistent](#non-persistent-topics). The default is persistent, so if you do not specify a type, the topic is persistent. With persistent topics, all messages are durably persisted on disks (if the broker is not standalone, messages are durably persisted on multiple disks), whereas data for non-persistent topics is not persisted to storage disks.
 `tenant`             | The topic tenant within the instance. Tenants are essential to multi-tenancy in Pulsar, and spread across clusters.
 `namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespaces) level. Each tenant has one or multiple namespaces.
-`topic`              | The final part of the name. Topic names have no special meaning in a Pulsar instance.
+`topic`              | The final part of the name. Topic names have no special meaning in a Pulsar instance. Note that system topics begin with two underscores, e.g. `__`. Users should avoid creating topic names that start with two underscores.
 
 > **No need to explicitly create new topics**
 > You do not need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar creates that topic under the namespace provided in the [topic name](#topics) automatically.
