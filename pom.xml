@@ -235,7 +235,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone.version>2.5.1</errorprone.version>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
-    <lightproto-maven-plugin.version>0.2</lightproto-maven-plugin.version>
+    <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
