@@ -90,6 +90,9 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 .serviceUrl(container.getPlainTextServiceUrl())
                 .build();
 
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build();
+
         // we are not using a parametrized test in order to save resources
         // we create N sinks, send the records and verify each sink
         // sinks execution happens in parallel
@@ -103,20 +106,16 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 new SinkSpec("test-kv-sink-input-kv-avro-json-sep-" + randomName(8), "test-kv-sink-input-kv-string-int-" + randomName(8),
                         Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.JSON(Pojo.class), KeyValueEncodingType.SEPARATED), new KeyValue<>(PojoKey.builder().field1("a").build(), Pojo.builder().field1("a").field2(2).build()))
         );
-        // submit all sinks
-        for (SinkSpec spec : specs) {
-            submitSinkConnector(spec.sinkName, spec.outputTopicName, "org.apache.pulsar.tests.integration.io.TestGenericObjectSink", JAVAJAR);
-        }
-        // check all sinks
-        for (SinkSpec spec : specs) {
-            // get sink info
-            getSinkInfoSuccess(spec.sinkName);
-            getSinkStatus(spec.sinkName);
-        }
 
         final int numRecords = 10;
 
         for (SinkSpec spec : specs) {
+            submitSinkConnector(spec.sinkName, spec.outputTopicName, "org.apache.pulsar.tests.integration.io.TestGenericObjectSink", JAVAJAR);
+
+            // get sink info
+            getSinkInfoSuccess(spec.sinkName);
+            getSinkStatus(spec.sinkName);
+
             @Cleanup Producer<Object> producer = client.newProducer(spec.schema)
                     .topic(spec.outputTopicName)
                     .create();
@@ -127,40 +126,35 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                         .send();
                 log.info("sent message {} {}  with ID {}", spec.testValue, spec.schema.getSchemaInfo().getType().toString(), messageId);
             }
-        }
 
-        // wait that all sinks processed all records without errors
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build()) {
-            for (SinkSpec spec : specs) {
-                try {
-                    log.info("waiting for sink {}", spec.sinkName);
-                    for (int i = 0; i < 120; i++) {
-                        SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
-                        log.info("sink {} status {}", spec.sinkName, status);
-                        assertEquals(status.getInstances().size(), 1);
-                        SinkStatus.SinkInstanceStatus instance = status.getInstances().get(0);
-                        if (instance.getStatus().numWrittenToSink >= numRecords) {
-                            break;
-                        }
-                        assertTrue(instance.getStatus().numRestarts > 1, "Sink was restarted, probably an error occurred");
-                        Thread.sleep(1000);
-                    }
 
+            // wait that all sinks processed all records without errors
+
+            try {
+                log.info("waiting for sink {}", spec.sinkName);
+                for (int i = 0; i < 120; i++) {
                     SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
                     log.info("sink {} status {}", spec.sinkName, status);
                     assertEquals(status.getInstances().size(), 1);
-                    assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink >= numRecords);
-                    assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
-                    assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
-                    log.info("sink {} is okay", spec.sinkName);
-                } finally {
-                    dumpSinkLogs(spec);
+                    SinkStatus.SinkInstanceStatus instance = status.getInstances().get(0);
+                    if (instance.getStatus().numWrittenToSink >= numRecords) {
+                        break;
+                    }
+                    assertTrue(instance.getStatus().numRestarts > 1, "Sink was restarted, probably an error occurred");
+                    Thread.sleep(1000);
                 }
+
+                SinkStatus status = admin.sinks().getSinkStatus("public", "default", spec.sinkName);
+                log.info("sink {} status {}", spec.sinkName, status);
+                assertEquals(status.getInstances().size(), 1);
+                assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink >= numRecords);
+                assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
+                assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
+                log.info("sink {} is okay", spec.sinkName);
+            } finally {
+                dumpSinkLogs(spec);
             }
-        }
 
-
-        for (SinkSpec spec : specs) {
             deleteSink(spec.sinkName);
             getSinkInfoNotFound(spec.sinkName);
         }
