@@ -107,7 +107,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                         Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.JSON(Pojo.class), KeyValueEncodingType.SEPARATED), new KeyValue<>(PojoKey.builder().field1("a").build(), Pojo.builder().field1("a").field2(2).build()))
         );
 
-        final int numRecords = 10;
+        final int numRecords = 2;
 
         for (SinkSpec spec : specs) {
             submitSinkConnector(spec.sinkName, spec.outputTopicName, "org.apache.pulsar.tests.integration.io.TestGenericObjectSink", JAVAJAR);
@@ -123,6 +123,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 MessageId messageId = producer.newMessage()
                         .value(spec.testValue)
                         .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
+                        .property("recordNumber", i + "")
                         .send();
                 log.info("sent message {} {}  with ID {}", spec.testValue, spec.schema.getSchemaInfo().getType().toString(), messageId);
             }
