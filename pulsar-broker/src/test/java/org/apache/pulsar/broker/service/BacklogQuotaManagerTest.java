@@ -82,6 +82,7 @@ public class BacklogQuotaManagerTest {
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
+            config.setBrokerShutdownTimeoutMs(0L);
             config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
