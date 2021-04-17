@@ -248,12 +248,12 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                         // schemaless topic
                         schemaInfo = BytesSchema.of().getSchemaInfo();
                     }
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                } catch (InterruptedException | ExecutionException e) {
                     if (e instanceof InterruptedException) {
                         Thread.currentThread().interrupt();
                     }
                     log.error("Can't get last schema for topic {} using AutoConsumeSchema", topicName);
-                    throw new SchemaSerializationException(e);
+                    throw new SchemaSerializationException(e.getCause());
                 }
                 // schemaInfo null means that there is no schema attached to the topic.
                 schema = generateSchema(schemaInfo);
