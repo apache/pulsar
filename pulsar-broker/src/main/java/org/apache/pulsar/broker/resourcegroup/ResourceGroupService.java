@@ -292,7 +292,7 @@ public class ResourceGroupService {
 
         // Expect stats to increase monotonically.
         if (incStats.bytes < 0 || incStats.messages < 0) {
-            String errMesg = String.format("incrementUsage on tenant={}, NS={}: bytes ({}) or mesgs ({}) is negative",
+            String errMesg = String.format("incrementUsage on tenant=%s, NS=%s: bytes (%s) or mesgs (%s) is negative",
                     tenantName, nsName, incStats.bytes, incStats.messages);
             throw new PulsarAdminException(errMesg);
         }

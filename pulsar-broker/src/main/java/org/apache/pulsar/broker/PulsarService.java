@@ -772,11 +772,10 @@ public class PulsarService implements AutoCloseable {
             }
 
             // Start the task to publish resource usage, if necessary
-            if (config.getResourceUsageTransportClassName() != null
-              && config.getResourceUsageTransportClassName() != "") {
+            if (isNotBlank(config.getResourceUsageTransportClassName())) {
                 Class<?> clazz = Class.forName(config.getResourceUsageTransportClassName());
                 Constructor<?> ctor = clazz.getConstructor(PulsarService.class);
-                Object object = ctor.newInstance(new Object[] { this });
+                Object object = ctor.newInstance(new Object[]{this});
                 this.resourceUsageTransportManager = (ResourceUsageTransportManager) object;
             }
 
