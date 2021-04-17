@@ -65,6 +65,8 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         log.info("value {}", record.getValue());
         log.info("value schema type {}", record.getValue().getSchemaType());
         log.info("value native object {}", record.getValue().getNativeObject());
+
+        record.ack();
     }
 
     @Override
