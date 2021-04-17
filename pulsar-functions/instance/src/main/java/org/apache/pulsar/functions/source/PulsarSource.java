@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.util.Reflections;
@@ -131,6 +132,9 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         Schema<T> schema = null;
         if (message instanceof MessageImpl) {
             MessageImpl impl = (MessageImpl) message;
+            schema = impl.getSchema();
+        } else if (message instanceof TopicMessageImpl) {
+            TopicMessageImpl impl = (TopicMessageImpl) message;
             schema = impl.getSchema();
         }
         Record<T> record = PulsarRecord.<T>builder()

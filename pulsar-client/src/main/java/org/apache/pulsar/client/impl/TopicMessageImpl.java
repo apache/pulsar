@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.EncryptionContext;
 
 public class TopicMessageImpl<T> implements Message<T> {
@@ -174,5 +175,13 @@ public class TopicMessageImpl<T> implements Message<T> {
 
     public Message<T> getMessage() {
         return msg;
+    }
+
+    public Schema<T> getSchema() {
+        if (this.msg instanceof MessageImpl) {
+            MessageImpl message = (MessageImpl) this.msg;
+            return message.getSchema();
+        }
+        return null;
     }
 }
