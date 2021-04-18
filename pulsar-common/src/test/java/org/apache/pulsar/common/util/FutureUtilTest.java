@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import lombok.Cleanup;
 import org.testng.annotations.Test;
 
 public class FutureUtilTest {
@@ -50,6 +51,7 @@ public class FutureUtilTest {
     @Test
     public void testTimeoutHandling() {
         CompletableFuture<Void> future = new CompletableFuture<>();
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         Exception e = new Exception();
         try {
@@ -60,26 +62,22 @@ public class FutureUtilTest {
             fail("Shouldn't occur");
         } catch (ExecutionException executionException) {
             assertEquals(executionException.getCause(), e);
-        } finally {
-            executor.shutdownNow();
         }
     }
 
     @Test
     public void testTimeoutHandlingNoTimeout() throws ExecutionException, InterruptedException {
         CompletableFuture<Void> future = new CompletableFuture<>();
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-        try {
-            FutureUtil.addTimeoutHandling(future, Duration.ofMillis(100), executor, () -> new Exception());
-            future.complete(null);
-            future.get();
-        } finally {
-            executor.shutdownNow();
-        }
+        FutureUtil.addTimeoutHandling(future, Duration.ofMillis(100), executor, () -> new Exception());
+        future.complete(null);
+        future.get();
     }
 
     @Test
     public void testCreatingFutureWithTimeoutHandling() {
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         Exception e = new Exception();
         try {
@@ -91,8 +89,6 @@ public class FutureUtilTest {
             fail("Shouldn't occur");
         } catch (ExecutionException executionException) {
             assertEquals(executionException.getCause(), e);
-        } finally {
-            executor.shutdownNow();
         }
     }
 }

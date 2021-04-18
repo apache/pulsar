@@ -29,10 +29,9 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class SimpleProducerConsumerTestStreamingDispatcherTest extends SimpleProducerConsumerTest {
 
-    @BeforeMethod
     @Override
-    protected void setup() throws Exception {
-        super.setup();
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
         conf.setStreamingDispatch(true);
     }
 }

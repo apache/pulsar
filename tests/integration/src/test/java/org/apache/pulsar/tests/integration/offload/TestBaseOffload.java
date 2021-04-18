@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -31,9 +33,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 import org.testng.Assert;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {

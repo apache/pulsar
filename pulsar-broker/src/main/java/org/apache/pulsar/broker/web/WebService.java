@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import com.google.common.collect.Lists;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -72,6 +73,7 @@ public class WebService implements AutoCloseable {
 
     private final ServerConnector httpConnector;
     private final ServerConnector httpsConnector;
+    private JettyStatisticsCollector jettyStatisticsCollector;
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
@@ -221,7 +223,8 @@ public class WebService implements AutoCloseable {
             StatisticsHandler stats = new StatisticsHandler();
             stats.setHandler(handlerCollection);
             try {
-                new JettyStatisticsCollector(stats).register();
+                jettyStatisticsCollector = new JettyStatisticsCollector(stats);
+                jettyStatisticsCollector.register();
             } catch (IllegalArgumentException e) {
                 // Already registered. Eg: in unit tests
             }
@@ -253,6 +256,18 @@ public class WebService implements AutoCloseable {
     public void close() throws PulsarServerException {
         try {
             server.stop();
+            // unregister statistics from Prometheus client's default CollectorRegistry singleton
+            // to prevent memory leaks in tests
+            if (jettyStatisticsCollector != null) {
+                try {
+                    CollectorRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
+                } catch (Exception e) {
+                    // ignore any exception happening in unregister
+                    // exception will be thrown for 2. instance of WebService in tests since
+                    // the register supports a single JettyStatisticsCollector
+                }
+                jettyStatisticsCollector = null;
+            }
             webServiceExecutor.join();
             log.info("Web service closed");
         } catch (Exception e) {

@@ -93,7 +93,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         };
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -474,63 +474,64 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         String slowKey = "slowKey";
 
         List<PulsarClient> clients = new ArrayList<>();
+        try {
+            AtomicInteger receivedMessages = new AtomicInteger();
 
-        AtomicInteger receivedMessages = new AtomicInteger();
+            for (int i = 0; i < 10; i++) {
+                PulsarClient client = PulsarClient.builder()
+                        .serviceUrl(brokerUrl.toString())
+                        .build();
+                clients.add(client);
 
-        for (int i = 0; i < 10; i++) {
-            PulsarClient client = PulsarClient.builder()
-                    .serviceUrl(brokerUrl.toString())
-                    .build();
-            clients.add(client);
+                client.newConsumer(Schema.INT32)
+                        .topic(topic)
+                        .subscriptionName("key_shared")
+                        .subscriptionType(SubscriptionType.Key_Shared)
+                        .receiverQueueSize(1)
+                        .messageListener((consumer, msg) -> {
+                            try {
+                                if (slowKey.equals(msg.getKey())) {
+                                    // Block the thread to simulate a slow consumer
+                                    Thread.sleep(10000);
+                                }
 
-            client.newConsumer(Schema.INT32)
-                    .topic(topic)
-                    .subscriptionName("key_shared")
-                    .subscriptionType(SubscriptionType.Key_Shared)
-                    .receiverQueueSize(1)
-                    .messageListener((consumer, msg) -> {
-                        try {
-                            if (slowKey.equals(msg.getKey())) {
-                                // Block the thread to simulate a slow consumer
-                                Thread.sleep(10000);
+                                receivedMessages.incrementAndGet();
+                                consumer.acknowledge(msg);
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
+                        })
+                        .subscribe();
+            }
 
-                            receivedMessages.incrementAndGet();
-                            consumer.acknowledge(msg);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    })
-                    .subscribe();
-        }
+            @Cleanup
+            Producer<Integer> producer = createProducer(topic, enableBatch);
 
-        @Cleanup
-        Producer<Integer> producer = createProducer(topic, enableBatch);
-
-        // First send the "slow key" so that 1 consumer will get stuck
-        producer.newMessage()
-                .key(slowKey)
-                .value(-1)
-                .send();
-
-        int N = 1000;
-
-        // Then send all the other keys
-        for (int i = 0; i < N; i++) {
+            // First send the "slow key" so that 1 consumer will get stuck
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
-                    .value(i)
+                    .key(slowKey)
+                    .value(-1)
                     .send();
-        }
 
-        // Since only 1 out of 10 consumers is stuck, we should be able to receive ~90% messages,
-        // plus or minus for some skew in the key distribution.
-        Thread.sleep(5000);
+            int N = 1000;
 
-        assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
+            // Then send all the other keys
+            for (int i = 0; i < N; i++) {
+                producer.newMessage()
+                        .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                        .value(i)
+                        .send();
+            }
 
-        for (PulsarClient c : clients) {
-            c.close();
+            // Since only 1 out of 10 consumers is stuck, we should be able to receive ~90% messages,
+            // plus or minus for some skew in the key distribution.
+            Thread.sleep(5000);
+
+            assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
+        } finally {
+            for (PulsarClient c : clients) {
+                c.close();
+            }
         }
     }
 
@@ -630,7 +631,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         assertTrue(readPosition.getEntryId() < 1000);
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testRemoveFirstConsumer() throws Exception {
         this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
@@ -885,7 +886,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Assert.assertNotNull(consumer3.receive(1, TimeUnit.SECONDS));
     }
 
-    @Test(dataProvider = "partitioned")
+    @Test(dataProvider = "partitioned", groups = "quarantine")
     public void testOrderingWithConsumerListener(boolean partitioned) throws Exception {
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         if (partitioned) {
@@ -895,6 +896,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         final int messages = 1000;
         List<Message<Integer>> received = Collections.synchronizedList(new ArrayList<>(1000));
         Random random = new Random();
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(lookupUrl.toString())
                 .listenerThreads(8)
@@ -942,7 +944,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
-        client.close();
     }
 
     @Test

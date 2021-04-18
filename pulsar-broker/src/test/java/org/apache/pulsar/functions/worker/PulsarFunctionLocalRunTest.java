@@ -161,7 +161,7 @@ public class PulsarFunctionLocalRunTest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     void loadPulsarApiExamples() throws MalformedURLException, ClassNotFoundException {
         pulsarApiExamplesClassLoader = new URLClassLoader(new URL[]{getPulsarApiExamplesJar().toURI().toURL()},
                 Thread.currentThread().getContextClassLoader());
@@ -176,7 +176,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
         log.info("--- Setting up method {} ---", method.getName());
 
@@ -191,6 +191,7 @@ public class PulsarFunctionLocalRunTest {
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -259,6 +260,9 @@ public class PulsarFunctionLocalRunTest {
             clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
                     workerConfig.getBrokerClientAuthenticationParameters());
             clientBuilder.serviceUrl(pulsar.getBrokerServiceUrlTls());
+        }
+        if (pulsarClient != null) {
+            pulsarClient.close();
         }
         pulsarClient = clientBuilder.build();
 

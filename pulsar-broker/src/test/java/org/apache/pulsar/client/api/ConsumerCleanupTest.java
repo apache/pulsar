@@ -20,6 +20,7 @@
 package org.apache.pulsar.client.api;
 
 import io.netty.util.HashedWheelTimer;
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -53,6 +54,7 @@ public class ConsumerCleanupTest extends ProducerConsumerBase {
     @Test(dataProvider = "ackReceiptEnabled")
     public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackReceiptEnabled)
             throws PulsarClientException, InterruptedException {
+        @Cleanup
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://public/default/" + UUID.randomUUID().toString())
