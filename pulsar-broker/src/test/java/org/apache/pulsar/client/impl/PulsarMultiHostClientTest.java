@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.fail;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.ServerSocket;
+import java.net.URI;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -29,13 +38,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.net.URI;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.fail;
 
 @Test(groups = "broker-impl")
 public class PulsarMultiHostClientTest extends ProducerConsumerBase {
@@ -67,6 +69,7 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
             if (isTcpLookup) {
                 url = pulsar.getBrokerServiceUrl();
             }
+            @Cleanup
             PulsarClient client = newPulsarClient(url, 0);
 
             Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -75,7 +78,6 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
 
             consumer.close();
             producer.close();
-            client.close();
         } catch (PulsarClientException pce) {
             log.error("create producer or consumer error: ", pce);
             fail();
@@ -84,20 +86,17 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test (timeOut = 4000)
+    @Test (timeOut = 15000)
     public void testGetPartitionedTopicDataTimeout() {
         log.info("-- Starting {} test --", methodName);
 
         final String topicName = "persistent://my-property/my-ns/my-topic1";
 
-        String url = "http://localhost:51000,localhost:51001";
-        if (isTcpLookup) {
-            url = "pulsar://localhost:51000,localhost:51001";
-        }
+        String url = "http://localhost:" + getFreePort() + ",localhost:" + getFreePort();
 
-        PulsarClient client;
         try {
-            client = PulsarClient.builder()
+            @Cleanup
+            PulsarClient client = PulsarClient.builder()
                 .serviceUrl(url)
                 .statsInterval(0, TimeUnit.SECONDS)
                 .operationTimeout(3, TimeUnit.SECONDS)
@@ -113,6 +112,14 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    private static int getFreePort() {
+        try (ServerSocket serverSocket = new ServerSocket(0)) {
+            return serverSocket.getLocalPort();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     @Test
     public void testMultiHostUrlRetrySuccess() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -125,6 +132,7 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         if (isTcpLookup) {
             urlsWithUnreached = "pulsar://localhost:51000,localhost" + new URI(pulsar.getBrokerServiceUrl()).getPort();
         }
+        @Cleanup
         PulsarClient client = newPulsarClient(urlsWithUnreached, 0);
 
         Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -152,7 +160,6 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         consumer.close();
 
         producer.close();
-        client.close();
 
         log.info("-- Exiting {} test --", methodName);
     }

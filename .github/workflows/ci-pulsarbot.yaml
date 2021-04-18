@@ -38,6 +38,9 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
 
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
       - name: Execute pulsarbot command
         id:   pulsarbot
         if: github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/pulsarbot')

@@ -18,10 +18,18 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -42,27 +50,16 @@ import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import org.testng.annotations.AfterClass;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 @Test(groups = "broker")
 public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
@@ -73,9 +70,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     int partitions = 10;
     BrokerService[] brokerServices;
 
-    @BeforeClass
-    void init() throws Exception {
-        super.setup();
+    @Override
+    protected void afterSetup() throws Exception {
         pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
         pulsarAdmins[0].tenants().createTenant("public", new TenantInfo(Sets.newHashSet(), Sets.newHashSet("my-cluster")));
         pulsarAdmins[0].namespaces().createNamespace("public/test", 10);
@@ -88,8 +84,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                 new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")));
     }
 
-    @AfterClass(alwaysRun = true)
-    public void shutdownClient() throws Exception {
+    @Override
+    protected void cleanup() throws Exception {
         if (tbClient != null) {
             tbClient.close();
         }
@@ -99,11 +95,11 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             }
             brokerServices = null;
         }
+        super.cleanup();
     }
 
     @Override
-    public void afterPulsarStart() throws Exception {
-        super.afterPulsarStart();
+    protected void afterPulsarStart() throws Exception {
         brokerServices = new BrokerService[pulsarServices.length];
         for (int i = 0; i < pulsarServices.length; i++) {
             Subscription mockSubscription = mock(Subscription.class);
@@ -184,6 +180,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     public void testTransactionBufferClientTimeout() throws Exception {
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         NamespaceService namespaceService = mock(NamespaceService.class);
+        @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
         doReturn(new CompletableFuture<>()).when(namespaceService).getBundleAsync(anyObject());
         TransactionBufferHandlerImpl transactionBufferHandler = new TransactionBufferHandlerImpl(connectionPool,
@@ -198,7 +195,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
         assertEquals(pendingRequests.size(), 1);
 
-        Awaitility.await().atLeast(2, TimeUnit.SECONDS).atMost(6, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().atLeast(2, TimeUnit.SECONDS).until(() -> {
             if (pendingRequests.size() == 0) {
                 return true;
             }
@@ -207,6 +204,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
         try {
             completableFuture.get();
+            fail();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof TransactionBufferClientException.RequestTimeoutException);
         }

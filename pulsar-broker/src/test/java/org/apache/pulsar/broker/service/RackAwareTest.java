@@ -29,7 +29,6 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.stats.NullStatsLogger;
@@ -51,7 +50,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         super(0);
     }
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         super.setup();
 
@@ -81,8 +80,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
     }
 
     @AfterClass(alwaysRun = true)
-    protected void shutdown() throws Exception {
-        super.shutdown();
+    protected void cleanup() throws Exception {
+        super.cleanup();
 
         for (BookieServer bs : bookies) {
             bs.shutdown();

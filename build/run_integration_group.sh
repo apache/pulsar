@@ -37,7 +37,7 @@ mvn_run_integration_test() {
   RETRY=""
   # wrap with retry.sh script if next parameter is "--retry"
   if [[ "$1" == "--retry" ]]; then
-    RETRY="./build/retry_integration.sh"
+    RETRY="./build/retry.sh"
     shift
   fi
   # skip wrapping with retry.sh script if next parameter is "--no-retry"
@@ -53,12 +53,12 @@ mvn_run_integration_test() {
 }
 
 test_group_shade() {
-  mvn_run_integration_test "$@" -DShadeTests
+  mvn_run_integration_test "$@" -DShadeTests -DtestForkCount=1 -DtestReuseFork=false
 }
 
 test_group_backwards_compat() {
   mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-backwards-compatibility.xml -DintegrationTests
-  mvn_run_integration_test "$@" -DBackwardsCompatTests
+  mvn_run_integration_test --retry "$@" -DBackwardsCompatTests -DtestForkCount=1 -DtestReuseFork=false
 }
 
 test_group_cli() {
@@ -77,9 +77,9 @@ test_group_messaging() {
   # run integration messaging tests
   mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-messaging.xml -DintegrationTests
   # run integration proxy tests
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-proxy.xml -DintegrationTests
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-proxy.xml -DintegrationTests
   # run integration proxy with WebSocket tests
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-proxy-websocket.xml -DintegrationTests
+  mvn_run_integration_test --retry "$@" -DintegrationTestSuiteFile=pulsar-proxy-websocket.xml -DintegrationTests
 }
 
 test_group_schema() {
@@ -125,7 +125,7 @@ test_group_pulsar_connectors_process() {
 }
 
 test_group_sql() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-sql.xml -DintegrationTests -DtestForkCount=1
+  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-sql.xml -DintegrationTests -DtestForkCount=1 -DtestReuseFork=false
 }
 
 echo "Test Group : $TEST_GROUP"

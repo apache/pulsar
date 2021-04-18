@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.testng.annotations.Test;
 
@@ -177,6 +178,7 @@ public class ConcurrentLongPairSetTest {
     @Test
     public void concurrentInsertions() throws Throwable {
         ConcurrentLongPairSet set = new ConcurrentLongPairSet();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -204,13 +206,12 @@ public class ConcurrentLongPairSetTest {
         }
 
         assertEquals(set.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
         ConcurrentLongPairSet map = new ConcurrentLongPairSet();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -238,8 +239,6 @@ public class ConcurrentLongPairSetTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
@@ -394,7 +393,7 @@ public class ConcurrentLongPairSetTest {
         assertFalse(set.contains(t1, t1));
         assertFalse(set.contains(t1_b, t1_b));
     }
-    
+
     @Test
     public void testToString() {
 

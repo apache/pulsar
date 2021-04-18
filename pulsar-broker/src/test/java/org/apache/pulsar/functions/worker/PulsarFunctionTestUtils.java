@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.nio.charset.StandardCharsets;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +33,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.io.IOUtils;
+import org.testng.annotations.Test;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -51,8 +54,19 @@ public class PulsarFunctionTestUtils {
         return result.toString();
     }
 
+    @Test
+    void testParseMetrics() throws IOException {
+        String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
+                        .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);
+        parseMetrics(sampleMetrics);
+    }
+
     /**
-     * Hacky parsing of Prometheus text format. Sould be good enough for unit tests
+     * Hacky parsing of Prometheus text format. Should be good enough for unit tests
+     *
+     * This parser doesn't handle parsing multiple lines for a single metric key.
+     * There another implementation in {@link org.apache.pulsar.broker.stats.PrometheusMetricsTest}
+     * that supports parsing multiple lines.
      */
     public static Map<String, Metric> parseMetrics(String metrics) {
         final Map<String, Metric> parsed = new HashMap<>();
@@ -61,15 +75,14 @@ public class PulsarFunctionTestUtils {
         // or
         // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
         // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
-        Pattern pattern = Pattern.compile("^(\\w+)(\\{[^\\}]+\\})?\\s(-?[\\d\\w\\.-]+)(\\s(\\d+))?$");
+        Pattern pattern = Pattern.compile("^(\\w+)(\\{[^\\}]+\\})?\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
         Arrays.asList(metrics.split("\n")).forEach(line -> {
             if (line.isEmpty() || line.startsWith("#")) {
                 return;
             }
             Matcher matcher = pattern.matcher(line);
-            log.info("line: {}", line);
-            checkArgument(matcher.matches());
+            checkArgument(matcher.matches(), "Cannot parse metrics from line: '" + line + "'");
             String name = matcher.group(1);
             Metric m = new Metric();
             String numericValue = matcher.group(3);
