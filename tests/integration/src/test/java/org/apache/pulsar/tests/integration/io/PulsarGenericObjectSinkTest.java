@@ -96,8 +96,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(container.getHttpServiceUrl()).build();
 
         // we are not using a parametrized test in order to save resources
-        // we create N sinks, send the records and verify each sink
-        // sinks execution happens in parallel
+        // we create one sink that listens on multiple topics, send the records and verify the sink
         List<SinkSpec> specs = Arrays.asList(
                 new SinkSpec("test-kv-sink-input-string-" + randomName(8), Schema.STRING, "foo"),
                 new SinkSpec("test-kv-sink-input-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
@@ -109,7 +108,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                         Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.JSON(Pojo.class), KeyValueEncodingType.SEPARATED), new KeyValue<>(PojoKey.builder().field1("a").build(), Pojo.builder().field1("a").field2(2).build()))
         );
 
-        final int numRecords = 2;
+        final int numRecordsPerTopic = 2;
 
         String sinkName = "genericobject-sink";
         String topicNames = specs
@@ -127,7 +126,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
             @Cleanup Producer<Object> producer = client.newProducer(spec.schema)
                     .topic(spec.outputTopicName)
                     .create();
-            for (int i = 0; i < numRecords; i++) {
+            for (int i = 0; i < numRecordsPerTopic; i++) {
                 MessageId messageId = producer.newMessage()
                         .value(spec.testValue)
                         .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
@@ -135,41 +134,40 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                         .send();
                 log.info("sent message {} {}  with ID {}", spec.testValue, spec.schema.getSchemaInfo().getType().toString(), messageId);
             }
+        }
 
+        // wait that sink processed all records without errors
 
-            // wait that all sinks processed all records without errors
+        try {
+            log.info("waiting for sink {}", sinkName);
 
-            try {
-                log.info("waiting for sink {}", sinkName);
-
-                for (int i = 0; i < 120; i++) {
-                    SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
-                    log.info("sink {} status {}", sinkName, status);
-                    assertEquals(status.getInstances().size(), 1);
-                    SinkStatus.SinkInstanceStatus instance = status.getInstances().get(0);
-                    if (instance.getStatus().numWrittenToSink >= numRecords * specs.size()
-                        || instance.getStatus().numSinkExceptions > 0
-                        || instance.getStatus().numSinkExceptions > 0
-                        || instance.getStatus().numRestarts > 0) {
-                        break;
-                    }
-                    Thread.sleep(1000);
-                }
-
+            for (int i = 0; i < 120; i++) {
                 SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
                 log.info("sink {} status {}", sinkName, status);
                 assertEquals(status.getInstances().size(), 1);
-                assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink >= numRecords * specs.size());
-                assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
-                assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
-                log.info("sink {} is okay", sinkName);
-            } finally {
-                dumpFunctionLogs(sinkName);
+                SinkStatus.SinkInstanceStatus instance = status.getInstances().get(0);
+                if (instance.getStatus().numWrittenToSink >= numRecordsPerTopic * specs.size()
+                    || instance.getStatus().numSinkExceptions > 0
+                    || instance.getStatus().numSystemExceptions > 0
+                    || instance.getStatus().numRestarts > 0) {
+                    break;
+                }
+                Thread.sleep(1000);
             }
 
-            deleteSink(sinkName);
-            getSinkInfoNotFound(sinkName);
+            SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
+            log.info("sink {} status {}", sinkName, status);
+            assertEquals(status.getInstances().size(), 1);
+            assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink >= numRecordsPerTopic * specs.size());
+            assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
+            assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
+            log.info("sink {} is okay", sinkName);
+        } finally {
+            dumpFunctionLogs(sinkName);
         }
+
+        deleteSink(sinkName);
+        getSinkInfoNotFound(sinkName);
     }
 
     private void submitSinkConnector(String sinkName,
