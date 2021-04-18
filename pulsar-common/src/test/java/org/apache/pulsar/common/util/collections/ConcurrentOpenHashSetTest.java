@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import lombok.Cleanup;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -145,6 +146,7 @@ public class ConcurrentOpenHashSetTest {
     @Test
     public void concurrentInsertions() throws Throwable {
         ConcurrentOpenHashSet<Long> set = new ConcurrentOpenHashSet<>();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -172,13 +174,12 @@ public class ConcurrentOpenHashSetTest {
         }
 
         assertEquals(set.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
         ConcurrentOpenHashSet<Long> map = new ConcurrentOpenHashSet<>();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -206,8 +207,6 @@ public class ConcurrentOpenHashSetTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test

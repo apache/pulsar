@@ -108,7 +108,7 @@ public class CmdConsume {
     private int receiverQueueSize = 0;
 
     @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-    private int maxPendingChuckedMessage = 0;
+    private int maxPendingChunkedMessage = 0;
 
     @Parameter(names = { "-ac",
             "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
@@ -251,8 +251,8 @@ public class CmdConsume {
                 builder.topic(topic);
             }
 
-            if (this.maxPendingChuckedMessage > 0) {
-                builder.maxPendingChuckedMessage(this.maxPendingChuckedMessage);
+            if (this.maxPendingChunkedMessage > 0) {
+                builder.maxPendingChunkedMessage(this.maxPendingChunkedMessage);
             }
             if (this.receiverQueueSize > 0) {
                 builder.receiverQueueSize(this.receiverQueueSize);

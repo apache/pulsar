@@ -103,7 +103,7 @@ When chunking is enabled (`chunkingEnabled=true`), if the message size is greate
 
 The consumer consumes the chunked messages and buffers them until the consumer receives all the chunks of a message. And then the consumer stitches chunked messages together and places them into the receiver-queue. Clients consume messages from the receiver-queue. Once the consumer consumes the entire large message and acknowledges it, the consumer internally sends acknowledgement of all the chunk messages associated to that large message. You can set the `maxPendingChuckedMessage` parameter on the consumer. When the threshold is reached, the consumer drops the unchunked messages by silently acknowledging them or asking the broker to redeliver them later by marking them unacknowledged.
 
- The broker does not require any changes to support chunking for non-shared subscription. The broker only uses `chuckedMessageRate` to record chunked message rate on the topic.
+The broker does not require any changes to support chunking for non-shared subscription. The broker only uses `chunkedMessageRate` to record chunked message rate on the topic.
 
 #### Handle chunked messages with one producer and one ordered consumer
 

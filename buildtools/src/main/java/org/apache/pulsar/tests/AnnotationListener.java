@@ -39,7 +39,8 @@ public class AnnotationListener implements IAnnotationTransformer {
                           Class testClass,
                           Constructor testConstructor,
                           Method testMethod) {
-        if (annotation.getRetryAnalyzerClass() == DisabledRetryAnalyzer.class) {
+        if (annotation.getRetryAnalyzerClass() == null
+                || annotation.getRetryAnalyzerClass() == DisabledRetryAnalyzer.class) {
             annotation.setRetryAnalyzer(RetryAnalyzer.class);
         }
 

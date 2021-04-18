@@ -49,8 +49,6 @@ public class Worker {
 
     private ZooKeeperClientFactory zkClientFactory = null;
     private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
-    private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
-            new DefaultThreadFactory("zk-cache-callback"));
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
     private ConfigurationMetadataCacheService configurationCacheService;
@@ -68,7 +66,7 @@ public class Worker {
         server = new WorkerServer(workerService, getAuthenticationService());
         server.start();
         log.info("/** Started worker server on port={} **/", this.workerConfig.getWorkerPort());
-        
+
         try {
             errorNotifier.waitForError();
         } catch (Throwable th) {
@@ -126,6 +124,10 @@ public class Worker {
             } catch (Exception e) {
                 log.warn("Failed to close global zk cache ", e);
             }
+        }
+
+        if (orderedExecutor != null) {
+            orderedExecutor.shutdownNow();
         }
     }
 

@@ -64,6 +64,7 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
             ServiceConfiguration config = new ServiceConfiguration();
+            config.setBrokerShutdownTimeoutMs(0L);
             config.setBrokerServicePort(Optional.of(0));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
@@ -87,6 +88,9 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
 
         afterPulsarStart();
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder().
             serviceUrl(pulsarServices[0].getBrokerServiceUrl())
             .build();

@@ -40,6 +40,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -69,7 +70,7 @@ import org.testng.annotations.Test;
  */
 @Test(groups = "broker-io")
 public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
-	
+
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
         String sourceTopicPattern = String.format("persistent://%s/%s/%s", tenant, namespace, sourceTopic);
 
@@ -209,6 +210,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
             expected.put(key, value);
         }
         // 3 Trigger compaction
+        @Cleanup("shutdownNow")
         ScheduledExecutorService compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         TwoPhaseCompactor twoPhaseCompactor = new TwoPhaseCompactor(config,
@@ -243,7 +245,6 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         Assert.assertEquals(count, maxKeys);
         Assert.assertTrue(expected.isEmpty());
 
-        compactionScheduler.shutdownNow();
         consumer.close();
         producer.close();
     }
