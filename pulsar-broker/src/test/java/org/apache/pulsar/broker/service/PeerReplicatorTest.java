@@ -28,6 +28,7 @@ import static org.testng.Assert.fail;
 import java.util.LinkedHashSet;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -109,6 +110,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         final String topic1 = "persistent://" + namespace1 + "/topic1";
         final String topic2 = "persistent://" + namespace2 + "/topic2";
 
+        @Cleanup
         PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS)
             .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
         try {
@@ -157,7 +159,6 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         assertEquals(stats.publishers.size(), 1);
         producer.close();
 
-        client3.close();
 
     }
 
@@ -210,6 +211,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         final String topic1 = "persistent://" + namespace1 + "/topic1";
 
+        @Cleanup
         PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS).build();
         // set peer-clusters : r3->r1
         admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r1")));
@@ -244,7 +246,6 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         // topic should be unloaded from broker1
         assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topic1));
 
-        client3.close();
     }
 
 }

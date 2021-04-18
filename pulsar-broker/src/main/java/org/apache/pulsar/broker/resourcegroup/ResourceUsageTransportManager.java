@@ -66,7 +66,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
             final int sendTimeoutSecs = 10;
 
             return pulsarClient.newProducer()
-                    .topic(pulsarService.getConfig().getResourceUsageTransportPublishTopicName())
+                    .topic(RESOURCE_USAGE_TOPIC_NAME)
                     .batchingMaxPublishDelay(publishDelayMilliSecs, TimeUnit.MILLISECONDS)
                     .sendTimeout(sendTimeoutSecs, TimeUnit.SECONDS)
                     .blockIfQueueFull(false)
@@ -113,11 +113,12 @@ public class ResourceUsageTransportManager implements AutoCloseable {
 
     private class ResourceUsageReader implements ReaderListener<byte[]>, AutoCloseable {
         private final ResourceUsageInfo recdUsageInfo = new ResourceUsageInfo();
+
         private final Reader<byte[]> consumer;
 
         public ResourceUsageReader() throws PulsarClientException {
             consumer =  pulsarClient.newReader()
-                    .topic(pulsarService.getConfig().getResourceUsageTransportPublishTopicName())
+                    .topic(RESOURCE_USAGE_TOPIC_NAME)
                     .startMessageId(MessageId.latest)
                     .readerListener(this)
                     .create();
@@ -130,9 +131,19 @@ public class ResourceUsageTransportManager implements AutoCloseable {
 
         @Override
         public void received(Reader<byte[]> reader, Message<byte[]> msg) {
-            try {
-                recdUsageInfo.parseFrom(Unpooled.wrappedBuffer(msg.getData()), msg.getData().length);
+            long publishTime = msg.getPublishTime();
+            long currentTime = System.currentTimeMillis();
+            long timeDelta = currentTime - publishTime;
 
+            recdUsageInfo.parseFrom(Unpooled.wrappedBuffer(msg.getData()), msg.getData().length);
+            if (timeDelta > TimeUnit.SECONDS.toMillis(
+              2 * pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs())) {
+                LOG.error("Stale resource usage msg from broker {} publish time {} current time{}",
+                  recdUsageInfo.getBroker(), publishTime, currentTime);
+                staleMessageCount++;
+                return;
+            }
+            try {
                 recdUsageInfo.getUsageMapsList().forEach(ru -> {
                     ResourceUsageConsumer owner = consumerMap.get(ru.getOwner());
                     if (owner != null) {
@@ -150,6 +161,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ResourceUsageTransportManager.class);
+    public static final String RESOURCE_USAGE_TOPIC_NAME = "non-persistent://pulsar/system/resource-usage";
     private final PulsarService pulsarService;
     private final PulsarClient pulsarClient;
     private final ResourceUsageWriterTask pTask;
@@ -159,9 +171,11 @@ public class ResourceUsageTransportManager implements AutoCloseable {
     private final Map<String, ResourceUsageConsumer>
             consumerMap = new ConcurrentHashMap<String, ResourceUsageConsumer>();
 
+    private long staleMessageCount = 0;
+
     private void createTenantAndNamespace() throws PulsarServerException, PulsarAdminException {
         // Create a public tenant and default namespace
-        TopicName topicName = TopicName.get(pulsarService.getConfig().getResourceUsageTransportPublishTopicName());
+        TopicName topicName = TopicName.get(RESOURCE_USAGE_TOPIC_NAME);
 
         PulsarAdmin admin = pulsarService.getAdminClient();
         ServiceConfiguration config = pulsarService.getConfig();
@@ -172,12 +186,26 @@ public class ResourceUsageTransportManager implements AutoCloseable {
 
         List<String> tenantList =  admin.tenants().getTenants();
         if (!tenantList.contains(tenant)) {
-            admin.tenants().createTenant(tenant,
-                    new TenantInfo(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+            try {
+                admin.tenants().createTenant(tenant,
+                  new TenantInfo(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+            } catch (PulsarAdminException ex1) {
+                if (!(ex1 instanceof PulsarAdminException.ConflictException)) {
+                    LOG.error("Unexpected exception {} when creating tenant {}", ex1, tenant);
+                    throw ex1;
+                }
+            }
         }
         List<String> nsList = admin.namespaces().getNamespaces(tenant);
         if (!nsList.contains(namespace)) {
-            admin.namespaces().createNamespace(namespace);
+            try {
+                admin.namespaces().createNamespace(namespace);
+            } catch (PulsarAdminException ex1) {
+                if (!(ex1 instanceof PulsarAdminException.ConflictException)) {
+                    LOG.error("Unexpected exception {} when creating namespace {}", ex1, namespace);
+                    throw ex1;
+                }
+            }
         }
     }
 

@@ -326,6 +326,59 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
     }
 
     @Test
+    public void testExpiringTokenWithRefreshAndProducerRestart() throws Exception {
+        final String tenant = "token-expiry-test-tenant" + randomName(4);
+        final String namespace = tenant + "/ns-1";
+        final String topic = "persistent://" + namespace + "/topic-1";
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getHttpServiceUrl())
+                .authentication(AuthenticationFactory.token(superUserAuthToken))
+                .build();
+
+        admin.tenants().createTenant(tenant,
+                new TenantInfo(Collections.singleton(REGULAR_USER_ROLE),
+                        Collections.singleton(pulsarCluster.getClusterName())));
+
+        admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
+        admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
+
+        final int TokenExpiryTimeSecs = 2;
+        String initialToken = this.createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .authentication(AuthenticationFactory.token(() -> {
+                    try {
+                        return createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                }))
+                .build();
+
+        Producer<String> producer1 = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        // Initially the token is valid and producer will be able to publish
+        producer1.send("hello-1");
+
+        producer1.close();
+
+        Thread.sleep(TimeUnit.SECONDS.toMillis(TokenExpiryTimeSecs));
+
+        @Cleanup
+        Producer<String> producer2 = client.newProducer(Schema.STRING)
+                    .topic(topic)
+                    .sendTimeout(1, TimeUnit.SECONDS)
+                    .create();
+    }
+
+    @Test
     public void testAuthenticationFailedImmediately() throws PulsarClientException {
         try {
             @Cleanup

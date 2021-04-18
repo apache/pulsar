@@ -36,11 +36,50 @@ public class FutureUtil {
     /**
      * Return a future that represents the completion of the futures in the provided list.
      *
-     * @param futures
-     * @return
+     * @param futures futures to wait for
+     * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
      */
-    public static <T> CompletableFuture<Void> waitForAll(List<CompletableFuture<T>> futures) {
+    public static CompletableFuture<Void> waitForAll(List<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+
+    /**
+     * Return a future that represents the completion of the futures in the provided list.
+     * The future will support {@link CompletableFuture#cancel(boolean)}. It will cancel
+     * all unfinished futures when the future gets cancelled.
+     *
+     * @param futures futures to wait for
+     * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
+     */
+    public static CompletableFuture<Void> waitForAllAndSupportCancel(List<? extends CompletableFuture<?>> futures) {
+        CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[0]);
+        CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(futuresArray);
+        whenCancelledOrTimedOut(combinedFuture, () -> {
+            for (CompletableFuture completableFuture : futuresArray) {
+                if (!completableFuture.isDone()) {
+                    completableFuture.cancel(false);
+                }
+            }
+        });
+        return combinedFuture;
+    }
+
+    /**
+     * If the future is cancelled or times out, the cancel action will be
+     * invoked
+     *
+     * The action is executed once if the future completes with
+     * {@link java.util.concurrent.CancellationException} or {@link TimeoutException}
+     *
+     * @param future future to attach the action to
+     * @param cancelAction action to invoke if the future is cancelled or times out
+     */
+    public static void whenCancelledOrTimedOut(CompletableFuture<?> future, Runnable cancelAction) {
+        CompletableFutureCancellationHandler cancellationHandler =
+                new CompletableFutureCancellationHandler();
+        cancellationHandler.setCancelAction(cancelAction);
+        cancellationHandler.attachToFuture(future);
     }
 
     public static <T> CompletableFuture<T> failedFuture(Throwable t) {

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import java.util.Collections;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
@@ -45,6 +46,7 @@ public class SequenceIdWithErrorTest extends BkEnsemblesTestBase {
         String topicName = "prop/my-test/my-topic";
         int N = 10;
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
 
         // Create consumer

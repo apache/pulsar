@@ -750,6 +750,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .topic("persistent://my-property/my-ns/my-topic7").subscriptionName(subName)
                 .startMessageIdInclusive()
                 .receiverQueueSize(recvQueueSize).subscribe();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final CyclicBarrier barrier = new CyclicBarrier(numConsumersThreads + 1);
@@ -837,7 +838,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Assert.assertEquals(consumerImpl.numMessagesInQueue(), recvQueueSize - numConsumersThreads);
         });
         consumer.close();
-        executor.shutdown();
     }
 
     @Test
@@ -1146,6 +1146,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info(" start receiving messages :");
         CountDownLatch latch = new CountDownLatch(totalMsg);
         // receive messages
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(1);
         receiveAsync(consumer, totalMsg, 0, latch, consumeMsgs, executor);
 
@@ -1160,7 +1161,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
-        executor.shutdown();
     }
 
     @Test(timeOut = 5000)
@@ -1185,6 +1185,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info(" start receiving messages :");
         CountDownLatch latch = new CountDownLatch(totalMsg);
         // receive messages
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(1);
         receiveAsync(consumer, totalMsg, 0, latch, consumeMsgs, executor);
 
@@ -1199,7 +1200,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
-        executor.shutdown();
     }
 
     @Test
@@ -1534,6 +1534,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     .isAckReceiptEnabled(ackReceiptEnabled)
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
+            @Cleanup
             PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
             Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
@@ -1607,7 +1608,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer.close();
             consumer1.close();
             consumer2.close();
-            newPulsarClient.close();
             log.info("-- Exiting {} test --", methodName);
         } catch (Exception e) {
             fail();
@@ -2131,16 +2131,19 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer3 = newPulsarClient1.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(5).priorityLevel(1).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> consumer4 = newPulsarClient2.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
@@ -2186,9 +2189,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer2.close();
         consumer3.close();
         consumer4.close();
-        newPulsarClient.close();
-        newPulsarClient1.close();
-        newPulsarClient2.close();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -2216,12 +2216,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> c1 = newPulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> c2 = newPulsarClient1.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
@@ -2265,18 +2267,21 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertEquals(queueSize * 2, messages.size());
 
         // create new consumers with the same priority
+        @Cleanup
         PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> c3 = newPulsarClient2.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient3 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> c4 = newPulsarClient3.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
+        @Cleanup
         PulsarClient newPulsarClient4 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         Consumer<byte[]> c5 = newPulsarClient4.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
@@ -2323,11 +2328,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         c3.close();
         c4.close();
         c5.close();
-        newPulsarClient.close();
-        newPulsarClient1.close();
-        newPulsarClient2.close();
-        newPulsarClient3.close();
-        newPulsarClient4.close();
         pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnAckMsgs);
         log.info("-- Exiting {} test --", methodName);
     }
@@ -2797,18 +2797,21 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .cryptoKeyReader(new EncKeyReader()).create();
 
         // Creates new client connection
+        @Cleanup
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);
         Consumer<byte[]> consumer1 = newPulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
         // Creates new client connection
+        @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);
         Consumer<byte[]> consumer2 = newPulsarClient1.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
         // Creates new client connection
+        @Cleanup
         PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);
         Consumer<byte[]> consumer3 = newPulsarClient2.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name")
@@ -2854,9 +2857,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer1.close();
         consumer2.close();
         consumer3.close();
-        newPulsarClient.close();
-        newPulsarClient1.close();
-        newPulsarClient2.close();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -3763,6 +3763,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/testGetStats" + UUID.randomUUID();
         final String subName = "my-sub";
         final int receiveQueueSize = 100;
+        @Cleanup
         PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topicName).create();
@@ -3788,6 +3789,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final int receiveQueueSize = 100;
 
         admin.topics().createPartitionedTopic(topicName, 3);
+        @Cleanup
         PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topicName).create();
@@ -3980,6 +3982,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/one-partitioned-topic";
         final String subscriptionName = "my-sub-";
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().listenerThreads(10).serviceUrl(lookupUrl.toString()).build();
 
         // create partitioned topic
@@ -4024,7 +4027,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(listenerThreads.size(), partitions - 1);
         // unblock the listener thread
         blockedMessageLatch.countDown();
-        pulsarClient.close();
         log.info("-- Exiting {} test --", methodName);
     }
 }

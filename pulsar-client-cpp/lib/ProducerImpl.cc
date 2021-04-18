@@ -48,7 +48,6 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
           client, topic,
           Backoff(milliseconds(100), seconds(60), milliseconds(std::max(100, conf.getSendTimeout() - 100)))),
       conf_(conf),
-      executor_(client->getIOExecutorProvider()->get()),
       semaphore_(),
       pendingMessagesQueue_(),
       partition_(partition),
