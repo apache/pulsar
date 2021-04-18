@@ -59,12 +59,13 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     TopicName partitionedTopicName = TopicName.get("persistent", "public", "test", "tb-client");
     int partitions = 10;
     BrokerService[] brokerServices;
+    private final static String namespace = "public/test";
 
     @Override
     protected void afterSetup() throws Exception {
         pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
         pulsarAdmins[0].tenants().createTenant("public", new TenantInfo(Sets.newHashSet(), Sets.newHashSet("my-cluster")));
-        pulsarAdmins[0].namespaces().createNamespace("public/test", 10);
+        pulsarAdmins[0].namespaces().createNamespace(namespace, 10);
         pulsarAdmins[0].topics().createPartitionedTopic(partitionedTopicName.getPartitionedTopicName(), partitions);
         pulsarClient.newConsumer()
                 .topic(partitionedTopicName.getPartitionedTopicName())
@@ -170,8 +171,10 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
     @Test
     public void testTransactionBufferLookUp() throws ExecutionException, InterruptedException {
-        List<CompletableFuture<TxnID>> futures = new ArrayList<>();
-        String topic = "testTransactionBufferLookUp";
-        tbClient.abortTxnOnSubscription(topic, "test", 1L, 1L, -1L);
+        String topic = "persistent://" + namespace + "/testTransactionBufferLookUp";
+        tbClient.abortTxnOnSubscription(topic + "_abort_sub", "test", 1L, 1L, -1L).get();
+        tbClient.commitTxnOnSubscription(topic + "_commit_sub", "test", 1L, 1L, -1L).get();
+        tbClient.abortTxnOnTopic(topic + "_abort_topic", 1L, 1L, -1L).get();
+        tbClient.commitTxnOnTopic(topic + "_commit_topic", 1L, 1L, -1L).get();
     }
 }

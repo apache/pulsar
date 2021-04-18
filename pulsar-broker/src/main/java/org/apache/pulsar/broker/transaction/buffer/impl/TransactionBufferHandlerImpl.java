@@ -97,34 +97,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, action, lowWaterMark);
-        OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
-        pendingRequests.put(requestId, op);
-        cmd.retain();
-        try {
-            cache.get(topic).whenComplete((clientCnx, throwable) -> {
-                if (throwable == null) {
-                    try {
-                        clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
-                    } catch (Exception e) {
-                        cache.refresh(topic);
-                        cb.completeExceptionally(e);
-                        pendingRequests.remove(requestId);
-                        op.recycle();
-                    }
-                } else {
-                    cache.refresh(topic);
-                    cb.completeExceptionally(throwable);
-                    pendingRequests.remove(requestId);
-                    op.recycle();
-                }
-            });
-        } catch (ExecutionException e) {
-            cache.refresh(topic);
-            cb.completeExceptionally(new PulsarClientException.LookupException(e.getCause().getMessage()));
-            pendingRequests.remove(requestId);
-            op.recycle();
-        }
-        return cb;
+        return endTxn(requestId, topic, cmd, cb);
     }
 
     @Override
@@ -137,6 +110,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, subscription, action, lowWaterMark);
+        return endTxn(requestId, topic, cmd, cb);
+    }
+
+    private CompletableFuture<TxnID> endTxn(long requestId, String topic, ByteBuf cmd, CompletableFuture<TxnID> cb) {
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
@@ -244,12 +221,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public void run(Timeout timeout) throws Exception {
+    public void run(Timeout timeout) {
         if (timeout.isCancelled()) {
             return;
         }
         long timeToWaitMs;
-        OpRequestSend peeked = null;
+        OpRequestSend peeked;
         Map.Entry<Long, OpRequestSend> firstEntry = pendingRequests.firstEntry();
         peeked = firstEntry == null ? null : firstEntry.getValue();
         while (peeked != null && peeked.createdAt + operationTimeoutInMills - System.currentTimeMillis() <= 0) {
