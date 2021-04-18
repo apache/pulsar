@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,21 +19,17 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>io.streamnative</groupId>
     <artifactId>pulsar</artifactId>
     <version>2.8.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
-
   <artifactId>pulsar-client-messagecrypto-bc</artifactId>
   <packaging>jar</packaging>
   <description>Message crypto for End to End encryption with BouncyCastleProvider</description>
-
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -40,7 +37,6 @@
       <version>${project.parent.version}</version>
       <scope>provided</scope>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>bouncy-castle-bc</artifactId>
@@ -48,6 +44,5 @@
       <classifier>pkg</classifier>
       <optional>true</optional>
     </dependency>
-
   </dependencies>
 </project>

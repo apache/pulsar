@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,18 +19,18 @@
     under the License.
 
 -->
-<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="Pulsar Messaging Backwards Compatibility Tests" verbose="2" annotations="JDK">
-    <test name="messaging-backwards-compatibility-suite" preserve-order="true">
-        <classes>
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_2" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_3" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_4" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_5" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_2" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_3" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_4" />
-            <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_5" />
-        </classes>
-    </test>
+  <test name="messaging-backwards-compatibility-suite" preserve-order="true">
+    <classes>
+      <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_2"/>
+      <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_3"/>
+      <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_4"/>
+      <class name="org.apache.pulsar.tests.integration.backwardscompatibility.SmokeTest2_5"/>
+      <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_2"/>
+      <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_3"/>
+      <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_4"/>
+      <class name="org.apache.pulsar.tests.integration.backwardscompatibility.ClientTest2_5"/>
+    </classes>
+  </test>
 </suite>

@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,23 +19,18 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>io.streamnative</groupId>
     <artifactId>pulsar</artifactId>
     <version>2.8.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
-
   <artifactId>distribution</artifactId>
   <packaging>pom</packaging>
   <name>Pulsar :: Distribution</name>
-
   <profiles>
-
     <profile>
       <id>main</id>
       <activation>
@@ -46,16 +42,13 @@
         <module>server</module>
       </modules>
     </profile>
-
     <profile>
       <id>core-modules</id>
       <modules>
         <module>server</module>
       </modules>
     </profile>
-
   </profiles>
-
   <build>
     <plugins>
       <plugin>

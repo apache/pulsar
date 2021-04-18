@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,20 +19,17 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>io.streamnative</groupId>
     <artifactId>bouncy-castle-parent</artifactId>
     <version>2.8.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
-
   <artifactId>bcfips-include-test</artifactId>
   <name>Pulsar Bouncy Castle FIPS Test</name>
   <description> Broker and client runs auth include BC FIPS verison</description>
-
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -39,7 +37,6 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
@@ -53,7 +50,6 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
@@ -66,7 +62,6 @@
       </exclusions>
       <scope>test</scope>
     </dependency>
-
     <!--exclude bouncy castle, then load fips version-->
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -74,7 +69,6 @@
       <version>${project.version}</version>
       <classifier>pkg</classifier>
     </dependency>
-
   </dependencies>
   <build>
     <plugins>

@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,26 +19,19 @@
     under the License.
 
 -->
-<!DOCTYPE suppressions PUBLIC
-        "-//Puppy Crawl//DTD Suppressions 1.1//EN"
-        "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
-
+<!DOCTYPE suppressions PUBLIC "-//Puppy Crawl//DTD Suppressions 1.1//EN" "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
 <suppressions>
-    <suppress checks="JavadocPackage" files=".*[\\/]src[\\/]test[\\/].*"/>
-    <suppress checks="JavadocPackage" files=".*[\\/]maven-archetypes[\\/].*"/>
-    <suppress checks="JavadocPackage" files=".*[\\/]examples[\\/].*"/>
-
-    <!-- suppress javadoc check for impl classes -->
-    <suppress checks="JavadocType" files=".*Impl\.java$" />
-
-    <!-- suppress all checks in the generated directories -->
-    <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java"/>
-    <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java"/>
-    <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java"/>
-
-    <!-- suppress all checks in the copied code -->
-    <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java"/>
-
-    <suppress checks=".*" files="MLDataFormats.java"/>
-    <suppress checks=".*" files="BitSetRecyclable.java"/>
+  <suppress checks="JavadocPackage" files=".*[\\/]src[\\/]test[\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\/]maven-archetypes[\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\/]examples[\\/].*"/>
+  <!-- suppress javadoc check for impl classes -->
+  <suppress checks="JavadocType" files=".*Impl\.java$"/>
+  <!-- suppress all checks in the generated directories -->
+  <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java"/>
+  <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java"/>
+  <suppress checks=".*" files=".+[\\/]generated-test-sources[\\/].+\.java"/>
+  <!-- suppress all checks in the copied code -->
+  <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java"/>
+  <suppress checks=".*" files="MLDataFormats.java"/>
+  <suppress checks=".*" files="BitSetRecyclable.java"/>
 </suppressions>

@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,13 +20,13 @@
 
 -->
 <FindBugsFilter>
-    <!-- these public fields may be used in other modules -->
-    <Match>
-        <Class name="org.apache.pulsar.functions.instance.JavaInstanceMain"/>
-        <Bug pattern="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.instance.JavaInstanceMain"/>
-        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
-    </Match>
+  <!-- these public fields may be used in other modules -->
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstanceMain"/>
+    <Bug pattern="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstanceMain"/>
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+  </Match>
 </FindBugsFilter>

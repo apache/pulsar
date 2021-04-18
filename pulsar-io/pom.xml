@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,19 +19,16 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>io.streamnative</groupId>
     <artifactId>pulsar</artifactId>
     <version>2.8.0-SNAPSHOT</version>
   </parent>
-
   <artifactId>pulsar-io</artifactId>
   <name>Pulsar IO :: Parent</name>
-
   <profiles>
     <profile>
       <id>main</id>
@@ -71,7 +69,6 @@
         <module>nsq</module>
       </modules>
     </profile>
-
     <profile>
       <id>core-modules</id>
       <modules>
@@ -84,7 +81,5 @@
         <module>data-generator</module>
       </modules>
     </profile>
-
   </profiles>
-
 </project>

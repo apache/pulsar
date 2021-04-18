@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,15 +20,12 @@
 
 -->
 <aspectj>
-
   <aspects>
-    <aspect name="org.apache.pulsar.zookeeper.FinalRequestProcessorAspect" />
-    <aspect name="org.apache.pulsar.zookeeper.ZooKeeperServerAspect" />
+    <aspect name="org.apache.pulsar.zookeeper.FinalRequestProcessorAspect"/>
+    <aspect name="org.apache.pulsar.zookeeper.ZooKeeperServerAspect"/>
   </aspects>
-
   <weaver>
-    <include within="org.apache.zookeeper.server.FinalRequestProcessor" />
-    <include within="org.apache.zookeeper.server.ZooKeeperServer" />
+    <include within="org.apache.zookeeper.server.FinalRequestProcessor"/>
+    <include within="org.apache.zookeeper.server.ZooKeeperServer"/>
   </weaver>
-
 </aspectj>

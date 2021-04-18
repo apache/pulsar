@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,16 +19,13 @@
     under the License.
 
 -->
-<!DOCTYPE aspectj PUBLIC
-        "-//AspectJ//DTD//EN" "http://www.eclipse.org/aspectj/dtd/aspectj.dtd">
+<!DOCTYPE aspectj PUBLIC "-//AspectJ//DTD//EN" "http://www.eclipse.org/aspectj/dtd/aspectj.dtd">
 <aspectj>
-
   <weaver options="-verbose -Xset:weaveJavaxPackages=true -Xset:weaveJavaPackages=true">
-    <include within="org.apache.zookeeper.ClientCnxn" />
-    <include within="org.apache.zookeeper.server.util.SerializeUtils" />
+    <include within="org.apache.zookeeper.ClientCnxn"/>
+    <include within="org.apache.zookeeper.server.util.SerializeUtils"/>
   </weaver>
-
   <aspects>
-    <aspect name="org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect" />
+    <aspect name="org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect"/>
   </aspects>
 </aspectj>

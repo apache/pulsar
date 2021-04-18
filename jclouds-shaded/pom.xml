@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,20 +19,16 @@
     under the License.
 
 -->
-<project
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-    xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>io.streamnative</groupId>
     <artifactId>pulsar</artifactId>
     <version>2.8.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
-
   <artifactId>jclouds-shaded</artifactId>
   <name>Apache Pulsar :: Jclouds shaded</name>
-
   <dependencies>
     <dependency>
       <groupId>org.apache.jclouds</groupId>
@@ -40,7 +36,6 @@
       <version>${jclouds.version}</version>
     </dependency>
   </dependencies>
-
   <dependencyManagement>
     <dependencies>
       <!-- JClouds still is using Guava 18.0 and it won't work with newer versions -->
@@ -51,7 +46,6 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
   <build>
     <plugins>
       <plugin>
@@ -67,7 +61,6 @@
               <createDependencyReducedPom>true</createDependencyReducedPom>
               <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
               <minimizeJar>false</minimizeJar>
-
               <artifactSet>
                 <includes>
                   <include>com.google.guava:guava</include>
@@ -88,7 +81,6 @@
                   <include>com.google.errorprone:*</include>
                 </includes>
               </artifactSet>
-
               <relocations>
                 <relocation>
                   <pattern>com.google.gson.internal</pattern>
@@ -126,7 +118,6 @@
                   <pattern>com.google.errorprone</pattern>
                   <shadedPattern>org.apache.pulsar.jcloud.shade.com.google.errorprone</shadedPattern>
                 </relocation>
-
               </relocations>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>

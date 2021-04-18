@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,30 +20,29 @@
 
 -->
 <configuration>
-    <!--file system uri, necessary-->
-    <property>
-        <name>fs.defaultFS</name>
-        <value></value>
-    </property>
-    <property>
-        <name>hadoop.tmp.dir</name>
-        <value>pulsar</value>
-    </property>
-    <property>
-        <name>io.file.buffer.size</name>
-        <value>4096</value>
-    </property>
-    <property>
-        <name>io.seqfile.compress.blocksize</name>
-        <value>1000000</value>
-    </property>
-    <property>
-        <name>io.seqfile.compression.type</name>
-        <value>BLOCK</value>
-    </property>
-    <property>
-        <name>io.map.index.interval</name>
-        <value>128</value>
-    </property>
-
+  <!--file system uri, necessary-->
+  <property>
+    <name>fs.defaultFS</name>
+    <value/>
+  </property>
+  <property>
+    <name>hadoop.tmp.dir</name>
+    <value>pulsar</value>
+  </property>
+  <property>
+    <name>io.file.buffer.size</name>
+    <value>4096</value>
+  </property>
+  <property>
+    <name>io.seqfile.compress.blocksize</name>
+    <value>1000000</value>
+  </property>
+  <property>
+    <name>io.seqfile.compression.type</name>
+    <value>BLOCK</value>
+  </property>
+  <property>
+    <name>io.map.index.interval</name>
+    <value>128</value>
+  </property>
 </configuration>

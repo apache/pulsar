@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,215 +19,186 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-
-    <parent>
-        <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-sql</artifactId>
-        <version>2.8.0-SNAPSHOT</version>
-    </parent>
-
-    <artifactId>pulsar-presto-connector-original</artifactId>
-    <description>Pulsar SQL - Pulsar Presto Connector</description>
-    <name>Pulsar SQL :: Pulsar Presto Connector Packaging</name>
-
-    <properties>
-        <dep.airlift.version>0.199</dep.airlift.version>
-        <jctools.version>2.1.2</jctools.version>
-        <dslJson.verson>1.8.4</dslJson.verson>
-    </properties>
-
-    <dependencies>
-        <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>bootstrap</artifactId>
-            <version>${dep.airlift.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>json</artifactId>
-            <version>${dep.airlift.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.avro</groupId>
-            <artifactId>avro</artifactId>
-            <version>${avro.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-client-admin-original</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>managed-ledger</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jctools</groupId>
-            <artifactId>jctools-core</artifactId>
-            <version>${jctools.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.dslplatform</groupId>
-            <artifactId>dsl-json</artifactId>
-            <version>${dslJson.verson}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.prestosql</groupId>
-            <artifactId>presto-plugin-toolkit</artifactId>
-            <version>${presto.version}</version>
-        </dependency>
-
-        <!-- Presto SPI -->
-        <dependency>
-            <groupId>io.prestosql</groupId>
-            <artifactId>presto-spi</artifactId>
-            <version>${presto.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-          <groupId>joda-time</groupId>
-          <artifactId>joda-time</artifactId>
-          <version>${joda.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.prestosql</groupId>
-            <artifactId>presto-record-decoder</artifactId>
-            <version>${presto.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.prestosql</groupId>
-            <artifactId>presto-main</artifactId>
-            <version>${presto.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.prestosql</groupId>
-            <artifactId>presto-testing</artifactId>
-            <version>${presto.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-broker</artifactId>
-          <version>${project.version}</version>
-          <scope>test</scope>
-        </dependency>
-
-        <dependency>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-broker</artifactId>
-          <version>${project.version}</version>
-          <scope>test</scope>
-          <type>test-jar</type>
-        </dependency>
-
-        <dependency>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>testmocks</artifactId>
-          <version>${project.version}</version>
-          <scope>test</scope>
-        </dependency>
-
-        <dependency>
-          <groupId>org.eclipse.jetty</groupId>
-          <artifactId>jetty-http</artifactId>
-          <version>${jetty.version}</version>
-          <scope>test</scope>
-        </dependency>
-
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <createDependencyReducedPom>true</createDependencyReducedPom>
-                            <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-
-                            <artifactSet>
-                                <includes>
-                                    <include>org.apache.pulsar:pulsar-client-original</include>
-                                    <include>org.apache.pulsar:pulsar-client-admin-original</include>
-                                    <include>org.apache.pulsar:managed-ledger</include>
-                                    <include>org.apache.pulsar:pulsar-metadata</include>
-
-                                    <include>org.glassfish.jersey*:*</include>
-                                    <include>javax.ws.rs:*</include>
-                                    <include>javax.annotation:*</include>
-                                    <include>org.glassfish.hk2*:*</include>
-
-                                    <include>org.eclipse.jetty:*</include>
-
-                                </includes>
-                            </artifactSet>
-                            <filters>
-                                <filter>
-                                    <artifact>org.apache.pulsar:pulsar-client-original</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                    <excludes>
-                                        <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
-                                        <exclude>org/bouncycastle/**</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                            <relocations>
-                                <relocation>
-                                    <pattern>org.glassfish</pattern>
-                                    <shadedPattern>org.apache.pulsar.shade.org.glassfish</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>javax.ws</pattern>
-                                    <shadedPattern>org.apache.pulsar.shade.javax.ws</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>javax.annotation</pattern>
-                                    <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>jersey</pattern>
-                                    <shadedPattern>org.apache.pulsar.shade.jersey</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.eclipse.jetty</pattern>
-                                    <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
-                                </relocation>
-
-                            </relocations>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
-
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.streamnative</groupId>
+    <artifactId>pulsar-sql</artifactId>
+    <version>2.8.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>pulsar-presto-connector-original</artifactId>
+  <description>Pulsar SQL - Pulsar Presto Connector</description>
+  <name>Pulsar SQL :: Pulsar Presto Connector Packaging</name>
+  <properties>
+    <dep.airlift.version>0.199</dep.airlift.version>
+    <jctools.version>2.1.2</jctools.version>
+    <dslJson.verson>1.8.4</dslJson.verson>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>io.airlift</groupId>
+      <artifactId>bootstrap</artifactId>
+      <version>${dep.airlift.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.airlift</groupId>
+      <artifactId>json</artifactId>
+      <version>${dep.airlift.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-admin-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jctools</groupId>
+      <artifactId>jctools-core</artifactId>
+      <version>${jctools.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dslplatform</groupId>
+      <artifactId>dsl-json</artifactId>
+      <version>${dslJson.verson}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.prestosql</groupId>
+      <artifactId>presto-plugin-toolkit</artifactId>
+      <version>${presto.version}</version>
+    </dependency>
+    <!-- Presto SPI -->
+    <dependency>
+      <groupId>io.prestosql</groupId>
+      <artifactId>presto-spi</artifactId>
+      <version>${presto.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+      <version>${joda.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.prestosql</groupId>
+      <artifactId>presto-record-decoder</artifactId>
+      <version>${presto.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.prestosql</groupId>
+      <artifactId>presto-main</artifactId>
+      <version>${presto.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.prestosql</groupId>
+      <artifactId>presto-testing</artifactId>
+      <version>${presto.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.streamnative</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.streamnative</groupId>
+      <artifactId>pulsar-broker</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>io.streamnative</groupId>
+      <artifactId>testmocks</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-http</artifactId>
+      <version>${jetty.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>true</createDependencyReducedPom>
+              <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+              <artifactSet>
+                <includes>
+                  <include>io.streamnative:pulsar-client-original</include>
+                  <include>io.streamnative:pulsar-client-admin-original</include>
+                  <include>io.streamnative:managed-ledger</include>
+                  <include>io.streamnative:pulsar-metadata</include>
+                  <include>org.glassfish.jersey*:*</include>
+                  <include>javax.ws.rs:*</include>
+                  <include>javax.annotation:*</include>
+                  <include>org.glassfish.hk2*:*</include>
+                  <include>org.eclipse.jetty:*</include>
+                </includes>
+              </artifactSet>
+              <filters>
+                <filter>
+                  <artifact>io.streamnative:pulsar-client-original</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                  <excludes>
+                    <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                    <exclude>org/bouncycastle/**</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <relocations>
+                <relocation>
+                  <pattern>org.glassfish</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.glassfish</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.ws</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.ws</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.annotation</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>jersey</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.jersey</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.eclipse.jetty</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
+                </relocation>
+              </relocations>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer"/>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>
