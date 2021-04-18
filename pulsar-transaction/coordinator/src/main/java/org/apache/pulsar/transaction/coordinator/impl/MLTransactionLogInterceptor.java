@@ -32,9 +32,9 @@ import java.util.Map;
 public class MLTransactionLogInterceptor implements ManagedLedgerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(MLTransactionLogInterceptor.class);
-    public static final String MAX_SEQUENCE_ID = "max_sequence_id";
+    public static final String MAX_LOCAL_TXN_ID = "max_local_txn_id";
 
-    private volatile long maxSequenceId = -1;
+    private volatile long maxLocalTxnId = -1;
 
     @Override
     public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
@@ -53,10 +53,10 @@ public class MLTransactionLogInterceptor implements ManagedLedgerInterceptor {
 
     @Override
     public void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap) {
-        propertiesMap.put(MAX_SEQUENCE_ID, maxSequenceId + "");
+        propertiesMap.put(MAX_LOCAL_TXN_ID, maxLocalTxnId + "");
     }
 
-    protected void setMaxSequenceId(long maxSequenceId) {
-        this.maxSequenceId = maxSequenceId;
+    protected void setMaxLocalTxnId(long maxLocalTxnId) {
+        this.maxLocalTxnId = maxLocalTxnId;
     }
 }

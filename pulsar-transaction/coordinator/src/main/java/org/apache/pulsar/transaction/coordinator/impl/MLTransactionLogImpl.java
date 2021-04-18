@@ -125,7 +125,7 @@ public class MLTransactionLogImpl implements TransactionLog {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 buf.release();
-                mlTransactionLogInterceptor.setMaxSequenceId(transactionMetadataEntry.getMaxSequenceId());
+                mlTransactionLogInterceptor.setMaxLocalTxnId(transactionMetadataEntry.getMaxLocalTxnId());
                 completableFuture.complete(position);
             }
 
@@ -200,11 +200,11 @@ public class MLTransactionLogImpl implements TransactionLog {
                     ByteBuf buffer = entry.getDataBuffer();
                     currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                     lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
-                    transactionLogReplayCallback.initSequenceId(lastConfirmEntry.getMaxSequenceId());
+                    transactionLogReplayCallback.initSequenceId(lastConfirmEntry.getMaxLocalTxnId());
                 } else if (managedLedger.getProperties()
-                        .get(MLTransactionLogInterceptor.MAX_SEQUENCE_ID) != null) {
+                        .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID) != null) {
                     transactionLogReplayCallback.initSequenceId(Long.parseLong(managedLedger.getProperties()
-                            .get(MLTransactionLogInterceptor.MAX_SEQUENCE_ID)));
+                            .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID)));
                 }
                 transactionLogReplayCallback.replayComplete();
             }).exceptionally(e -> {

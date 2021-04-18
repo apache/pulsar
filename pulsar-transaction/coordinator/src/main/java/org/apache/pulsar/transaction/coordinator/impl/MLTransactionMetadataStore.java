@@ -199,7 +199,7 @@ public class MLTransactionMetadataStore
                 .setTimeoutMs(timeOut)
                 .setMetadataOp(TransactionMetadataEntry.TransactionMetadataOp.NEW)
                 .setLastModificationTime(currentTimeMillis)
-                .setMaxSequenceId(sequenceId.get());
+                .setMaxLocalTxnId(sequenceId.get());
         return transactionLog.append(transactionMetadataEntry)
                 .thenCompose(position -> {
                     TxnMeta txn = new TxnMetaImpl(txnID);
@@ -227,7 +227,7 @@ public class MLTransactionMetadataStore
                     .setMetadataOp(TransactionMetadataOp.ADD_PARTITION)
                     .addAllPartitions(partitions)
                     .setLastModificationTime(System.currentTimeMillis())
-                    .setMaxSequenceId(sequenceId.get());
+                    .setMaxLocalTxnId(sequenceId.get());
 
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
@@ -263,7 +263,7 @@ public class MLTransactionMetadataStore
                     .setMetadataOp(TransactionMetadataOp.ADD_SUBSCRIPTION)
                     .addAllSubscriptions(txnSubscriptionToSubscription(txnSubscriptions))
                     .setLastModificationTime(System.currentTimeMillis())
-                    .setMaxSequenceId(sequenceId.get());
+                    .setMaxLocalTxnId(sequenceId.get());
 
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
@@ -303,7 +303,7 @@ public class MLTransactionMetadataStore
                     .setMetadataOp(TransactionMetadataOp.UPDATE)
                     .setLastModificationTime(System.currentTimeMillis())
                     .setNewStatus(newStatus)
-                    .setMaxSequenceId(sequenceId.get());
+                    .setMaxLocalTxnId(sequenceId.get());
 
             return transactionLog.append(transactionMetadataEntry).thenCompose(position -> {
                 try {
