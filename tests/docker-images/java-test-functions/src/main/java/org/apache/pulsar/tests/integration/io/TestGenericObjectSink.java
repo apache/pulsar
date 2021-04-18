@@ -36,7 +36,7 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
     }
 
     public void write(Record<GenericObject> record) {
-
+        log.info("topic {}", record.getTopicName().orElse(null));
         log.info("properties {}", record.getProperties());
         log.info("received record {} {}", record, record.getClass());
         log.info("schema {}", record.getSchema());

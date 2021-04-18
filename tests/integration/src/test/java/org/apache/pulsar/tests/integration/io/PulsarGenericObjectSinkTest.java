@@ -142,18 +142,21 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
             try {
                 log.info("waiting for sink {}", sinkName);
 
+                for (int i = 0; i < 120; i++) {
                     SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
                     log.info("sink {} status {}", sinkName, status);
                     assertEquals(status.getInstances().size(), 1);
                     SinkStatus.SinkInstanceStatus instance = status.getInstances().get(0);
-                    if (instance.getStatus().numWrittenToSink >= numRecords * specs.size()) {
+                    if (instance.getStatus().numWrittenToSink >= numRecords * specs.size()
+                        || instance.getStatus().numSinkExceptions > 0
+                        || instance.getStatus().numSinkExceptions > 0
+                        || instance.getStatus().numRestarts > 0) {
                         break;
                     }
-                    assertTrue(instance.getStatus().numRestarts > 1, "Sink was restarted, probably an error occurred");
                     Thread.sleep(1000);
+                }
 
-
-                status = admin.sinks().getSinkStatus("public", "default", sinkName);
+                SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
                 log.info("sink {} status {}", sinkName, status);
                 assertEquals(status.getInstances().size(), 1);
                 assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink >= numRecords * specs.size());
