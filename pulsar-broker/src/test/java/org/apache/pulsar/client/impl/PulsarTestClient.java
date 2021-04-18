@@ -116,7 +116,7 @@ public class PulsarTestClient extends PulsarClientImpl {
      * @return the ClientCnx to use, passed a future. Will complete with an exception when connections are rejected.
      */
     @Override
-    protected CompletableFuture<ClientCnx> getConnection(String topic) {
+    public CompletableFuture<ClientCnx> getConnection(String topic) {
         if (rejectNewConnections) {
             CompletableFuture<ClientCnx> result = new CompletableFuture<>();
             result.completeExceptionally(new IOException("New connections are rejected."));

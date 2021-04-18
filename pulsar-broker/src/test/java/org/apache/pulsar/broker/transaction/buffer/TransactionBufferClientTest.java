@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+
 import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -28,6 +30,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -64,8 +69,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         pulsarClient.newConsumer()
                 .topic(partitionedTopicName.getPartitionedTopicName())
                 .subscriptionName("test").subscribe();
-        tbClient = TransactionBufferClientImpl.create(pulsarServices[0].getNamespaceService(),
-                ((PulsarClientImpl) pulsarClient).getCnxPool(),
+        tbClient = TransactionBufferClientImpl.create(
+                ((PulsarClientImpl) pulsarClient),
                 new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")));
     }
 
@@ -86,12 +91,12 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     @Override
     protected void afterPulsarStart() throws Exception {
         brokerServices = new BrokerService[pulsarServices.length];
+        AtomicLong atomicLong = new AtomicLong(0);
         for (int i = 0; i < pulsarServices.length; i++) {
             Subscription mockSubscription = Mockito.mock(Subscription.class);
             Mockito.when(mockSubscription.endTxn(Mockito.anyLong(),
                     Mockito.anyLong(), Mockito.anyInt(), Mockito.anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-
             Topic mockTopic = Mockito.mock(Topic.class);
             Mockito.when(mockTopic.endTxn(any(), Mockito.anyInt(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
@@ -103,6 +108,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
                     CompletableFuture.completedFuture(Optional.of(mockTopic)));
 
             BrokerService brokerService = Mockito.spy(new BrokerService(pulsarServices[i]));
+            doReturn(new MockBrokerInterceptor()).when(brokerService).getInterceptor();
+            doReturn(atomicLong.getAndIncrement() + "").when(brokerService).generateUniqueProducerName();
             brokerServices[i] = brokerService;
             Mockito.when(brokerService.getTopics()).thenReturn(topicMap);
             Mockito.when(pulsarServices[i].getBrokerService()).thenReturn(brokerService);
@@ -159,5 +166,12 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
             Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
+    }
+
+    @Test
+    public void testTransactionBufferLookUp() throws ExecutionException, InterruptedException {
+        List<CompletableFuture<TxnID>> futures = new ArrayList<>();
+        String topic = "testTransactionBufferLookUp";
+        tbClient.abortTxnOnSubscription(topic, "test", 1L, 1L, -1L);
     }
 }

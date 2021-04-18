@@ -18,53 +18,68 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
-import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class TransactionBufferHandlerImpl implements TransactionBufferHandler, TimerTask {
 
     private final ConcurrentSkipListMap<Long, OpRequestSend> pendingRequests;
-    private final ConnectionPool connectionPool;
-    private final NamespaceService namespaceService;
     private final AtomicLong requestIdGenerator = new AtomicLong();
     private final long operationTimeoutInMills;
     private Timeout requestTimeout;
     private final HashedWheelTimer timer;
     private final Semaphore semaphore;
     private final boolean blockIfReachMaxPendingOps;
+    private final PulsarClient pulsarClient;
 
-    public TransactionBufferHandlerImpl(ConnectionPool connectionPool, NamespaceService namespaceService,
+    private final LoadingCache<String, CompletableFuture<ClientCnx>> cache = CacheBuilder.newBuilder()
+            .maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build(new CacheLoader<String, CompletableFuture<ClientCnx>>() {
+                @Override
+                public CompletableFuture<ClientCnx> load(String topic) {
+                    CompletableFuture<ClientCnx> siFuture = getClientCnx(topic);
+                    siFuture.whenComplete((si, cause) -> {
+                        if (null != cause) {
+                            cache.asMap().remove(topic, siFuture);
+                        }
+                    });
+                    return siFuture;
+                }
+            });
+
+    public TransactionBufferHandlerImpl(PulsarClient pulsarClient,
                                         HashedWheelTimer timer) {
-        this.connectionPool = connectionPool;
+        this.pulsarClient = pulsarClient;
         this.pendingRequests = new ConcurrentSkipListMap<>();
-        this.namespaceService = namespaceService;
         this.operationTimeoutInMills = 3000L;
         this.semaphore = new Semaphore(10000);
         this.blockIfReachMaxPendingOps = true;
@@ -85,21 +100,30 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
-        cnx(topic).whenComplete((clientCnx, throwable) -> {
-            if (throwable == null) {
-                try {
-                    clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
-                } catch (Exception e) {
-                    cb.completeExceptionally(e);
+        try {
+            cache.get(topic).whenComplete((clientCnx, throwable) -> {
+                if (throwable == null) {
+                    try {
+                        clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
+                    } catch (Exception e) {
+                        cache.refresh(topic);
+                        cb.completeExceptionally(e);
+                        pendingRequests.remove(requestId);
+                        op.recycle();
+                    }
+                } else {
+                    cache.refresh(topic);
+                    cb.completeExceptionally(throwable);
                     pendingRequests.remove(requestId);
                     op.recycle();
                 }
-            } else {
-                cb.completeExceptionally(throwable);
-                pendingRequests.remove(requestId);
-                op.recycle();
-            }
-        });
+            });
+        } catch (ExecutionException e) {
+            cache.refresh(topic);
+            cb.completeExceptionally(new PulsarClientException.LookupException(e.getCause().getMessage()));
+            pendingRequests.remove(requestId);
+            op.recycle();
+        }
         return cb;
     }
 
@@ -116,21 +140,31 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
-        cnx(topic).whenComplete((clientCnx, throwable) -> {
-            if (throwable == null) {
-                try {
-                    clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
-                } catch (Exception e) {
-                    cb.completeExceptionally(e);
+        try {
+            cache.get(topic).whenComplete((clientCnx, throwable) -> {
+                if (throwable == null) {
+                    try {
+                        clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
+                        clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
+                    } catch (Exception e) {
+                        cache.refresh(topic);
+                        cb.completeExceptionally(e);
+                        pendingRequests.remove(requestId);
+                        op.recycle();
+                    }
+                } else {
+                    cache.refresh(topic);
+                    cb.completeExceptionally(throwable);
                     pendingRequests.remove(requestId);
                     op.recycle();
                 }
-            } else {
-                cb.completeExceptionally(throwable);
-                pendingRequests.remove(requestId);
-                op.recycle();
-            }
-        });
+            });
+        } catch (ExecutionException e) {
+            cache.refresh(topic);
+            cb.completeExceptionally(new PulsarClientException.LookupException(e.getCause().getMessage()));
+            pendingRequests.remove(requestId);
+            op.recycle();
+        }
         return cb;
     }
 
@@ -154,6 +188,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         } else {
             log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(),
                     response.getError());
+            cache.refresh(op.topic);
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
         }
         op.recycle();
@@ -180,40 +215,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         } else {
             log.error("[{}] Got end txn on subscription response for request {} error {}",
                     op.topic, response.getRequestId(), response.getError());
+            cache.refresh(op.topic);
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
         }
         op.recycle();
-    }
-
-    private CompletableFuture<ClientCnx> cnx(String topic) {
-        return getServiceUrl(topic).thenCompose(serviceUrl -> {
-            try {
-                if (serviceUrl == null) {
-                    return CompletableFuture.completedFuture(null);
-                }
-                URI uri = new URI(serviceUrl);
-                return connectionPool.getConnection(InetSocketAddress.createUnresolved(uri.getHost(),
-                        uri.getPort())).thenCompose(clientCnx -> {
-                    clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
-                    return CompletableFuture.completedFuture(clientCnx);
-                });
-            } catch (Exception e) {
-                return FutureUtil.failedFuture(e);
-            }
-        });
-    }
-
-    private CompletableFuture<String> getServiceUrl(String topic) {
-        TopicName topicName = TopicName.get(topic);
-        return namespaceService.getBundleAsync(topicName)
-                .thenCompose(namespaceService::getOwnerAsync)
-                .thenCompose(ned -> {
-                    String serviceUrl = null;
-                    if (ned.isPresent()) {
-                        serviceUrl = ned.get().getNativeUrl();
-                    }
-                   return CompletableFuture.completedFuture(serviceUrl);
-                });
     }
 
     private TransactionBufferClientException getException(ServerError serverError, String msg) {
@@ -310,6 +315,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 return new OpRequestSend(handle);
             }
         };
+    }
+
+    private CompletableFuture<ClientCnx> getClientCnx(String topic) {
+        return ((PulsarClientImpl) pulsarClient).getConnection(topic);
     }
 
     @Override
