@@ -98,6 +98,7 @@ flexible messaging model and an intuitive client API.</description>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
     <shadePluginPhase>package</shadePluginPhase>
+    <narPluginPhase>package</narPluginPhase>
 
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
@@ -1592,7 +1593,7 @@ flexible messaging model and an intuitive client API.</description>
           <executions>
             <execution>
               <id>default-nar</id>
-              <phase>package</phase>
+              <phase>${narPluginPhase}</phase>
               <goals>
                 <goal>nar</goal>
               </goals>
@@ -2054,6 +2055,7 @@ flexible messaging model and an intuitive client API.</description>
         <spotbugs.skip>true</spotbugs.skip>
         <assembly.skipAssembly>true</assembly.skipAssembly>
         <shadePluginPhase>none</shadePluginPhase>
+        <narPluginPhase>none</narPluginPhase>
       </properties>
     </profile>
     <profile>
