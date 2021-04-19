@@ -37,6 +37,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
@@ -68,7 +69,8 @@ public class MLTransactionMetadataStore
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
-                                      TransactionTimeoutTracker timeoutTracker) {
+                                      TransactionTimeoutTracker timeoutTracker,
+                                      TransactionRecoverTracker recoverTracker) {
         super(State.None);
         this.tcID = tcID;
         this.transactionLog = mlTransactionLog;
@@ -82,9 +84,11 @@ public class MLTransactionMetadataStore
 
             @Override
             public void replayComplete() {
+                recoverTracker.appendOpenTransactionToTimeoutTracker();
                 if (!changeToReadyState()) {
                     log.error("Managed ledger transaction metadata store change state error when replay complete");
                 } else {
+                    recoverTracker.handleCommittingAndAbortingTransaction();
                     timeoutTracker.start();
                 }
             }
@@ -98,8 +102,9 @@ public class MLTransactionMetadataStore
                             transactionMetadataEntry.getTxnidLeastBits());
                     switch (transactionMetadataEntry.getMetadataOp()) {
                         case NEW:
-                            if (sequenceId.get() < transactionMetadataEntry.getTxnidLeastBits()) {
-                                sequenceId.set(transactionMetadataEntry.getTxnidLeastBits());
+                            long txnSequenceId = transactionMetadataEntry.getTxnidLeastBits();
+                            if (sequenceId.get() < txnSequenceId) {
+                                sequenceId.set(txnSequenceId);
                             }
                             if (txnMetaMap.containsKey(txnID)) {
                                 txnMetaMap.get(txnID).getRight().add(position);
@@ -108,7 +113,7 @@ public class MLTransactionMetadataStore
                                 positions.add(position);
                                 txnMetaMap.put(txnID, MutablePair.of(new TxnMetaImpl(txnID), positions));
                                 txnIdSortedSet.add(transactionMetadataEntry.getTxnidLeastBits());
-                                timeoutTracker.replayAddTransaction(transactionMetadataEntry.getTxnidLeastBits(),
+                                recoverTracker.handleOpenStatusTransaction(txnSequenceId,
                                         transactionMetadataEntry.getTimeoutMs()
                                                 + transactionMetadataEntry.getStartTime());
                             }
@@ -137,17 +142,17 @@ public class MLTransactionMetadataStore
                                 transactionLog.deletePosition(Collections.singletonList(position));
                             } else {
                                 TxnStatus newStatus = transactionMetadataEntry.getNewStatus();
+                                txnMetaMap.get(txnID).getLeft()
+                                        .updateTxnStatus(transactionMetadataEntry.getNewStatus(),
+                                                transactionMetadataEntry.getExpectedStatus());
+                                txnMetaMap.get(txnID).getRight().add(position);
+                                recoverTracker.updateTransactionStatus(txnID.getLeastSigBits(), newStatus);
                                 if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                                     transactionLog.deletePosition(txnMetaMap.get(txnID).getRight()).thenAccept(v -> {
-                                        TxnMeta txnMeta = txnMetaMap.remove(txnID).getLeft();
+                                        txnMetaMap.remove(txnID).getLeft();
                                         txnIdSortedSet.remove(transactionMetadataEntry.getTxnidLeastBits());
                                     });
-                                } else {
-                                    txnMetaMap.get(txnID).getLeft()
-                                            .updateTxnStatus(transactionMetadataEntry.getNewStatus(),
-                                                    transactionMetadataEntry.getExpectedStatus());
                                 }
-                                txnMetaMap.get(txnID).getRight().add(position);
                             }
                             break;
                         default:
@@ -156,6 +161,7 @@ public class MLTransactionMetadataStore
                                     + "from transaction log with unknown operation");
                     }
                 } catch (InvalidTxnStatusException  e) {
+                    transactionLog.deletePosition(Collections.singletonList(position));
                     log.error(e.getMessage(), e);
                 }
             }

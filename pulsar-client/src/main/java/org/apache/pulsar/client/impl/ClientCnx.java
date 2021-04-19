@@ -487,7 +487,7 @@ public class ClientCnx extends PulsarHandler {
         CompletableFuture<CommandGetLastMessageIdResponse> requestFuture =
                 (CompletableFuture<CommandGetLastMessageIdResponse>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(success);
+            requestFuture.complete(new CommandGetLastMessageIdResponse().copyFrom(success));
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
@@ -803,7 +803,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
             return;
         }
-        future.complete(commandGetSchemaResponse);
+        future.complete(new CommandGetSchemaResponse().copyFrom(commandGetSchemaResponse));
     }
 
     @Override
@@ -816,7 +816,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
             return;
         }
-        future.complete(commandGetOrCreateSchemaResponse);
+        future.complete(new CommandGetOrCreateSchemaResponse().copyFrom(commandGetOrCreateSchemaResponse));
     }
 
     Promise<Void> newPromise() {

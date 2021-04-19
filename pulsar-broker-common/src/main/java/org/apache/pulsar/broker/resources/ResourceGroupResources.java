@@ -16,35 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.broker.resources;
 
-package org.apache.pulsar.common.policies.data;
+import org.apache.pulsar.common.policies.data.ResourceGroup;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-/**
- * PolicyName authorization operations.
- */
-public enum PolicyName {
-    ALL,
-    ANTI_AFFINITY,
-    BACKLOG,
-    COMPACTION,
-    DELAYED_DELIVERY,
-    INACTIVE_TOPIC,
-    DEDUPLICATION,
-    MAX_CONSUMERS,
-    MAX_PRODUCERS,
-    DEDUPLICATION_SNAPSHOT,
-    MAX_UNACKED,
-    MAX_SUBSCRIPTIONS,
-    OFFLOAD,
-    PERSISTENCE,
-    RATE,
-    RETENTION,
-    REPLICATION,
-    REPLICATION_RATE,
-    SCHEMA_COMPATIBILITY_STRATEGY,
-    SUBSCRIPTION_AUTH_MODE,
-    ENCRYPTION,
-    TTL,
-    MAX_TOPICS,
-    RESOURCEGROUP
+public class ResourceGroupResources extends BaseResources<ResourceGroup> {
+    public ResourceGroupResources(MetadataStoreExtended store, int operationTimeoutSec) {
+        super(store, ResourceGroup.class, operationTimeoutSec);
+    }
 }

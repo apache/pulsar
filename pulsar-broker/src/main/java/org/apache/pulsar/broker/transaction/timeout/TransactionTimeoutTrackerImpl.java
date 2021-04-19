@@ -40,7 +40,7 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     private final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
     private final long tickTimeMillis;
     private final Clock clock;
-    private volatile Timeout currentTimeout;
+    private Timeout currentTimeout;
     private final static long INITIAL_TIMEOUT = 1L;
 
     private volatile long nowTaskTimeoutTime = INITIAL_TIMEOUT;
