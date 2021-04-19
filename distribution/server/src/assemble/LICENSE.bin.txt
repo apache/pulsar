@@ -320,8 +320,6 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.11.1.jar
      - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.11.1.jar
      - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.11.1.jar
-     - org.codehaus.jackson-jackson-core-asl-1.9.11.jar
-     - org.codehaus.jackson-jackson-mapper-asl-1.9.11.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.1.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.17.0.jar

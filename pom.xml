@@ -443,6 +443,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-all</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-mapper-asl</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
