@@ -50,6 +50,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.slf4j.Logger;
@@ -92,7 +93,7 @@ public class ContextImplTest {
             config,
             logger,
             client,
-            new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
+            new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(), new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
                 pulsarAdmin);
         context.setCurrentMessageContext((Record<String>) () -> null);
@@ -182,7 +183,7 @@ public class ContextImplTest {
                 config,
                 logger,
                 client,
-                new EnvironmentBasedSecretsProvider(), new CollectorRegistry(), new String[0],
+                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(), new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
                 pulsarAdmin);
         context.getPulsarAdmin();
