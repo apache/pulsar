@@ -2058,6 +2058,7 @@ flexible messaging model and an intuitive client API.</description>
         <assembly.skipAssembly>true</assembly.skipAssembly>
         <shadePluginPhase>none</shadePluginPhase>
         <narPluginPhase>none</narPluginPhase>
+        <skipDocker>true</skipDocker>
       </properties>
     </profile>
     <profile>
