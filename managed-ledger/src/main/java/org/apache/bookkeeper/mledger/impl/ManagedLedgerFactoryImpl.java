@@ -53,7 +53,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -833,19 +832,25 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public void asyncTruncate(String name, TruncateLedgerCallback callback, Object ctx) {
+    public CompletableFuture<Void> asyncTruncate(String name) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         asyncOpen(name, new OpenLedgerCallback() {
             @Override
             public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                ledger.asyncTruncate(callback, ctx);
+                ledger.asyncTruncate().thenAccept(o -> {
+                    future.complete(null);
+                }).exceptionally(e -> {
+                    future.obtrudeException(e);
+                    return null;
+                });
             }
 
             @Override
             public void openLedgerFailed(ManagedLedgerException e, Object ctx) {
-                callback.truncateLedgerFailed(e, ctx);
+                future.obtrudeException(e);
             }
         }, null);
+        return future;
     }
 
     public MetaStore getMetaStore() {

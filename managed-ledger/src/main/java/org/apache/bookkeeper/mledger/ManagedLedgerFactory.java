@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -26,7 +27,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -163,12 +163,10 @@ public interface ManagedLedgerFactory {
 
     /**
      * Tuncate a managed ledger.
-     * The latest ledger cannot be deleted
+     * The latest ledger cannot be deleted ,and only delete acknowledged ledgers
      *
      * @param name
-     * @param callback
-     * @param ctx
      */
-    void asyncTruncate(String name, TruncateLedgerCallback callback, Object ctx);
+    CompletableFuture<Void> asyncTruncate(String name);
 
 }

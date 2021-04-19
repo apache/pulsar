@@ -83,7 +83,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
@@ -2912,33 +2911,59 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
-    public void asyncTruncateLedger() throws Exception {
+    public void testAsyncTruncateLedgerRetention() throws Exception {
+
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(50);
+        config.setRetentionTime(1, TimeUnit.DAYS);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
+        ManagedCursor cursor = ledger.openCursor("test-cursor");
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+
+        ledger.close();
+        ManagedLedgerImpl ledger2 = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
+        ledger2.addEntry("test-entry-2".getBytes(Encoding));
+        ManagedCursor cursor2 = ledger2.openCursor("test-cursor");
+        cursor2.resetCursor(new PositionImpl(ledger2.getLastPosition()));
+
+
+        CompletableFuture<Void> future = ledger2.asyncTruncate();
+        future.get();
+
+        assertTrue(ledger2.getLedgersInfoAsList().size() <= 1);
+    }
+
+    @Test(timeOut = 20000)
+    public void testAsyncTruncateLedgerSlowestCursor() throws Exception {
 
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedgerConfig config = new ManagedLedgerConfig();
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
         ManagedCursor cursor = ledger.openCursor("test-cursor");
+        ManagedCursor cursor2 = ledger.openCursor("test-cursor2");
         ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+        ledger.addEntry("test-entry-1".getBytes(Encoding));
+
         ledger.close();
         ManagedLedgerImpl ledger2 = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
         ledger2.addEntry("test-entry-2".getBytes(Encoding));
+        ManagedCursor cursor3 = ledger2.openCursor("test-cursor");
+        cursor3.resetCursor(new PositionImpl(ledger2.getLastPosition()));
 
-        final CountDownLatch counter = new CountDownLatch(1);
+        CompletableFuture<Void> future = ledger2.asyncTruncate();
+        future.get();
 
-        ledger.asyncTruncate(new TruncateLedgerCallback() {
-            @Override
-            public void truncateLedgerComplete(Object ctx) {
-                assertNull(ctx);
-                counter.countDown();
-            }
-            @Override
-            public void truncateLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                counter.countDown();
-            }
-        }, null);
-        counter.await();
-
-        assertTrue(ledger.getLedgersInfoAsList().size() <= 1);
+        assertTrue(ledger2.getLedgersInfoAsList().size() == 2);
     }
+
 }

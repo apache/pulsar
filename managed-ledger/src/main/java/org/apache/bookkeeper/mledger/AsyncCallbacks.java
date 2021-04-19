@@ -149,9 +149,4 @@ public interface AsyncCallbacks {
         void updatePropertiesFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface TruncateLedgerCallback {
-        void truncateLedgerComplete(Object ctx);
-
-        void truncateLedgerFailed(ManagedLedgerException exception, Object ctx);
-    }
 }

@@ -91,7 +91,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -3745,15 +3744,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);
 
     @Override
-    public void asyncTruncate(TruncateLedgerCallback callback, Object ctx) {
-        CompletableFuture<Object> future = CompletableFuture.completedFuture(null);
+    public CompletableFuture<Void> asyncTruncate() {
+        CompletableFuture<Void> future = new CompletableFuture();
         internalTrimLedgers(true, future);
-        future.thenAccept(ob -> {
-            callback.truncateLedgerComplete(ctx);
-        }).exceptionally(ex -> {
-            log.error("[{}] trim ledger failed", name, ex);
-            callback.truncateLedgerFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
-            return null;
-        });
+        return future;
     }
 }
