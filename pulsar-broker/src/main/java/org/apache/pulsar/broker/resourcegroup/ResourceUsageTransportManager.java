@@ -97,7 +97,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
                 byte[] bytes = buf.array();
                 producer.sendAsync(bytes).whenComplete((id, ex) -> {
                     if (null != ex) {
-                        LOG.error("Resource usage publisher: sending message ID {} error {}", id, ex);
+                        LOG.error("Resource usage publisher: sending message ID {} error", id, ex);
                     }
                     buf.release();
                 });
@@ -152,9 +152,11 @@ public class ResourceUsageTransportManager implements AutoCloseable {
                 });
 
             } catch (IllegalStateException exception) {
-                LOG.error("Resource usage reader: Error parsing incoming message {}", exception);
+                LOG.error("Resource usage reader: Error parsing incoming message", exception);
+                throw exception;
             } catch (Exception exception) {
-                LOG.error("Resource usage reader: Unknown exception while parsing message {}", exception);
+                LOG.error("Resource usage reader: Unknown exception while parsing message", exception);
+                throw exception;
             }
         }
 
@@ -192,8 +194,8 @@ public class ResourceUsageTransportManager implements AutoCloseable {
             } catch (PulsarAdminException ex1) {
                 if (!(ex1 instanceof PulsarAdminException.ConflictException)) {
                     LOG.error("Unexpected exception {} when creating tenant {}", ex1, tenant);
-                    throw ex1;
                 }
+                throw ex1;
             }
         }
         List<String> nsList = admin.namespaces().getNamespaces(tenant);
@@ -203,8 +205,8 @@ public class ResourceUsageTransportManager implements AutoCloseable {
             } catch (PulsarAdminException ex1) {
                 if (!(ex1 instanceof PulsarAdminException.ConflictException)) {
                     LOG.error("Unexpected exception {} when creating namespace {}", ex1, namespace);
-                    throw ex1;
                 }
+                throw ex1;
             }
         }
     }
@@ -218,7 +220,7 @@ public class ResourceUsageTransportManager implements AutoCloseable {
             consumer = new ResourceUsageReader();
             pTask = new ResourceUsageWriterTask();
         } catch (Exception ex) {
-            LOG.error("Error initializing resource usage transport manager: {}", ex);
+            LOG.error("Error initializing resource usage transport manager", ex);
             throw ex;
         }
     }
@@ -265,7 +267,8 @@ public class ResourceUsageTransportManager implements AutoCloseable {
             pTask.close();
             consumer.close();
         } catch (Exception ex1) {
-            LOG.error("Error closing producer/consumer for resource-usage topic {}", ex1);
+            LOG.error("Error closing producer/consumer for resource-usage topic", ex1);
+            throw ex1;
         }
     }
 }

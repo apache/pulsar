@@ -16,35 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.policies.data;
 
-/**
- * PolicyName authorization operations.
- */
-public enum PolicyName {
-    ALL,
-    ANTI_AFFINITY,
-    BACKLOG,
-    COMPACTION,
-    DELAYED_DELIVERY,
-    INACTIVE_TOPIC,
-    DEDUPLICATION,
-    MAX_CONSUMERS,
-    MAX_PRODUCERS,
-    DEDUPLICATION_SNAPSHOT,
-    MAX_UNACKED,
-    MAX_SUBSCRIPTIONS,
-    OFFLOAD,
-    PERSISTENCE,
-    RATE,
-    RETENTION,
-    REPLICATION,
-    REPLICATION_RATE,
-    SCHEMA_COMPATIBILITY_STRATEGY,
-    SUBSCRIPTION_AUTH_MODE,
-    ENCRYPTION,
-    TTL,
-    MAX_TOPICS,
-    RESOURCEGROUP
+import com.google.common.base.MoreObjects;
+import lombok.Data;
+
+import java.util.Objects;
+
+@Data public class ResourceGroup {
+    private int publishRateInMsgs = -1;
+    private long publishRateInBytes = -1;
+    private int dispatchRateInMsgs = -1;
+    private long dispatchRateInBytes = -1;
 }
