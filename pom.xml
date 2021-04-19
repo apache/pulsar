@@ -236,6 +236,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
+    <dependency-check-maven.version>6.1.5</dependency-check-maven.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1788,13 +1789,16 @@ flexible messaging model and an intuitive client API.</description>
         <rename.netty.native.libs>rename-netty-native-libs.cmd</rename.netty.native.libs>
       </properties>
 
-    <!-- Primary Module profile -->
     </profile>
+    <!-- Primary Module profile -->
     <profile>
       <id>main</id>
       <activation>
         <activeByDefault>true</activeByDefault>
         <jdk>[8,)</jdk>
+        <property>
+          <name>owasp-dependency-check</name>
+        </property>
       </activation>
       <modules>
         <module>buildtools</module>
@@ -2038,6 +2042,66 @@ flexible messaging model and an intuitive client API.</description>
       <modules>
         <module>tests</module>
       </modules>
+    </profile>
+    <profile>
+      <id>skip-all</id>
+      <properties>
+        <maven.main.skip>true</maven.main.skip>
+        <maven.test.skip>true</maven.test.skip>
+        <skipSourceReleaseAssembly>true</skipSourceReleaseAssembly>
+        <skipBuildDistribution>true</skipBuildDistribution>
+        <spotbugs.skip>true</spotbugs.skip>
+        <assembly.skipAssembly>true</assembly.skipAssembly>
+      </properties>
+    </profile>
+    <profile>
+      <id>owasp-dependency-check</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.owasp</groupId>
+            <artifactId>dependency-check-maven</artifactId>
+            <version>${dependency-check-maven.version}</version>
+            <configuration>
+              <msbuildAnalyzerEnabled>false</msbuildAnalyzerEnabled>
+              <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
+              <yarnAuditAnalyzerEnabled>false</yarnAuditAnalyzerEnabled>
+              <pyDistributionAnalyzerEnabled>false</pyDistributionAnalyzerEnabled>
+              <pyPackageAnalyzerEnabled>false</pyPackageAnalyzerEnabled>
+              <pipAnalyzerEnabled>false</pipAnalyzerEnabled>
+              <pipfileAnalyzerEnabled>false</pipfileAnalyzerEnabled>
+              <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
+              <msbuildAnalyzerEnabled>false</msbuildAnalyzerEnabled>
+              <mixAuditAnalyzerEnabled>false</mixAuditAnalyzerEnabled>
+              <nugetconfAnalyzerEnabled>false</nugetconfAnalyzerEnabled>
+              <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+            </configuration>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>aggregate</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <reporting>
+        <plugins>
+          <plugin>
+            <groupId>org.owasp</groupId>
+            <artifactId>dependency-check-maven</artifactId>
+            <version>${dependency-check-maven.version}</version>
+            <reportSets>
+              <reportSet>
+                <reports>
+                  <report>aggregate</report>
+                </reports>
+              </reportSet>
+            </reportSets>
+          </plugin>
+        </plugins>
+      </reporting>
     </profile>
   </profiles>
 
