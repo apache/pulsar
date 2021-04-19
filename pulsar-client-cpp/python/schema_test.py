@@ -672,7 +672,7 @@ class SchemaTest(TestCase):
 
         class Example(Record):
             a = Integer()
-            b = Boolean()
+            b = Boolean(required=True)
             c = Long()
             d = Float()
             e = Double()
@@ -684,7 +684,7 @@ class SchemaTest(TestCase):
 
         class ExampleRequiredDefault(Record):
             a = Integer(required_default=True)
-            b = Boolean(required_default=True)
+            b = Boolean(required=True, required_default=True)
             c = Long(required_default=True)
             d = Float(required_default=True)
             e = Double(required_default=True)
@@ -707,11 +707,8 @@ class SchemaTest(TestCase):
                     },
                     {
                         "name": "b",
-                        "type": [
-                            "null",
-                            "boolean"
-                        ],
-                        "default": None
+                        "type": "boolean",
+                        "default": False
                     },
                     {
                         "name": "c",
@@ -831,7 +828,7 @@ class SchemaTest(TestCase):
         class MyRecord(Record):
             A = Integer()
             B = String()
-            C = Boolean(default=False)
+            C = Boolean(default=True, required=True)
             D = Double(default=6.4)
 
         topic = "my-default-value-topic"
@@ -849,7 +846,7 @@ class SchemaTest(TestCase):
         msg = consumer.receive()
         self.assertEqual(msg.value().A, 5)
         self.assertEqual(msg.value().B, u'text')
-        self.assertEqual(msg.value().C, False)
+        self.assertEqual(msg.value().C, True)
         self.assertEqual(msg.value().D, 6.4)
 
         producer.close()
