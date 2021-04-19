@@ -97,6 +97,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
+    <shadePluginPhase>package</shadePluginPhase>
 
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
@@ -2052,6 +2053,7 @@ flexible messaging model and an intuitive client API.</description>
         <skipBuildDistribution>true</skipBuildDistribution>
         <spotbugs.skip>true</spotbugs.skip>
         <assembly.skipAssembly>true</assembly.skipAssembly>
+        <shadePluginPhase>none</shadePluginPhase>
       </properties>
     </profile>
     <profile>
