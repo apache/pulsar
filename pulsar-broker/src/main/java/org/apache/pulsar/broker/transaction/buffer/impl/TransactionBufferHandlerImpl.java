@@ -69,7 +69,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                     CompletableFuture<ClientCnx> siFuture = getClientCnx(topic);
                     siFuture.whenComplete((si, cause) -> {
                         if (null != cause) {
-                            cache.asMap().remove(topic, siFuture);
+                            cache.invalidate(topic);
                         }
                     });
                     return siFuture;
