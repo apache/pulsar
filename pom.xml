@@ -2053,6 +2053,8 @@ flexible messaging model and an intuitive client API.</description>
         <skipSourceReleaseAssembly>true</skipSourceReleaseAssembly>
         <skipBuildDistribution>true</skipBuildDistribution>
         <spotbugs.skip>true</spotbugs.skip>
+        <license.skip>true</license.skip>
+        <rat.skip>true</rat.skip>
         <assembly.skipAssembly>true</assembly.skipAssembly>
         <shadePluginPhase>none</shadePluginPhase>
         <narPluginPhase>none</narPluginPhase>
