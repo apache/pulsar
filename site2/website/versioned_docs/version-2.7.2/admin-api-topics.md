@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-admin-api-topics
+id: version-2.7.2-admin-api-topics
 title: Manage topics
 sidebar_label: Topics
 original_id: admin-api-topics

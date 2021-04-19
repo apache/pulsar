@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-administration-isolation
+id: version-2.7.2-administration-isolation
 title: Pulsar isolation
 sidebar_label: Pulsar isolation
 original_id: administration-isolation

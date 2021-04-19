@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-helm-overview
+id: version-2.7.2-helm-overview
 title: Apache Pulsar Helm Chart
 sidebar_label: Overview
 original_id: helm-overview

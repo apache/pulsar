@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-cookbooks-deduplication
+id: version-2.7.2-cookbooks-deduplication
 title: Message deduplication
 sidebar_label: Message deduplication
 original_id: cookbooks-deduplication

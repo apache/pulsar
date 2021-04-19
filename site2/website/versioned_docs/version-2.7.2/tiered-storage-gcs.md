@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-tiered-storage-gcs
+id: version-2.7.2-tiered-storage-gcs
 title: Use GCS offloader with Pulsar
 sidebar_label: GCS offloader
 original_id: tiered-storage-gcs

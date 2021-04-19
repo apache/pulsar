@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-client-libraries-java
+id: version-2.7.2-client-libraries-java
 title: Pulsar Java client
 sidebar_label: Java
 original_id: client-libraries-java

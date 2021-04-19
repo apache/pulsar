@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-client-libraries-python
+id: version-2.7.2-client-libraries-python
 title: Pulsar Python client
 sidebar_label: Python
 original_id: client-libraries-python
@@ -309,7 +309,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
 #### Prerequisite
 
-- Pulsar Python client 2.7.1 or later 
+- Pulsar Python client 2.7.2 or later 
 
 #### Step
 

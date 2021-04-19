@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-standalone
+id: version-2.7.2-standalone
 title: Set up a standalone Pulsar locally
 sidebar_label: Run Pulsar locally
 original_id: standalone

@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-io-elasticsearch-sink
+id: version-2.7.2-io-elasticsearch-sink
 title: ElasticSearch sink connector
 sidebar_label: ElasticSearch sink connector
 original_id: io-elasticsearch-sink

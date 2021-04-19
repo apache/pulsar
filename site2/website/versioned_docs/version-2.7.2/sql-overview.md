@@ -1,5 +1,5 @@
 ---
-id: version-2.7.1-sql-overview
+id: version-2.7.2-sql-overview
 title: Pulsar SQL Overview
 sidebar_label: Overview
 original_id: sql-overview
