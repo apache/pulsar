@@ -148,8 +148,6 @@
                   <include>org.aspectj:*</include>
                   <include>org.apache.avro:avro</include>
                   <!-- Avro transitive dependencies-->
-                  <include>org.codehaus.jackson:jackson-core-asl</include>
-                  <include>org.codehaus.jackson:jackson-mapper-asl</include>
                   <include>com.thoughtworks.paranamer:paranamer</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
