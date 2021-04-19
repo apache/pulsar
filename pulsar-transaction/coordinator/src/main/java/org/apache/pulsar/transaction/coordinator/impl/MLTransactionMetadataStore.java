@@ -83,13 +83,16 @@ public class MLTransactionMetadataStore
 
             @Override
             public void replayComplete() {
-                recoverTracker.appendOpenTransactionToTimeoutTracker();
-                if (!changeToReadyState()) {
-                    log.error("Managed ledger transaction metadata store change state error when replay complete");
-                } else {
-                    recoverTracker.handleCommittingAndAbortingTransaction();
-                    timeoutTracker.start();
-                }
+                mlTransactionLog.getMaxLocalTxnId().thenAccept(id -> {
+                    recoverTracker.appendOpenTransactionToTimeoutTracker();
+                    sequenceId.set(id);
+                    if (!changeToReadyState()) {
+                        log.error("Managed ledger transaction metadata store change state error when replay complete");
+                    } else {
+                        recoverTracker.handleCommittingAndAbortingTransaction();
+                        timeoutTracker.start();
+                    }
+                });
             }
 
             @Override
@@ -160,11 +163,6 @@ public class MLTransactionMetadataStore
                     transactionLog.deletePosition(Collections.singletonList(position));
                     log.error(e.getMessage(), e);
                 }
-            }
-
-            @Override
-            public void initSequenceId(long initSequenceID) {
-                sequenceId.set(initSequenceID);
             }
         })).start();
     }

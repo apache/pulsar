@@ -194,24 +194,29 @@ public class MLTransactionLogImpl implements TransactionLog {
                     }
                 }
             }
-            ((ManagedCursorImpl) cursor).readLastConfirmEntry().thenAccept(entry -> {
-                if (entry != null) {
-                    TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
-                    ByteBuf buffer = entry.getDataBuffer();
-                    currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                    lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
-                    transactionLogReplayCallback.initSequenceId(lastConfirmEntry.getMaxLocalTxnId());
-                } else if (managedLedger.getProperties()
-                        .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID) != null) {
-                    transactionLogReplayCallback.initSequenceId(Long.parseLong(managedLedger.getProperties()
-                            .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID)));
-                }
-                transactionLogReplayCallback.replayComplete();
-            }).exceptionally(e -> {
-                log.error("[{}] MLTransactionLog recover fail!", topicName, e);
-                return null;
-            });
+            transactionLogReplayCallback.replayComplete();
         }
+    }
+
+    public CompletableFuture<Long> getMaxLocalTxnId() {
+        return ((ManagedCursorImpl) cursor).readLastConfirmEntry().thenCompose(entry -> {
+            CompletableFuture<Long> completableFuture = new CompletableFuture<>();
+            if (entry != null) {
+                TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
+                ByteBuf buffer = entry.getDataBuffer();
+                currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+                lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
+                completableFuture.complete(lastConfirmEntry.getMaxLocalTxnId());
+            } else if (managedLedger.getProperties()
+                    .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID) != null) {
+                completableFuture.complete(Long.parseLong(managedLedger.getProperties()
+                        .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID)));
+            }
+            return completableFuture;
+        }).exceptionally(e -> {
+            log.error("[{}] MLTransactionLog recover fail!", topicName, e);
+            return null;
+        });
     }
 
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
