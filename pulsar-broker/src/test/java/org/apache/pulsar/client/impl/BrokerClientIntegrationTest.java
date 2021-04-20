@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
 import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 import static org.mockito.Mockito.any;
@@ -30,12 +31,14 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -55,7 +58,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Cleanup;
-
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -130,6 +132,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @DataProvider
     public Object[][] subType() {
         return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Failover } };
+    }
+
+    @DataProvider(name = "booleanFlagProvider")
+    public Object[][] booleanFlagProvider() {
+        return new Object[][] { { true }, { false } };
     }
 
     /**
@@ -917,5 +924,99 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @EqualsAndHashCode
     private static final class TestMessageObject{
         private String value;
+    }
+    
+    /**
+     * It validates pooled message consumption for batch and non-batch messages.
+     * 
+     * @throws Exception
+     */
+    @Test(dataProvider = "booleanFlagProvider")
+    public void testConsumerWithPooledMessages(boolean isBatchingEnabled) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        @Cleanup
+        PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+
+        final String topic = "persistent://my-property/my-ns/testConsumerWithPooledMessages" + isBatchingEnabled;
+
+        @Cleanup
+        Consumer<ByteBuffer> consumer = newPulsarClient.newConsumer(Schema.BYTEBUFFER).topic(topic)
+                .subscriptionName("my-sub").poolMessages(true).subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled).create();
+
+        final int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("value-" + i).getBytes(UTF_8))
+            .eventTime((i + 1) * 100L).sendAsync();
+        }
+        producer.flush();
+
+        // Reuse pre-allocated pooled buffer to process every message
+        byte[] val = null;
+        int size = 0;
+        for (int i = 0; i < numMessages; i++) {
+            Message<ByteBuffer> msg = consumer.receive();
+            ByteBuffer value;
+            try {
+                value = msg.getValue();
+                int capacity = value.remaining();
+                // expand the size of buffer if needed
+                if (capacity > size) {
+                    val = new byte[capacity];
+                    size = capacity;
+                }
+                // read message into pooled buffer
+                value.get(val, 0, capacity);
+                // process the message
+                assertEquals(("value-" + i), new String(val, 0, capacity));
+            } finally {
+                msg.release();
+            }
+        }
+        consumer.close();
+        producer.close();
+    }
+    
+    /**
+     * It verifies that expiry/redelivery of messages relesaes the messages without leak.
+     * 
+     * @param isBatchingEnabled
+     * @throws Exception
+     */
+    @Test(dataProvider = "booleanFlagProvider")
+    public void testPooledMessageWithAckTimeout(boolean isBatchingEnabled) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        @Cleanup
+        PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+
+        final String topic = "persistent://my-property/my-ns/testPooledMessageWithAckTimeout" + isBatchingEnabled;
+
+        @Cleanup
+        ConsumerImpl<ByteBuffer> consumer = (ConsumerImpl<ByteBuffer>) newPulsarClient.newConsumer(Schema.BYTEBUFFER)
+                .topic(topic).subscriptionName("my-sub").poolMessages(true).subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled)
+                .create();
+
+        final int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("value-" + i).getBytes(UTF_8)).eventTime((i + 1) * 100L).sendAsync();
+        }
+        producer.flush();
+
+        retryStrategically((test) -> consumer.incomingMessages.peek() != null, 5, 500);
+        MessageImpl<ByteBuffer> msg = (MessageImpl) consumer.incomingMessages.peek();
+        assertNotNull(msg);
+        ByteBuf payload = ((MessageImpl) msg).getPayload();
+        assertNotEquals(payload.refCnt(), 0);
+        consumer.redeliverUnacknowledgedMessages();
+        assertEquals(payload.refCnt(), 0);
+        consumer.close();
+        producer.close();
     }
 }
