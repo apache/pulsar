@@ -588,7 +588,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.asyncReadEntries(op);
     }
 
-    public CompletableFuture<Entry> readLastConfirmEntry() {
+    public CompletableFuture<Entry> readSpecifyPositionByPosition(PositionImpl position) {
 
         CompletableFuture<Entry> completableFuture = new CompletableFuture<>();
         if (isClosed()) {
@@ -596,10 +596,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             return completableFuture;
         }
 
-        if (getManagedLedger().getLastConfirmedEntry() != null
-                && getManagedLedger().getLastConfirmedEntry().getEntryId() != -1) {
+        if (position != null && position.getEntryId() != -1) {
             PENDING_READ_OPS_UPDATER.incrementAndGet(this);
-            OpReadEntry op = OpReadEntry.create(this, (PositionImpl) getManagedLedger().getLastConfirmedEntry(),
+            OpReadEntry op = OpReadEntry.create(this, position,
                     1, new ReadEntriesCallback() {
                         @Override
                         public void readEntriesComplete(List<Entry> entries, Object ctx) {
@@ -609,7 +608,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 completableFuture.complete(entries.get(0));
                             } else {
                                 completableFuture.completeExceptionally(
-                                        new InvalidCursorPositionException("readLastConfirmEntry "
+                                        new InvalidCursorPositionException("readSpecifyPositionByPosition "
                                                 + "is more than one entry!"));
                             }
 
@@ -621,7 +620,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             completableFuture.completeExceptionally(exception);
                             PENDING_READ_OPS_UPDATER.decrementAndGet(ManagedCursorImpl.this);
                         }
-                    }, null, (PositionImpl) getManagedLedger().getLastConfirmedEntry());
+                    }, null, position);
 
             ledger.asyncReadEntries(op);
         } else {
