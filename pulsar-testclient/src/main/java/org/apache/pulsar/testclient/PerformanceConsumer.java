@@ -21,6 +21,10 @@ package org.apache.pulsar.testclient;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import java.io.FileInputStream;
 import java.text.DecimalFormat;
 import java.util.Collections;
@@ -43,9 +47,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
@@ -62,7 +63,7 @@ public class PerformanceConsumer {
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
-
+    @Parameters(commandDescription = "Test pulsar consumer performance.")
     static class Arguments {
 
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)

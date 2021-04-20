@@ -93,6 +93,8 @@ where command is one of:
     simulation-client       Run a simulation server acting as a Pulsar client
     simulation-controller   Run a simulation controller to give commands to servers
 
+    gen-doc                 Generate documentation automatically.
+
     help                    This help message
 
 or command is the full name of a class with a defined main() method.
@@ -167,6 +169,8 @@ elif [ "$COMMAND" == "websocket-producer" ]; then
     exec $JAVA $OPTS org.apache.pulsar.proxy.socket.client.PerformanceClient "$@"
 elif [ "$COMMAND" == "managed-ledger" ]; then
     exec $JAVA $OPTS org.apache.pulsar.testclient.ManagedLedgerWriter "$@"
+elif [ "$COMMAND" == "gen-doc" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.testclient.CmdGenerateDocumentation "$@"
 else
     pulsar_help;
 fi

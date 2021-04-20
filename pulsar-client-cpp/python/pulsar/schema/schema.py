@@ -87,6 +87,10 @@ class JsonSchema(Schema):
 
     def encode(self, obj):
         self._validate_object_type(obj)
+        del obj.__dict__['_default']
+        del obj.__dict__['_required']
+        del obj.__dict__['_required_default']
+
         return json.dumps(obj.__dict__, default=self._get_serialized_value, indent=True).encode('utf-8')
 
     def decode(self, data):
