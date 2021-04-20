@@ -137,5 +137,4 @@ MAINCLASS="org.apache.pulsar.functions.LocalRunner"
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
 
-echo $JAVA $OPTS $MAINCLASS "$@"
 exec $JAVA $OPTS $MAINCLASS "$@"
