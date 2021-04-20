@@ -711,7 +711,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         }.getType()), contextImpl);
             }
         } catch (Exception e) {
-            log.error("Source open produced uncaught exception: ", e);
+            log.error("Source open produced uncaught exception with ContextImpl of {}. "
+                            + "sourceSpec is {}. Exception is {}.",
+                    contextImpl.toString(), sourceSpec.toString(), e);
             throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(this.instanceClassLoader);
