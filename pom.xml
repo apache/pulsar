@@ -1798,9 +1798,6 @@ flexible messaging model and an intuitive client API.</description>
       <activation>
         <activeByDefault>true</activeByDefault>
         <jdk>[8,)</jdk>
-        <property>
-          <name>owasp-dependency-check</name>
-        </property>
       </activation>
       <modules>
         <module>buildtools</module>
