@@ -39,6 +39,7 @@ import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Sink;
@@ -81,6 +82,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final BrokerStats brokerStats;
     private final ProxyStats proxyStats;
     private final Tenants tenants;
+    private final ResourceGroups resourcegroups;
     private final Properties properties;
     private final Namespaces namespaces;
     private final Bookies bookies;
@@ -205,6 +207,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.brokerStats = new BrokerStatsImpl(root, auth, readTimeoutMs);
         this.proxyStats = new ProxyStatsImpl(root, auth, readTimeoutMs);
         this.tenants = new TenantsImpl(root, auth, readTimeoutMs);
+        this.resourcegroups = new ResourceGroupsImpl(root, auth, readTimeoutMs);
         this.properties = new TenantsImpl(root, auth, readTimeoutMs);
         this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs);
         this.topics = new TopicsImpl(root, auth, readTimeoutMs);
@@ -303,6 +306,13 @@ public class PulsarAdminImpl implements PulsarAdmin {
      */
     public Tenants tenants() {
         return tenants;
+    }
+
+    /**
+     * @return the resourcegroups management object
+     */
+    public ResourceGroups resourcegroups() {
+        return resourcegroups;
     }
 
     /**

@@ -105,7 +105,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.60.Final</version>
+      <version>4.1.63.Final</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -125,6 +125,22 @@
           <mapping>
             <java>JAVADOC_STYLE</java>
           </mapping>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- configuration for testing the test retries -->
+          <systemPropertyVariables>
+            <testRetryCount>1</testRetryCount>
+          </systemPropertyVariables>
+          <properties>
+            <property>
+              <name>listener</name>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier</value>
+            </property>
+          </properties>
         </configuration>
       </plugin>
       <plugin>

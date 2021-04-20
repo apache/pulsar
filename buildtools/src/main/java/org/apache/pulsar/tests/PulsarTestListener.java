@@ -41,7 +41,6 @@ public class PulsarTestListener implements ITestListener {
 
     @Override
     public void onTestFailure(ITestResult result) {
-        FailFastNotifier.FailFastEventsSingleton.getInstance().setSkipOnNextTest();
         if (!(result.getThrowable() instanceof SkipException)) {
             System.out.format("!!!!!!!!! FAILURE-- %s.%s(%s)-------\n", result.getTestClass(),
                     result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));

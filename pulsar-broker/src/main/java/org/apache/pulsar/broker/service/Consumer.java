@@ -233,6 +233,11 @@ public class Consumer {
                 if (entry != null) {
                     int batchSize = batchSizes.getBatchSize(i);
                     pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
+                    if (log.isDebugEnabled()){
+                        log.debug("[{}-{}] Added {}:{} ledger entry with batchSize of {} to pendingAcks in"
+                                        + " broker.service.Consumer for consumerId: {}",
+                             topicName, subscription, entry.getLedgerId(), entry.getEntryId(), batchSize, consumerId);
+                    }
                 }
             }
         }
@@ -246,6 +251,11 @@ public class Consumer {
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
         MESSAGE_PERMITS_UPDATER.addAndGet(this, ackedCount - totalMessages);
+        if (log.isDebugEnabled()){
+            log.debug("[{}-{}] Added {} minus {} messages to MESSAGE_PERMITS_UPDATER in broker.service.Consumer"
+                            + " for consumerId: {}; avgMessagesPerEntry is {}",
+                   topicName, subscription, ackedCount, totalMessages, consumerId, tmpAvgMessagesPerEntry);
+        }
         incrementUnackedMessages(totalMessages);
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
         msgOutCounter.add(totalMessages);
@@ -514,6 +524,10 @@ public class Consumer {
         int oldPermits;
         if (!blockedConsumerOnUnackedMsgs) {
             oldPermits = MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfMessages);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Added {} message permits in broker.service.Consumer before updating dispatcher "
+                        + "for consumer", topicName, subscription, additionalNumberOfMessages, consumerId);
+            }
             subscription.consumerFlow(this, additionalNumberOfMessages);
         } else {
             oldPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndAdd(this, additionalNumberOfMessages);
@@ -537,6 +551,10 @@ public class Consumer {
         int additionalNumberOfPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(consumer, 0);
         // add newly flow permits to actual consumer.messagePermits
         MESSAGE_PERMITS_UPDATER.getAndAdd(consumer, additionalNumberOfPermits);
+        if (log.isDebugEnabled()){
+            log.debug("[{}-{}] Added {} blocked permits to broker.service.Consumer for consumer", topicName,
+                    subscription, additionalNumberOfPermits, consumerId);
+        }
         // dispatch pending permits to flow more messages: it will add more permits to dispatcher and consumer
         subscription.consumerFlow(consumer, additionalNumberOfPermits);
     }
@@ -586,6 +604,10 @@ public class Consumer {
         lastAckedTimestamp = consumerStats.lastAckedTimestamp;
         lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
         MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
+        if (log.isDebugEnabled()){
+            log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer", topicName,
+                    subscription, consumerStats.availablePermits, consumerId);
+        }
         unackedMessages = consumerStats.unackedMessages;
         blockedConsumerOnUnackedMsgs = consumerStats.blockedConsumerOnUnackedMsgs;
         AVG_MESSAGES_PER_ENTRY.set(this, consumerStats.avgMessagesPerEntry);
@@ -765,6 +787,10 @@ public class Consumer {
         // if permitsReceivedWhileConsumerBlocked has been accumulated then pass it to Dispatcher to flow messages
         if (numberOfBlockedPermits > 0) {
             MESSAGE_PERMITS_UPDATER.getAndAdd(this, numberOfBlockedPermits);
+            if (log.isDebugEnabled()) {
+               log.debug("[{}-{}] Added {} blockedPermits to broker.service.Consumer's messagePermits for consumer {}",
+                       topicName, subscription, numberOfBlockedPermits, consumerId);
+            }
             subscription.consumerFlow(this, numberOfBlockedPermits);
         }
     }

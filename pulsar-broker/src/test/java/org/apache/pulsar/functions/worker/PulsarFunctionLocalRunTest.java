@@ -74,6 +74,8 @@ import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -191,6 +193,7 @@ public class PulsarFunctionLocalRunTest {
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
@@ -393,7 +396,7 @@ public class PulsarFunctionLocalRunTest {
      *
      * @throws Exception
      */
-    private void testE2EPulsarFunctionLocalRun(String jarFilePathUrl) throws Exception {
+    private void testE2EPulsarFunctionLocalRun(String jarFilePathUrl, int parallelism) throws Exception {
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -416,6 +419,7 @@ public class PulsarFunctionLocalRunTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
         functionConfig.setJar(jarFilePathUrl);
+        functionConfig.setParallelism(parallelism);
         int metricsPort = FunctionCommon.findAvailablePort();
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
@@ -430,15 +434,25 @@ public class PulsarFunctionLocalRunTest {
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
-        retryStrategically((test) -> {
+        Assert.assertTrue(retryStrategically((test) -> {
             try {
-                TopicStats stats = admin.topics().getStats(sourceTopic);
-                return stats.subscriptions.get(subscriptionName) != null
-                        && !stats.subscriptions.get(subscriptionName).consumers.isEmpty();
+
+                boolean result = false;
+                TopicStats topicStats = admin.topics().getStats(sourceTopic);
+                if (topicStats.subscriptions.containsKey(subscriptionName)
+                        && topicStats.subscriptions.get(subscriptionName).consumers.size() == parallelism) {
+                    for (ConsumerStats consumerStats : topicStats.subscriptions.get(subscriptionName).consumers) {
+                        result = consumerStats.availablePermits == 1000
+                                && consumerStats.metadata != null
+                                && consumerStats.metadata.containsKey("id")
+                                && consumerStats.metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, functionName));
+                    }
+                }
+                return result;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 50, 150);
+        }, 50, 150));
         // validate pulsar sink consumer has started on the topic
         TopicStats stats = admin.topics().getStats(sourceTopic);
         assertTrue(stats.subscriptions.get(subscriptionName) != null
@@ -474,16 +488,31 @@ public class PulsarFunctionLocalRunTest {
         String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
-        assertFalse(metrics.isEmpty());
+        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
+            if (line.startsWith("pulsar_function_processed_successfully_total")) {
+                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                assertFalse(metrics.isEmpty());
+                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_function_processed_successfully_total");
+                if (m != null) {
+                    metricsMap.put(m.tags.get("instance_id"), m);
+                }
+            }
+        });
+        Assert.assertEquals(metricsMap.size(), parallelism);
 
-        PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_function_processed_successfully_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), functionName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
-        assertEquals(m.value, 5.0);
+        double totalMsgRecv = 0.0;
+        for (int i = 0; i < parallelism; i++) {
+            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            Assert.assertNotNull(m);
+            assertEquals(m.tags.get("cluster"), config.getClusterName());
+            assertEquals(m.tags.get("instance_id"), String.valueOf(i));
+            assertEquals(m.tags.get("name"), functionName);
+            assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+            assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+            totalMsgRecv += m.value;
+        }
+        Assert.assertEquals(totalMsgRecv, totalMsgs);
 
         // stop functions
         localRunner.stop();
@@ -520,6 +549,10 @@ public class PulsarFunctionLocalRunTest {
                 fail();
             }
         }
+    }
+
+    private void testE2EPulsarFunctionLocalRun(String jarFilePathUrl) throws Exception {
+        testE2EPulsarFunctionLocalRun(jarFilePathUrl, 1);
     }
 
     private void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
@@ -664,7 +697,12 @@ public class PulsarFunctionLocalRunTest {
         testE2EPulsarFunctionLocalRun(fileServer.getUrl("/pulsar-functions-api-examples.jar"));
     }
 
-    private void testPulsarSourceLocalRun(String jarFilePathUrl) throws Exception {
+    @Test(timeOut = 40000)
+    public void testE2EPulsarFunctionLocalRunMultipleInstances() throws Throwable {
+        runWithPulsarFunctionsClassLoader(() -> testE2EPulsarFunctionLocalRun(null, 2));
+    }
+
+    private void testPulsarSourceLocalRun(String jarFilePathUrl, int parallelism) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/output";
@@ -679,6 +717,8 @@ public class PulsarFunctionLocalRunTest {
         }
 
         sourceConfig.setArchive(jarFilePathUrl);
+        sourceConfig.setParallelism(parallelism);
+        int metricsPort = FunctionCommon.findAvailablePort();
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
                 .sourceConfig(sourceConfig)
@@ -690,55 +730,84 @@ public class PulsarFunctionLocalRunTest {
                 .tlsHostNameVerificationEnabled(false)
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls())
                 .connectorsDirectory(workerConfig.getConnectorsDirectory())
+                .metricsPortStart(metricsPort)
                 .build();
 
         localRunner.start(false);
 
-        retryStrategically((test) -> {
+        Assert.assertTrue(retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 1);
+                return admin.topics().getStats(sinkTopic).publishers.size() == parallelism;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 10, 150);
+        }, 10, 150));
 
-        retryStrategically((test) -> {
+        Assert.assertTrue(retryStrategically((test) -> {
             try {
+                boolean result = false;
                 TopicStats sourceStats = admin.topics().getStats(sinkTopic);
-                return sourceStats.publishers.size() == 1
-                        && sourceStats.publishers.get(0).metadata != null
-                        && sourceStats.publishers.get(0).metadata.containsKey("id")
-                        && sourceStats.publishers.get(0).metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+                if (sourceStats.publishers.size() == parallelism) {
+                    for (PublisherStats publisher : sourceStats.publishers) {
+                        result = publisher.metadata != null
+                                && publisher.metadata.containsKey("id")
+                                && publisher.metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+                    }
+                }
+
+                return result;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 50, 150);
+        }, 50, 150));
 
-        TopicStats sourceStats = admin.topics().getStats(sinkTopic);
-        assertEquals(sourceStats.publishers.size(), 1);
-        assertNotNull(sourceStats.publishers.get(0).metadata);
-        assertTrue(sourceStats.publishers.get(0).metadata.containsKey("id"));
-        assertEquals(sourceStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
-
-        retryStrategically((test) -> {
+        Assert.assertTrue(retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 1)
+                return (admin.topics().getStats(sinkTopic).publishers.size() == parallelism)
                         && (admin.topics().getInternalStats(sinkTopic, false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 50, 150);
-        assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 1);
+        }, 50, 150));
+        assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), parallelism);
+
+        // validate prometheus metrics
+        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
+        log.info("prometheus metrics: {}", prometheusMetrics);
+
+        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
+            if (line.startsWith("pulsar_source_written_total")) {
+                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                assertFalse(metrics.isEmpty());
+                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_source_written_total");
+                if (m != null) {
+                    metricsMap.put(m.tags.get("instance_id"), m);
+                }
+            }
+        });
+        Assert.assertEquals(metricsMap.size(), parallelism);
+
+        for (int i = 0; i < parallelism; i++) {
+            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            Assert.assertNotNull(m);
+            assertEquals(m.tags.get("cluster"), config.getClusterName());
+            assertEquals(m.tags.get("instance_id"), String.valueOf(i));
+            assertEquals(m.tags.get("name"), sourceName);
+            assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+            assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+            assertTrue(m.value > 0.0);
+        }
 
         localRunner.stop();
 
-        retryStrategically((test) -> {
+        Assert.assertTrue(retryStrategically((test) -> {
             try {
                 return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
             } catch (PulsarAdminException e) {
                 return e.getStatusCode() == 404;
             }
-        }, 10, 150);
+        }, 10, 150));
 
         try {
             assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 0);
@@ -747,6 +816,10 @@ public class PulsarFunctionLocalRunTest {
                 fail();
             }
         }
+    }
+
+    private void testPulsarSourceLocalRun(String jarFilePathUrl) throws Exception {
+        testPulsarSourceLocalRun(jarFilePathUrl, 1);
     }
 
     @Test(timeOut = 20000, groups = "builtin")
@@ -770,7 +843,12 @@ public class PulsarFunctionLocalRunTest {
         testPulsarSourceLocalRun(fileServer.getUrl("/pulsar-io-data-generator.nar"));
     }
 
-    private void testPulsarSinkLocalRun(String jarFilePathUrl) throws Exception {
+    @Test(timeOut = 40000)
+    public void testPulsarSourceLocalRunMultipleInstances() throws Throwable {
+        runWithNarClassLoader(() -> testPulsarSourceLocalRun(null, 2));
+    }
+
+    private void testPulsarSinkLocalRun(String jarFilePathUrl, int parallelism) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
@@ -793,6 +871,7 @@ public class PulsarFunctionLocalRunTest {
         }
 
         sinkConfig.setArchive(jarFilePathUrl);
+        sinkConfig.setParallelism(parallelism);
         int metricsPort = FunctionCommon.findAvailablePort();
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
@@ -810,58 +889,70 @@ public class PulsarFunctionLocalRunTest {
 
         localRunner.start(false);
 
-        retryStrategically((test) -> {
+        Assert.assertTrue(retryStrategically((test) -> {
             try {
+                boolean result = false;
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
-
-                return topicStats.subscriptions.containsKey(subscriptionName)
-                        && topicStats.subscriptions.get(subscriptionName).consumers.size() == 1
-                        && topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits == 1000;
-
+                if (topicStats.subscriptions.containsKey(subscriptionName)
+                        && topicStats.subscriptions.get(subscriptionName).consumers.size() == parallelism) {
+                    for (ConsumerStats consumerStats : topicStats.subscriptions.get(subscriptionName).consumers) {
+                        result = consumerStats.availablePermits == 1000;
+                    }
+                }
+                return result;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 20, 150);
-
-        TopicStats topicStats = admin.topics().getStats(sourceTopic);
-        assertEquals(topicStats.subscriptions.size(), 1);
-        assertTrue(topicStats.subscriptions.containsKey(subscriptionName));
-        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
-        assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits, 1000);
+        }, 20, 150));
 
         int totalMsgs = 10;
         for (int i = 0; i < totalMsgs; i++) {
             String data = "my-message-" + i;
             producer.newMessage().property(propertyKey, propertyValue).value(data).send();
         }
-        retryStrategically((test) -> {
+        Assert.assertTrue(retryStrategically((test) -> {
             try {
                 SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
                 return subStats.unackedMessages == 0 && subStats.msgThroughputOut == totalMsgs;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 200);
+        }, 5, 200));
 
         // validate prometheus metrics
         String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);
-        assertFalse(metrics.isEmpty());
+        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
+            if (line.startsWith("pulsar_sink_written_total")) {
+                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                assertFalse(metrics.isEmpty());
+                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_written_total");
+                if (m != null) {
+                    metricsMap.put(m.tags.get("instance_id"), m);
+                }
+            }
+        });
+        Assert.assertEquals(metricsMap.size(), parallelism);
 
-        PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_written_total");
-        assertEquals(m.tags.get("cluster"), config.getClusterName());
-        assertEquals(m.tags.get("instance_id"), "0");
-        assertEquals(m.tags.get("name"), sinkName);
-        assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
-        assertEquals(m.value, 10.0);
+        double totalNumRecvMsg = 0;
+        for (int i = 0; i < parallelism; i++) {
+            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            Assert.assertNotNull(m);
+            assertEquals(m.tags.get("cluster"), config.getClusterName());
+            assertEquals(m.tags.get("instance_id"), String.valueOf(i));
+            assertEquals(m.tags.get("name"), sinkName);
+            assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
+            assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sinkName));
+            totalNumRecvMsg += m.value;
+        }
+        assertEquals(totalNumRecvMsg, totalMsgs);
 
         // stop sink
         localRunner.stop();
 
-        retryStrategically((test) -> {
+        Assert.assertTrue(retryStrategically((test) -> {
             try {
                 TopicStats stats = admin.topics().getStats(sourceTopic);
                 return stats.subscriptions.get(subscriptionName) != null
@@ -869,12 +960,16 @@ public class PulsarFunctionLocalRunTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 20, 150);
+        }, 20, 150));
 
-        topicStats = admin.topics().getStats(sourceTopic);
+        TopicStats topicStats = admin.topics().getStats(sourceTopic);
         assertTrue(topicStats.subscriptions.get(subscriptionName) != null
                 && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty());
 
+    }
+
+    private void testPulsarSinkLocalRun(String jarFilePathUrl) throws Exception {
+        testPulsarSourceLocalRun(jarFilePathUrl, 1);
     }
 
     @Test(timeOut = 20000, groups = "builtin")
@@ -885,6 +980,22 @@ public class PulsarFunctionLocalRunTest {
     @Test(timeOut = 20000)
     public void testPulsarSinkStatsNoArchive() throws Throwable {
         runWithNarClassLoader(() -> testPulsarSinkLocalRun(null));
+    }
+
+    @Test(timeOut = 20000)
+    public void testPulsarSinkStatsWithFile() throws Exception {
+        String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();
+        testPulsarSinkLocalRun(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 40000)
+    public void testPulsarSinkStatsWithUrl() throws Exception {
+        testPulsarSinkLocalRun(fileServer.getUrl("/pulsar-io-data-generator.nar"));
+    }
+
+    @Test(timeOut = 40000)
+    public void testPulsarSinkStatsMultipleInstances() throws Throwable {
+        runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 2));
     }
 
     private void runWithNarClassLoader(Assert.ThrowingRunnable throwingRunnable) throws Throwable {
@@ -907,16 +1018,5 @@ public class PulsarFunctionLocalRunTest {
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
-    }
-
-    @Test(timeOut = 20000)
-    public void testPulsarSinkStatsWithFile() throws Exception {
-        String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();
-        testPulsarSinkLocalRun(jarFilePathUrl);
-    }
-
-    @Test(timeOut = 40000)
-    public void testPulsarSinkStatsWithUrl() throws Exception {
-        testPulsarSinkLocalRun(fileServer.getUrl("/pulsar-io-data-generator.nar"));
     }
 }
