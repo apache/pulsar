@@ -88,6 +88,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -130,6 +131,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -171,7 +173,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                 c.close();
             }
         }
-        pulsarClient.close();
         assertNotEquals(successfulConsumers.size(), totalConsumers);
     }
 
@@ -193,6 +194,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic-" + UUID.randomUUID().toString();
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -233,7 +235,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
         }
         assertEquals(totalConnectedConsumers, totalConsumers);
-        pulsarClient.close();
     }
 
     private boolean areAllConsumersConnected(List<Consumer<byte[]>> consumers) {

@@ -25,6 +25,7 @@ import static org.testng.Assert.fail;
 
 import com.beust.jcommander.internal.Maps;
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -81,6 +82,7 @@ public class BacklogQuotaManagerTest {
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
+            config.setBrokerShutdownTimeoutMs(0L);
             config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
@@ -341,6 +343,7 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -364,7 +367,6 @@ public class BacklogQuotaManagerTest {
 
         TopicStats stats = admin.topics().getStats(topic1);
         assertTrue(stats.backlogSize < 10 * 1024, "Storage size is [" + stats.storageSize + "]");
-        client.close();
     }
 
     @Test
@@ -474,7 +476,6 @@ public class BacklogQuotaManagerTest {
 
         TopicStats stats = admin.topics().getStats(topic1);
         assertTrue(stats.backlogSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
-        client.close();
     }
 
     @Test
@@ -594,8 +595,10 @@ public class BacklogQuotaManagerTest {
         final CyclicBarrier barrier = new CyclicBarrier(2);
         final CountDownLatch counter = new CountDownLatch(2);
         final AtomicBoolean gotException = new AtomicBoolean(false);
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
+        @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer1 = client2.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
@@ -648,8 +651,6 @@ public class BacklogQuotaManagerTest {
 
         TopicStats stats = admin.topics().getStats(topic1);
         assertTrue(stats.backlogSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
-        client.close();
-        client2.close();
     }
 
     @Test
@@ -667,11 +668,13 @@ public class BacklogQuotaManagerTest {
         final CyclicBarrier barrier = new CyclicBarrier(2);
         final CountDownLatch counter = new CountDownLatch(2);
         final AtomicBoolean gotException = new AtomicBoolean(false);
+        @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
 
         final Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
         final Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
+        @Cleanup
         final PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
 
@@ -714,8 +717,6 @@ public class BacklogQuotaManagerTest {
         ConsumerThread.start();
         counter.await();
         assertFalse(gotException.get());
-        client.close();
-        client2.close();
     }
 
     @Test
@@ -733,13 +734,16 @@ public class BacklogQuotaManagerTest {
         final CyclicBarrier barrier = new CyclicBarrier(4);
         final CountDownLatch counter = new CountDownLatch(4);
         final AtomicBoolean gotException = new AtomicBoolean(false);
+        @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
 
         final Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
         final Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
+        @Cleanup
         final PulsarClient client3 = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
+        @Cleanup
         final PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
 
@@ -822,9 +826,6 @@ public class BacklogQuotaManagerTest {
 
         TopicStats stats = admin.topics().getStats(topic1);
         assertTrue(stats.backlogSize <= 15 * 1024, "Storage size is [" + stats.storageSize + "]");
-        client.close();
-        client2.close();
-        client3.close();
     }
 
     @Test
@@ -833,6 +834,7 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_request_hold));
+        @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
         final String topic1 = "persistent://prop/quotahold/hold";
@@ -863,7 +865,6 @@ public class BacklogQuotaManagerTest {
         TopicStats stats = admin.topics().getStats(topic1);
         assertEquals(stats.publishers.size(), 0,
                 "Number of producers on topic " + topic1 + " are [" + stats.publishers.size() + "]");
-        client.close();
     }
 
     @Test
@@ -872,6 +873,7 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_request_hold));
+        @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
         final String topic1 = "persistent://prop/quotahold/holdtimeout";
@@ -898,7 +900,6 @@ public class BacklogQuotaManagerTest {
         }
 
         assertTrue(gotException, "timeout did not occur");
-        client.close();
     }
 
     @Test
@@ -907,6 +908,7 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
+        @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
         final String topic1 = "persistent://prop/quotahold/except";
@@ -935,7 +937,6 @@ public class BacklogQuotaManagerTest {
         }
 
         assertTrue(gotException, "backlog exceeded exception did not occur");
-        client.close();
     }
 
     @Test
@@ -944,6 +945,7 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
+        @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
         final String topic1 = "persistent://prop/quotahold/exceptandunblock";
@@ -994,7 +996,6 @@ public class BacklogQuotaManagerTest {
             sendException = e;
         }
         assertFalse(gotException, "unable to publish due to " + sendException);
-        client.close();
     }
 
     @Test

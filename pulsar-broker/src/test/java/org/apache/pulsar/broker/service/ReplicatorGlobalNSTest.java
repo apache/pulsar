@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -73,8 +74,10 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
         final String topicName = "persistent://" + namespace + "/topic";
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
+        @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -95,8 +98,6 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
         Assert.assertFalse(consumer1.isConnected());
         Assert.assertTrue(consumer2.isConnected());
 
-        client1.close();
-        client2.close();
     }
 
     @Test
@@ -109,6 +110,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
         final String topicName = "persistent://" + namespace + "/topic";
 
+        @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -122,8 +124,6 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
                 .retryStrategically((test) -> !pulsar1.getBrokerService().getTopics().containsKey(topicName), 50, 150);
 
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
-
-        client1.close();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorGlobalNSTest.class);

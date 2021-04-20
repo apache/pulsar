@@ -89,6 +89,7 @@ public class PulsarFunctionTlsTest {
             int webPort = PortManager.nextFreePort();
 
             ServiceConfiguration config = new ServiceConfiguration();
+            config.setBrokerShutdownTimeoutMs(0L);
             config.setWebServicePort(Optional.empty());
             config.setWebServicePortTls(Optional.of(webPort));
             config.setBrokerServicePort(Optional.empty());

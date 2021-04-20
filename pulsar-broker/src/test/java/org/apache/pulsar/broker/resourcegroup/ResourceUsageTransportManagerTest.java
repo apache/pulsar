@@ -34,7 +34,6 @@ import static org.testng.Assert.assertNotNull;
 
 public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTest {
 
-    private static final String INTERNAL_TOPIC = "non-persistent://pulsar-test/test/resource-usage";
     private static final int PUBLISH_INTERVAL_SECS = 1;
 
     @BeforeClass
@@ -53,11 +52,10 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
     @Test
     public void testNamespaceCreation() throws Exception {
         ResourceUsageTransportManager tManager = new ResourceUsageTransportManager(pulsar);
-        TopicName topicName = TopicName.get(INTERNAL_TOPIC);
+        TopicName topicName = TopicName.get(ResourceUsageTransportManager.RESOURCE_USAGE_TOPIC_NAME);
 
         assertTrue(admin.tenants().getTenants().contains(topicName.getTenant()));
         assertTrue(admin.namespaces().getNamespaces(topicName.getTenant()).contains(topicName.getNamespace()));
-
     }
     
     @Test
@@ -116,7 +114,6 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
 
     private void prepareData() throws PulsarAdminException {
         this.conf.setResourceUsageTransportClassName("org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager");
-        this.conf.setResourceUsageTransportPublishTopicName(INTERNAL_TOPIC);
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
         admin.clusters().createCluster("test", new ClusterData(pulsar.getBrokerServiceUrl()));
     }

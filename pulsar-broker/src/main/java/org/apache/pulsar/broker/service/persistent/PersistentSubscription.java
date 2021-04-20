@@ -1063,7 +1063,7 @@ public class PersistentSubscription implements Subscription {
     public void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
-            snapshotCache.addNewSnapshot(snapshot);
+            snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
         }
     }
 

@@ -55,6 +55,7 @@ import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.state.StateStoreContextImpl;
 import org.apache.pulsar.functions.instance.state.StateStoreProvider;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -106,7 +107,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private final SecretsProvider secretsProvider;
 
-    private CollectorRegistry collectorRegistry;
+    private FunctionCollectorRegistry collectorRegistry;
     private final String[] metricsLabels;
 
     private InstanceCache instanceCache;
@@ -130,14 +131,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 PulsarAdmin pulsarAdmin,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
-                                CollectorRegistry collectorRegistry,
+                                FunctionCollectorRegistry collectorRegistry,
                                 ClassLoader functionClassLoader) {
         this.instanceConfig = instanceConfig;
         this.client = (PulsarClientImpl) pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
-        this.collectorRegistry = collectorRegistry;
         this.functionClassLoader = functionClassLoader;
         this.metricsLabels = new String[]{
                 instanceConfig.getFunctionDetails().getTenant(),
@@ -171,7 +171,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.instanceCache = InstanceCache.getInstanceCache();
 
         if (this.collectorRegistry == null) {
-            this.collectorRegistry = new CollectorRegistry();
+            this.collectorRegistry = FunctionCollectorRegistry.getDefaultImplementation();
         }
         this.stats = ComponentStatsManager.getStatsManager(this.collectorRegistry, this.metricsLabels,
                 this.instanceCache.getScheduledExecutorService(),

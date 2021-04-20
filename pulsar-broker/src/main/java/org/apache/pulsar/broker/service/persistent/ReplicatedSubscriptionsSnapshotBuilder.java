@@ -90,7 +90,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
                     response.getCluster().getCluster());
         }
         String cluster = response.getCluster().getCluster();
-        responses.putIfAbsent(cluster, response.getCluster().getMessageId());
+        responses.putIfAbsent(cluster, new MarkersMessageIdData().copyFrom(response.getCluster().getMessageId()));
         missingClusters.remove(cluster);
 
         if (log.isDebugEnabled()) {

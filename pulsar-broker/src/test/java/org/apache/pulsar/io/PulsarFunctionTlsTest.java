@@ -107,6 +107,7 @@ public class PulsarFunctionTlsTest {
         bkEnsemble.start();
 
         config = spy(new ServiceConfiguration());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setClusterName("use");
         Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
