@@ -4,7 +4,7 @@ title: Pulsar C# client
 sidebar_label: C#
 ---
 
-You can use the Pulsar C# client to create Pulsar producers and consumers in C#. All the methods in the producer, consumer, and reader of a C# client are thread-safe.
+You can use the Pulsar C# client (DotPulsar) to create Pulsar producers and consumers in C#. All the methods in the producer, consumer, and reader of a C# client are thread-safe. The official documentation for DotPulsar is available [here](https://github.com/apache/pulsar-dotpulsar/wiki).
 
 ## Installation
 
@@ -32,65 +32,20 @@ To install the Pulsar C# client library, following these steps:
 
    4. Use `dotnet run` to test that the app has been created properly.
 
-2. Add the Newtonsoft.Json NuGet package.
+2. Add the DotPulsar NuGet package.
 
-   1. Use the following command to install the `Newtonsoft.json` package:
+   1. Use the following command to install the `DotPulsar` package.
 
         ```
-        dotnet add package Newtonsoft.Json
+        dotnet add package DotPulsar
         ```
 
-   2. After the command completes, open the `.csproj` file to see the added reference:
+   2. After the command completes, open the `.csproj` file to see the added reference.
 
         ```xml
         <ItemGroup>
-        <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+          <PackageReference Include="DotPulsar" Version="0.11.0" />
         </ItemGroup>
-        ```
-
-3. Use the Newtonsoft.Json API in the app.
-
-   1. Open the `Program.cs` file and add the following line at the top of the file:
-
-        ```c#
-        using Newtonsoft.Json;
-        ```
-
-   2. Add the following code before the `class Program` line:
-
-        ```c#
-        public class Account
-        {
-        public string Name { get; set; }
-        public string Email { get; set; }
-        public DateTime DOB { get; set; }
-        }
-        ```
-
-   3. Replace the `Main` function with the following:
-
-        ```c#
-        static void Main(string[] args)
-        {
-            Account account = new Account
-            {
-                Name = "John Doe",
-                Email = "john@nuget.org",
-                DOB = new DateTime(1980, 2, 20, 0, 0, 0, DateTimeKind.Utc),
-            };
-
-            string json = JsonConvert.SerializeObject(account, Formatting.Indented);
-            Console.WriteLine(json);
-        }
-        ```
-   4. Build and run the app by using the `dotnet run` command. The output should be the JSON representation of the `Account` object in the code:
-
-        ```output
-        {
-        "Name": "John Doe",
-        "Email": "john@nuget.org",
-        "DOB": "1980-02-20T00:00:00Z"
-        }
         ```
 
 ## Client
@@ -99,13 +54,13 @@ This section describes some configuration examples for the Pulsar C# client.
 
 ### Create client
 
-This example shows how to create a Pulsar C# client connected to the local host.
+This example shows how to create a Pulsar C# client connected to localhost.
 
 ```c#
 var client = PulsarClient.Builder().Build();
 ```
 
-To create a Pulsar C# client by using the builder, you need to specify the following options:
+To create a Pulsar C# client by using the builder, you can specify the following options.
 
 | Option | Description | Default |
 | ---- | ---- | ---- |
@@ -120,8 +75,8 @@ This section describes how to create a producer.
 
     ```c#
     var producer = client.NewProducer()
-                        .Topic("persistent://public/default/mytopic")
-                        .Create();
+                         .Topic("persistent://public/default/mytopic")
+                         .Create();
     ```
 
 - Create a producer without using the builder.
@@ -139,9 +94,9 @@ This section describes how to create a consumer.
 
     ```c#
     var consumer = client.NewConsumer()
-                        .SubscriptionName("MySubscription")
-                        .Topic("persistent://public/default/mytopic")
-                        .Create();
+                         .SubscriptionName("MySubscription")
+                         .Topic("persistent://public/default/mytopic")
+                         .Create();
     ```
 
 - Create a consumer without using the builder.
@@ -159,9 +114,9 @@ This section describes how to create a reader.
 
     ```c#
     var reader = client.NewReader()
-                    .StartMessageId(MessageId.Earliest)
-                    .Topic("persistent://public/default/mytopic")
-                    .Create();
+                       .StartMessageId(MessageId.Earliest)
+                       .Topic("persistent://public/default/mytopic")
+                       .Create();
     ```
 
 - Create a reader without using the builder.
@@ -205,8 +160,8 @@ If you have followed [Authentication using TLS](security-tls-authentication.md),
     ```c#
     var clientCertificate = new X509Certificate2("admin.pfx");
     var client = PulsarClient.Builder()
-                            .AuthenticateUsingClientCertificate(clientCertificate)
-                            .Build();
+                             .AuthenticateUsingClientCertificate(clientCertificate)
+                             .Build();
     ```
 
 ## Producer
@@ -229,8 +184,8 @@ await producer.Send(data);
     ```c#
     var data = Encoding.UTF8.GetBytes("Hello World");
     var messageId = await producer.NewMessage()
-                                .Property("SomeKey", "SomeValue")
-                                .Send(data);
+                                  .Property("SomeKey", "SomeValue")
+                                  .Send(data);
     ```
 
 - Send messages with customized metadata without using the builder.

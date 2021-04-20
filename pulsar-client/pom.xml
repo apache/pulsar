@@ -148,6 +148,13 @@
       <artifactId>jcip-annotations</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-annotations</artifactId>
+      <scope>provided</scope>
+      <optional>true</optional>
+    </dependency>
+
     <!-- Testing dependencies -->
     <dependency>
       <groupId>${project.groupId}</groupId>

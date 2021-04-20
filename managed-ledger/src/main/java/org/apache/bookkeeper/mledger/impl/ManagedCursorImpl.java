@@ -502,6 +502,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         messagesConsumedCounter = -getNumberOfEntries(Range.openClosed(position, ledger.getLastPosition()));
         markDeletePosition = position;
+        persistentMarkDeletePosition = position;
         readPosition = ledger.getNextValidPosition(position);
         lastMarkDeleteEntry = new MarkDeleteEntry(markDeletePosition, properties, null, null);
         // assign cursor-ledger so, it can be deleted when new ledger will be switched
@@ -785,7 +786,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private boolean isClosed() {
+    public boolean isClosed() {
         return state == State.Closed || state == State.Closing;
     }
 

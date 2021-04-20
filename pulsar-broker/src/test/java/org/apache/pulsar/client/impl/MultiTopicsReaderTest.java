@@ -62,7 +62,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-multi-topics-sub";
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -91,7 +91,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         testReadMessages(topic, false);
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 10000, groups = "quarantine")
     public void testReadMessageWithoutBatchingWithMessageInclusive() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-inclusive";
         int topicNum = 3;
@@ -116,7 +116,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         testReadMessages(topic, true);
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 10000, groups = "quarantine")
     public void testReadMessageWithBatchingWithMessageInclusive() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
         int topicNum = 3;

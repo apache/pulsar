@@ -56,7 +56,7 @@ public abstract class AbstractFileTests {
 
     protected Path directory;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void init() throws IOException {
         // Create the directory we are going to read from
         directory = Files.createTempDirectory("pulsar-io-file-tests", getPermissions());

@@ -73,6 +73,7 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,7 +136,8 @@ public class PersistentSubscription implements Subscription {
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(topic.getName())
                 && !topic.getName().contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
-                && !topic.getName().contains(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
+                && !topic.getName().contains(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)
+                && !topic.getName().contains(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
@@ -960,6 +962,7 @@ public class PersistentSubscription implements Subscription {
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
                 subStats.chuckedMessageRate += consumerStats.chuckedMessageRate;
+                subStats.chunkedMessageRate += consumerStats.chunkedMessageRate;
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp =
                         Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
@@ -1078,7 +1081,7 @@ public class PersistentSubscription implements Subscription {
     public void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
-            snapshotCache.addNewSnapshot(snapshot);
+            snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
         }
     }
 

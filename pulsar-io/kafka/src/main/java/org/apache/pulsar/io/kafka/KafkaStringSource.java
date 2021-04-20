@@ -29,13 +29,13 @@ import java.nio.charset.StandardCharsets;
  */
 public class KafkaStringSource extends KafkaAbstractSource<String> {
 
-    @Override
-    public Object extractValue(ConsumerRecord<Object, Object> consumerRecord) {
-        return new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8);
-    }
 
     @Override
-    public Schema<String> extractSchema(ConsumerRecord<Object, Object> consumerRecord) {
-        return Schema.STRING;
+    public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
+        KafkaRecord record = new KafkaRecord(consumerRecord,
+                new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
+                Schema.STRING);
+        return record;
     }
+
 }

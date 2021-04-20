@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.common.policies.data.Policies.getBundles;
 import com.google.common.collect.Lists;
@@ -302,10 +303,10 @@ public abstract class NamespacesBase extends AdminResource {
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
                 final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
                 try {
-                    getLocalPolicies().delete(lcaolZkPolicyPath);
+                    getLocalPolicies().delete(localZkPolicyPath);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
@@ -454,11 +455,11 @@ public abstract class NamespacesBase extends AdminResource {
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
                 final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String lcaolZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
 
                 try {
-                    getLocalPolicies().delete(lcaolZkPolicyPath);
+                    getLocalPolicies().delete(localZkPolicyPath);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
@@ -2089,17 +2090,17 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected int internalGetMaxConsumersPerSubscription() {
+    protected Integer internalGetMaxConsumersPerSubscription() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).max_consumers_per_subscription;
     }
 
-    protected void internalSetMaxConsumersPerSubscription(int maxConsumersPerSubscription) {
+    protected void internalSetMaxConsumersPerSubscription(Integer maxConsumersPerSubscription) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
-            if (maxConsumersPerSubscription < 0) {
+            if (maxConsumersPerSubscription != null && maxConsumersPerSubscription < 0) {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "maxConsumersPerSubscription must be 0 or more");
             }
@@ -2565,5 +2566,26 @@ public abstract class NamespacesBase extends AdminResource {
        }
    }
 
-   private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
+    protected void internalSetNamespaceResourceGroup(String rgName) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RESOURCEGROUP, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        if (rgName != null) {
+            final String resourceGroupPath = AdminResource.path(RESOURCEGROUPS, rgName);
+            // check resourcegroup exists.
+            try {
+                if (!resourceGroupResources().exists(resourceGroupPath)) {
+                    throw new RestException(Status.PRECONDITION_FAILED, "ResourceGroup does not exist");
+                }
+            } catch (Exception e) {
+                log.error("[{}] Invalid ResourceGroup {}: {}", clientAppId(), rgName, e);
+                throw new RestException(e);
+            }
+        }
+
+        internalSetPolicies("resource_group_name", rgName);
+    }
+
+
+    private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }

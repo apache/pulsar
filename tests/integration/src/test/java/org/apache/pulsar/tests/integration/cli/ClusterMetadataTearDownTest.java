@@ -46,9 +46,11 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -58,7 +60,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class ClusterMetadataTearDownTest {
+public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName("ClusterMetadataTearDownTest-" + UUID.randomUUID().toString().substring(0, 8))
@@ -67,7 +69,7 @@ public class ClusterMetadataTearDownTest {
             .enablePrestoWorker(false)
             .build();
 
-    private final PulsarCluster pulsarCluster = PulsarCluster.forSpec(spec);
+    private PulsarCluster pulsarCluster;
 
     private ZooKeeper localZk;
     private ZooKeeper configStoreZk;
@@ -79,8 +81,11 @@ public class ClusterMetadataTearDownTest {
     private PulsarClient client;
     private PulsarAdmin admin;
 
-    @BeforeClass
-    public void setupCluster() throws Exception {
+    @Override
+    @BeforeClass(alwaysRun = true)
+    public final void setup() throws Exception {
+        incrementSetupNumber();
+        pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
         metadataServiceUri = "zk+null://" + pulsarCluster.getZKConnString() + "/ledgers";
 
@@ -96,8 +101,17 @@ public class ClusterMetadataTearDownTest {
         admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
     }
 
+    @Override
     @AfterClass(alwaysRun = true)
-    public void tearDownCluster() {
+    public final void cleanup() throws PulsarClientException {
+        markCurrentSetupNumberCleaned();
+        if (client != null) {
+            client.close();
+        }
+        if (admin != null) {
+            admin.close();
+        }
+
         try {
             ledgerManager.close();
         } catch (IOException e) {

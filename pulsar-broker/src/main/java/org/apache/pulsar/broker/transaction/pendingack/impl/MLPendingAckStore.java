@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
@@ -60,7 +61,7 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private final ManagedCursor cursor;
 
-    private static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pendingack";
+    public static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pendingack";
 
     private static final String PENDING_ACK_STORE_CURSOR_NAME = "pendingack";
 
@@ -289,46 +290,58 @@ public class MLPendingAckStore implements PendingAckStore {
 
         @Override
         public void run() {
-            while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
-                fillEntryQueueCallback.fillQueue();
-                Entry entry = entryQueue.poll();
-                if (entry != null) {
-                    ByteBuf buffer = entry.getDataBuffer();
-                    currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                    PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
-                    pendingAckMetadataEntry.parseFrom(buffer, buffer.readableBytes());
-                    pendingAckReplyCallBack.handleMetadataEntry(pendingAckMetadataEntry);
-                    // store the persistent position in to memory
-                    if (pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.ABORT
-                            && pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.COMMIT) {
-                        Optional<PendingAckMetadata> optional = pendingAckMetadataEntry.getPendingAckMetadatasList()
-                                .stream().max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
-                                        o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
-                        optional.ifPresent(pendingAckMetadata ->
-                                metadataPositions.compute(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()),
-                                        (thisPosition, otherPosition) -> {
-                                            PositionImpl nowPosition = PositionImpl
-                                                    .get(pendingAckMetadata.getLedgerId(),
-                                                            pendingAckMetadata.getEntryId());
-                                            if (otherPosition == null) {
-                                                return nowPosition;
-                                            } else {
-                                                return nowPosition.compareTo(otherPosition) > 0 ? nowPosition
-                                                        : otherPosition;
-                                            }
-                                }));
+            try {
+                while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
+                    if (((ManagedCursorImpl) cursor).isClosed()) {
+                        log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
+                                cursor.getManagedLedger().getName());
+                        return;
                     }
-                    entry.release();
-                } else {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        if (Thread.interrupted()) {
-                            log.error("[{}]Transaction pending "
-                                    + "replay thread interrupt!", managedLedger.getName(), e);
+                    fillEntryQueueCallback.fillQueue();
+                    Entry entry = entryQueue.poll();
+                    if (entry != null) {
+                        ByteBuf buffer = entry.getDataBuffer();
+                        currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+                        PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
+                        pendingAckMetadataEntry.parseFrom(buffer, buffer.readableBytes());
+                        // store the persistent position in to memory
+                        // store the max position of this entry retain
+                        if (pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.ABORT
+                                && pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.COMMIT) {
+                            Optional<PendingAckMetadata> optional = pendingAckMetadataEntry.getPendingAckMetadatasList()
+                                    .stream().max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
+                                            o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
+
+                            optional.ifPresent(pendingAckMetadata ->
+                                    metadataPositions.compute(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()),
+                                            (thisPosition, otherPosition) -> {
+                                                PositionImpl nowPosition = PositionImpl
+                                                        .get(pendingAckMetadata.getLedgerId(),
+                                                                pendingAckMetadata.getEntryId());
+                                                if (otherPosition == null) {
+                                                    return nowPosition;
+                                                } else {
+                                                    return nowPosition.compareTo(otherPosition) > 0 ? nowPosition
+                                                            : otherPosition;
+                                                }
+                                            }));
+                        }
+                        pendingAckReplyCallBack.handleMetadataEntry(pendingAckMetadataEntry);
+                        entry.release();
+                    } else {
+                        try {
+                            Thread.sleep(1);
+                        } catch (InterruptedException e) {
+                            if (Thread.interrupted()) {
+                                log.error("[{}]Transaction pending "
+                                        + "replay thread interrupt!", managedLedger.getName(), e);
+                            }
                         }
                     }
                 }
+            } catch (Exception e) {
+                log.error("[{}] Pending ack recover fail!", subManagedCursor.getManagedLedger().getName(), e);
+                return;
             }
             pendingAckReplyCallBack.replayComplete();
         }

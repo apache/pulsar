@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -183,13 +184,21 @@ public class Reflections {
      * @return true if class can be loaded from jar and false if otherwise
      */
     public static boolean classExistsInJar(java.io.File jar, String fqcn) {
+        java.net.URLClassLoader loader = null;
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) ClassLoaderUtils.loadJar(jar);
+            loader = (URLClassLoader) ClassLoaderUtils.loadJar(jar);
             Class.forName(fqcn, false, loader);
-            loader.close();
             return true;
         } catch (ClassNotFoundException | NoClassDefFoundError | IOException e) {
             return false;
+        } finally {
+            if (loader != null) {
+                try {
+                    loader.close();
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
         }
     }
 
@@ -217,14 +226,22 @@ public class Reflections {
      */
     public static boolean classInJarImplementsIface(java.io.File jar, String fqcn, Class xface) {
         boolean ret = false;
+        java.net.URLClassLoader loader = null;
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) ClassLoaderUtils.loadJar(jar);
+            loader = (URLClassLoader) ClassLoaderUtils.loadJar(jar);
             if (xface.isAssignableFrom(Class.forName(fqcn, false, loader))){
                 ret = true;
             }
-            loader.close();
         } catch (ClassNotFoundException | NoClassDefFoundError | IOException e) {
             throw new RuntimeException(e);
+        } finally {
+            if (loader != null) {
+                try {
+                    loader.close();
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
         }
         return ret;
     }
