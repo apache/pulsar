@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -65,6 +66,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     private final LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers;
 
+    private final LinkedHashMap<Integer, Position> currentSendPositionPerKeyMap;
+
     private final Set<Consumer> stuckConsumers;
     private final Set<Consumer> nextStuckConsumers;
 
@@ -74,6 +77,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
+        this.currentSendPositionPerKeyMap = new LinkedHashMap<>();
         this.stuckConsumers = new HashSet<>();
         this.nextStuckConsumers = new HashSet<>();
 
@@ -190,6 +194,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
 
             if (messagesForC < entriesWithSameKeyCount) {
+
                 // We are not able to push all the messages with given key to its consumer,
                 // so we discard for now and mark them for later redelivery
                 for (int i = messagesForC; i < entriesWithSameKeyCount; i++) {
@@ -219,11 +224,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                         getRedeliveryTracker()).addListener(future -> {
-                    if (future.isDone() && keyNumbers.decrementAndGet() == 0) {
-                        readMoreEntries();
-                    }
-                });
-
+                            if (future.isSuccess()) {
+                                Entry entry = entriesWithSameKey.get(entriesWithSameKey.size() - 1);
+                                Integer hashCode =
+                                        selector.generateKeyHash(peekStickyKey(entry.getDataBuffer()));
+                                currentSendPositionPerKeyMap.put(hashCode, entry.getPosition());
+                            }
+                            if (future.isDone() && keyNumbers.decrementAndGet() == 0) {
+                                readMoreEntries();
+                            }
+                        });
                 TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
                         -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
@@ -276,7 +286,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
     }
 
-    private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries,
+    @VisibleForTesting
+    protected int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries,
                                                    int maxMessages, ReadType readType) {
         if (maxMessages == 0) {
             // the consumer was stuck
@@ -322,16 +333,30 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 maxReadPosition = minReadPositionForRecentJoinedConsumer;
             }
         }
+
         // Here, the consumer is one that has recently joined, so we can only send messages that were
         // published before it has joined.
+        PositionImpl p = null;
+        PositionImpl entryPosition = null;
+
+        if (entries != null && entries.size() > 0) {
+            entryPosition = (PositionImpl) entries.get(0).getPosition();
+            Integer hashCode =
+                    selector.generateKeyHash(peekStickyKey(entries.get(0).getDataBuffer()));
+            p = (PositionImpl) currentSendPositionPerKeyMap.get(hashCode);
+            if (p != null && entryPosition != null && entryPosition.compareTo(p) >= 0) {
+                return maxMessages;
+            }
+        }
+
         for (int i = 0; i < maxMessages; i++) {
             if (((PositionImpl) entries.get(i).getPosition()).compareTo(maxReadPosition) >= 0) {
                 // We have already crossed the divider line. All messages in the list are now
                 // newer than what we can currently dispatch to this consumer
+
                 return i;
             }
         }
-
         return maxMessages;
     }
 
@@ -345,7 +370,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
     }
 
-    private boolean removeConsumersFromRecentJoinedConsumers() {
+    @VisibleForTesting
+    protected boolean removeConsumersFromRecentJoinedConsumers() {
         Iterator<Map.Entry<Consumer, PositionImpl>> itr = recentlyJoinedConsumers.entrySet().iterator();
         boolean hasConsumerRemovedFromTheRecentJoinedConsumers = false;
         PositionImpl mdp = (PositionImpl) cursor.getMarkDeletedPosition();
@@ -391,10 +417,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return recentlyJoinedConsumers;
     }
 
+    public LinkedHashMap<Integer, Position> getCurrentSendPositionPerKeyMap() {
+         return currentSendPositionPerKeyMap;
+    }
     public Map<String, List<String>> getConsumerKeyHashRanges() {
         return selector.getConsumerKeyHashRanges();
     }
 
+
+    public StickyKeyConsumerSelector getSelector() {
+         return selector;
+    }
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
 
 }

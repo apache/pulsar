@@ -104,9 +104,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public Consumer select(byte[] stickyKey) {
-        int hash = Murmur3_32Hash.getInstance().makeHash(stickyKey);
-
+    public Consumer select(int hash) {
         rwLock.readLock().lock();
         try {
             if (hashRing.isEmpty()) {
@@ -125,6 +123,11 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         } finally {
             rwLock.readLock().unlock();
         }
+    }
+
+    @Override
+    public Consumer select(byte[] stickyKey) {
+        return select(generateKeyHash(stickyKey));
     }
 
     @Override

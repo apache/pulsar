@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * This is a sticky-key consumer selector based user provided range.
@@ -67,7 +66,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public Consumer select(byte[] stickyKey) {
-        return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
+        return select(generateKeyHash(stickyKey));
     }
 
     @Override
@@ -88,7 +87,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         return result;
     }
 
-    Consumer select(int hash) {
+    @Override
+    public Consumer select(int hash) {
         if (rangeMap.size() > 0) {
             int slot = hash % rangeSize;
             Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(slot);
