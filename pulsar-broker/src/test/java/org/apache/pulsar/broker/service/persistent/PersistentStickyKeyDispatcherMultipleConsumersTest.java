@@ -41,7 +41,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
@@ -134,7 +133,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test
-    @Ignore
     public void testSendMarkerMessage() {
         try {
             persistentDispatcher.addConsumer(consumerMock);
@@ -174,7 +172,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(timeOut = 10000)
-    @Ignore
     public void testSendMessage() {
         KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
         PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
@@ -250,7 +247,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test
-    @Ignore
     public void testSkipRedeliverTemporally() {
         final Consumer slowConsumerMock = mock(Consumer.class);
         final ChannelPromise slowChannelMock = mock(ChannelPromise.class);
