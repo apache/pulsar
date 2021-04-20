@@ -195,11 +195,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final static CompletableFuture<PositionImpl> NULL_OFFLOAD_PROMISE = CompletableFuture
             .completedFuture(PositionImpl.latest);
     private volatile LedgerHandle currentLedger;
-    private long currentLedgerEntries = 0;
-    private long currentLedgerSize = 0;
-    private long lastLedgerCreatedTimestamp = 0;
-    private long lastLedgerCreationFailureTimestamp = 0;
-    private long lastLedgerCreationInitiationTimestamp = 0;
+    private volatile long currentLedgerEntries = 0;
+    private volatile long currentLedgerSize = 0;
+    private volatile long lastLedgerCreatedTimestamp = 0;
+    private volatile long lastLedgerCreationFailureTimestamp = 0;
+    private volatile long lastLedgerCreationInitiationTimestamp = 0;
 
     private static final Random random = new Random(System.currentTimeMillis());
     private final long maximumRolloverTimeMs;
