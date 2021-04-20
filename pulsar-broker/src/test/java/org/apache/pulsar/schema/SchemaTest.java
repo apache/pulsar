@@ -52,6 +52,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -258,7 +259,16 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testUseAutoConsumeWithSchemalessTopic() throws Exception {
+    public void testUseAutoConsumeWithBytesSchemaTopic() throws Exception {
+        testUseAutoConsumeWithSchemalessTopic(SchemaType.BYTES);
+    }
+
+    @Test
+    public void testUseAutoConsumeWithNoneSchemaTopic() throws Exception {
+        testUseAutoConsumeWithSchemalessTopic(SchemaType.NONE);
+    }
+
+    private void testUseAutoConsumeWithSchemalessTopic(SchemaType schema) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
         final String topicName = "test-schemaless";
@@ -275,6 +285,15 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().createPartitionedTopic(topic, 2);
 
+        // set schema
+        SchemaInfo schemaInfo = SchemaInfo
+                .builder()
+                .schema(new byte[0])
+                .name("dummySchema")
+                .type(schema)
+                .build();
+        admin.schemas().createSchema(topic, schemaInfo);
+
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topic)
@@ -286,7 +305,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
 
         // use GenericRecord even for primitive types
-        // it will be a PrimitiveRecord
+        // it will be a GenericObjectWrapper
         Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .subscriptionName("test-sub3")
                 .topic(topic)
