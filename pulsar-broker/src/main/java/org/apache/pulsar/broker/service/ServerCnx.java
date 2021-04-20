@@ -1707,9 +1707,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     protected void handleGetSchema(CommandGetSchema commandGetSchema) {
         if (log.isDebugEnabled()) {
-            log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
-                    remoteAddress, new String(commandGetSchema.getSchemaVersion()),
-                    commandGetSchema.getTopic(), commandGetSchema.getRequestId());
+            if (commandGetSchema.hasSchemaVersion()) {
+                log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
+                        remoteAddress, new String(commandGetSchema.getSchemaVersion()),
+                        commandGetSchema.getTopic(), commandGetSchema.getRequestId());
+            } else {
+                log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
+                        remoteAddress, null,
+                        commandGetSchema.getTopic(), commandGetSchema.getRequestId());
+            }
         }
 
         long requestId = commandGetSchema.getRequestId();

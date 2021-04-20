@@ -47,6 +47,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.functions.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
@@ -475,7 +476,7 @@ public class RuntimeUtils {
         return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
     }
 
-    public static void registerDefaultCollectors(CollectorRegistry registry) {
+    public static void registerDefaultCollectors(FunctionCollectorRegistry registry) {
         // Add the JMX exporter for functionality similar to the kafka connect JMX metrics
         try {
             new JmxCollector("{}").register(registry);
