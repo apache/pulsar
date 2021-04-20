@@ -398,7 +398,6 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         Set<String> keys = new HashSet<>();
         ProducerBuilder<byte[]> builder = pulsarClient.newProducer();
         builder.messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        builder.maxPendingMessages(count);
         // disable periodical flushing
         builder.batchingMaxPublishDelay(1, TimeUnit.DAYS);
         builder.topic(topic);
@@ -407,13 +406,18 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
             builder.batchingMaxMessages(count);
         } else {
             builder.enableBatching(false);
+            builder.maxPendingMessages(1);
         }
         try (Producer<byte[]> producer = builder.create()) {
             List<CompletableFuture<MessageId>> list = new ArrayList<>();
             for (int i = 0; i < count; i++) {
                 String key = "key" + i;
                 byte[] data = ("my-message-" + i).getBytes();
-                list.add(producer.newMessage().key(key).value(data).sendAsync());
+                if (enableBatch) {
+                    list.add(producer.newMessage().key(key).value(data).sendAsync());
+                } else {
+                    producer.newMessage().key(key).value(data).send();
+                }
                 keys.add(key);
             }
             producer.flush();

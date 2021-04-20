@@ -78,6 +78,7 @@ import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -1866,13 +1867,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 //this situation will occur when :
                 // 1.We haven't read yet 2.The connection was reset multiple times
                 // 3.Broker has pushed messages to ReceiverQueue, but messages were cleaned due to connection reset
-                seekAsync(startMessageId).whenComplete((ignore, e) -> {
-                    if (e != null) {
-                        booleanFuture.complete(false);
-                    } else {
-                        booleanFuture.complete(true);
+                Backoff backoff = new BackoffBuilder()
+                        .setInitialTime(100, TimeUnit.MILLISECONDS)
+                        .setMax(2000, TimeUnit.MILLISECONDS)
+                        .setMandatoryStop(client.getConfiguration().getOperationTimeoutMs(), TimeUnit.SECONDS)
+                        .create();
+                RetryUtil.retryAsynchronously(() -> {
+                    try {
+                        seek(startMessageId);
+                        return true;
+                    } catch (PulsarClientException e) {
+                        throw new RuntimeException(e);
                     }
-                });
+                }, backoff, pinnedExecutor, booleanFuture);
                 return  booleanFuture;
             }
 
