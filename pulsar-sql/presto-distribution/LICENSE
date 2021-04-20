@@ -307,7 +307,7 @@ The Apache Software License, Version 2.0
     - httpclient-4.5.13.jar
     - httpcore-4.4.13.jar
   * Error Prone Annotations
-    - error_prone_annotations-2.3.4.jar
+    - error_prone_annotations-2.5.1.jar
   * Esri Geometry API For Java
     - esri-geometry-api-2.2.2.jar
   * Failsafe
