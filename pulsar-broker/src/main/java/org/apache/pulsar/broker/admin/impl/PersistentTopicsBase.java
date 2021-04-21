@@ -3939,7 +3939,8 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isPartitioned()) {
             CompletableFuture<Void> future = pulsar().getBrokerService().truncateTopic(topicName.toString());
             future.thenAccept(a -> {
-                asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(), Response.Status.NO_CONTENT.getReasonPhrase()));
+                asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
+                        Response.Status.NO_CONTENT.getReasonPhrase()));
             }).exceptionally(e -> {
                 asyncResponse.resume(e);
                 return null;
@@ -3954,7 +3955,8 @@ public class PersistentTopicsBase extends AdminResource {
                         CompletableFuture<Void> future =
                                 pulsar().getBrokerService().truncateTopic(topicName.toString());
                         future.thenAccept(a -> {
-                            asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(), Response.Status.NO_CONTENT.getReasonPhrase()));
+                            asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
+                                    Response.Status.NO_CONTENT.getReasonPhrase()));
                         }).exceptionally(e -> {
                             log.error("[{}] Failed to truncate topic {}", clientAppId(), topicNamePartition, e);
                             asyncResponse.resume(e);
@@ -3981,7 +3983,8 @@ public class PersistentTopicsBase extends AdminResource {
                 } else {
                     CompletableFuture<Void> future = pulsar().getBrokerService().truncateTopic(topicName.toString());
                     future.thenAccept(a -> {
-                        asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(), Response.Status.NO_CONTENT.getReasonPhrase()));
+                        asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
+                                Response.Status.NO_CONTENT.getReasonPhrase()));
                     }).exceptionally(e -> {
                         asyncResponse.resume(e);
                         return null;
