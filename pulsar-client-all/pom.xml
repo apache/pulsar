@@ -117,7 +117,7 @@
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
-            <phase>package</phase>
+            <phase>${shadePluginPhase}</phase>
             <goals>
               <goal>shade</goal>
             </goals>
