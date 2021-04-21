@@ -20,6 +20,7 @@
 package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -36,7 +37,6 @@ import org.apache.kafka.connect.sink.SinkTask;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
@@ -101,7 +101,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     private final ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
     private volatile boolean isRunning = false;
 
-    private Properties props = new Properties();
+    private final Properties props = new Properties();
     private PulsarKafkaConnectSinkConfig kafkaSinkConfig;
 
     protected String topicName;
@@ -154,8 +154,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         unwrapKeyValueIfAvailable = kafkaSinkConfig.isUnwrapKeyValueIfAvailable();
 
         String kafkaConnectorFQClassName = kafkaSinkConfig.getKafkaConnectorSinkClass();
-        kafkaSinkConfig.getKafkaConnectorConfigProperties().entrySet()
-                .forEach(kv -> props.put(kv.getKey(), kv.getValue()));
+        kafkaSinkConfig.getKafkaConnectorConfigProperties().forEach(props::put);
 
         Class<?> clazz = Class.forName(kafkaConnectorFQClassName);
         connector = (SinkConnector) clazz.getConstructor().newInstance();
@@ -166,6 +165,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         connector.start(Maps.fromProperties(props));
 
         List<Map<String, String>> configs = connector.taskConfigs(1);
+        Preconditions.checkNotNull(configs);
+        Preconditions.checkArgument(configs.size() == 1);
+
         configs.forEach(x -> {
             x.put(OFFSET_STORAGE_TOPIC_CONFIG, kafkaSinkConfig.getOffsetStorageTopic());
             x.put(PULSAR_SERVICE_URL_CONFIG, kafkaSinkConfig.getPulsarServiceUrl());
@@ -228,7 +230,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
     /**
      * org.apache.kafka.connect.data.Schema for the object
-     * @param obj
+     * @param obj - Object to get schema of.
      * @return org.apache.kafka.connect.data.Schema
      */
     private static Schema getKafkaConnectSchemaForObject(Object obj) {
@@ -239,7 +241,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     }
 
     public static Schema getKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema, Object obj) {
-        if (pulsarSchema != null
+        if (pulsarSchema != null && pulsarSchema.getSchemaInfo() != null
                 && pulsarSchemaTypeTypeToKafkaSchema.containsKey(pulsarSchema.getSchemaInfo().getType())) {
             return pulsarSchemaTypeTypeToKafkaSchema.get(pulsarSchema.getSchemaInfo().getType());
         }
@@ -247,7 +249,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         Schema result = getKafkaConnectSchemaForObject(obj);
         if (result == null) {
             throw new IllegalStateException("Unsupported kafka schema for Pulsar Schema "
-                    + (pulsarSchema == null ? "null" : pulsarSchema.getSchemaInfo().toString())
+                    + (pulsarSchema == null || pulsarSchema.getSchemaInfo() == null
+                        ? "null"
+                        : pulsarSchema.getSchemaInfo().toString())
                     + " object class "
                     + (obj == null ? "null" : obj.getClass().getCanonicalName()));
         }
@@ -267,6 +271,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         // sourceRecord is never instanceof KVRecord
         // https://github.com/apache/pulsar/pull/10113
         if (unwrapKeyValueIfAvailable && sourceRecord.getSchema() != null
+                && sourceRecord.getSchema().getSchemaInfo() != null
                 && sourceRecord.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) sourceRecord.getSchema();
             KeyValue kv = (KeyValue) sourceRecord.getValue().getNativeObject();
@@ -301,7 +306,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             timestamp = sourceRecord.getMessage().get().getPublishTime();
             timestampType = TimestampType.LOG_APPEND_TIME;
         }
-        SinkRecord sinkRecord = new SinkRecord(topic,
+        return new SinkRecord(topic,
                 partition,
                 keySchema,
                 key,
@@ -310,7 +315,6 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 offset,
                 timestamp,
                 timestampType);
-        return sinkRecord;
     }
 
     @VisibleForTesting

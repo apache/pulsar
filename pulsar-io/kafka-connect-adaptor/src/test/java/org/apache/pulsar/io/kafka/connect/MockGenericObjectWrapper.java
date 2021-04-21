@@ -33,7 +33,7 @@ import java.util.List;
  */
 @Data
 @Builder
-class GenericObjectWrapper implements GenericRecord {
+class MockGenericObjectWrapper implements GenericRecord {
 
     private final Object nativeObject;
     private final SchemaType schemaType;

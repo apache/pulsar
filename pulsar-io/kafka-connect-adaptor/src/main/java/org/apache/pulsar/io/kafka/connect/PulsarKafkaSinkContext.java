@@ -32,6 +32,7 @@ public class PulsarKafkaSinkContext implements ConnectorContext {
 
     @Override
     public void raiseError(Exception e) {
-        throw new UnsupportedOperationException("not implemented");
+        log.error("raiseError requested", e);
+        throw new UnsupportedOperationException("not implemented", e);
     }
 }

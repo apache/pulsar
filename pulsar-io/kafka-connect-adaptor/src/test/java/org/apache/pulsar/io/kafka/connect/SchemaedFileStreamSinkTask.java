@@ -28,11 +28,13 @@ import org.testng.collections.Maps;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings({"unchecked", "rawtypes"})
+/**
+ * A FileStreamSinkTask for testing that writes data other than just a value, i.e.:
+ * key, value, key and value schemas.
+ */
 public class SchemaedFileStreamSinkTask extends FileStreamSinkTask {
 
     @Override
@@ -40,13 +42,9 @@ public class SchemaedFileStreamSinkTask extends FileStreamSinkTask {
 
         List<SinkRecord> out = Lists.newLinkedList();
 
-        Iterator var2 = sinkRecords.iterator();
-
-        while (var2.hasNext()) {
-            SinkRecord record = (SinkRecord) var2.next();
-
+        for (SinkRecord record: sinkRecords) {
             Object val = record.valueSchema() == Schema.BYTES_SCHEMA
-                    ? new String((byte[])record.value(), StandardCharsets.US_ASCII)
+                    ? new String((byte[]) record.value(), StandardCharsets.US_ASCII)
                     : record.value();
 
             Map<String, Object> recOut = Maps.newHashMap();

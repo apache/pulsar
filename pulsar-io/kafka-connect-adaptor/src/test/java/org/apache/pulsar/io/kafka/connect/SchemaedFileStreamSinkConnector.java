@@ -22,6 +22,10 @@ package org.apache.pulsar.io.kafka.connect;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.file.FileStreamSinkConnector;
 
+/**
+ * A FileStreamSinkConnector for testing that writes data other than just a value, i.e.:
+ * key, value, key and value schemas.
+ */
 public class SchemaedFileStreamSinkConnector extends FileStreamSinkConnector {
     @Override
     public Class<? extends Task> taskClass() {

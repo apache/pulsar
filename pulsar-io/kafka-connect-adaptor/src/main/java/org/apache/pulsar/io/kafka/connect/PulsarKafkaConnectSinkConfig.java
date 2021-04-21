@@ -63,14 +63,15 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
     private Map<String, String> kafkaConnectorConfigProperties;
 
     @FieldDoc(
-            defaultValue = "kafka-adaptor-sink-offsets",
+            required = true,
+            defaultValue = "",
             help = "Pulsar topic to store offsets at.")
-    private String offsetStorageTopic = "kafka-adaptor-sink-offsets";
+    private String offsetStorageTopic;
 
     @FieldDoc(
             required = true,
             defaultValue = "",
-            help = "Pulsar service URL.")
+            help = "Pulsar service URL to use for the offset store.")
     private String pulsarServiceUrl;
 
     @FieldDoc(

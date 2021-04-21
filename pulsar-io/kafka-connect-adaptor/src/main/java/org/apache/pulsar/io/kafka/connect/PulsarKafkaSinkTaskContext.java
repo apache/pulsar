@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.io.kafka.connect;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.SneakyThrows;
@@ -37,6 +38,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -113,10 +115,13 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
             runRepartition.set(true);
             try {
                 return new AtomicLong(offsetFuture.get());
-            } catch (Exception e) {
-                log.error("error getting initial state of " + topicPartition.toString(), e);
-                return new AtomicLong(-1L);
-            }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("error getting initial state of {}", topicPartition, e);
+                throw new RuntimeException("error getting initial state of " + topicPartition, e);
+            } catch (ExecutionException e) {
+                log.error("error getting initial state of {}", topicPartition, e);
+                throw new RuntimeException("error getting initial state of " + topicPartition, e);            }
         });
         if (runRepartition.compareAndSet(true, false)) {
             onPartitionChange.accept(currentOffsets.keySet());
@@ -125,7 +130,6 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     }
 
     public Map<TopicPartition, OffsetAndMetadata> currentOffsets() {
-
         Map<TopicPartition, OffsetAndMetadata> snapshot = Maps.newHashMapWithExpectedSize(currentOffsets.size());
         currentOffsets.forEach((topicPartition, offset) -> {
             if (offset.get() > 0) {
@@ -173,7 +177,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     @Override
     public void timeout(long l) {
-        // noop
+        log.warn("timeout() is called but is not supported currently.");
     }
 
     @Override
@@ -183,17 +187,17 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     @Override
     public void pause(TopicPartition... topicPartitions) {
-        // noop
+        log.warn("pause() is called but is not supported currently.");
     }
 
     @Override
     public void resume(TopicPartition... topicPartitions) {
-        // noop
+        log.warn("resume() is called but is not supported currently.");
     }
 
     @Override
     public void requestCommit() {
-        // noop
+        log.warn("requestCommit() is called but is not supported currently.");
     }
 
     public void flushOffsets(Map<TopicPartition, OffsetAndMetadata> offsets) throws Exception {
@@ -205,7 +209,8 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
             if (ex == null) {
                 result.complete(null);
             } else {
-                log.error("error flushing offsets", ex);
+                log.error("error flushing offsets for {}",
+                        Joiner.on(",").withKeyValueSeparator("=").join(offsets), ex);
                 result.completeExceptionally(ex);
             }
         });

@@ -167,7 +167,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         if(value instanceof GenericRecord) {
             rec = (GenericRecord) value;
         } else {
-            rec = GenericObjectWrapper.builder()
+            rec = MockGenericObjectWrapper.builder()
                     .nativeObject(value)
                     .schemaType(schema != null ? schema.getSchemaInfo().getType() : null)
                     .schemaVersion(new byte[]{ 1 }).build();
@@ -284,8 +284,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
                 .topicName(topicName)
                 .partition(partition)
                 .message(msg)
-                .ackFunction(() -> status.incrementAndGet())
-                .failFunction(() -> status.decrementAndGet())
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
                 .schema(Schema.STRING)
                 .build();
 
