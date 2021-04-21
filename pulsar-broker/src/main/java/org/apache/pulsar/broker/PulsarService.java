@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -60,7 +61,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -252,7 +252,6 @@ public class PulsarService implements AutoCloseable {
     private volatile CompletableFuture<Void> closeFuture;
     // key is listener name , value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
-    private BookKeeperAdmin bookKeeperAdmin;
 
     public PulsarService(ServiceConfiguration config) {
         this(config, Optional.empty(), (exitCode) -> {
@@ -606,8 +605,6 @@ public class PulsarService implements AutoCloseable {
             managedLedgerClientFactory = ManagedLedgerStorage.create(
                 config, getZkClient(), bkClientFactory
             );
-
-            this.bookKeeperAdmin = new BookKeeperAdmin(managedLedgerClientFactory.getBookKeeperClient());
 
             this.brokerService = new BrokerService(this);
 
@@ -1507,6 +1504,10 @@ public class PulsarService implements AutoCloseable {
         return coordinationService;
     }
 
+    public CompletableFuture<Set<String>> getAvailableBookiesAsync() {
+        return this.localZkCacheService.availableBookiesCache().getAsync();
+    }
+
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
@@ -1555,7 +1556,4 @@ public class PulsarService implements AutoCloseable {
         return workerConfig;
     }
 
-    public BookKeeperAdmin getBookKeeperAdmin() {
-        return bookKeeperAdmin;
-    }
 }
