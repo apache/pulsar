@@ -44,7 +44,7 @@ docker pull $IMAGE
 
 CONTAINER_LABEL="pulsartests=$$"
 export GTEST_COLOR=${GTEST_COLOR:-no}
-DOCKER_CMD="docker run -e GTEST_COLOR -it -l $CONTAINER_LABEL -v $ROOT_DIR:/pulsar $IMAGE"
+DOCKER_CMD="docker run -e GTEST_COLOR -i -l $CONTAINER_LABEL -v $ROOT_DIR:/pulsar $IMAGE"
 
 
 for args in "$@"
