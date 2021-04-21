@@ -65,64 +65,92 @@ public class JavaInstance implements AutoCloseable {
             this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
     }
+    
+    /**
+     * Invokes the function code against the given input data.
+     * 
+     * @param input - The input data provided to the Function code
+     * @return An ExecutionResult object that contains the function result along with any user exceptions
+     * that occurred when executing the Function code.
+     */
+    @SuppressWarnings("unchecked")
+	private JavaExecutionResult executeFunction(Object input) {
+    	JavaExecutionResult executionResult = new JavaExecutionResult();
+    	
+        try { 	
+        	Object result = (function != null) ? function.process(input, context) :
+        		javaUtilFunction.apply(input);
+        	
+            executionResult.setResult(result);  
+        } catch (Exception ex) {
+            executionResult.setUserException(ex);
+        } 
+    	
+    	return executionResult;
+    }
+    
+    /**
+     * If the Function code returns a CompletableFuture object, then this method is used to handle that by
+     * adding the async request to the internal pendingAsyncRequests queue, specifying the logic to be executed
+     * once the function execution is complete.
+     * 
+     * @param future
+     * @param executionResult
+     */
+    @SuppressWarnings("unchecked")
+	private void handleAsync(@SuppressWarnings("rawtypes") CompletableFuture future, JavaExecutionResult executionResult) {
+    	try {
+            pendingAsyncRequests.put(future);
+        } catch (InterruptedException ie) {
+            log.warn("Exception while put Async requests", ie);
+            executionResult.setUserException(ie);
+        }
 
-    public CompletableFuture<JavaExecutionResult> handleMessage(Record<?> record, Object input) {
+        future.whenCompleteAsync((obj, throwable) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
+            }
+            
+            pendingAsyncRequests.remove(future);
+
+            if (throwable != null) {
+                executionResult.setUserException(new Exception((Throwable)throwable));      
+                future.completeExceptionally((Throwable) throwable);
+                return;
+            }
+          
+            future.complete(obj);
+            
+        }, executor);
+    }
+
+    /**
+     * Invokes the Function code against the given input data and if the Function is async
+     * then it handles the async processing of the message.
+     * 
+     * @param record
+     * @param input
+     * @return
+     */
+    @SuppressWarnings({ "rawtypes" })
+	public JavaExecutionResult handleMessage(Record<?> record, Object input) {
         if (context != null) {
             context.setCurrentMessageContext(record);
         }
 
-        final CompletableFuture<JavaExecutionResult> future = new CompletableFuture<>();
-        JavaExecutionResult executionResult = new JavaExecutionResult();
+        JavaExecutionResult executionResult = executeFunction(input);
 
-        final Object output;
-
-        try {
-            if (function != null) {
-                output = function.process(input, context);
-            } else {
-                output = javaUtilFunction.apply(input);
-            }
-        } catch (Exception ex) {
-            executionResult.setUserException(ex);
-            future.complete(executionResult);
-            return future;
-        }
-
-        if (output instanceof CompletableFuture) {
+        if (executionResult.getResult() instanceof CompletableFuture) {
             // Function is in format: Function<I, CompletableFuture<O>>
-            try {
-                pendingAsyncRequests.put((CompletableFuture) output);
-            } catch (InterruptedException ie) {
-                log.warn("Exception while put Async requests", ie);
-                executionResult.setUserException(ie);
-                future.complete(executionResult);
-                return future;
-            }
-
-            ((CompletableFuture) output).whenCompleteAsync((obj, throwable) -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
-                }
-
-                if (throwable != null) {
-                    executionResult.setUserException(new Exception((Throwable)throwable));
-                    pendingAsyncRequests.remove(output);
-                    future.complete(executionResult);
-                    return;
-                }
-                executionResult.setResult(obj);
-                pendingAsyncRequests.remove(output);
-                future.complete(executionResult);
-            }, executor);
+            handleAsync((CompletableFuture) executionResult.getResult(), executionResult);
         } else {
+        	// The function result is contained in the result field of the executionResult object
             if (log.isDebugEnabled()) {
-                log.debug("Got result: object: {}", output);
+                log.debug("Got result: object: {}", executionResult.getResult());
             }
-            executionResult.setResult(output);
-            future.complete(executionResult);
         }
 
-        return future;
+        return executionResult;
     }
 
     @Override

@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.Getter;
@@ -232,71 +233,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarAdmin);
     }
 
-    /**
-     * The core logic that initialize the instance thread and executes the function.
-     */
-    @Override
-    public void run() {
-        try {
-            setup();
-
-            while (true) {
-                currentRecord = readInput();
-
-                // increment number of records received from source
-                stats.incrTotalReceived();
-
-                if (instanceConfig.getFunctionDetails().getProcessingGuarantees() == org.apache.pulsar.functions
-                        .proto.Function.ProcessingGuarantees.ATMOST_ONCE) {
-                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                        currentRecord.ack();
-                    }
-                }
-
-                addLogTopicHandler();
-                CompletableFuture<JavaExecutionResult> result;
-
-                // set last invocation time
-                stats.setLastInvocation(System.currentTimeMillis());
-
-                // start time for process latency stat
-                stats.processTimeStart();
-
-                // process the message
-                Thread.currentThread().setContextClassLoader(functionClassLoader);
-                result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
-                Thread.currentThread().setContextClassLoader(instanceClassLoader);
-
-                // register end time
-                stats.processTimeEnd();
-
-                removeLogTopicHandler();
-
-                try {
-                    processResult(currentRecord, result);
-                    result.join();
-                } catch (CompletionException e) {
-                    log.warn("Failed to process result of message {}", currentRecord, e);
-                    currentRecord.fail();
-                    throw e.getCause();
-                }
-            }
-        } catch (Throwable t) {
-            log.error("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
-                    instanceConfig.getFunctionDetails().getTenant(),
-                    instanceConfig.getFunctionDetails().getNamespace(),
-                    instanceConfig.getFunctionDetails().getName(),
-                    instanceConfig.getInstanceId()), t);
-            deathException = t;
-            if (stats != null) {
-                stats.incrSysExceptions(t);
-            }
-        } finally {
-            log.info("Closing instance");
-            close();
-        }
-    }
-
     private void setupStateStore() throws Exception {
         this.stateManager = new InstanceStateManager();
 
@@ -319,33 +255,116 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stateManager.registerStore(store);
         }
     }
+    
+    /**
+     * The core logic that initialize the instance thread and executes the function.
+     */
+    @Override
+    public void run() {
+        try {
+            setup();
 
-    private void processResult(Record srcRecord,
-                               CompletableFuture<JavaExecutionResult> result) {
-        result.whenComplete((result1, throwable) -> {
-            if (throwable != null || result1.getUserException() != null) {
-                Throwable t = throwable != null ? throwable : result1.getUserException();
-                log.warn("Encountered exception when processing message {}",
-                        srcRecord, t);
-                stats.incrUserExceptions(t);
-                srcRecord.fail();
-            } else {
-                if (result1.getResult() != null) {
-                    try {
-						sendOutputMessage(srcRecord, result1.getResult());
-					} catch (Exception ex) {
-						throw new CompletionException(ex);
-					}
-                } else {
+            while (true) {
+                currentRecord = readInput();
+
+                // increment number of records received from source
+                stats.incrTotalReceived();
+
+                if (instanceConfig.getFunctionDetails().getProcessingGuarantees() == org.apache.pulsar.functions
+                        .proto.Function.ProcessingGuarantees.ATMOST_ONCE) {
                     if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                        // the function doesn't produce any result or the user doesn't want the result.
-                        srcRecord.ack();
+                        currentRecord.ack();
                     }
                 }
-                // increment total successfully processed
-                stats.incrTotalProcessedSuccessfully();
+
+                addLogTopicHandler();
+                
+                // Not always a future...
+                JavaExecutionResult result;
+
+                // set last invocation time
+                stats.setLastInvocation(System.currentTimeMillis());
+
+                // start time for process latency stat
+                stats.processTimeStart();
+
+                // process the message
+                Thread.currentThread().setContextClassLoader(functionClassLoader);
+                result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
+                Thread.currentThread().setContextClassLoader(instanceClassLoader);
+
+                // register end time
+                stats.processTimeEnd();
+
+                removeLogTopicHandler();
+
+                try {
+                    processResult(currentRecord, result);
+                } catch (Exception e) {
+                    log.warn("Failed to process result of message {}", currentRecord, e);
+                    currentRecord.fail();
+                    throw e.getCause();
+                }
             }
-        });
+        } catch (Throwable t) {
+            log.error("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName(),
+                    instanceConfig.getInstanceId()), t);
+            deathException = t;
+            if (stats != null) {
+                stats.incrSysExceptions(t);
+            }
+        } finally {
+            log.info("Closing instance");
+            close();
+        }
+    }
+
+    @SuppressWarnings("rawtypes")
+	private void processResult(Record srcRecord, JavaExecutionResult result) throws Exception {
+    	
+    	if (result.getUserException() != null) {
+    		log.warn("Encountered exception when processing message {}",
+                    srcRecord, result.getUserException());
+            stats.incrUserExceptions(result.getUserException());
+            throw result.getUserException();
+    	} 
+    	
+    	if (result.getSystemException() != null) {
+    		log.warn("Encountered exception when processing message {}",
+                    srcRecord, result.getSystemException());
+            stats.incrSysExceptions(result.getSystemException());
+            throw result.getSystemException();
+    	}
+    	
+    	if (result.getResult() == null) {
+    		if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                // the function doesn't produce any result or the user doesn't want the result.
+                srcRecord.ack();
+            }
+    	} else { 
+    		
+    		try {
+				Object output = (result.getResult() instanceof CompletableFuture) ?
+					((CompletableFuture)result.getResult()).get() : result.getResult();
+				
+				sendOutputMessage(srcRecord, output);
+				
+				if (instanceConfig.getFunctionDetails().getAutoAck()) {
+					srcRecord.ack();
+				}
+				stats.incrTotalProcessedSuccessfully();
+				
+			} catch (InterruptedException | ExecutionException e) {
+				log.warn("Encountered exception when processing message {}",
+	                    srcRecord, e);
+	            stats.incrSysExceptions(e);
+			} catch (Exception ex) {
+				throw ex;
+			}
+    	}
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
