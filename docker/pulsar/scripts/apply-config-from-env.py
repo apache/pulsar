@@ -35,6 +35,7 @@ if len(sys.argv) < 2:
 conf_files = sys.argv[1:]
 
 PF_ENV_PREFIX = 'PULSAR_PREFIX_'
+PF_ENV_DEBUG = (os.environ.get('PF_ENV_DEBUG','0') == '1')
 
 for conf_filename in conf_files:
     lines = []  # List of config file lines
@@ -53,7 +54,8 @@ for conf_filename in conf_files:
                 k = k[1:]
             keys[k.strip()] = len(lines) - 1
         except:
-            print("[%s] skip Processing %s" % (conf_filename, line))
+            if PF_ENV_DEBUG:
+                print("[%s] skip Processing %s" % (conf_filename, line))
 
     # Update values from Env
     for k in sorted(os.environ.keys()):

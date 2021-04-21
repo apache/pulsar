@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Cleanup;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -629,6 +630,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     public void testGetSchemaByVersion() throws PulsarClientException, PulsarAdminException, ExecutionException, InterruptedException {
         final String topic = "persistent://my-property/my-ns/testGetSchemaByVersion";
 
+        @Cleanup
         PulsarClientImpl httpProtocolClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         PulsarClientImpl binaryProtocolClient = (PulsarClientImpl) pulsarClient;
 

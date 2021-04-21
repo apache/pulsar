@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.instance;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import lombok.AccessLevel;
@@ -46,7 +47,7 @@ public class JavaInstance implements AutoCloseable {
 
     // for Async function max out standing items
     private final InstanceConfig instanceConfig;
-    private final Executor executor;
+    private final ExecutorService executor;
     @Getter
     private final LinkedBlockingQueue<CompletableFuture<Void>> pendingAsyncRequests;
 
@@ -127,6 +128,7 @@ public class JavaInstance implements AutoCloseable {
     @Override
     public void close() {
         context.close();
+        executor.shutdown();
     }
 
     public Map<String, Double> getAndResetMetrics() {

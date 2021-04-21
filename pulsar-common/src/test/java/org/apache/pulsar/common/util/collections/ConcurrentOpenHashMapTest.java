@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import lombok.Cleanup;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -153,6 +154,7 @@ public class ConcurrentOpenHashMapTest {
     @Test
     public void concurrentInsertions() throws Throwable {
         ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>(16, 1);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -181,13 +183,12 @@ public class ConcurrentOpenHashMapTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test
     public void concurrentInsertionsAndReads() throws Throwable {
         ConcurrentOpenHashMap<Long, String> map = new ConcurrentOpenHashMap<>();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
@@ -216,8 +217,6 @@ public class ConcurrentOpenHashMapTest {
         }
 
         assertEquals(map.size(), N * nThreads);
-
-        executor.shutdown();
     }
 
     @Test

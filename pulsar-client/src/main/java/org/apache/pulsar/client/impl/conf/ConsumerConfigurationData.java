@@ -85,8 +85,24 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private int priorityLevel = 0;
 
-    // max pending chunked message to avoid sitting incomplete message into the queue and memory
-    private int maxPendingChuckedMessage = 10;
+    /**
+     * @deprecated use {@link #setMaxPendingChunkedMessage(int)}
+     */
+    @Deprecated
+    public void setMaxPendingChuckedMessage(int maxPendingChuckedMessage) {
+        this.maxPendingChunkedMessage = maxPendingChuckedMessage;
+    }
+
+    /**
+     * @deprecated use {@link #getMaxPendingChunkedMessage()}
+     */
+    @Deprecated
+    public int getMaxPendingChuckedMessage() {
+        return maxPendingChunkedMessage;
+    }
+
+    // max pending chunked message to avoid sending incomplete message into the queue and memory
+    private int maxPendingChunkedMessage = 10;
 
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
@@ -130,6 +146,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean batchIndexAckEnabled = false;
 
     private boolean ackReceiptEnabled = false;
+    
+    private boolean poolMessages = false;
 
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");

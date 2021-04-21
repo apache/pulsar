@@ -76,8 +76,8 @@ public class LocalDateTimeSchema extends AbstractSchema<LocalDateTime> {
       if (null == byteBuf) {
          return null;
       }
-      long epochDay = byteBuf.readLong();
-      long nanoOfDay = byteBuf.readLong();
+      long epochDay = byteBuf.getLong(0);
+      long nanoOfDay = byteBuf.getLong(8);
       return LocalDateTime.of(LocalDate.ofEpochDay(epochDay), LocalTime.ofNanoOfDay(nanoOfDay));
    }
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.client.internal.DefaultImplementation.getBytes;
 import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -118,6 +119,22 @@ public interface Schema<T> extends Cloneable{
     default T decode(byte[] bytes, byte[] schemaVersion) {
         // ignore version by default (most of the primitive schema implementations ignore schema version)
         return decode(bytes);
+    }
+
+    /**
+     * Decode a ByteBuffer into an object using a given version. <br/>
+     *
+     * @param data
+     *            the ByteBuffer to decode
+     * @param schemaVersion
+     *            the schema version to decode the object. null indicates using latest version.
+     * @return the deserialized object
+     */
+    default T decode(ByteBuffer data, byte[] schemaVersion) {
+        if (data == null) {
+            return null;
+        }
+        return decode(getBytes(data), schemaVersion);
     }
 
     /**

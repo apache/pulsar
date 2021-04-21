@@ -33,6 +33,7 @@ public class PulsarResources {
     public static final int DEFAULT_OPERATION_TIMEOUT_SEC = 30;
     private TenantResources tenantResources;
     private ClusterResources clusterResources;
+    private ResourceGroupResources resourcegroupResources;
     private NamespaceResources namespaceResources;
     private DynamicConfigurationResources dynamicConfigResources;
     private LocalPoliciesResources localPolicies;
@@ -49,6 +50,7 @@ public class PulsarResources {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(configurationMetadataStore, operationTimeoutSec);
             namespaceResources = new NamespaceResources(configurationMetadataStore, operationTimeoutSec);
+            resourcegroupResources = new ResourceGroupResources(configurationMetadataStore, operationTimeoutSec);
         }
         if (localMetadataStore != null) {
             dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore, operationTimeoutSec);

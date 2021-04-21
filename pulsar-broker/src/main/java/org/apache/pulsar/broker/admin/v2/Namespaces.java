@@ -1718,5 +1718,46 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(tenant, namespace);
         internalRemoveMaxTopicsPerNamespace();
     }
+
+    @GET
+    @Path("/{tenant}/{namespace}/resourcegroup")
+    @ApiOperation(value = "Get the resourcegroup attached to the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public String getNamespaceResourceGroup(@PathParam("tenant") String tenant,
+                                      @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.RESOURCEGROUP,
+                PolicyOperation.READ);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.resource_group_name;
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/resourcegroup")
+    @ApiOperation(value = "Set resourcegroup for a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid resourcegroup") })
+    public void setNamespaceResourceGroup(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+                                          @ApiParam(value = "Name of resourcegroup", required = true) String rgName) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceResourceGroup(rgName);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/resourcegroup")
+    @ApiOperation(value = "Delete resourcegroup for a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid resourcegroup")})
+    public void removeNamespaceResourceGroup(@PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceResourceGroup(null);
+    }
+
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

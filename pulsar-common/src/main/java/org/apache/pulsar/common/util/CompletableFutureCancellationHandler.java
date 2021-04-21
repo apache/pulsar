@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.common.util;
 
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -41,10 +41,16 @@ import java.util.function.BiConsumer;
  * any "downstream" dependent futures. A cancellation or timeout that happens in any "upstream"
  * future will get handled.
  */
-class CompletableFutureCancellationHandler {
-    private volatile boolean cancelled;
+public class CompletableFutureCancellationHandler {
+    private enum CompletionStatus {
+        PENDING,
+        CANCELLED,
+        DONE
+    }
+    private volatile CompletionStatus completionStatus = CompletionStatus.PENDING;
     private volatile Runnable cancelAction;
     private final AtomicBoolean cancelHandled = new AtomicBoolean();
+    private boolean attached;
 
     /**
      * Creates a new {@link CompletableFuture} and attaches the cancellation handler
@@ -61,12 +67,15 @@ class CompletableFutureCancellationHandler {
 
     /**
      * Attaches the cancellation handler to handle cancels
-     * and timeouts
+     * and timeouts. A cancellation handler instance can be used only once.
      *
      * @param future the future to attach the handler to
-     * @param <T>    the result type of the future
      */
-    public <T> void attachToFuture(CompletableFuture<T> future) {
+    public synchronized void attachToFuture(CompletableFuture<?> future) {
+        if (attached) {
+            throw new IllegalStateException("A future has already been attached to this instance.");
+        }
+        attached = true;
         future.whenComplete(whenCompleteFunction());
     }
 
@@ -81,7 +90,7 @@ class CompletableFutureCancellationHandler {
      * @param cancelAction the action to run when the the future gets cancelled or timeouts
      */
     public void setCancelAction(Runnable cancelAction) {
-        if (this.cancelAction != null) {
+        if (this.cancelAction != null || cancelHandled.get()) {
             throw new IllegalStateException("cancelAction can only be set once.");
         }
         this.cancelAction = Objects.requireNonNull(cancelAction);
@@ -89,18 +98,25 @@ class CompletableFutureCancellationHandler {
         runCancelActionOnceIfCancelled();
     }
 
-    private <T> BiConsumer<? super T, ? super Throwable> whenCompleteFunction() {
-        return (T t, Throwable throwable) -> {
+    private BiConsumer<Object, ? super Throwable> whenCompleteFunction() {
+        return (v, throwable) -> {
             if (throwable instanceof CancellationException || throwable instanceof TimeoutException) {
-                cancelled = true;
+                completionStatus = CompletionStatus.CANCELLED;
+            } else {
+                completionStatus = CompletionStatus.DONE;
             }
             runCancelActionOnceIfCancelled();
         };
     }
 
     private void runCancelActionOnceIfCancelled() {
-        if (cancelled && cancelAction != null && cancelHandled.compareAndSet(false, true)) {
-            cancelAction.run();
+        if (completionStatus != CompletionStatus.PENDING && cancelAction != null &&
+                cancelHandled.compareAndSet(false, true)) {
+            if (completionStatus == CompletionStatus.CANCELLED) {
+                cancelAction.run();
+            }
+            // clear cancel action reference when future completes
+            cancelAction = null;
         }
     }
 }

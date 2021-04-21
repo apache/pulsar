@@ -91,19 +91,8 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
     private ManagedLedgerImpl ledger;
     private ManagedCursor cursor;
 
-    @BeforeClass
-    public void setUpClass() {
-        super.setUpClass();
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void tearDownClass() {
-        super.tearDownClass();
-    }
-
-    @BeforeMethod
-    public void setup(Method method) throws Exception {
-        super.setUp(method);
+    @Override
+    protected void setUpTestCase() throws Exception {
         scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
         orderedExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(1)
@@ -125,9 +114,16 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }).when(mockDispatcher).notifyConsumersEndOfTopic();
     }
 
-    @AfterMethod(alwaysRun = true)
-    public void tearDown(Method method) {
-        super.tearDown(method);
+    @Override
+    protected void cleanUpTestCase() {
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdownNow();
+            scheduledExecutorService = null;
+        }
+        if (orderedExecutor != null) {
+            orderedExecutor.shutdownNow();
+            orderedExecutor = null;
+        }
     }
 
     @Test

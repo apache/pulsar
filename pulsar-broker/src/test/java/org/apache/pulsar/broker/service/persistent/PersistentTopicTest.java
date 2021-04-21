@@ -50,7 +50,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PersistentTopicTest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -64,7 +64,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
     /**
      * Test validates that broker cleans up topic which failed to unload while bundle unloading.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -96,7 +96,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
     /**
      * Test validates if topic's dispatcher is stuck then broker can doscover and unblock it.
-     * 
+     *
      * @throws Exception
      */
     @Test

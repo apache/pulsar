@@ -99,6 +99,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         resetConfig();
     }
 
+    protected PulsarService getPulsar() {
+        return pulsar;
+    }
+
     protected final void resetConfig() {
         this.conf = getDefaultConf();
     }
@@ -153,6 +157,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected void doInitConf() throws Exception {
+        this.conf.setBrokerShutdownTimeoutMs(0L);
         this.conf.setBrokerServicePort(Optional.of(0));
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setAdvertisedAddress("localhost");
@@ -239,6 +244,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void stopBroker() throws Exception {
         log.info("Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
+        // set shutdown timeout to 0 for forceful shutdown
+        pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0L);
         pulsar.close();
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
@@ -272,6 +279,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
+        conf.setBrokerShutdownTimeoutMs(0L);
         PulsarService pulsar = spy(new PulsarService(conf));
         setupBrokerMocks(pulsar);
         pulsar.start();
@@ -427,6 +435,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setZookeeperServers("localhost:2181");
         configuration.setConfigurationStoreServers("localhost:3181");
         configuration.setAllowAutoTopicCreationType("non-partitioned");
+        configuration.setBrokerShutdownTimeoutMs(0L);
         configuration.setBrokerServicePort(Optional.of(0));
         configuration.setBrokerServicePortTls(Optional.of(0));
         configuration.setWebServicePort(Optional.of(0));
