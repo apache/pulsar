@@ -1870,7 +1870,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 Backoff backoff = new BackoffBuilder()
                         .setInitialTime(100, TimeUnit.MILLISECONDS)
                         .setMax(2000, TimeUnit.MILLISECONDS)
-                        .setMandatoryStop(client.getConfiguration().getOperationTimeoutMs(), TimeUnit.SECONDS)
+                        .setMandatoryStop(client.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS)
                         .create();
                 RetryUtil.retryAsynchronously(() -> {
                     try {
