@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.beust.jcommander.JCommander;
 import java.io.FileInputStream;
 import java.util.Arrays;
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.slf4j.Logger;
@@ -100,6 +101,8 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                     if (bkEnsemble != null) {
                         bkEnsemble.stop();
                     }
+
+                    LogManager.shutdown();
                 } catch (Exception e) {
                     log.error("Shutdown failed: {}", e.getMessage(), e);
                 }
@@ -118,6 +121,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             standalone.start();
         } catch (Throwable th) {
             log.error("Failed to start pulsar service.", th);
+            LogManager.shutdown();
             Runtime.getRuntime().exit(1);
         }
 
