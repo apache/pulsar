@@ -440,8 +440,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             } catch (PulsarClientException e) {
                 return FutureUtil.failedFuture(e);
             }
-            reconsumeLaterAsync(message,delayTime, unit);
         }
+        messages.forEach(message -> reconsumeLaterAsync(message,delayTime, unit));
         return CompletableFuture.completedFuture(null);
     }
 
