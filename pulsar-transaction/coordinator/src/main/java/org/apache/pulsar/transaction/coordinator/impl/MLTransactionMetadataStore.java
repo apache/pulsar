@@ -359,6 +359,7 @@ public class MLTransactionMetadataStore
     public CompletableFuture<Void> closeAsync() {
         return transactionLog.closeAsync().thenCompose(v -> {
             txnMetaMap.clear();
+            this.timeoutTracker.close();
             if (!this.changeToCloseState()) {
                 return FutureUtil.failedFuture(
                         new IllegalStateException("Managed ledger transaction metadata store state to close error!"));

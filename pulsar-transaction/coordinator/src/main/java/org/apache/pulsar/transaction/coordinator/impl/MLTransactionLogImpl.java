@@ -57,11 +57,6 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final SpscArrayQueue<Entry> entryQueue;
 
-    //this is for replay
-    private final PositionImpl lastConfirmedEntry;
-
-    private PositionImpl currentLoadPosition;
-
     private final long tcId;
 
     private final String topicName;
@@ -74,9 +69,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         this.managedLedger = managedLedgerFactory.open(topicName, managedLedgerConfig);
         this.cursor =  managedLedger.openCursor(TRANSACTION_SUBSCRIPTION_NAME,
                 CommandSubscribe.InitialPosition.Earliest);
-        this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();
         this.entryQueue = new SpscArrayQueue<>(2000);
-        this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
     }
 
     @Override
@@ -174,7 +167,6 @@ public class MLTransactionLogImpl implements TransactionLog {
                 if (entry != null) {
                     try {
                         ByteBuf buffer = entry.getDataBuffer();
-                        currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                         transactionMetadataEntry.parseFrom(buffer, buffer.readableBytes());
                         transactionLogReplayCallback.handleMetadataEntry(entry.getPosition(), transactionMetadataEntry);
                     } finally {
