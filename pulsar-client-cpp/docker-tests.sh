@@ -42,7 +42,8 @@ echo "---- Testing Pulsar C++ client using image $IMAGE (type --help for more op
 
 docker pull $IMAGE
 
-DOCKER_CMD="docker run -i -v $ROOT_DIR:/pulsar $IMAGE"
+CONTAINER_LABEL="pulsartests=$$"
+DOCKER_CMD="docker run -it -l $CONTAINER_LABEL -v $ROOT_DIR:/pulsar $IMAGE"
 
 
 for args in "$@"
@@ -58,4 +59,22 @@ done
 
 # Start 2 Pulsar standalone instances (one with TLS and one without)
 # and execute the tests
+set +e
 $DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests}"
+RES=$?
+if [ $RES -ne 0 ]; then
+  (
+  cd "$ROOT_DIR"
+  mkdir -p test-logs
+  cd test-logs
+  container_id=$(docker ps -a -q --filter "label=$CONTAINER_LABEL")
+  if [ -n "$container_id" ]; then
+    # copy logs from the container that ran the tests
+    docker commit $container_id pulsartests/$container_id
+    docker run -i --rm pulsartests/$container_id \
+      bash -c "cd /tmp; tar zcf - gtest-parallel-logs gtest_parallel_results.json pulsar-test-dist/logs" \
+      | tar zxvf -
+  fi
+  )
+fi
+exit $RES
