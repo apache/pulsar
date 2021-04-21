@@ -100,13 +100,13 @@ public class CompactorTool {
             log.info("Found `brokerServicePortTls` in configuration file. \n"
                     + "Will connect pulsar use TLS.");
             clientBuilder
-                    .serviceUrl(PulsarService.brokerUrlTls(PulsarService.advertisedAddress(brokerConfig),
+                    .serviceUrl(PulsarService.brokerUrlTls(brokerConfig.getAdvertisedAddress(),
                             brokerConfig.getBrokerServicePortTls().get()))
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
                     .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         } else {
-            clientBuilder.serviceUrl(PulsarService.brokerUrl(PulsarService.advertisedAddress(brokerConfig),
+            clientBuilder.serviceUrl(PulsarService.brokerUrl(brokerConfig.getAdvertisedAddress(),
                     brokerConfig.getBrokerServicePort().get()));
         }
 
