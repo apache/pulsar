@@ -28,13 +28,20 @@ cd $ROOT_DIR/pulsar-client-cpp
 pushd tests
 
 if [ -f /gtest-parallel/gtest-parallel ]; then
-    echo "---- Run unit tests in parallel"
+    gtest_workers=10
+    # use nproc to set workers to 2 x the number of available cores if nproc is available
+    if [ -x "$(command -v nproc)" ]; then
+      gtest_workers=$(( $(nproc) * 2 ))
+    fi
+    # set maximum workers to 10
+    gtest_workers=$(( gtest_workers > 10 ? 10 : gtest_workers ))
+    echo "---- Run unit tests in parallel (workers=$gtest_workers)"
     tests=""
     if [ $# -eq 1 ]; then
         tests="--gtest_filter=$1"
         echo "Running tests: $1"
     fi
-    /gtest-parallel/gtest-parallel ./main $tests --workers=10
+    /gtest-parallel/gtest-parallel ./main $tests --workers=$gtest_workers
     RES=$?
 else
     ./main
