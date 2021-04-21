@@ -338,6 +338,7 @@ public class PulsarService implements AutoCloseable {
             if (closeFuture != null) {
                 return closeFuture;
             }
+            LOG.info("Closing PulsarService");
             state = State.Closing;
 
             // close the service in reverse order v.s. in which they are started
@@ -472,6 +473,15 @@ public class PulsarService implements AutoCloseable {
 
             closeFuture = addTimeoutHandling(FutureUtil.waitForAllAndSupportCancel(asyncCloseFutures));
             closeFuture.handle((v, t) -> {
+                if (t == null) {
+                    LOG.info("Closed");
+                } else if (t instanceof CancellationException) {
+                    LOG.info("Closed (shutdown cancelled)");
+                } else if (t instanceof TimeoutException) {
+                    LOG.info("Closed (shutdown timeout)");
+                } else {
+                    LOG.warn("Closed with errors", t);
+                }
                 state = State.Closed;
                 isClosedCondition.signalAll();
                 return null;
