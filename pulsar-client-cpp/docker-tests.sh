@@ -43,7 +43,8 @@ echo "---- Testing Pulsar C++ client using image $IMAGE (type --help for more op
 docker pull $IMAGE
 
 CONTAINER_LABEL="pulsartests=$$"
-DOCKER_CMD="docker run -it -l $CONTAINER_LABEL -v $ROOT_DIR:/pulsar $IMAGE"
+export GTEST_COLOR=${GTEST_COLOR:-no}
+DOCKER_CMD="docker run -e GTEST_COLOR -it -l $CONTAINER_LABEL -v $ROOT_DIR:/pulsar $IMAGE"
 
 
 for args in "$@"
@@ -60,7 +61,11 @@ done
 # Start 2 Pulsar standalone instances (one with TLS and one without)
 # and execute the tests
 set +e
-$DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests}"
+DISABLE_COLOR_OUTPUT=""
+if [ "$GTEST_COLOR" = "no" ]; then
+  DISABLE_COLOR_OUTPUT="| cat"
+fi
+$DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
 RES=$?
 if [ $RES -ne 0 ]; then
   (
