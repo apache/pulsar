@@ -35,13 +35,13 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
-import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
@@ -154,7 +154,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         } else {
             log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(),
                     response.getError());
-            op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
+            op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
         op.recycle();
     }
@@ -180,7 +180,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         } else {
             log.error("[{}] Got end txn on subscription response for request {} error {}",
                     op.topic, response.getRequestId(), response.getError());
-            op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
+            op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
         op.recycle();
     }
@@ -216,17 +216,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 });
     }
 
-    private TransactionBufferClientException getException(ServerError serverError, String msg) {
-        return new TransactionBufferClientException(msg);
-    }
-
     private boolean canSendRequest(CompletableFuture<?> callback) {
         try {
             if (blockIfReachMaxPendingOps) {
                 semaphore.acquire();
             } else {
                 if (!semaphore.tryAcquire()) {
-                    callback.completeExceptionally(new TransactionBufferClientException("Reach max pending ops."));
+                    callback.completeExceptionally(new ReachMaxPendingOpsException("Reach max pending ops."));
                     return false;
                 }
             }

@@ -44,6 +44,13 @@ class PULSAR_PUBLIC MessageRoutingPolicy {
             " const TopicMetadata& topicMetadata)");
     }
 
+    /**
+     * Choose the partition from the message and topic metadata
+     *
+     * @param message the Message
+     * @param topicMetadata the TopicMetadata that contains the partition number
+     * @return the partition number
+     */
     virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
         return getPartition(msg);
     }

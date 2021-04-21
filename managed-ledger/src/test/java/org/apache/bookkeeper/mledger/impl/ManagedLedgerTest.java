@@ -63,6 +63,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -1271,6 +1272,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testConcurrentAsyncSetProperties() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1000);
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         for (int i = 0; i < 1000; i++) {
             final int finalI = i;
@@ -1302,7 +1304,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             fail(e.getMessage());
         }
         assertTrue(latch.await(300, TimeUnit.SECONDS));
-        executor.shutdown();
         factory.shutdown();
     }
 
@@ -1447,7 +1448,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         final int N = 1000;
         final Position position = ledger.addEntry("entry-0".getBytes());
-        Executor executor = Executors.newCachedThreadPool();
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
         final CountDownLatch counter = new CountDownLatch(2);
         executor.execute(() -> {
             try {
@@ -2290,6 +2292,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // Simulating time consuming cursor recovery.
         CompletableFuture<Void> future = bkc.promiseAfter(2);
+        @Cleanup("shutdownNow")
         ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lazyCursorRecovery"));
         scheduledExecutorService.schedule(() -> {
             future.complete(null);

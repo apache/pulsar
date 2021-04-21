@@ -41,6 +41,7 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
@@ -52,7 +53,12 @@ import com.google.common.hash.Hashing;
 @Test(groups = "broker-naming")
 public class NamespaceBundlesTest {
 
-    private final NamespaceBundleFactory factory = getNamespaceBundleFactory();
+    private NamespaceBundleFactory factory;
+
+    @BeforeMethod(alwaysRun = true)
+    protected void initializeFactory() {
+        factory = getNamespaceBundleFactory();
+    }
 
     @SuppressWarnings("unchecked")
     @Test

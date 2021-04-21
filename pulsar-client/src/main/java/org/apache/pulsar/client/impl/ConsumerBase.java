@@ -35,10 +35,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import io.netty.util.Timeout;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -733,6 +733,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (opBatchReceive == null) {
             return;
         }
+
         try {
             reentrantLock.lock();
             notifyPendingBatchReceivedCallBack(opBatchReceive);
@@ -790,6 +791,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             msgPeeked = incomingMessages.peek();
         }
+
         completePendingBatchReceive(opBatchReceive.future, messages);
     }
 
@@ -906,8 +908,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void increaseIncomingMessageSize(final Message<?> message) {
-        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(
-                this, message.getData() == null ? 0 : message.getData().length);
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, message.size());
     }
 
     protected void resetIncomingMessageSize() {
@@ -915,12 +916,18 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void decreaseIncomingMessageSize(final Message<?> message) {
-        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this,
-                (message.getData() != null) ? -message.getData().length : 0);
+        INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -message.size());
     }
 
     public long getIncomingMessageSize() {
         return INCOMING_MESSAGES_SIZE_UPDATER.get(this);
+    }
+
+    protected void clearIncomingMessages() {
+        // release messages if they are pooled messages
+        incomingMessages.forEach(Message::release);
+        incomingMessages.clear();
+        resetIncomingMessageSize();
     }
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);

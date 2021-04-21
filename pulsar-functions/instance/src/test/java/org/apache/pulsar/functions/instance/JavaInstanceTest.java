@@ -28,6 +28,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.api.Function;
@@ -57,6 +58,7 @@ public class JavaInstanceTest {
     @Test
     public void testAsyncFunction() throws Exception {
         InstanceConfig instanceConfig = new InstanceConfig();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
@@ -83,7 +85,6 @@ public class JavaInstanceTest {
         assertNotNull(result.get().getResult());
         assertEquals(new String(testString + "-lambda"), result.get().getResult());
         instance.close();
-        executor.shutdownNow();
     }
 
     @Test
@@ -91,6 +92,7 @@ public class JavaInstanceTest {
         InstanceConfig instanceConfig = new InstanceConfig();
         int pendingQueueSize = 3;
         instanceConfig.setMaxPendingAsyncRequests(pendingQueueSize);
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
@@ -134,6 +136,5 @@ public class JavaInstanceTest {
 
         log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
         instance.close();
-        executor.shutdownNow();
     }
 }

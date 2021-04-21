@@ -187,7 +187,7 @@ All code contributed to Pulsar will be licensed under [Apache License V2](https:
 license header. You can add license header to your files by running following command:
 
 ```shell
-$ mvn license:format
+$ mvn initialize license:format
 ```
 
 ### Develop C++/Python Client

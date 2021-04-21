@@ -46,14 +46,17 @@ public class TestApplication {
 
     private File baseDir;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         baseDir = Files.createTempDir();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
-        FileUtils.deleteDirectory(baseDir);
+        if (baseDir != null) {
+            FileUtils.deleteDirectory(baseDir);
+            baseDir = null;
+        }
     }
 
     private <T extends LifecycleAware> T mockLifeCycle(Class<T> klass) {

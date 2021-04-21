@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.BoundType;
@@ -41,7 +42,12 @@ import com.google.common.hash.Hashing;
 
 @Test(groups = "broker-naming")
 public class NamespaceBundleTest {
-    private final NamespaceBundleFactory factory = getNamespaceBundleFactory();
+    private NamespaceBundleFactory factory;
+
+    @BeforeClass(alwaysRun = true)
+    protected void initializeFactory() {
+        factory = getNamespaceBundleFactory();
+    }
 
     @Test
     public void testConstructor() {

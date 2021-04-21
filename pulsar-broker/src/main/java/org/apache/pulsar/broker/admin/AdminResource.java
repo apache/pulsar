@@ -339,9 +339,6 @@ public abstract class AdminResource extends PulsarWebResource {
             BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
 
-            // hydrate the namespace polices
-            mergeNamespaceWithDefaults(policies, namespace, policyPath);
-
             return policies;
         } catch (RestException re) {
             throw re;
@@ -371,8 +368,6 @@ public abstract class AdminResource extends PulsarWebResource {
                         return FutureUtil.failedFuture(new RestException(e));
                     }
                     policies.get().bundles = bundleData != null ? bundleData : policies.get().bundles;
-                    // hydrate the namespace polices
-                    mergeNamespaceWithDefaults(policies.get(), namespace, policyPath);
                     return CompletableFuture.completedFuture(policies.get());
                 });
             } else {
@@ -403,7 +398,7 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (RestException re) {
             throw re;
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e){
-            log.error("Topic {} policies cache have not init.", topicName);
+            log.error("Topic {} policies have not been initialized yet.", topicName);
             throw new RestException(e);
         } catch (Exception e) {
             log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);

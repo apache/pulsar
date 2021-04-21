@@ -140,7 +140,7 @@ public class BrokerDiscoveryProvider implements Closeable {
             // check namespace authorization
             TenantInfo tenantInfo;
             try {
-                tenantInfo = service.getPulsarResources().getTenatResources()
+                tenantInfo = service.getPulsarResources().getTenantResources()
                         .get(path(POLICIES, topicName.getTenant()))
                         .orElseThrow(() -> new IllegalAccessException("Property does not exist"));
             } catch (NotFoundException e) {

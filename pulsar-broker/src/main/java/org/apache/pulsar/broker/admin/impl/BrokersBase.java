@@ -23,15 +23,13 @@ import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -60,6 +58,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +67,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BrokersBase extends PulsarWebResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
+    private static final Duration HEALTHCHECK_READ_TIMEOUT = Duration.ofSeconds(10);
 
     @GET
     @Path("/{cluster}")
@@ -346,13 +346,10 @@ public class BrokersBase extends PulsarWebResource {
                         healthcheckReadLoop(readerFuture, completePromise, messageStr);
 
                         // timeout read loop after 10 seconds
-                        ScheduledFuture<?> timeout = pulsar().getExecutor().schedule(() -> {
-                                completePromise.completeExceptionally(new TimeoutException("Timed out reading"));
-                            }, 10, TimeUnit.SECONDS);
-                        // don't leave timeout dangling
-                        completePromise.whenComplete((ignore2, exception2) -> {
-                                timeout.cancel(false);
-                            });
+                        FutureUtil.addTimeoutHandling(completePromise,
+                                HEALTHCHECK_READ_TIMEOUT, pulsar().getExecutor(),
+                                () -> FutureUtil.createTimeoutException("Timed out reading", getClass(),
+                                        "healthcheck(...)"));
                     }
                 });
 

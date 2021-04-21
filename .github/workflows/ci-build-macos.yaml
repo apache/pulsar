@@ -42,6 +42,9 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
 
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
       - name: Cache Maven dependencies
         uses: actions/cache@v2
         with:

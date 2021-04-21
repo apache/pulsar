@@ -71,7 +71,6 @@ import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
 public class CmdTopics extends CmdBase {
-    private Topics topics;
 
     public CmdTopics(Supplier<PulsarAdmin> admin) {
         super("topics", admin);
@@ -245,13 +244,6 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("set-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("remove-maxProducers");
         }
-    }
-
-    private Topics getTopics() {
-        if (topics == null) {
-            topics = getAdmin().topics();
-        }
-        return topics;
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -609,7 +601,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(topics.getPartitionedStats(topic, perPartition, getPreciseBacklog, subscriptionBacklogSize));
+            print(getTopics().getPartitionedStats(topic, perPartition, getPreciseBacklog, subscriptionBacklogSize));
         }
     }
 
@@ -1077,7 +1069,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getBacklogQuotaMap(persistentTopic, applied));
+            print(getTopics().getBacklogQuotaMap(persistentTopic, applied));
         }
     }
 
@@ -1108,7 +1100,7 @@ public class CmdTopics extends CmdBase {
             limit = validateSizeString(limitStr);
 
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setBacklogQuota(persistentTopic, new BacklogQuota(limit, policy));
+            getTopics().setBacklogQuota(persistentTopic, new BacklogQuota(limit, policy));
         }
     }
 
@@ -1121,7 +1113,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeBacklogQuota(persistentTopic);
+            getTopics().removeBacklogQuota(persistentTopic);
         }
     }
 
@@ -1136,7 +1128,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topicName = validateTopicName(params);
-            print(getAdmin().topics().getDelayedDeliveryPolicy(topicName, applied));
+            print(getTopics().getDelayedDeliveryPolicy(topicName, applied));
         }
     }
 
@@ -1164,7 +1156,7 @@ public class CmdTopics extends CmdBase {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
 
-            getAdmin().topics().setDelayedDeliveryPolicy(topicName, new DelayedDeliveryPolicies(delayedDeliveryTimeInMills, enable));
+            getTopics().setDelayedDeliveryPolicy(topicName, new DelayedDeliveryPolicies(delayedDeliveryTimeInMills, enable));
         }
     }
 
@@ -1176,7 +1168,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topicName = validateTopicName(params);
-            getAdmin().topics().removeDelayedDeliveryPolicy(topicName);
+            getTopics().removeDelayedDeliveryPolicy(topicName);
         }
     }
 
@@ -1191,7 +1183,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMessageTTL(persistentTopic, applied));
+            print(getTopics().getMessageTTL(persistentTopic, applied));
         }
     }
 
@@ -1210,7 +1202,7 @@ public class CmdTopics extends CmdBase {
             }
 
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setMessageTTL(persistentTopic, messageTTLInSecond);
+            getTopics().setMessageTTL(persistentTopic, messageTTLInSecond);
         }
     }
 
@@ -1223,7 +1215,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeMessageTTL(persistentTopic);
+            getTopics().removeMessageTTL(persistentTopic);
         }
     }
 
@@ -1235,7 +1227,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getDeduplicationSnapshotInterval(persistentTopic));
+            print(getTopics().getDeduplicationSnapshotInterval(persistentTopic));
         }
     }
 
@@ -1255,7 +1247,7 @@ public class CmdTopics extends CmdBase {
             }
 
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setDeduplicationSnapshotInterval(persistentTopic, interval);
+            getTopics().setDeduplicationSnapshotInterval(persistentTopic, interval);
         }
     }
 
@@ -1268,7 +1260,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeDeduplicationSnapshotInterval(persistentTopic);
+            getTopics().removeDeduplicationSnapshotInterval(persistentTopic);
         }
     }
 
@@ -1283,7 +1275,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getRetention(persistentTopic, applied));
+            print(getTopics().getRetention(persistentTopic, applied));
         }
     }
 
@@ -1320,7 +1312,7 @@ public class CmdTopics extends CmdBase {
             } else {
                 retentionSizeInMB = -1;
             }
-            getAdmin().topics().setRetention(persistentTopic, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
+            getTopics().setRetention(persistentTopic, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
     }
 
@@ -1333,7 +1325,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().enableDeduplication(persistentTopic, true);
+            getTopics().enableDeduplication(persistentTopic, true);
         }
     }
 
@@ -1346,7 +1338,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().enableDeduplication(persistentTopic, false);
+            getTopics().enableDeduplication(persistentTopic, false);
         }
     }
 
@@ -1368,7 +1360,7 @@ public class CmdTopics extends CmdBase {
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
-            getAdmin().topics().setDeduplicationStatus(persistentTopic, enable);
+            getTopics().setDeduplicationStatus(persistentTopic, enable);
         }
     }
 
@@ -1380,7 +1372,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getDeduplicationStatus(persistentTopic));
+            print(getTopics().getDeduplicationStatus(persistentTopic));
         }
     }
 
@@ -1392,7 +1384,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeDeduplicationStatus(persistentTopic);
+            getTopics().removeDeduplicationStatus(persistentTopic);
         }
     }
 
@@ -1404,7 +1396,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeRetention(persistentTopic);
+            getTopics().removeRetention(persistentTopic);
         }
     }
 
@@ -1416,7 +1408,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getPersistence(persistentTopic));
+            print(getTopics().getPersistence(persistentTopic));
         }
     }
 
@@ -1431,7 +1423,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getOffloadPolicies(persistentTopic, applied));
+            print(getTopics().getOffloadPolicies(persistentTopic, applied));
         }
     }
 
@@ -1443,7 +1435,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeOffloadPolicies(persistentTopic);
+            getTopics().removeOffloadPolicies(persistentTopic);
         }
     }
 
@@ -1519,7 +1511,7 @@ public class CmdTopics extends CmdBase {
             OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret, maxBlockSizeInBytes
                     , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
 
-            getAdmin().topics().setOffloadPolicies(persistentTopic, offloadPolicies);
+            getTopics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }
     }
 
@@ -1547,7 +1539,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
+            getTopics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
                     bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
         }
     }
@@ -1560,7 +1552,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removePersistence(persistentTopic);
+            getTopics().removePersistence(persistentTopic);
         }
     }
 
@@ -1575,7 +1567,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getDispatchRate(persistentTopic, applied));
+            print(getTopics().getDispatchRate(persistentTopic, applied));
         }
     }
 
@@ -1603,7 +1595,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setDispatchRate(persistentTopic,
+            getTopics().setDispatchRate(persistentTopic,
                 new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
         }
     }
@@ -1616,7 +1608,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeDispatchRate(persistentTopic);
+            getTopics().removeDispatchRate(persistentTopic);
         }
     }
 
@@ -1631,7 +1623,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMaxUnackedMessagesOnConsumer(persistentTopic, applied));
+            print(getTopics().getMaxUnackedMessagesOnConsumer(persistentTopic, applied));
         }
     }
 
@@ -1643,7 +1635,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeMaxUnackedMessagesOnConsumer(persistentTopic);
+            getTopics().removeMaxUnackedMessagesOnConsumer(persistentTopic);
         }
     }
 
@@ -1658,7 +1650,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setMaxUnackedMessagesOnConsumer(persistentTopic, maxNum);
+            getTopics().setMaxUnackedMessagesOnConsumer(persistentTopic, maxNum);
         }
     }
 
@@ -1673,7 +1665,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMaxUnackedMessagesOnSubscription(persistentTopic, applied));
+            print(getTopics().getMaxUnackedMessagesOnSubscription(persistentTopic, applied));
         }
     }
 
@@ -1685,7 +1677,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeMaxUnackedMessagesOnSubscription(persistentTopic);
+            getTopics().removeMaxUnackedMessagesOnSubscription(persistentTopic);
         }
     }
 
@@ -1700,7 +1692,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setMaxUnackedMessagesOnSubscription(persistentTopic, maxNum);
+            getTopics().setMaxUnackedMessagesOnSubscription(persistentTopic, maxNum);
         }
     }
 
@@ -1719,7 +1711,7 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
             Set<SubscriptionType> types = new HashSet<>();
             Lists.newArrayList(subTypes.split(",")).forEach(s -> types.add(SubscriptionType.valueOf(s)));
-            getAdmin().topics().setSubscriptionTypesEnabled(persistentTopic, types);
+            getTopics().setSubscriptionTypesEnabled(persistentTopic, types);
         }
     }
 
@@ -1731,7 +1723,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getSubscriptionTypesEnabled(persistentTopic));
+            print(getTopics().getSubscriptionTypesEnabled(persistentTopic));
         }
     }
 
@@ -1746,7 +1738,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getCompactionThreshold(persistentTopic, applied));
+            print(getTopics().getCompactionThreshold(persistentTopic, applied));
         }
     }
 
@@ -1764,7 +1756,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setCompactionThreshold(persistentTopic, validateSizeString(threshold));
+            getTopics().setCompactionThreshold(persistentTopic, validateSizeString(threshold));
         }
     }
 
@@ -1776,7 +1768,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeCompactionThreshold(persistentTopic);
+            getTopics().removeCompactionThreshold(persistentTopic);
         }
     }
 
@@ -1788,7 +1780,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getPublishRate(persistentTopic));
+            print(getTopics().getPublishRate(persistentTopic));
         }
     }
 
@@ -1808,7 +1800,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setPublishRate(persistentTopic,
+            getTopics().setPublishRate(persistentTopic,
                 new PublishRate(msgPublishRate, bytePublishRate));
         }
     }
@@ -1821,7 +1813,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removePublishRate(persistentTopic);
+            getTopics().removePublishRate(persistentTopic);
         }
     }
 
@@ -1836,7 +1828,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getSubscriptionDispatchRate(persistentTopic, applied));
+            print(getTopics().getSubscriptionDispatchRate(persistentTopic, applied));
         }
     }
 
@@ -1864,7 +1856,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setSubscriptionDispatchRate(persistentTopic,
+            getTopics().setSubscriptionDispatchRate(persistentTopic,
                     new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
         }
     }
@@ -1877,7 +1869,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeSubscriptionDispatchRate(persistentTopic);
+            getTopics().removeSubscriptionDispatchRate(persistentTopic);
         }
     }
 
@@ -1892,7 +1884,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validatePersistentTopic(params);
-            print(getAdmin().topics().getReplicatorDispatchRate(topic, applied));
+            print(getTopics().getReplicatorDispatchRate(topic, applied));
         }
     }
 
@@ -1920,7 +1912,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setReplicatorDispatchRate(persistentTopic,
+            getTopics().setReplicatorDispatchRate(persistentTopic,
                     new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
         }
     }
@@ -1933,7 +1925,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeReplicatorDispatchRate(persistentTopic);
+            getTopics().removeReplicatorDispatchRate(persistentTopic);
         }
     }
 
@@ -1948,7 +1940,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMaxProducers(persistentTopic, applied));
+            print(getTopics().getMaxProducers(persistentTopic, applied));
         }
     }
 
@@ -1963,7 +1955,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setMaxProducers(persistentTopic, maxProducers);
+            getTopics().setMaxProducers(persistentTopic, maxProducers);
         }
     }
 
@@ -1975,7 +1967,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeMaxProducers(persistentTopic);
+            getTopics().removeMaxProducers(persistentTopic);
         }
     }
 
@@ -1987,7 +1979,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMaxSubscriptionsPerTopic(persistentTopic));
+            print(getTopics().getMaxSubscriptionsPerTopic(persistentTopic));
         }
     }
 
@@ -2003,7 +1995,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setMaxSubscriptionsPerTopic(persistentTopic, maxSubscriptionsPerTopic);
+            getTopics().setMaxSubscriptionsPerTopic(persistentTopic, maxSubscriptionsPerTopic);
         }
     }
 
@@ -2015,7 +2007,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeMaxSubscriptionsPerTopic(persistentTopic);
+            getTopics().removeMaxSubscriptionsPerTopic(persistentTopic);
         }
     }
 
@@ -2027,7 +2019,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMaxMessageSize(persistentTopic));
+            print(getTopics().getMaxMessageSize(persistentTopic));
         }
     }
 
@@ -2042,7 +2034,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setMaxMessageSize(persistentTopic, maxMessageSize);
+            getTopics().setMaxMessageSize(persistentTopic, maxMessageSize);
         }
     }
 
@@ -2054,7 +2046,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeMaxMessageSize(persistentTopic);
+            getTopics().removeMaxMessageSize(persistentTopic);
         }
     }
 
@@ -2066,7 +2058,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMaxConsumersPerSubscription(persistentTopic));
+            print(getTopics().getMaxConsumersPerSubscription(persistentTopic));
         }
     }
 
@@ -2081,7 +2073,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setMaxConsumersPerSubscription(persistentTopic, maxConsumersPerSubscription);
+            getTopics().setMaxConsumersPerSubscription(persistentTopic, maxConsumersPerSubscription);
         }
     }
 
@@ -2093,7 +2085,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeMaxConsumersPerSubscription(persistentTopic);
+            getTopics().removeMaxConsumersPerSubscription(persistentTopic);
         }
     }
 
@@ -2108,7 +2100,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getInactiveTopicPolicies(persistentTopic, applied));
+            print(getTopics().getInactiveTopicPolicies(persistentTopic, applied));
         }
     }
 
@@ -2145,7 +2137,7 @@ public class CmdTopics extends CmdBase {
             } catch (IllegalArgumentException e) {
                 throw new ParameterException("delete mode can only be set to delete_when_no_subscriptions or delete_when_subscriptions_caught_up");
             }
-            getAdmin().topics().setInactiveTopicPolicies(persistentTopic,
+            getTopics().setInactiveTopicPolicies(persistentTopic,
                     new InactiveTopicPolicies(deleteMode, (int) maxInactiveDurationInSeconds, enableDeleteWhileInactive));
         }
     }
@@ -2158,7 +2150,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeInactiveTopicPolicies(persistentTopic);
+            getTopics().removeInactiveTopicPolicies(persistentTopic);
         }
     }
 
@@ -2173,7 +2165,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getMaxConsumers(persistentTopic, applied));
+            print(getTopics().getMaxConsumers(persistentTopic, applied));
         }
     }
 
@@ -2188,7 +2180,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setMaxConsumers(persistentTopic, maxConsumers);
+            getTopics().setMaxConsumers(persistentTopic, maxConsumers);
         }
     }
 
@@ -2200,7 +2192,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeMaxConsumers(persistentTopic);
+            getTopics().removeMaxConsumers(persistentTopic);
         }
     }
 
@@ -2215,7 +2207,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getAdmin().topics().getSubscribeRate(persistentTopic, applied));
+            print(getTopics().getSubscribeRate(persistentTopic, applied));
         }
     }
 
@@ -2235,7 +2227,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().setSubscribeRate(persistentTopic,
+            getTopics().setSubscribeRate(persistentTopic,
                     new SubscribeRate(subscribeRate, subscribeRatePeriodSec));
         }
     }
@@ -2248,7 +2240,11 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getAdmin().topics().removeSubscribeRate(persistentTopic);
+            getTopics().removeSubscribeRate(persistentTopic);
         }
+    }
+
+    private Topics getTopics() {
+        return getAdmin().topics();
     }
 }

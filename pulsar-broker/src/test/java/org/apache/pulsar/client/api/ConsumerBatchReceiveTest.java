@@ -32,10 +32,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "flaky")
+@Test(groups = "quarantine")
 public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -445,6 +445,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
             return;
         }
 
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().ioThreads(10).serviceUrl(lookupUrl.toString()).build();
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
         if (!batchProduce) {

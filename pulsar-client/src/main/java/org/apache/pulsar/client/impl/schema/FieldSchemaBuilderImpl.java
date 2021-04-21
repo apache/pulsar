@@ -142,6 +142,13 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
             case TIMESTAMP:
                 baseSchema = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));
                 break;
+            case JSON:
+                checkArgument(genericSchema.getSchemaInfo().getType() == SchemaType.JSON,
+                        "The field is expected to be using JSON schema but "
+                                + genericSchema.getSchemaInfo().getType() + " schema is found");
+                AvroBaseStructSchema genericJsonSchema = (AvroBaseStructSchema) genericSchema;
+                baseSchema = genericJsonSchema.getAvroSchema();
+                break;
             case AVRO:
                 checkArgument(genericSchema.getSchemaInfo().getType() == SchemaType.AVRO,
                         "The field is expected to be using AVRO schema but "
