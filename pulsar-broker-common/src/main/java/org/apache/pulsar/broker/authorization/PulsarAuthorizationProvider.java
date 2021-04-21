@@ -590,25 +590,31 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             case GET_BUNDLE_RANGE:
             case DELETE_BUNDLE_RANGE:
                 return validateTenantAdminAccess(topicName.getTenant(), role, authData);
-            default: return FutureUtil.failedFuture(
-                    new IllegalStateException("TopicOperation [" + operation.name() + "] is not supported."));
+            default:
+                return FutureUtil.failedFuture(
+                        new IllegalStateException("TopicOperation [" + operation.name() + "] is not supported."));
         }
 
-       return isAuthorizedFuture.thenCompose(isAuthorized -> {
-            if (isAuthorized) {
-                return CompletableFuture.completedFuture(true);
-            } else {
-                return validateTenantAdminAccess(topicName.getTenant(), role, authData);
-            }
-        });
+        return validateTenantAdminAccess(topicName.getTenant(), role, authData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Verify if role {} is allowed to {} to topic {}: isSuperUserOrAdmin={}",
+                                role, operation, topicName, isSuperUserOrAdmin);
+                    }
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    } else {
+                        return isAuthorizedFuture;
+                    }
+                });
     }
 
     @Override
     public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topicName,
-                                                               String role,
-                                                               PolicyName policyName,
-                                                               PolicyOperation policyOperation,
-                                                               AuthenticationDataSource authData) {
+                                                                     String role,
+                                                                     PolicyName policyName,
+                                                                     PolicyOperation policyOperation,
+                                                                     AuthenticationDataSource authData) {
         return validateTenantAdminAccess(topicName.getTenant(), role, authData);
     }
 
@@ -621,25 +627,26 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     private CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName,
                                                                  String role,
-                                                                AuthenticationDataSource authData) {
-        try {
-            TenantInfo tenantInfo = pulsarResources.getTenantResources()
-                    .get(path(POLICIES, tenantName))
-                    .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
-
-            // role check
-            CompletableFuture<Boolean> isRoleSuperUserFuture = isSuperUser(role, authData, conf);
-            CompletableFuture<Boolean> isRoleTenantAdminFuture = isTenantAdmin(tenantName, role, tenantInfo, authData);
-            return isRoleSuperUserFuture
-                    .thenCombine(isRoleTenantAdminFuture, (isRoleSuperUser, isRoleTenantAdmin) ->
-                            isRoleSuperUser || isRoleTenantAdmin);
-        } catch (NotFoundException e) {
-            log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
-            throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
-        } catch (Exception e) {
-            log.error("Failed to get tenant {}", tenantName, e);
-            throw new RestException(e);
-        }
+                                                                 AuthenticationDataSource authData) {
+        return isSuperUser(role, authData, conf)
+                .thenCompose(isSuperUser -> {
+                    if (isSuperUser) {
+                        return CompletableFuture.completedFuture(true);
+                    } else {
+                        try {
+                            TenantInfo tenantInfo = pulsarResources.getTenantResources()
+                                    .get(path(POLICIES, tenantName))
+                                    .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
+                            return isTenantAdmin(tenantName, role, tenantInfo, authData);
+                        } catch (NotFoundException e) {
+                            log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
+                            throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
+                        } catch (Exception e) {
+                            log.error("Failed to get tenant {}", tenantName, e);
+                            throw new RestException(e);
+                        }
+                    }
+                });
     }
 
 }
