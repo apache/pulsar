@@ -271,22 +271,10 @@ public class PulsarService implements AutoCloseable {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
-        Map<String, AdvertisedListener> result =
-                MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-        if (result != null) {
-            this.advertisedListeners = Collections.unmodifiableMap(result);
-        } else {
-            this.advertisedListeners = Collections.unmodifiableMap(Collections.emptyMap());
-        }
+        this.advertisedAddress = config.getAdvertisedAddress();
         state = State.Init;
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
-        if (!this.advertisedListeners.isEmpty()) {
-            this.advertisedAddress = this.advertisedListeners.get(
-                    config.getInternalListenerName()).getBrokerServiceUrl().getHost();
-        } else {
-            this.advertisedAddress = advertisedAddress(config);
-        }
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
         this.shutdownService = new MessagingServiceShutdownHook(this, processTerminator);
@@ -1332,7 +1320,7 @@ public class PulsarService implements AutoCloseable {
      * @return Hostname or IP address the service advertises to the outside world.
      */
     public static String advertisedAddress(ServiceConfiguration config) {
-        return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+        return config.getAdvertisedAddress();
     }
 
     private String brokerUrl(ServiceConfiguration config) {
