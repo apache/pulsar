@@ -26,6 +26,7 @@
             <class name="org.apache.pulsar.tests.integration.messaging.NonPersistentTopicMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.DelayMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.io.AvroKafkaSourceTest" />
+            <class name="org.apache.pulsar.tests.integration.admin.AdminTest" />
         </classes>
     </test>
 </suite>
