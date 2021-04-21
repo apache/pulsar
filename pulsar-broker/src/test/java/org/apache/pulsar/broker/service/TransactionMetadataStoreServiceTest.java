@@ -282,7 +282,6 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         field.setAccessible(true);
         ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>> txnMap =
                 (ConcurrentMap<TxnID, Pair<TxnMeta, List<Position>>>) field.get(transactionMetadataStore);
-        assertEquals(txnMap.size(), 1);
         Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(() -> txnMap.size() == 0);
 
     }
