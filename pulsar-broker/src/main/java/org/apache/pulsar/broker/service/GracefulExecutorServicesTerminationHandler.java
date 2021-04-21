@@ -67,6 +67,10 @@ class GracefulExecutorServicesTerminationHandler {
                 markShutdownCompleted();
             } else {
                 Thread shutdownWaitingThread = new Thread(this::awaitShutdown, getClass().getSimpleName());
+                shutdownWaitingThread.setDaemon(false);
+                shutdownWaitingThread.setUncaughtExceptionHandler((thread, exception) -> {
+                  log.error("Uncaught exception in shutdown thread {}", thread, exception);
+                });
                 shutdownWaitingThread.start();
                 FutureUtil.whenCancelledOrTimedOut(future, () -> {
                     shutdownWaitingThread.interrupt();
