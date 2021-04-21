@@ -473,6 +473,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                                        long delayTime,
                                                        TimeUnit unit) {
         MessageId messageId = message.getMessageId();
+        if (messageId == null) {
+            return FutureUtil.failedFuture(new PulsarClientException
+                    .InvalidMessageException("Cannot handle message with null messageId"));
+        }
         checkArgument(messageId instanceof TopicMessageIdImpl);
         TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
         if (getState() != State.Ready) {

@@ -500,7 +500,6 @@ public class MessageImpl<T> implements Message<T> {
 
     @Override
     public MessageId getMessageId() {
-        checkNotNull(messageId, "Cannot get the message id of a message that was not received");
         return messageId;
     }
 

@@ -537,6 +537,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                        long delayTime,
                                                        TimeUnit unit) {
         MessageId messageId = message.getMessageId();
+        if (messageId == null) {
+            return FutureUtil.failedFuture(new PulsarClientException
+                    .InvalidMessageException("Cannot handle message with null messageId"));
+        }
+
         if(messageId instanceof TopicMessageIdImpl) {
             messageId = ((TopicMessageIdImpl)messageId).getInnerMessageId();
         }
