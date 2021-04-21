@@ -937,7 +937,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                     partitionIndex, true, subFuture,
                                     startMessageId, schema, interceptors,
                                     createIfDoesNotExist, startMessageRollbackDurationInSec);
-                        consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        synchronized (pauseMutex) {
+                            if (paused) {
+                                newConsumer.pause();
+                            }
+                            consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        }
                         return subFuture;
                     })
                 .collect(Collectors.toList());
@@ -957,7 +962,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         client.externalExecutorProvider(), -1,
                         true, subFuture, null, schema, interceptors,
                         createIfDoesNotExist);
+            synchronized (pauseMutex) {
+                if (paused) {
+                    newConsumer.pause();
+                }
                 consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+            }
 
             futureList = Collections.singletonList(subFuture);
         }
