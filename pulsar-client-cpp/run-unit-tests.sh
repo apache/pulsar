@@ -27,6 +27,8 @@ cd $ROOT_DIR/pulsar-client-cpp
 
 pushd tests
 
+export RETRY_FAILED="${RETRY_FAILED:-1}"
+
 if [ -f /gtest-parallel/gtest-parallel ]; then
     gtest_workers=10
     # use nproc to set workers to 2 x the number of available cores if nproc is available
@@ -35,13 +37,15 @@ if [ -f /gtest-parallel/gtest-parallel ]; then
     fi
     # set maximum workers to 10
     gtest_workers=$(( gtest_workers > 10 ? 10 : gtest_workers ))
-    echo "---- Run unit tests in parallel (workers=$gtest_workers)"
+    echo "---- Run unit tests in parallel (workers=$gtest_workers) (retry_failed=${RETRY_FAILED})"
     tests=""
     if [ $# -eq 1 ]; then
         tests="--gtest_filter=$1"
         echo "Running tests: $1"
     fi
-    /gtest-parallel/gtest-parallel ./main $tests --workers=$gtest_workers
+    /gtest-parallel/gtest-parallel $tests --dump_json_test_results=/tmp/gtest_parallel_results.json \
+      --workers=$gtest_workers --retry_failed=$RETRY_FAILED -d /tmp \
+      ./main
     RES=$?
 else
     ./main
