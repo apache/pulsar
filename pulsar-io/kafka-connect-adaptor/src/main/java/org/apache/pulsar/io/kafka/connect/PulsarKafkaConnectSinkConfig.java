@@ -47,9 +47,10 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
     private long lingerTimeMs = 2147483647L;
 
     @FieldDoc(
-            defaultValue = "pulsar-io-adaptor-topic",
+            required = true,
+            defaultValue = "",
             help = "The Kafka topic name that passed to kafka sink.")
-    private String topic = "pulsar-io-adaptor-topic";
+    private String topic;
 
     @FieldDoc(
             required = true,
