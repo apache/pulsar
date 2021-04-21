@@ -308,6 +308,7 @@ public class PulsarBrokerStarter {
             System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s",
                     dateFormat.format(new Date()), thread.getContextClassLoader(),
                     thread.getName(), exception.getMessage()));
+            exception.printStackTrace(System.out);
         });
 
         BrokerStarter starter = new BrokerStarter(args);
