@@ -176,4 +176,17 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         thread.join();
         Assert.assertEquals(10, pulsar.getAdminClient().topics().getPartitionedTopicMetadata(topic).partitions);
     }
+
+    @Test
+    public void testNotExistIMessageFormatter() {
+        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
+        Assert.assertNull(msgFormatter);
+    }
+
+    @Test
+    public void testDefaultIMessageFormatter() {
+        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
+        Assert.assertTrue(msgFormatter instanceof DefaultMessageFormatter);
+    }
+
 }
