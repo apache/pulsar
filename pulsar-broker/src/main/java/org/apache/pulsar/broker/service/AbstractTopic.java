@@ -146,7 +146,7 @@ public abstract class AbstractTopic implements Topic {
         updatePublishDispatcher(policies);
     }
 
-    protected boolean isProducersExceeded(Producer producer) {
+    protected boolean isProducersExceeded() {
         Integer maxProducers = null;
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         if (topicPolicies != null) {
@@ -169,9 +169,13 @@ public abstract class AbstractTopic implements Topic {
         if (maxProducers > 0 && maxProducers <= producers.size()) {
             return true;
         }
+        return false;
+    }
 
+    protected boolean isSameAddressProducersExceeded(Producer producer) {
         final int maxSameAddressProducers = brokerService.pulsar().getConfiguration()
                 .getMaxSameAddressProducersPerTopic();
+
         if (maxSameAddressProducers > 0
                 && getNumberOfSameAddressProducers(producer.getClientAddress()) >= maxSameAddressProducers) {
             return true;
@@ -192,7 +196,7 @@ public abstract class AbstractTopic implements Topic {
         return count;
     }
 
-    protected boolean isConsumersExceededOnTopic(Consumer consumer) {
+    protected boolean isConsumersExceededOnTopic() {
         Integer maxConsumers = null;
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         if (topicPolicies != null) {
@@ -220,9 +224,13 @@ public abstract class AbstractTopic implements Topic {
         if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= getNumberOfConsumers()) {
             return true;
         }
+        return false;
+    }
 
+    protected boolean isSameAddressConsumersExceededOnTopic(Consumer consumer) {
         final int maxSameAddressConsumers = brokerService.pulsar().getConfiguration()
                 .getMaxSameAddressConsumersPerTopic();
+
         if (maxSameAddressConsumers > 0
                 && getNumberOfSameAddressConsumers(consumer.getClientAddress()) >= maxSameAddressConsumers) {
             return true;
@@ -247,10 +255,16 @@ public abstract class AbstractTopic implements Topic {
 
     protected void addConsumerToSubscription(Subscription subscription, Consumer consumer)
             throws BrokerServiceException {
-        if (isConsumersExceededOnTopic(consumer)) {
+        if (isConsumersExceededOnTopic()) {
             log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", topic);
             throw new ConsumerBusyException("Topic reached max consumers limit");
         }
+
+        if (isSameAddressConsumersExceededOnTopic(consumer)) {
+            log.warn("[{}] Attempting to add consumer to topic which reached max same address consumers limit", topic);
+            throw new ConsumerBusyException("Topic reached max same address consumers limit");
+        }
+
         subscription.addConsumer(consumer);
     }
 
@@ -618,9 +632,14 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected void internalAddProducer(Producer producer) throws BrokerServiceException {
-        if (isProducersExceeded(producer)) {
+        if (isProducersExceeded()) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
             throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
+        }
+
+        if (isSameAddressProducersExceeded(producer)) {
+            log.warn("[{}] Attempting to add producer to topic which reached max same address producers limit", topic);
+            throw new BrokerServiceException.ProducerBusyException("Topic reached max same address producers limit");
         }
 
         if (log.isDebugEnabled()) {
