@@ -15,7 +15,9 @@
  ******************************************************************************/
 #include "crc32c_sse42.h"
 
+#if BOOST_VERSION >= 105500
 #include <boost/predef.h>
+#endif
 
 #include <assert.h>
 #include <stdlib.h>
