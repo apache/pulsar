@@ -73,7 +73,7 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId2.compareTo(batchMessageId3) > 0, "Expected to be greater than");
         assertTrue(batchMessageId2.compareTo(batchMessageId4) > 0, "Expected to be greater than");
         assertTrue(batchMessageId2.compareTo(batchMessageId5) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId3.compareTo(batchMessageId4) > 0, "Expected to be greater than");
+        assertTrue(batchMessageId4.compareTo(batchMessageId3) > 0, "Expected to be greater than");
         assertTrue(batchMessageId3.compareTo(batchMessageId5) > 0, "Expected to be greater than");
         assertTrue(batchMessageId4.compareTo(batchMessageId5) > 0, "Expected to be greater than");
     }
@@ -105,7 +105,7 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId3.compareTo(batchMessageId2) < 0, "Expected to be less than");
         assertTrue(batchMessageId4.compareTo(batchMessageId2) < 0, "Expected to be less than");
         assertTrue(batchMessageId5.compareTo(batchMessageId2) < 0, "Expected to be less than");
-        assertTrue(batchMessageId4.compareTo(batchMessageId3) < 0, "Expected to be less than");
+        assertTrue(batchMessageId3.compareTo(batchMessageId4) < 0, "Expected to be less than");
         assertTrue(batchMessageId5.compareTo(batchMessageId3) < 0, "Expected to be less than");
         assertTrue(batchMessageId5.compareTo(batchMessageId4) < 0, "Expected to be less than");
     }
