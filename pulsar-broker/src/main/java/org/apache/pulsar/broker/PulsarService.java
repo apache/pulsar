@@ -337,7 +337,7 @@ public class PulsarService implements AutoCloseable {
             if (closeFuture != null) {
                 return closeFuture;
             }
-            LOG.info("Closing");
+            LOG.info("Closing PulsarService");
             state = State.Closing;
 
             // close the service in reverse order v.s. in which they are started
