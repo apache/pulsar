@@ -3923,19 +3923,79 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalTruncateTopic() {
+    protected void internalTruncateTopic(AsyncResponse asyncResponse) {
 
+        log.info("[{}] truncating topic {}", clientAppId(), topicName);
         try {
-            pulsar().getBrokerService().truncateTopic(topicName.toString()).get();
-            log.info("[{}] Successfully truncate topic {}", clientAppId(), topicName);
-        } catch (Exception e) {
-            Throwable t = e.getCause();
-            log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, t);
-            if (t instanceof MetadataNotFoundException) {
-                throw new RestException(Status.NOT_FOUND, "Topic not found");
-            } else {
-                throw new RestException(t);
+            if (topicName.isGlobal()) {
+                validateGlobalNamespaceOwnership(namespaceName);
             }
+        } catch (Exception e) {
+            log.error("[{}] Failed to runcate topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
+        }
+        // If the topic name is a partition name, no need to get partition topic metadata again
+        if (topicName.isPartitioned()) {
+            CompletableFuture<Void> future = pulsar().getBrokerService().truncateTopic(topicName.toString());
+            future.thenAccept(a -> {
+                asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(), Response.Status.NO_CONTENT.getReasonPhrase()));
+            }).exceptionally(e -> {
+                asyncResponse.resume(e);
+                return null;
+            });
+        } else {
+            getPartitionedTopicMetadataAsync(topicName, false, false).whenComplete((meta, t) -> {
+                if (meta.partitions > 0) {
+                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+                    for (int i = 0; i < meta.partitions; i++) {
+                        TopicName topicNamePartition = topicName.getPartition(i);
+                        CompletableFuture<Void> future =
+                                pulsar().getBrokerService().truncateTopic(topicName.toString());
+                        future.thenAccept(a -> {
+                            asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(), Response.Status.NO_CONTENT.getReasonPhrase()));
+                        }).exceptionally(e -> {
+                            log.error("[{}] Failed to truncate topic {}", clientAppId(), topicNamePartition, e);
+                            asyncResponse.resume(e);
+                            return null;
+                        });
+                    }
+
+                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                        if (exception != null) {
+                            Throwable th = exception.getCause();
+                            if (th instanceof NotFoundException) {
+                                asyncResponse.resume(new RestException(Status.NOT_FOUND, th.getMessage()));
+                            } else if (th instanceof WebApplicationException) {
+                                asyncResponse.resume(th);
+                            } else {
+                                log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, exception);
+                                asyncResponse.resume(new RestException(exception));
+                            }
+                        } else {
+                            asyncResponse.resume(Response.noContent().build());
+                        }
+                        return null;
+                    });
+                } else {
+                    CompletableFuture<Void> future = pulsar().getBrokerService().truncateTopic(topicName.toString());
+                    future.thenAccept(a -> {
+                        asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(), Response.Status.NO_CONTENT.getReasonPhrase()));
+                    }).exceptionally(e -> {
+                        asyncResponse.resume(e);
+                        return null;
+                    });
+                }
+            }).exceptionally(t -> {
+                log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, t);
+                if (t instanceof WebApplicationException) {
+                    asyncResponse.resume(t);
+                } else {
+                    asyncResponse.resume(new RestException(t));
+                }
+                return null;
+            });
         }
     }
 }

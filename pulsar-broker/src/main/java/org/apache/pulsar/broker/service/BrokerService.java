@@ -80,7 +80,6 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.TruncateLedgerCallback;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -2619,11 +2618,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             // v2 topics have a global name so check if the topic is replicated.
             if (t.isReplicated()) {
-                // Delete is disallowed on global topic
+                // Truncate is disallowed on global topic
                 final List<String> clusters = t.getReplicators().keys();
-                log.error("Delete forbidden topic {} is replicated on clusters {}", topic, clusters);
+                log.error("Truncate forbidden topic {} is replicated on clusters {}", topic, clusters);
                 return FutureUtil.failedFuture(
-                        new IllegalStateException("Delete forbidden topic is replicated on clusters " + clusters));
+                        new IllegalStateException("Truncate forbidden topic is replicated on clusters " + clusters));
             }
         }
 
@@ -2634,21 +2633,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return CompletableFuture.completedFuture(null);
         }
 
-        CompletableFuture<Void> future = new CompletableFuture<>();
-
-        managedLedgerFactory.asyncTruncate(tn.getPersistenceNamingEncoding(), new TruncateLedgerCallback() {
-
-            @Override
-            public void truncateLedgerComplete(Object ctx) {
-                future.complete(null);
-            }
-
-            @Override
-            public void truncateLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                future.completeExceptionally(exception);
-            }
-        }, null);
-
+        CompletableFuture<Void> future = managedLedgerFactory.asyncTruncate(tn.getPersistenceNamingEncoding());
         return future;
 
     }

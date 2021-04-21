@@ -3108,6 +3108,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void truncateTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -3115,7 +3116,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic){
         validateTopicName(tenant, namespace, encodedTopic);
-        internalTruncateTopic();
+        internalTruncateTopic(asyncResponse);
 
     }
 

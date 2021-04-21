@@ -3225,6 +3225,20 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
+     * Truncate a topic.
+     * <p/>
+     *
+     * @param topic
+     *            topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void truncate(String topic) throws PulsarAdminException;
+
+    /**
      * Truncate a topic asynchronously.
      * <p/>
      * The latest ledger cannot be deleted.

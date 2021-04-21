@@ -1074,6 +1074,9 @@ public class PulsarAdminToolTest {
 
         CmdPersistentTopics topics = new CmdPersistentTopics(() -> admin);
 
+        topics.run(split("truncate persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).truncate("persistent://myprop/clust/ns1/ds1");
+
         topics.run(split("delete persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", false);
 

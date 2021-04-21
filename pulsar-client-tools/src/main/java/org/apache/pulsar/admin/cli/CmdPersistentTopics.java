@@ -60,6 +60,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
         jcommander.addCommand("unload", new UnloadCmd());
+        jcommander.addCommand("truncate", new TruncateCmd());
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
         jcommander.addCommand("create-subscription", new CreateSubscription());
@@ -283,6 +284,19 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getPersistentTopics().unload(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Truncate a topic. \n"
+            + "\t\tThe topic will be truncate, but the latest ledger cannot be deleted.")
+    private class TruncateCmd extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getPersistentTopics().truncate(topic);
         }
     }
 

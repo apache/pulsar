@@ -327,7 +327,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void asyncTruncate(AsyncCallbacks.TruncateLedgerCallback callback, Object ctx) {
-
+    public CompletableFuture<Void> asyncTruncate() {
+        return CompletableFuture.completedFuture(null);
     }
 }

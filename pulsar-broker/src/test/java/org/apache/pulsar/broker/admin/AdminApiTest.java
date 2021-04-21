@@ -53,6 +53,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import javax.validation.constraints.AssertTrue;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response.Status;
@@ -103,27 +104,9 @@ import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
-import org.apache.pulsar.common.policies.data.BrokerAssignment;
-import org.apache.pulsar.common.policies.data.BrokerInfo;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
@@ -2851,10 +2834,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
-    public void testPersistentTopicTuncate() throws Exception {
+    public void testPartitionedTopicTuncate() throws Exception {
         final String topic = "persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
         admin.topics().createPartitionedTopic(topic, 2);
+        admin.topics().setRetention(topic, new RetentionPolicies(60, 50));
 
         for (int i = 0; i < 2; i++) {
             pulsarClient.newConsumer()
@@ -2876,6 +2860,49 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         admin.topics().truncateAsync(topic);
-        Thread.sleep(5000);
+
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+        assertTrue(stats.ledgers.size() <= 2);
+    }
+
+    @Test(timeOut = 20000)
+    public void testPartitionedTopicTruncate() throws Exception {
+        final String topicName = "persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        admin.topics().createPartitionedTopic(topicName,3);
+
+        admin.topics().setRetention(topicName, new RetentionPolicies(60, 50));
+        List<MessageId> messageIds = publishMessagesOnPersistentTopic(topicName, 10);
+        admin.topics().createSubscription(topicName, subName, messageIds.get(0));
+        admin.topics().unload(topicName);
+        messageIds = publishMessagesOnPersistentTopic(topicName, 10);
+        admin.topics().resetCursor(topicName, subName, messageIds.get(messageIds.size() - 1));
+
+        admin.topics().truncateAsync(topicName);
+
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+        System.out.println(stats.ledgers.size());
+        assertTrue(stats.ledgers.size() <= 1);
+    }
+
+    @Test(timeOut = 20000)
+    public void testNonPartitionedTopicTruncate() throws Exception {
+        final String topicName = "persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().setRetention(topicName, new RetentionPolicies(60, 50));
+        List<MessageId> messageIds = publishMessagesOnPersistentTopic(topicName, 10);
+        admin.topics().createSubscription(topicName, subName, messageIds.get(0));
+        admin.topics().unload(topicName);
+        messageIds = publishMessagesOnPersistentTopic(topicName, 10);
+        admin.topics().resetCursor(topicName, subName, messageIds.get(messageIds.size() - 1));
+
+        admin.topics().truncateAsync(topicName);
+
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+        System.out.println(stats.ledgers.size());
+        assertTrue(stats.ledgers.size() <= 1);
     }
 }

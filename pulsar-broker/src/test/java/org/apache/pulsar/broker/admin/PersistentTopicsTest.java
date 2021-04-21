@@ -53,10 +53,7 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -64,11 +61,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
 import org.apache.zookeeper.KeeperException;
 import org.mockito.ArgumentCaptor;
@@ -368,7 +361,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String partitionedTopicName = "special-topic";
         LocalZooKeeperCacheService mockLocalZooKeeperCacheService = mock(LocalZooKeeperCacheService.class);
         ZooKeeperManagedLedgerCache mockZooKeeperChildrenCache = mock(ZooKeeperManagedLedgerCache.class);
-        doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
+//        doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
         doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
         doReturn(ImmutableSet.of(nonPartitionTopicName1, nonPartitionTopicName2)).when(mockZooKeeperChildrenCache).get(anyString());
         doReturn(CompletableFuture.completedFuture(ImmutableSet.of(nonPartitionTopicName1, nonPartitionTopicName2))).when(mockZooKeeperChildrenCache).getAsync(anyString());
@@ -387,7 +380,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String partitionedTopicName = "special-topic";
         LocalZooKeeperCacheService mockLocalZooKeeperCacheService = mock(LocalZooKeeperCacheService.class);
         ZooKeeperManagedLedgerCache mockZooKeeperChildrenCache = mock(ZooKeeperManagedLedgerCache.class);
-        doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
+//        doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
         doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
         doReturn(ImmutableSet.of(nonPartitionTopicName2)).when(mockZooKeeperChildrenCache).get(anyString());
         doReturn(CompletableFuture.completedFuture(ImmutableSet.of(nonPartitionTopicName2))).when(mockZooKeeperChildrenCache).getAsync(anyString());
@@ -709,5 +702,69 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             Assert.assertEquals(e.getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
         }
+    }
+
+    @Test
+    public void testTruncateTopic() throws Exception {
+        final String topicName = "standard-topic-to-be-truncate";
+        final String partitionTopicName = "partition-topic-to-be-truncacte";
+
+        // 1) not exist topic
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.truncateTopic(response, testTenant, testNamespace, "topic-not-exist");
+        ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(10000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 2) create partitioned topic and truncate
+        response = mock(AsyncResponse.class);
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, "topic-non-partitioned", true);
+
+
+        persistentTopics.setRetention(response, testTenant, testNamespace, "topic-non-partitioned", new RetentionPolicies(60, 50));
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 10; i++) {
+            producer.send("test".getBytes());
+        }
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+        persistentTopics.peekNthMessage(testTenant, testNamespace, "topic-non-partitioned", "sub", 100, false);
+        persistentTopics.truncateTopic(response, testTenant, testNamespace, topicName);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        PersistentTopicInternalStats stats = persistentTopics.getInternalStats(testTenant, testNamespace, "topic-non-partitioned", false, false);
+        Assert.assertTrue(stats.ledgers.size()<=1);
+
+        // 3) create partitioned topic and truncate
+        /*response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionTopicName, 6);
+        persistentTopics.setRetention(response, testTenant, testNamespace, "topic-partitioned", new RetentionPolicies(60, 50));
+        Producer<byte[]> partitionedProducer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            partitionedProducer.send("test".getBytes());
+        }
+        Consumer<byte[]> partitionedConsumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+        persistentTopics.peekNthMessage(testTenant, testNamespace, "topic-non-partitioned", "sub", 100, false);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        response = mock(AsyncResponse.class);
+        persistentTopics.truncateTopic(response, testTenant, testNamespace, partitionTopicName);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        stats = persistentTopics.getInternalStats(testTenant, testNamespace, "topic-partitioned", false, false);
+        Assert.assertTrue(stats.ledgers.size()<=6);
+
+        // 4) delete partitioned topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, partitionTopicName, true, true, false);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());*/
     }
 }
