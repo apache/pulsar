@@ -200,6 +200,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             fail("Failed to readEntriesComplete.", e);
         }
     }
+
     @Test(timeOut = 10000)
     public void testSendStickMessage() {
         KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
@@ -232,7 +233,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                     , entries, 2, ReadType.Replay);
             Assert.assertEquals(messagesForC, 2);
 
-            hashCode = persistentDispatcher.getSelector().generateKeyHash("testKey".getBytes());
             persistentDispatcher.getCurrentSendPositionPerKeyMap().put(hashCode,new PositionImpl(1
                     ,2));
             messagesForC = persistentDispatcher.getRestrictedMaxEntriesForConsumer(consumerMock
@@ -240,6 +240,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             Assert.assertEquals(messagesForC, 0);
 
 
+            persistentDispatcher.getCurrentSendPositionPerKeyMap().clear();
+            messagesForC = persistentDispatcher.getRestrictedMaxEntriesForConsumer(consumerMock
+                    , entries, 2, ReadType.Replay);
+            Assert.assertEquals(messagesForC, 2);
 
         } catch (Exception e) {
             fail("Failed to add mock consumer", e);

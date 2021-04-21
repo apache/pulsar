@@ -344,7 +344,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Integer hashCode =
                     selector.generateKeyHash(peekStickyKey(entries.get(0).getDataBuffer()));
             p = (PositionImpl) currentSendPositionPerKeyMap.get(hashCode);
-            if (p != null && entryPosition != null && entryPosition.compareTo(p) >= 0) {
+            if (p == null || (p != null && entryPosition != null && entryPosition.compareTo(p) >= 0)) {
                 return maxMessages;
             }
         }
