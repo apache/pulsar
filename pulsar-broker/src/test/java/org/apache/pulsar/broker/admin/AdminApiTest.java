@@ -2832,57 +2832,26 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
-    public void testPartitionedTopicTuncate() throws Exception {
-        final String topic = "persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
-        final String subName = "my-sub";
-        this.conf.setTopicLevelPoliciesEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
-        admin.topics().createPartitionedTopic(topic, 2);
-        admin.topics().setRetention(topic, new RetentionPolicies(60, 50));
-
-        for (int i = 0; i < 2; i++) {
-            pulsarClient.newConsumer()
-                    .topic(topic)
-                    .subscriptionType(SubscriptionType.Shared)
-                    .subscriptionName(subName + i)
-                    .subscribe();
-        }
-
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .create();
-
-        final int messages = 100;
-        for (int i = 0; i < messages; i++) {
-            String msg = "Hello Pulsar - " + i;
-            producer.send(msg.getBytes());
-        }
-
-        admin.topics().truncateAsync(topic);
-
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
-        assertTrue(stats.ledgers.size() <= 2);
-    }
-
-    @Test(timeOut = 20000)
     public void testPartitionedTopicTruncate() throws Exception {
         final String topicName = "persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
         this.conf.setTopicLevelPoliciesEnabled(true);
+        this.conf.setSystemTopicEnabled(true);
         admin.topics().createPartitionedTopic(topicName,3);
-        admin.topics().setRetention(topicName, new RetentionPolicies(60, 50));
+        admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(60, 50));
         List<MessageId> messageIds = publishMessagesOnPersistentTopic(topicName, 10);
         admin.topics().createSubscription(topicName, subName, messageIds.get(0));
         admin.topics().unload(topicName);
-        messageIds = publishMessagesOnPersistentTopic(topicName, 10);
-        admin.topics().resetCursor(topicName, subName, messageIds.get(messageIds.size() - 1));
+        publishMessagesOnPersistentTopic(topicName, 10);
+        admin.topics().unload(topicName);
+        publishMessagesOnPersistentTopic(topicName, 10);
+        admin.topics().skipAllMessages(topicName, subName);
+        admin.topics().truncate(topicName);
+        PartitionedTopicInternalStats stats = admin.topics().getPartitionedInternalStats(topicName);
+        for (Map.Entry<String, PersistentTopicInternalStats> statsEntry : stats.partitions.entrySet()) {
+            assertTrue(statsEntry.getValue().ledgers.size() <= 2);
+        }
 
-        admin.topics().truncateAsync(topicName);
-
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
-        System.out.println(stats.ledgers.size());
-        assertTrue(stats.ledgers.size() <= 1);
     }
 
     @Test(timeOut = 20000)
@@ -2891,17 +2860,16 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String subName = "my-sub";
         this.conf.setTopicLevelPoliciesEnabled(true);
         admin.topics().createNonPartitionedTopic(topicName);
-        admin.topics().setRetention(topicName, new RetentionPolicies(60, 50));
+        admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(60, 50));
         List<MessageId> messageIds = publishMessagesOnPersistentTopic(topicName, 10);
         admin.topics().createSubscription(topicName, subName, messageIds.get(0));
         admin.topics().unload(topicName);
-        messageIds = publishMessagesOnPersistentTopic(topicName, 10);
-        admin.topics().resetCursor(topicName, subName, messageIds.get(messageIds.size() - 1));
-
-        admin.topics().truncateAsync(topicName);
-
+        publishMessagesOnPersistentTopic(topicName, 10);
+        admin.topics().unload(topicName);
+        publishMessagesOnPersistentTopic(topicName, 10);
+        admin.topics().skipAllMessages(topicName, subName);
+        admin.topics().truncate(topicName);
         PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
-        System.out.println(stats.ledgers.size());
-        assertTrue(stats.ledgers.size() <= 1);
+        assertTrue(stats.ledgers.size() <= 2);
     }
 }

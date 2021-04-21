@@ -3963,23 +3963,6 @@ public class PersistentTopicsBase extends AdminResource {
                             return null;
                         });
                     }
-
-                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                        if (exception != null) {
-                            Throwable th = exception.getCause();
-                            if (th instanceof NotFoundException) {
-                                asyncResponse.resume(new RestException(Status.NOT_FOUND, th.getMessage()));
-                            } else if (th instanceof WebApplicationException) {
-                                asyncResponse.resume(th);
-                            } else {
-                                log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, exception);
-                                asyncResponse.resume(new RestException(exception));
-                            }
-                        } else {
-                            asyncResponse.resume(Response.noContent().build());
-                        }
-                        return null;
-                    });
                 } else {
                     CompletableFuture<Void> future = pulsar().getBrokerService().truncateTopic(topicName.toString());
                     future.thenAccept(a -> {
