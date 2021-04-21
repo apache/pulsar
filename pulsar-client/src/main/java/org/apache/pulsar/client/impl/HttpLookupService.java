@@ -56,6 +56,7 @@ public class HttpLookupService implements LookupService {
 
     private final HttpClient httpClient;
     private final boolean useTls;
+    private final String listenerName;
 
     private static final String BasePathV1 = "lookup/v2/destination/";
     private static final String BasePathV2 = "lookup/v2/topic/";
@@ -64,6 +65,7 @@ public class HttpLookupService implements LookupService {
             throws PulsarClientException {
         this.httpClient = new HttpClient(conf, eventLoopGroup);
         this.useTls = conf.isUseTls();
+        this.listenerName = conf.getListenerName();
     }
 
     @Override
@@ -80,8 +82,8 @@ public class HttpLookupService implements LookupService {
     @SuppressWarnings("deprecation")
     public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
         String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
-
-        return httpClient.get(basePath + topicName.getLookupName(), LookupData.class).thenCompose(lookupData -> {
+        return httpClient.get(basePath + topicName.getLookupName(listenerName), LookupData.class)
+                .thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
         	URI uri = null;
             try {

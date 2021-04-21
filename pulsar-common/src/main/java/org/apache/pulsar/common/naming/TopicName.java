@@ -331,9 +331,22 @@ public class TopicName implements ServiceUnitId {
      * @return
      */
     public String getLookupName() {
+        return getLookupName(null);
+    }
+
+    public String getLookupName(String listenerName) {
         if (isV2()) {
+            if (StringUtils.isNotBlank(listenerName)) {
+                return String.format("%s/%s/%s/%s?listenerName=%s", domain, tenant, namespacePortion,
+                        getEncodedLocalName(),
+                        Codec.encode(listenerName));
+            }
             return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
         } else {
+            if (StringUtils.isNotBlank(listenerName)) {
+                return String.format("%s/%s/%s/%s/%s?listenerName=%s", domain, tenant, cluster,
+                        namespacePortion, getEncodedLocalName(), Codec.encode(listenerName));
+            }
             return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
         }
     }
