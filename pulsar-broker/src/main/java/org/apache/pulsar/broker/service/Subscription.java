@@ -107,7 +107,17 @@ public interface Subscription {
 
     CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark);
 
-    int getNumberOfSameAddressConsumers(String clientAddress);
+    default int getNumberOfSameAddressConsumers(final String clientAddress) {
+        int count = 0;
+        if (clientAddress != null) {
+            for (Consumer consumer : getConsumers()) {
+                if (clientAddress.equals(consumer.getClientAddress())) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
 
     // Subscription utils
     static boolean isCumulativeAckMode(SubType subType) {

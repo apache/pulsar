@@ -498,6 +498,8 @@ public class NonPersistentSubscription implements Subscription {
         return completableFuture;
     }
 
+    private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
+
     public long getLastActive() {
         return lastActive;
     }
@@ -505,19 +507,4 @@ public class NonPersistentSubscription implements Subscription {
     public void updateLastActive() {
         this.lastActive = System.currentTimeMillis();
     }
-
-    @Override
-    public int getNumberOfSameAddressConsumers(final String clientAddress) {
-        int count = 0;
-        if (clientAddress != null) {
-            for (Consumer consumer : getConsumers()) {
-                if (clientAddress.equals(consumer.getClientAddress())) {
-                    count++;
-                }
-            }
-        }
-        return count;
-    }
-
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
 }

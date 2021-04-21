@@ -1097,18 +1097,5 @@ public class PersistentSubscription implements Subscription {
         return dispatcher.checkAndUnblockIfStuck();
     }
 
-    @Override
-    public int getNumberOfSameAddressConsumers(final String clientAddress) {
-        int count = 0;
-        if (clientAddress != null) {
-            for (Consumer consumer : getConsumers()) {
-                if (clientAddress.equals(consumer.getClientAddress())) {
-                    count++;
-                }
-            }
-        }
-        return count;
-    }
-
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
 }
