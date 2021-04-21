@@ -146,6 +146,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -1595,8 +1596,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         forEachTopic(topic -> {
             if (topic instanceof PersistentTopic) {
                 PersistentTopic persistentTopic = (PersistentTopic) topic;
-                if (persistentTopic.isBacklogExceeded()) {
-                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic);
+                if (persistentTopic.isSizeBacklogExceeded()) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
+                            BacklogQuota.BacklogQuotaType.destination_storage, false);
+                } else if (persistentTopic.isTimeBacklogExceeded()) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
+                            BacklogQuota.BacklogQuotaType.message_age,
+                            pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("quota not exceeded for [{}]", topic.getName());
