@@ -2585,7 +2585,7 @@ public class PersistentTopic extends AbstractTopic
         ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);
      }
 
-    Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {
+    public Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {
         return replicatedSubscriptionsController;
     }
 
