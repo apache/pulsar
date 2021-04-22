@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
 import org.apache.pulsar.broker.transaction.coordinator.TransactionMetaStoreTestBase;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -57,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -174,6 +176,43 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             assertEquals(futures.get(i).get().getMostSigBits(), 1L);
             assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
+    }
+
+    @Test
+    public void testTransactionBufferOpFail() throws InterruptedException, ExecutionException {
+        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>[] originalMaps =
+                new ConcurrentOpenHashMap[brokerServices.length];
+        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topicMap = new ConcurrentOpenHashMap<>();
+        for (int i = 0; i < brokerServices.length; i++) {
+            originalMaps[i] = brokerServices[i].getTopics();
+            when(brokerServices[i].getTopics()).thenReturn(topicMap);
+        }
+
+        try {
+            tbClient.abortTxnOnSubscription(
+                    partitionedTopicName.getPartition(0).toString(), "test", 1L, 1, -1L).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.LookupException);
+        }
+
+        try {
+            tbClient.abortTxnOnTopic(
+                    partitionedTopicName.getPartition(0).toString(), 1L, 1, -1L).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.LookupException);
+        }
+
+        for (int i = 0; i < brokerServices.length; i++) {
+            when(brokerServices[i].getTopics()).thenReturn(originalMaps[i]);
+        }
+
+        tbClient.abortTxnOnSubscription(
+                partitionedTopicName.getPartition(0).toString(), "test", 1L, 1, -1L).get();
+
+        tbClient.abortTxnOnTopic(
+                partitionedTopicName.getPartition(0).toString(), 1L, 1, -1L).get();
     }
 
     @Test
