@@ -75,7 +75,7 @@ public class RetryUtilTest {
             assertTrue(e.getMessage().contains("fail"));
         }
         long time = System.currentTimeMillis() - start;
-        assertTrue(time >= 5000, "Duration:" + time);
+        assertTrue(time >= 5000 - 2000, "Duration:" + time);
         executor.shutdownNow();
     }
 }
