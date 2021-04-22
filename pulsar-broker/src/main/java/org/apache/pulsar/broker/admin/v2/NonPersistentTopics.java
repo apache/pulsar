@@ -392,7 +392,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative){
-        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED.getStatusCode(), "NonPersistentTopic is not support truncate"));
+        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED.getStatusCode(),
+                "unsupport truncate"));
     }
 
     protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {
