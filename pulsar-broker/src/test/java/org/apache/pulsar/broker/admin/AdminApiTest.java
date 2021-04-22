@@ -2849,7 +2849,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().truncate(topicName);
         PartitionedTopicInternalStats stats = admin.topics().getPartitionedInternalStats(topicName);
         for (Map.Entry<String, PersistentTopicInternalStats> statsEntry : stats.partitions.entrySet()) {
-            assertTrue(statsEntry.getValue().ledgers.size() <= 2);
+            assertTrue(statsEntry.getValue().ledgers.size() <= 1);
         }
 
     }
@@ -2870,6 +2870,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().skipAllMessages(topicName, subName);
         admin.topics().truncate(topicName);
         PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
-        assertTrue(stats.ledgers.size() <= 2);
+        assertTrue(stats.ledgers.size() <= 1);
+    }
+
+    @Test(timeOut = 20000)
+    public void testNonPersistentTopicTruncate() throws Exception {
+        final String topicName = "non-persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
+        admin.topics().createNonPartitionedTopic(topicName);
+        assertThrows(() -> {admin.topics().truncate(topicName);});
+
     }
 }
