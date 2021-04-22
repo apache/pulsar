@@ -974,7 +974,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         List<Metrics> metrics = Lists.newArrayList();
         Map<String, String> dimensions = new HashMap<>();
 
-        dimensions.put("broker", pulsar.getAdvertisedAddress());
+        dimensions.put("broker", conf.getAdvertisedAddress());
         dimensions.put("metric", "loadBalancing");
 
         Metrics m = Metrics.create(dimensions);
