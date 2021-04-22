@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.Test;
 
@@ -25,43 +26,43 @@ import org.testng.annotations.Test;
 public class PersistentTopicMessagingTest extends TopicMessagingBase {
 
     @Test(dataProvider = "ServiceUrls")
-    public void testNonPartitionedTopicMessagingWithExclusive(String serviceUrl) throws Exception {
-        nonPartitionedTopicSendAndReceiveWithExclusive(serviceUrl, true);
+    public void testNonPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl) throws Exception {
+        nonPartitionedTopicSendAndReceiveWithExclusive(serviceUrl.get(), true);
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testPartitionedTopicMessagingWithExclusive(String serviceUrl) throws Exception {
-        partitionedTopicSendAndReceiveWithExclusive(serviceUrl, true);
+    public void testPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl) throws Exception {
+        partitionedTopicSendAndReceiveWithExclusive(serviceUrl.get(), true);
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testNonPartitionedTopicMessagingWithFailover(String serviceUrl) throws Exception {
-        nonPartitionedTopicSendAndReceiveWithFailover(serviceUrl, true);
+    public void testNonPartitionedTopicMessagingWithFailover(Supplier<String> serviceUrl) throws Exception {
+        nonPartitionedTopicSendAndReceiveWithFailover(serviceUrl.get(), true);
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testPartitionedTopicMessagingWithFailover(String serviceUrl) throws Exception {
-        partitionedTopicSendAndReceiveWithFailover(serviceUrl, true);
+    public void testPartitionedTopicMessagingWithFailover(Supplier<String> serviceUrl) throws Exception {
+        partitionedTopicSendAndReceiveWithFailover(serviceUrl.get(), true);
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testNonPartitionedTopicMessagingWithShared(String serviceUrl) throws Exception {
-        nonPartitionedTopicSendAndReceiveWithShared(serviceUrl, true);
+    public void testNonPartitionedTopicMessagingWithShared(Supplier<String> serviceUrl) throws Exception {
+        nonPartitionedTopicSendAndReceiveWithShared(serviceUrl.get(), true);
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testPartitionedTopicMessagingWithShared(String serviceUrl) throws Exception {
-        partitionedTopicSendAndReceiveWithShared(serviceUrl, true);
+    public void testPartitionedTopicMessagingWithShared(Supplier<String> serviceUrl) throws Exception {
+        partitionedTopicSendAndReceiveWithShared(serviceUrl.get(), true);
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testNonPartitionedTopicMessagingWithKeyShared(String serviceUrl) throws Exception {
-        nonPartitionedTopicSendAndReceiveWithKeyShared(serviceUrl, true);
+    public void testNonPartitionedTopicMessagingWithKeyShared(Supplier<String> serviceUrl) throws Exception {
+        nonPartitionedTopicSendAndReceiveWithKeyShared(serviceUrl.get(), true);
     }
 
     @Test(dataProvider = "ServiceUrls")
-    public void testPartitionedTopicMessagingWithKeyShared(String serviceUrl) throws Exception {
-        partitionedTopicSendAndReceiveWithKeyShared(serviceUrl, true);
+    public void testPartitionedTopicMessagingWithKeyShared(Supplier<String> serviceUrl) throws Exception {
+        partitionedTopicSendAndReceiveWithKeyShared(serviceUrl.get(), true);
     }
 
 }

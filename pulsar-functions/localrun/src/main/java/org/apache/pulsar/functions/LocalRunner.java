@@ -61,6 +61,7 @@ import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -171,7 +172,7 @@ public class LocalRunner implements AutoCloseable {
     protected String secretsProviderClassName;
     @Parameter(names = "--secretsProviderConfig", description = "Whats the config for the secrets provider", hidden = true)
     protected String secretsProviderConfig;
-    @Parameter(names = "--metricsPortStart", description = "The starting port range for metrics server", hidden = true)
+    @Parameter(names = "--metricsPortStart", description = "The starting port range for metrics server. When running instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
     protected Integer metricsPortStart;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
@@ -485,7 +486,16 @@ public class LocalRunner implements AutoCloseable {
                 instanceConfig.setInstanceId(i + instanceIdOffset);
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(FunctionCommon.findAvailablePort());
-                instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
+
+                if (metricsPortStart != null) {
+                    int metricsPort = metricsPortStart + i;
+                    if (metricsPortStart < 0 || metricsPortStart > 65535) {
+                        throw new IllegalArgumentException("Metrics port need to be within the range of 0 and 65535");
+                    }
+                    instanceConfig.setMetricsPort(metricsPort);
+                } else {
+                    instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
+                }
                 instanceConfig.setClusterName("local");
                 if (functionConfig != null) {
                     instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
@@ -537,6 +547,13 @@ public class LocalRunner implements AutoCloseable {
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile) throws Exception {
+
+        if (metricsPortStart != null) {
+            if (metricsPortStart < 0 || metricsPortStart > 65535) {
+                throw new IllegalArgumentException("Metrics port need to be within the range of 0 and 65535");
+            }
+        }
+
         SecretsProvider secretsProvider;
         if (secretsProviderClassName != null) {
             secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
@@ -554,7 +571,7 @@ public class LocalRunner implements AutoCloseable {
         }
 
         // Collector Registry for prometheus metrics
-        CollectorRegistry collectorRegistry = new CollectorRegistry();
+        FunctionCollectorRegistry collectorRegistry = FunctionCollectorRegistry.getDefaultImplementation();
         RuntimeUtils.registerDefaultCollectors(collectorRegistry);
 
         ThreadRuntimeFactory threadRuntimeFactory;
@@ -583,10 +600,7 @@ public class LocalRunner implements AutoCloseable {
             instanceConfig.setInstanceId(i + instanceIdOffset);
             instanceConfig.setMaxBufferedTuples(1024);
             if (metricsPortStart != null) {
-                if (metricsPortStart < 0 || metricsPortStart > 65535) {
-                    throw new IllegalArgumentException("Metrics port need to be within the range of 0 and 65535");
-                }
-                instanceConfig.setMetricsPort(metricsPortStart + i);
+                instanceConfig.setMetricsPort(metricsPortStart);
             }
             instanceConfig.setClusterName("local");
             if (functionConfig != null) {
@@ -604,13 +618,12 @@ public class LocalRunner implements AutoCloseable {
                     30000);
             spawners.add(runtimeSpawner);
             runtimeSpawner.start();
+        }
 
-            if (metricsPortStart != null) {
-                // starting metrics server
-                log.info("Starting metrics server on port {}", instanceConfig.getMetricsPort());
-                new HTTPServer(new InetSocketAddress(instanceConfig.getMetricsPort()), collectorRegistry, true);
-            }
-
+        if (metricsPortStart != null) {
+            // starting metrics server
+            log.info("Starting metrics server on port {}", metricsPortStart);
+            new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
         }
     }
 

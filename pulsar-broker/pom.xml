@@ -491,6 +491,8 @@
         <version>${lightproto-maven-plugin.version}</version>
         <configuration>
           <sources>${project.basedir}/src/main/proto/ResourceUsage.proto</sources>
+          <targetSourcesSubDir>generated-sources/lightproto/java</targetSourcesSubDir>
+          <targetTestSourcesSubDir>generated-sources/lightproto/java</targetTestSourcesSubDir>
         </configuration>
         <executions>
           <execution>

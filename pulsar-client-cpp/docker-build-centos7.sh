@@ -18,31 +18,23 @@
 # under the License.
 #
 
-function fail {
-  echo $1 >&2
-  exit 1
-}
+# Build Pulsar C++ client in CentOS 7 container
 
-function retry {
-  local n=1
-  local max=3
-  local delay=10
+set -e
 
-  # cleanup running containers
-  docker kill $(docker ps -q)
-  docker rm $(docker ps -a -q)
+ROOT_DIR=$(git rev-parse --show-toplevel)
+cd $ROOT_DIR/pulsar-client-cpp
 
-  while true; do
-    "$@" && break || {
-      if [[ $n -lt $max ]]; then
-        ((n++))
-        echo "Command failed. Attempt $n/$max:"
-        sleep $delay;
-      else
-        fail "The command has failed after $n attempts."
-      fi
-    }
-  done
-}
+IMAGE="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-cpp-build-centos7}"
+cd ./docker/centos-7
+docker build -t "${IMAGE}" .
+cd -
 
-retry "$@"
+VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
+COMMAND="cd /pulsar/pulsar-client-cpp && mkdir -p _builds && cd _builds &&
+ /opt/cmake/cmake-3.4.0-Linux-x86_64/bin/cmake .. -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF && make"
+
+DOCKER_CMD="docker run -i ${VOLUME_OPTION} ${IMAGE}"
+
+rm -rf _builds
+$DOCKER_CMD bash -c "${COMMAND}"

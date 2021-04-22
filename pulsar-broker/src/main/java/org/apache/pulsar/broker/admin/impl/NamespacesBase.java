@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.common.policies.data.Policies.getBundles;
 import com.google.common.collect.Lists;
@@ -2565,5 +2566,26 @@ public abstract class NamespacesBase extends AdminResource {
        }
    }
 
-   private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
+    protected void internalSetNamespaceResourceGroup(String rgName) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RESOURCEGROUP, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        if (rgName != null) {
+            final String resourceGroupPath = AdminResource.path(RESOURCEGROUPS, rgName);
+            // check resourcegroup exists.
+            try {
+                if (!resourceGroupResources().exists(resourceGroupPath)) {
+                    throw new RestException(Status.PRECONDITION_FAILED, "ResourceGroup does not exist");
+                }
+            } catch (Exception e) {
+                log.error("[{}] Invalid ResourceGroup {}: {}", clientAppId(), rgName, e);
+                throw new RestException(e);
+            }
+        }
+
+        internalSetPolicies("resource_group_name", rgName);
+    }
+
+
+    private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }

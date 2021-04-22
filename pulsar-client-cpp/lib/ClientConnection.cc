@@ -189,7 +189,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
 #if BOOST_VERSION >= 105400
         boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
 #else
-        boost::asio::ssl::context ctx(executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
+        boost::asio::ssl::context ctx(*executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
 #endif
         Url serviceUrl;
         Url::parse(physicalAddress, serviceUrl);

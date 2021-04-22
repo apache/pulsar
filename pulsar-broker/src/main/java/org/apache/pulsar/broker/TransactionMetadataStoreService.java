@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker;
 
-
 import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.ABORTING;
 import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.COMMITTING;
 import com.google.common.annotations.VisibleForTesting;
@@ -34,9 +33,12 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
+import org.apache.pulsar.broker.transaction.recover.TransactionRecoverTrackerImpl;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
+import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.RequestTimeoutException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -47,13 +49,14 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
+import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactory;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionMetadataStoreStateException;
-import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.slf4j.Logger;
@@ -137,8 +140,12 @@ public class TransactionMetadataStoreService {
                     if (e != null) {
                         LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
                     } else {
+                        TransactionTimeoutTracker timeoutTracker = timeoutTrackerFactory.newTracker(tcId);
+                        TransactionRecoverTracker recoverTracker =
+                                new TransactionRecoverTrackerImpl(TransactionMetadataStoreService.this,
+                                        timeoutTracker, tcId.getId());
                         transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory(), v,
-                                timeoutTrackerFactory.newTracker(tcId))
+                                timeoutTracker, recoverTracker)
                                 .whenComplete((store, ex) -> {
                                     if (ex != null) {
                                         LOG.error("Add transaction metadata store with id {} error", tcId.getId(), ex);
@@ -242,7 +249,7 @@ public class TransactionMetadataStoreService {
                 updateTxnStatus(txnID, newStatus, TxnStatus.OPEN).thenAccept(v ->
                         endTxnInTransactionBuffer(txnID, txnAction).thenAccept(a ->
                                 completableFuture.complete(null)).exceptionally(e -> {
-                            if (!isRetryableException(e)) {
+                            if (!isRetryableException(e.getCause())) {
                                 LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
                                         + "TxnAction : {}", txnID, txnAction, e);
                             } else {
@@ -258,7 +265,7 @@ public class TransactionMetadataStoreService {
                             completableFuture.completeExceptionally(e);
                             return null;
                         })).exceptionally(e -> {
-                    if (!isRetryableException(e)) {
+                    if (!isRetryableException(e.getCause())) {
                         LOG.error("EndTransaction UpdateTxnStatus fail! TxnId : {}, "
                                 + "TxnAction : {}", txnID, txnAction, e);
                     } else {
@@ -276,19 +283,19 @@ public class TransactionMetadataStoreService {
             } else {
                 if ((txnStatus == COMMITTING && txnAction == TxnAction.COMMIT.getValue())
                         || (txnStatus == ABORTING && txnAction == TxnAction.ABORT.getValue())) {
-                    endTxnInTransactionBuffer(txnID, txnAction).exceptionally(e -> {
-                        if (!isRetryableException(e.getCause())) {
-                            LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
-                                    + "TxnAction : {}", txnID, txnAction, e);
-                        } else {
+                    endTxnInTransactionBuffer(txnID, txnAction).thenAccept(k ->
+                            completableFuture.complete(null)).exceptionally(e -> {
+                        if (isRetryableException(e.getCause())) {
                             if (LOG.isDebugEnabled()) {
                                 LOG.debug("EndTxnInTransactionBuffer retry! TxnId : {}, "
                                         + "TxnAction : {}", txnID, txnAction, e);
                             }
                             transactionOpRetryTimer.newTimeout(timeout ->
-                                    endTransaction(txnID, txnAction),
+                                            endTransaction(txnID, txnAction),
                                     endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
-
+                        } else {
+                            LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
+                                    + "TxnAction : {}", txnID, txnAction, e);
                         }
                         completableFuture.completeExceptionally(e);
                         return null;
@@ -301,7 +308,7 @@ public class TransactionMetadataStoreService {
                 }
             }
         }).exceptionally(e -> {
-            if (!isRetryableException(e)) {
+            if (isRetryableException(e.getCause())) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("End transaction op retry! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
                 }
@@ -322,7 +329,7 @@ public class TransactionMetadataStoreService {
                 return null;
             }
         }).exceptionally(e -> {
-            if (!(e instanceof TransactionNotFoundException)) {
+            if (isRetryableException(e.getCause())) {
                 endTransaction(txnID, TxnAction.ABORT_VALUE);
             } else {
                 if (LOG.isDebugEnabled()) {
@@ -394,7 +401,9 @@ public class TransactionMetadataStoreService {
         if (e instanceof TransactionMetadataStoreStateException
                 || e instanceof RequestTimeoutException
                 || e instanceof ManagedLedgerException
-                || e instanceof PulsarClientException.BrokerPersistenceException) {
+                || e instanceof BrokerPersistenceException
+                || e instanceof LookupException
+                || e instanceof ReachMaxPendingOpsException) {
             return true;
         } else {
             return false;

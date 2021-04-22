@@ -243,7 +243,7 @@ func (stat *StatWithLabelValues) processTimeEnd() {
 	if stat.processStartTime != 0 {
 		now := time.Now()
 		duration := now.UnixNano() - stat.processStartTime
-		stat.statProcessLatencyMs.Observe(float64(duration))
+		stat.statProcessLatencyMs.Observe(float64(duration) / 1e6)
 	}
 }
 

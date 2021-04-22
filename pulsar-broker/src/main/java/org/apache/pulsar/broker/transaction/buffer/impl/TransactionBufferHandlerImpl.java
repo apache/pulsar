@@ -35,13 +35,13 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
-import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
@@ -73,7 +73,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
+    public synchronized CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
                                                   TxnAction action, long lowWaterMark) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
@@ -104,8 +104,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
-                                                         long txnIdLeastBits, TxnAction action, long lowWaterMark) {
+    public synchronized CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription,
+                                                                      long txnIdMostBits, long txnIdLeastBits,
+                                                                      TxnAction action, long lowWaterMark) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
@@ -135,7 +136,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
+    public synchronized void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
             if (log.isDebugEnabled()) {
@@ -149,18 +150,17 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
             }
-            log.info("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
             op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
         } else {
             log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(),
                     response.getError());
-            op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
+            op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
         op.recycle();
     }
 
     @Override
-    public void handleEndTxnOnSubscriptionResponse(long requestId,
+    public synchronized void handleEndTxnOnSubscriptionResponse(long requestId,
                                                    CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
@@ -180,7 +180,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         } else {
             log.error("[{}] Got end txn on subscription response for request {} error {}",
                     op.topic, response.getRequestId(), response.getError());
-            op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
+            op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
         op.recycle();
     }
@@ -216,17 +216,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 });
     }
 
-    private TransactionBufferClientException getException(ServerError serverError, String msg) {
-        return new TransactionBufferClientException(msg);
-    }
-
     private boolean canSendRequest(CompletableFuture<?> callback) {
         try {
             if (blockIfReachMaxPendingOps) {
                 semaphore.acquire();
             } else {
                 if (!semaphore.tryAcquire()) {
-                    callback.completeExceptionally(new TransactionBufferClientException("Reach max pending ops."));
+                    callback.completeExceptionally(new ReachMaxPendingOpsException("Reach max pending ops."));
                     return false;
                 }
             }
@@ -239,7 +235,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public void run(Timeout timeout) throws Exception {
+    public synchronized void run(Timeout timeout) throws Exception {
         if (timeout.isCancelled()) {
             return;
         }
@@ -255,17 +251,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 break;
             }
             firstEntry = pendingRequests.firstEntry();
+            pendingRequests.remove(pendingRequests.firstKey());
             peeked = firstEntry == null ? null : firstEntry.getValue();
         }
         if (peeked == null) {
             timeToWaitMs = operationTimeoutInMills;
         } else {
-            long diff = (peeked.createdAt + operationTimeoutInMills) - System.currentTimeMillis();
-            if (diff <= 0) {
-                timeToWaitMs = operationTimeoutInMills;
-            } else {
-                timeToWaitMs = diff;
-            }
+            timeToWaitMs = (peeked.createdAt + operationTimeoutInMills) - System.currentTimeMillis();
         }
         requestTimeout = timer.newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
     }
@@ -290,7 +282,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             op.topic = topic;
             op.byteBuf = byteBuf;
             op.cb = cb;
-            op.createdAt = System.nanoTime();
+            op.createdAt = System.currentTimeMillis();
             return op;
         }
 
