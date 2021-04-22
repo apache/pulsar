@@ -79,8 +79,9 @@ public class JavaInstance implements AutoCloseable {
     	JavaExecutionResult executionResult = new JavaExecutionResult();
     	
         try { 	
-        	final Object result = (function != null) ? function.process(input, context) :
-        		javaUtilFunction.apply(input);
+        	final Object result = (function != null) ? 
+        		function.process(input, context) :  // For classes that implement the org.apache.pulsar.functions.api.Function interface
+        		javaUtilFunction.apply(input);  // For classes that implement the java.util.Function interface
         	
             executionResult.setResult(result);  
         } catch (Exception ex) {
@@ -103,6 +104,7 @@ public class JavaInstance implements AutoCloseable {
         } catch (InterruptedException ie) {
             log.warn("Exception while put Async requests", ie);
             executionResult.setUserException(ie);
+            future.completeExceptionally(ie);
             Thread.currentThread().interrupt();
         }
 
@@ -116,18 +118,10 @@ public class JavaInstance implements AutoCloseable {
             }
           
             pendingAsyncRequests.remove(future);
-            future.complete(functionResult);
-            
+            future.complete(functionResult);     
         }, executor);
-        
-        
-		try {
-			executionResult.setResult(future.get());
-		} catch (InterruptedException iEx) {
-			Thread.currentThread().interrupt();
-		} catch (ExecutionException eEx) {
-			executionResult.setUserException(eEx);
-		}
+          
+        executionResult.setResult(future);
     }
 
     /**
@@ -147,6 +141,7 @@ public class JavaInstance implements AutoCloseable {
         JavaExecutionResult executionResult = executeFunction(input);
 
         if (executionResult.getResult() instanceof CompletableFuture) {
+        	// Function is in format: Function<I, CompletableFuture<O>>
             handleAsync((CompletableFuture) executionResult.getResult(), executionResult);
         } else {
         	// The function result is contained in the result field of the executionResult object

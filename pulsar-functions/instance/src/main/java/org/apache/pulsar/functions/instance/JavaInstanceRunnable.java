@@ -334,7 +334,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stats.incrSysExceptions(result.getSystemException());
     	}
     	
-    	if (result.getResult() == null) {
+    	final Object output = (result.getResult() instanceof CompletableFuture) ?
+    		((CompletableFuture)result.getResult()).get() : result.getResult();
+    		
+    	if (output == null) {
     		if (instanceConfig.getFunctionDetails().getAutoAck()) {
                 // the function doesn't produce any result or the user doesn't want the result.
                 srcRecord.ack();
@@ -342,7 +345,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     	} else { 
     		
     		try {			
-				sendOutputMessage(srcRecord, result.getResult());
+				sendOutputMessage(srcRecord, output);
 				
 				if (instanceConfig.getFunctionDetails().getAutoAck()) {
 					srcRecord.ack();
@@ -364,7 +367,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     	}
     }
 
-    private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+	private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
@@ -381,7 +385,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private Record readInput() throws Exception {
+    @SuppressWarnings("rawtypes")
+	private Record readInput() throws Exception {
         Record record;
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
