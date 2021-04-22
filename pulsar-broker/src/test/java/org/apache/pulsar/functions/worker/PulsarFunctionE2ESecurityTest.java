@@ -129,6 +129,7 @@ public class PulsarFunctionE2ESecurityTest {
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setAdvertisedAddress("localhost");
@@ -179,6 +180,9 @@ public class PulsarFunctionE2ESecurityTest {
                 && isNotBlank(workerConfig.getBrokerClientAuthenticationParameters())) {
             clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
                     workerConfig.getBrokerClientAuthenticationParameters());
+        }
+        if (pulsarClient != null) {
+            pulsarClient.close();
         }
         pulsarClient = clientBuilder.build();
 

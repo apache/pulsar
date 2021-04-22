@@ -717,7 +717,7 @@ public class BatchMessageTest extends BrokerTestBase {
         retryStrategically((test) -> dispatcher.getConsumers().get(0).getUnackedMessages() == 0, 50, 150);
         assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 0);
 
-        executor.shutdown();
+        executor.shutdownNow();
         myConsumer.close();
         producer.close();
     }

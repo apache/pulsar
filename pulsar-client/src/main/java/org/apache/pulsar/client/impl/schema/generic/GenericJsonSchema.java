@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
@@ -41,6 +43,18 @@ public class GenericJsonSchema extends GenericSchemaImpl {
 
     @Override
     public GenericRecordBuilder newRecordBuilder() {
-        throw new UnsupportedOperationException("Json Schema doesn't support record builder yet");
+        return new JsonRecordBuilderImpl(this);
+    }
+
+    public boolean supportSchemaVersioning() {
+        return true;
+    }
+
+    public Schema<GenericRecord> clone() {
+        Schema<GenericRecord> schema = of(this.schemaInfo, ((AbstractMultiVersionGenericReader)this.reader).useProvidedSchemaAsReaderSchema);
+        if (this.schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(this.schemaInfoProvider);
+        }
+        return schema;
     }
 }

@@ -47,6 +47,7 @@ public class AdvertisedAddressTest {
         bkEnsemble.start();
 
         ServiceConfiguration config = new ServiceConfiguration();
+        config.setBrokerShutdownTimeoutMs(0L);
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config.setWebServicePort(Optional.ofNullable(0));
         config.setClusterName("usc");

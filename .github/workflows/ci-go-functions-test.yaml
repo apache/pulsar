@@ -50,6 +50,9 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
 
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
       - name: Changed files check
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
@@ -67,13 +70,13 @@ jobs:
 
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
+        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: Run tests
-        if: ${{ steps.changes.outputs.all_count > steps.changes.outputs.docs_count }}
+        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
         run: |
           cd pulsar-function-go
           go test -v $(go list ./... | grep -v examples)

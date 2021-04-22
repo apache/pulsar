@@ -28,6 +28,11 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'Enrico Olivelli',
+      apacheId: 'eolivelli',
+      roles: 'Committer'
+    },
+    {
       name: 'Fangbin Sun',
       apacheId: 'sunfangbin',
       roles: 'Committer'

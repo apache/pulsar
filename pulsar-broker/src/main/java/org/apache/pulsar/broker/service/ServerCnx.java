@@ -132,6 +132,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.slf4j.Logger;
@@ -145,7 +146,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private State state;
     private volatile boolean isActive = true;
     String authRole = null;
-    AuthenticationDataSource authenticationData;
+    private volatile AuthenticationDataSource authenticationData;
     AuthenticationProvider authenticationProvider;
     AuthenticationState authState;
     // In case of proxy, if the authentication credentials are forwardable,
@@ -590,9 +591,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // Authentication has completed. It was either:
             // 1. the 1st time the authentication process was done, in which case we'll
             //    a `CommandConnected` response
-            // 2. an authentication refresh, in which case we don't need to do anything else
+            // 2. an authentication refresh, in which case we need to refresh authenticationData
 
             String newAuthRole = authState.getAuthRole();
+
+            // Refresh the auth data.
+            this.authenticationData = authState.getAuthDataSource();
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Auth data refreshed for role={}", remoteAddress, this.authRole);
+            }
 
             if (!useOriginalAuthState) {
                 this.authRole = newAuthRole;
@@ -1245,7 +1252,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 cause = new TopicNotFoundException("Topic Not Found.");
                             }
 
-                            if (!(cause instanceof ServiceUnitNotReadyException)) {
+                            if (!Exceptions.areExceptionsPresentInChain(cause,
+                                    ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
                                 // Do not print stack traces for expected exceptions
                                 log.error("[{}] Failed to create topic {}, producerId={}",
                                           remoteAddress, topicName, producerId, exception);
@@ -1699,9 +1707,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     protected void handleGetSchema(CommandGetSchema commandGetSchema) {
         if (log.isDebugEnabled()) {
-            log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
-                    remoteAddress, new String(commandGetSchema.getSchemaVersion()),
-                    commandGetSchema.getTopic(), commandGetSchema.getRequestId());
+            if (commandGetSchema.hasSchemaVersion()) {
+                log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
+                        remoteAddress, new String(commandGetSchema.getSchemaVersion()),
+                        commandGetSchema.getTopic(), commandGetSchema.getRequestId());
+            } else {
+                log.debug("Received CommandGetSchema call from {}, schemaVersion: {}, topic: {}, requestId: {}",
+                        remoteAddress, null,
+                        commandGetSchema.getTopic(), commandGetSchema.getRequestId());
+            }
         }
 
         long requestId = commandGetSchema.getRequestId();

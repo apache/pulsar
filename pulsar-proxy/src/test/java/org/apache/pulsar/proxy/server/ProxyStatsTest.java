@@ -34,6 +34,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Consumer;
@@ -104,6 +105,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testConnectionsStats() throws Exception {
         final String topicName1 = "persistent://sample/test/local/connections-stats";
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topicName1).enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
@@ -133,7 +135,6 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         assertNotNull(connectionStats);
 
         consumer.close();
-        client.close();
     }
 
     /**
@@ -147,6 +148,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://sample/test/local/topic-stats";
         final String topicName2 = "persistent://sample/test/local/topic-stats-2";
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic(topicName).enableBatching(false)
                 .producerName("producer1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
@@ -184,7 +186,6 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         consumer2.close();
-        client.close();
     }
 
     /**

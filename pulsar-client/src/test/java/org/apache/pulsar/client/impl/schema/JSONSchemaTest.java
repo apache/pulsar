@@ -22,6 +22,9 @@ import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_JSON_ALLOW_NULL;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_JSON_NOT_ALLOW_NULL;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.assertSame;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -32,13 +35,20 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaValidationException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.DerivedFoo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBarList;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -367,5 +377,76 @@ public class JSONSchemaTest {
         byte[] encoded = jsonSchema.encode(pc);
         PC roundtrippedPc = jsonSchema.decode(encoded);
         assertEquals(roundtrippedPc, pc);
+    }
+
+    @Test
+    public void testGetNativeSchema() throws SchemaValidationException {
+        JSONSchema<PC> schema2 = JSONSchema.of(PC.class);
+        org.apache.avro.Schema avroSchema2 = (Schema) schema2.getNativeSchema().get();
+        assertSame(schema2.schema, avroSchema2);
+    }
+
+    @Test
+    public void testJsonGenericRecordBuilder() {
+        JSONSchema<Seller> sellerJsonSchema = JSONSchema.of(Seller.class);
+
+        RecordSchemaBuilder sellerSchemaBuilder = SchemaBuilder.record("seller");
+        sellerSchemaBuilder.field("state").type(SchemaType.STRING);
+        sellerSchemaBuilder.field("street").type(SchemaType.STRING);
+        sellerSchemaBuilder.field("zipCode").type(SchemaType.INT64);
+        SchemaInfo sellerSchemaInfo = sellerSchemaBuilder.build(SchemaType.JSON);
+        GenericSchemaImpl sellerGenericSchema = GenericSchemaImpl.of(sellerSchemaInfo);
+
+        JSONSchema<PC> pcJsonSchema = JSONSchema.of(PC.class);
+
+        RecordSchemaBuilder pcSchemaBuilder = SchemaBuilder.record("pc");
+        pcSchemaBuilder.field("brand").type(SchemaType.STRING);
+        pcSchemaBuilder.field("model").type(SchemaType.STRING);
+        pcSchemaBuilder.field("gpu").type(SchemaType.STRING);
+        pcSchemaBuilder.field("year").type(SchemaType.INT64);
+        pcSchemaBuilder.field("seller", sellerGenericSchema).type(SchemaType.JSON).optional();
+        SchemaInfo pcGenericSchemaInfo = pcSchemaBuilder.build(SchemaType.JSON);
+        GenericSchemaImpl pcGenericSchema = GenericSchemaImpl.of(pcGenericSchemaInfo);
+
+        Seller seller = new Seller("USA","oakstreet",9999);
+        PC pc = new PC("dell","g3",2020, GPU.AMD, seller);
+
+        byte[] bytes = pcJsonSchema.encode(pc);
+        Assert.assertTrue(bytes.length > 0);
+
+        Object pc2 = pcJsonSchema.decode(bytes);
+        assertEquals(pc, pc2);
+
+        GenericRecord sellerRecord = sellerGenericSchema.newRecordBuilder()
+                .set("state", "USA")
+                .set("street", "oakstreet")
+                .set("zipCode", 9999)
+                .build();
+
+        GenericRecord pcRecord = pcGenericSchema.newRecordBuilder()
+                .set("brand", "dell")
+                .set("model","g3")
+                .set("year", 2020)
+                .set("gpu", GPU.AMD)
+                .set("seller", sellerRecord)
+                .build();
+
+        byte[] bytes3 = pcGenericSchema.encode(pcRecord);
+        Assert.assertTrue(bytes3.length > 0);
+        GenericRecord pc3Record = pcGenericSchema.decode(bytes3);
+
+        for(Field field : pc3Record.getFields()) {
+            assertTrue(pcGenericSchema.getFields().contains(field));
+        }
+        assertEquals("dell", pc3Record.getField("brand"));
+        assertEquals("g3", pc3Record.getField("model"));
+        assertEquals(2020, pc3Record.getField("year"));
+        assertEquals(GPU.AMD.toString(), pc3Record.getField("gpu"));
+
+
+        GenericRecord seller3Record = (GenericRecord) pc3Record.getField("seller");
+        assertEquals("USA", seller3Record.getField("state"));
+        assertEquals("oakstreet", seller3Record.getField("street"));
+        assertEquals(9999, seller3Record.getField("zipCode"));
     }
 }

@@ -79,7 +79,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     private final static String NAMESPACE1 = TENANT + "/ns1";
     private final static String TOPIC = NAMESPACE1 + "/test-topic";
 
-    @BeforeMethod(groups = "broker")
+    @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
         setBrokerCount(1);
         internalSetup();
@@ -96,6 +96,9 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
