@@ -44,6 +44,7 @@ import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -307,6 +308,7 @@ public class PulsarBrokerStarter {
             System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s",
                     dateFormat.format(new Date()), thread.getContextClassLoader(),
                     thread.getName(), exception.getMessage()));
+            exception.printStackTrace(System.out);
         });
 
         BrokerStarter starter = new BrokerStarter(args);
@@ -329,6 +331,7 @@ public class PulsarBrokerStarter {
             starter.start();
         } catch (Throwable t) {
             log.error("Failed to start pulsar service.", t);
+            LogManager.shutdown();
             Runtime.getRuntime().halt(1);
         } finally {
             starter.join();

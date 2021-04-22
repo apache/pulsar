@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import static org.apache.pulsar.client.internal.DefaultImplementation.getBytes;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -31,6 +31,7 @@ import com.google.gson.JsonPrimitive;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -108,7 +109,7 @@ public class CmdConsume {
     private int receiverQueueSize = 0;
 
     @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-    private int maxPendingChuckedMessage = 0;
+    private int maxPendingChunkedMessage = 0;
 
     @Parameter(names = { "-ac",
             "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
@@ -122,7 +123,9 @@ public class CmdConsume {
     @Parameter(names = { "-st", "--schema-type"}, description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
     private String schematype = "bytes";
 
-    
+    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
+    private boolean poolMessages = true;
+
     private ClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
@@ -171,6 +174,8 @@ public class CmdConsume {
         } else if (value instanceof GenericRecord) {
             Map<String, Object> asMap = genericRecordToMap((GenericRecord) value);
             data = asMap.toString();
+        } else if (value instanceof ByteBuffer) {
+            data = new String(getBytes((ByteBuffer) value));
         } else {
             data = value.toString();
         }
@@ -233,7 +238,7 @@ public class CmdConsume {
         try {
             ConsumerBuilder<?> builder;
             PulsarClient client = clientBuilder.build();
-            Schema<?> schema = Schema.BYTES;
+            Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
             if ("auto_consume".equals(schematype)) {
                 schema = Schema.AUTO_CONSUME();
             } else if (!"bytes".equals(schematype)) {
@@ -243,7 +248,8 @@ public class CmdConsume {
                     .subscriptionName(this.subscriptionName)
                     .subscriptionType(subscriptionType)
                     .subscriptionMode(subscriptionMode)
-                    .subscriptionInitialPosition(subscriptionInitialPosition);
+                    .subscriptionInitialPosition(subscriptionInitialPosition)
+                    .poolMessages(poolMessages);
 
             if (isRegex) {
                 builder.topicsPattern(Pattern.compile(topic));
@@ -251,8 +257,8 @@ public class CmdConsume {
                 builder.topic(topic);
             }
 
-            if (this.maxPendingChuckedMessage > 0) {
-                builder.maxPendingChuckedMessage(this.maxPendingChuckedMessage);
+            if (this.maxPendingChunkedMessage > 0) {
+                builder.maxPendingChunkedMessage(this.maxPendingChunkedMessage);
             }
             if (this.receiverQueueSize > 0) {
                 builder.receiverQueueSize(this.receiverQueueSize);
@@ -275,15 +281,19 @@ public class CmdConsume {
                 if (msg == null) {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
-                    numMessagesConsumed += 1;
-                    if (!hideContent) {
-                        System.out.println(MESSAGE_BOUNDARY);
-                        String output = this.interpretMessage(msg, displayHex);
-                        System.out.println(output);
-                    } else if (numMessagesConsumed % 1000 == 0) {
-                        System.out.println("Received " + numMessagesConsumed + " messages");
+                    try {
+                        numMessagesConsumed += 1;
+                        if (!hideContent) {
+                            System.out.println(MESSAGE_BOUNDARY);
+                            String output = this.interpretMessage(msg, displayHex);
+                            System.out.println(output);
+                        } else if (numMessagesConsumed % 1000 == 0) {
+                            System.out.println("Received " + numMessagesConsumed + " messages");
+                        }  
+                        consumer.acknowledge(msg);
+                    } finally {
+                        msg.release();
                     }
-                    consumer.acknowledge(msg);
                 }
             }
             client.close();

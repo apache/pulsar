@@ -141,8 +141,6 @@ class ProducerImpl : public HandlerBase,
 
     ProducerConfiguration conf_;
 
-    ExecutorServicePtr executor_;
-
     std::unique_ptr<Semaphore> semaphore_;
     MessageQueue pendingMessagesQueue_;
 

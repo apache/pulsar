@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
 import io.netty.buffer.ByteBuf;
@@ -69,19 +70,29 @@ public class PulsarClientImplTest {
     private PulsarClientImpl clientImpl;
     private EventLoopGroup eventLoopGroup;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");
-        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
-        eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+        initializeEventLoopGroup(conf);
         clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
     }
 
-    @AfterMethod
+    private void initializeEventLoopGroup(ClientConfigurationData conf) {
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
+    }
+
+    @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        clientImpl.close();
-        eventLoopGroup.shutdownGracefully().get();
+        if (clientImpl != null) {
+            clientImpl.close();
+            clientImpl = null;
+        }
+        if (eventLoopGroup != null) {
+            eventLoopGroup.shutdownGracefully().get();
+            eventLoopGroup = null;
+        }
     }
 
     @Test
@@ -191,5 +202,19 @@ public class PulsarClientImplTest {
             e.printStackTrace();
         }
         pulsarClient.newTransaction();
+    }
+
+    @Test
+    public void testResourceCleanup() throws PulsarClientException {
+        ClientConfigurationData conf = clientImpl.conf;
+        conf.setServiceUrl("");
+        initializeEventLoopGroup(conf);
+        ConnectionPool connectionPool = new ConnectionPool(conf, eventLoopGroup);
+        try {
+            assertThrows(() -> new PulsarClientImpl(conf, eventLoopGroup, connectionPool));
+        } finally {
+            // Externally passed eventLoopGroup should not be shutdown.
+            assertFalse(eventLoopGroup.isShutdown());
+        }
     }
 }

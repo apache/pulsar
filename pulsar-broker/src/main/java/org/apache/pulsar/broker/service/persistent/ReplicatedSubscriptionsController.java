@@ -25,16 +25,18 @@ import java.time.Clock;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.ClusterMessageId;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -54,6 +56,10 @@ import org.apache.pulsar.common.protocol.Markers;
 public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.PublishContext {
     private final PersistentTopic topic;
     private final String localCluster;
+    private String lastCompletedSnapshotId;
+
+    private boolean skippedSnapshotForNoProducers = false;
+    private volatile Position positionOfLastLocalMarker;
 
     private final ScheduledFuture<?> timer;
 
@@ -187,16 +193,53 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private void startNewSnapshot() {
         cleanupTimedOutSnapshots();
 
-        AtomicBoolean anyReplicatorDisconnected = new AtomicBoolean();
+        boolean hasLocalProducer = false;
+        for (Producer p : topic.getProducers().values()) {
+            if (!p.isRemote()) {
+                hasLocalProducer = true;
+                break;
+            }
+        }
+
+        if (!hasLocalProducer) {
+            if (!skippedSnapshotForNoProducers) {
+                skippedSnapshotForNoProducers = true;
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] There are no local producers: Skipping 1 snapshot", topic.getName());
+                }
+
+                return;
+            }
+        }
+
+        skippedSnapshotForNoProducers = false;
+
+        if (topic.getLastPosition() != null && topic.getLastPosition().equals(positionOfLastLocalMarker)) {
+            // There was no message written since the last snapshot, we can skip creating a new snapshot
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] There is no new data in topic. Skipping snapshot creation.", topic.getName());
+            }
+            return;
+        }
+
+        MutableBoolean anyReplicatorDisconnected = new MutableBoolean();
         topic.getReplicators().forEach((cluster, replicator) -> {
             if (!replicator.isConnected()) {
-                anyReplicatorDisconnected.set(true);
+                anyReplicatorDisconnected.setTrue();
             }
         });
 
-        if (anyReplicatorDisconnected.get()) {
+        if (anyReplicatorDisconnected.isTrue()) {
             // Do not attempt to create snapshot when some of the clusters are not reachable
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Do not attempt to create snapshot when some of the clusters are not reachable.",
+                        topic.getName());
+            }
             return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Starting snapshot creation.", topic.getName());
         }
 
         pendingSnapshotsMetric.inc();
@@ -205,6 +248,10 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         pendingSnapshots.put(builder.getSnapshotId(), builder);
         builder.start();
 
+    }
+
+    public Optional<String> getLastCompletedSnapshotId() {
+        return Optional.ofNullable(lastCompletedSnapshotId);
     }
 
     private void cleanupTimedOutSnapshots() {
@@ -225,6 +272,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     void snapshotCompleted(String snapshotId) {
         pendingSnapshots.remove(snapshotId);
         pendingSnapshotsMetric.dec();
+        lastCompletedSnapshotId = snapshotId;
     }
 
     void writeMarker(ByteBuf marker) {
@@ -241,6 +289,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         if (log.isDebugEnabled()) {
             log.debug("[{}] Published marker at {}:{}. Exception: {}", topic.getName(), ledgerId, entryId, e);
         }
+
+        this.positionOfLastLocalMarker = new PositionImpl(ledgerId, entryId);
     }
 
     PersistentTopic topic() {

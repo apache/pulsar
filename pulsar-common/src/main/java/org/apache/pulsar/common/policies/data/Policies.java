@@ -124,6 +124,9 @@ public class Policies {
 
     public Set<SubType> subscription_types_enabled = Sets.newHashSet();
 
+    @SuppressWarnings("checkstype:MemberName")
+    public String resource_group_name = null;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -145,7 +148,8 @@ public class Policies {
                 schema_compatibility_strategy,
                 is_allow_auto_update_schema,
                 offload_policies,
-                subscription_types_enabled);
+                subscription_types_enabled,
+                resource_group_name);
     }
 
     @Override
@@ -187,7 +191,8 @@ public class Policies {
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
                     && is_allow_auto_update_schema == other.is_allow_auto_update_schema
                     && Objects.equals(offload_policies, other.offload_policies)
-                    && Objects.equals(subscription_types_enabled, other.subscription_types_enabled);
+                    && Objects.equals(subscription_types_enabled, other.subscription_types_enabled)
+                    && Objects.equals(resource_group_name, other.resource_group_name);
         }
 
         return false;
@@ -247,7 +252,8 @@ public class Policies {
                 .add("schema_compatibility_Strategy", schema_compatibility_strategy)
                 .add("is_allow_auto_update_Schema", is_allow_auto_update_schema)
                 .add("offload_policies", offload_policies)
-                .add("subscription_types_enabled", subscription_types_enabled).toString();
+                .add("subscription_types_enabled", subscription_types_enabled)
+                .add("resource_group_name", resource_group_name).toString();
     }
 
     private static final long MAX_BUNDLES = ((long) 1) << 32;

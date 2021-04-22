@@ -44,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -61,9 +62,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlready
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1774,20 +1777,35 @@ public class PersistentTopic extends AbstractTopic
 
         stats.ledgers = Lists.newArrayList();
         List<CompletableFuture<String>> futures = includeLedgerMetadata ? Lists.newArrayList() : null;
-        ml.getLedgersInfo().forEach((id, li) -> {
-            LedgerInfo info = new LedgerInfo();
-            info.ledgerId = li.getLedgerId();
-            info.entries = li.getEntries();
-            info.size = li.getSize();
-            info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
-            stats.ledgers.add(info);
-            if (futures != null) {
-                futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
-                    if (ex == null) {
-                        info.metadata = lMetadata;
+        CompletableFuture<Set<String>> availableBookiesFuture = brokerService.pulsar().getAvailableBookiesAsync();
+        availableBookiesFuture.whenComplete((bookies, e) -> {
+            if (e != null) {
+                log.error("[{}] Failed to fetch available bookies.", topic, e);
+                statFuture.completeExceptionally(e);
+            } else {
+                ml.getLedgersInfo().forEach((id, li) -> {
+                    LedgerInfo info = new LedgerInfo();
+                    info.ledgerId = li.getLedgerId();
+                    info.entries = li.getEntries();
+                    info.size = li.getSize();
+                    info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
+                    stats.ledgers.add(info);
+                    if (futures != null) {
+                        futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
+                            if (ex == null) {
+                                info.metadata = lMetadata;
+                            }
+                            return null;
+                        }));
+                        futures.add(ml.getEnsemblesAsync(li.getLedgerId()).handle((ensembles, ex) -> {
+                            if (ex == null) {
+                                info.underReplicated = !bookies.containsAll(ensembles.stream().map(BookieId::toString)
+                                        .collect(Collectors.toList()));
+                            }
+                            return null;
+                        }));
                     }
-                    return null;
-                }));
+                });
             }
         });
 
@@ -2244,7 +2262,7 @@ public class PersistentTopic extends AbstractTopic
 
             if ((retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold
                     || retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception)
-                    && isBacklogExceeded()) {
+                    && (isSizeBacklogExceeded() || isTimeBacklogExceeded())) {
                 log.info("[{}] Backlog quota exceeded. Cannot create producer [{}]", this.getName(), producerName);
                 return true;
             } else {
@@ -2255,11 +2273,11 @@ public class PersistentTopic extends AbstractTopic
     }
 
     /**
-     * @return determine if quota enforcement needs to be done for topic
+     * @return determine if backlog quota enforcement needs to be done for topic based on size limit
      */
-    public boolean isBacklogExceeded() {
+    public boolean isSizeBacklogExceeded() {
         TopicName topicName = TopicName.get(getName());
-        long backlogQuotaLimitInBytes = brokerService.getBacklogQuotaManager().getBacklogQuotaLimit(topicName);
+        long backlogQuotaLimitInBytes = brokerService.getBacklogQuotaManager().getBacklogQuotaLimitInSize(topicName);
         if (backlogQuotaLimitInBytes < 0) {
             return false;
         }
@@ -2274,6 +2292,88 @@ public class PersistentTopic extends AbstractTopic
         }
 
         return (storageSize >= backlogQuotaLimitInBytes);
+    }
+
+    /**
+     * @return determine if backlog quota enforcement needs to be done for topic based on time limit
+     */
+    public boolean isTimeBacklogExceeded() {
+        TopicName topicName = TopicName.get(getName());
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        int backlogQuotaLimitInSecond = brokerService.getBacklogQuotaManager().getBacklogQuotaLimitInTime(topicName);
+
+        // If backlog quota by time is not set and we have no durable cursor.
+        if (backlogQuotaLimitInSecond <= 0
+                || ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition() == null) {
+            return false;
+        }
+
+        if (brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck()) {
+            // Check if first unconsumed message(first message after mark delete position)
+            // for slowest cursor's has expired.
+            PositionImpl position = ((ManagedLedgerImpl) ledger).getNextValidPosition(((ManagedCursorContainer)
+                    ledger.getCursors()).getSlowestReaderPosition());
+            ((ManagedLedgerImpl) ledger).asyncReadEntry(position,
+                    new AsyncCallbacks.ReadEntryCallback() {
+                        @Override
+                        public void readEntryComplete(Entry entry, Object ctx) {
+                            MessageImpl<byte[]> msg = null;
+                            try {
+                                msg = MessageImpl.deserializeBrokerEntryMetaDataFirst(entry.getDataBuffer());
+                                boolean expired = msg.isExpired(backlogQuotaLimitInSecond);
+                                if (expired && log.isDebugEnabled()) {
+                                    log.debug("Time based backlog quota exceeded, oldest entry in cursor {}'s backlog"
+                                    + "exceeded quota {}", ((ManagedLedgerImpl) ledger).getSlowestConsumer().getName(),
+                                            backlogQuotaLimitInSecond);
+                                }
+                                future.complete(expired);
+                            } catch (Exception e) {
+                                log.error("[{}][{}] Error deserializing message for backlog check", e);
+                                future.complete(false);
+                            } finally {
+                                entry.release();
+                                if (msg != null) {
+                                    msg.recycle();
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("[{}][{}] Error reading entry for precise time based  backlog check",
+                                    topicName, exception);
+                            future.complete(false);
+                        }
+                    }, null);
+
+            try {
+                return future.get();
+            } catch (Exception e) {
+                log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
+                return false;
+            }
+        } else {
+            Long ledgerId = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition().getLedgerId();
+            try {
+                org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
+                        ledgerInfo = ledger.getLedgerInfo(ledgerId).get();
+                if (ledgerInfo != null && ledgerInfo.hasTimestamp() && ledgerInfo.getTimestamp() > 0
+                        && ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp()
+                        > backlogQuotaLimitInSecond * 1000) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Time based backlog quota exceeded, quota {}, age of ledger "
+                                        + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
+                                ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp());
+                    }
+                    return true;
+                } else {
+                    return false;
+                }
+            } catch (Exception e) {
+                log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
+                return false;
+            }
+        }
     }
 
     @Override
@@ -2585,7 +2685,7 @@ public class PersistentTopic extends AbstractTopic
         ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);
      }
 
-    Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {
+    public Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {
         return replicatedSubscriptionsController;
     }
 

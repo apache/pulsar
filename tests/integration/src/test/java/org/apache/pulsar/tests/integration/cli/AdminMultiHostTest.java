@@ -24,6 +24,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -35,20 +36,22 @@ import org.testng.annotations.Test;
 /**
  * Test for admin service url is multi host.
  */
-public class AdminMultiHostTest {
+public class AdminMultiHostTest extends TestRetrySupport {
 
     private final String clusterName = "MultiHostTest-" + UUID.randomUUID();
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder().clusterName(clusterName).numBrokers(3).build();
     private PulsarCluster pulsarCluster = null;
 
-    @BeforeMethod
-    public void setupCluster() throws Exception {
+    @BeforeMethod(alwaysRun = true)
+    public void setup() throws Exception {
+        incrementSetupNumber();
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDownCluster() {
+    public void cleanup() {
+        markCurrentSetupNumberCleaned();
         if (pulsarCluster != null) {
             pulsarCluster.stop();
             pulsarCluster = null;
