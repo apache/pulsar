@@ -118,8 +118,8 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         doFindBrokerWithListenerName(true);
         doFindBrokerWithListenerName(false);
     }
-    @Test
-    public void doFindBrokerWithListenerName(boolean useHttp) throws Exception {
+
+    private void doFindBrokerWithListenerName(boolean useHttp) throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setListenerName("internal");
         conf.setServiceUrl(pulsar.getWebServiceAddress());

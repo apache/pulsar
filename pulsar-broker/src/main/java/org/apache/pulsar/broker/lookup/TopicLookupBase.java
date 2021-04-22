@@ -99,9 +99,10 @@ public class TopicLookupBase extends PulsarWebResource {
                             : result.getLookupData().getHttpUrl();
                     checkNotNull(redirectUrl, "Redirected cluster's service url is not configured");
                     String lookupPath = topicName.isV2() ? LOOKUP_PATH_V2 : LOOKUP_PATH_V1;
-                    redirect = new URI(String.format("%s%s%s?authoritative=%s&listenerName=%s",
-                            redirectUrl, lookupPath,
-                            topicName.getLookupName(), newAuthoritative, listenerName));
+                    String path = String.format("%s%s%s?authoritative=%s",
+                            redirectUrl, lookupPath, topicName.getLookupName(), newAuthoritative);
+                    path = listenerName == null ? path : path + "&listenerName=" + listenerName;
+                    redirect = new URI(path);
                 } catch (URISyntaxException | NullPointerException e) {
                     log.error("Error in preparing redirect url for {}: {}", topicName, e.getMessage(), e);
                     completeLookupResponseExceptionally(asyncResponse, e);
