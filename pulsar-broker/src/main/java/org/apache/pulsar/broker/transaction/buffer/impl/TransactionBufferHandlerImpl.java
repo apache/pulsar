@@ -73,7 +73,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
+    public synchronized CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
                                                   TxnAction action, long lowWaterMark) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
@@ -104,8 +104,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
-                                                         long txnIdLeastBits, TxnAction action, long lowWaterMark) {
+    public synchronized CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription,
+                                                                      long txnIdMostBits, long txnIdLeastBits,
+                                                                      TxnAction action, long lowWaterMark) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
@@ -135,7 +136,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
+    public synchronized void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
             if (log.isDebugEnabled()) {
@@ -159,7 +160,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public void handleEndTxnOnSubscriptionResponse(long requestId,
+    public synchronized void handleEndTxnOnSubscriptionResponse(long requestId,
                                                    CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
@@ -234,7 +235,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public void run(Timeout timeout) throws Exception {
+    public synchronized void run(Timeout timeout) throws Exception {
         if (timeout.isCancelled()) {
             return;
         }
@@ -250,17 +251,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 break;
             }
             firstEntry = pendingRequests.firstEntry();
+            pendingRequests.remove(pendingRequests.firstKey());
             peeked = firstEntry == null ? null : firstEntry.getValue();
         }
         if (peeked == null) {
             timeToWaitMs = operationTimeoutInMills;
         } else {
-            long diff = (peeked.createdAt + operationTimeoutInMills) - System.currentTimeMillis();
-            if (diff <= 0) {
-                timeToWaitMs = operationTimeoutInMills;
-            } else {
-                timeToWaitMs = diff;
-            }
+            timeToWaitMs = (peeked.createdAt + operationTimeoutInMills) - System.currentTimeMillis();
         }
         requestTimeout = timer.newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
     }
@@ -285,7 +282,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             op.topic = topic;
             op.byteBuf = byteBuf;
             op.cb = cb;
-            op.createdAt = System.nanoTime();
+            op.createdAt = System.currentTimeMillis();
             return op;
         }
 
