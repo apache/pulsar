@@ -16,33 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.source;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.TreeMap;
-
-import lombok.Data;
-
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.functions.FunctionConfig;
 
 @Data
-public abstract class PulsarSourceConfig {
+public class SingleConsumerPulsarSourceConfig extends PulsarSourceConfig {
 
-    private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    SubscriptionType subscriptionType;
-    private String subscriptionName;
-    private SubscriptionInitialPosition subscriptionPosition;
-    // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
-    private Integer maxMessageRetries = -1;
-    private String deadLetterTopic;
+    private String topic;
+    private ConsumerConfig consumerConfig;
 
-    private String typeClassName;
-    private Long timeoutMs;
-    private Long negativeAckRedeliveryDelayMs;
+    public static SingleConsumerPulsarSourceConfig load(Map<String, Object> map) throws IOException {
+        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), SingleConsumerPulsarSourceConfig.class);
+    }
 }
