@@ -2220,7 +2220,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         }
     }
 
-    public String getAdvertisedAddress() {
+    public String getAppliedAdvertisedAddress() {
         Map<String, AdvertisedListener> result = MultipleListenerValidator
                 .validateAndAnalysisAdvertisedListener(this);
 
