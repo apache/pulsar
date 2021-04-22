@@ -56,6 +56,7 @@ import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -134,6 +135,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1789,7 +1791,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("Receive new txn request {} to transaction meta store {} from {}.",
                     requestId, tcId, remoteAddress);
         }
-        service.pulsar().getTransactionMetadataStoreService().newTransaction(tcId, command.getTxnTtlSeconds())
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
+        if (transactionMetadataStoreService == null) {
+            CoordinatorException.CoordinatorNotFoundException ex =
+                    new CoordinatorException.CoordinatorNotFoundException(
+                                               "Transaction manager is not started or not enabled");
+            ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
+                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+            return;
+        }
+        transactionMetadataStoreService.newTransaction(tcId, command.getTxnTtlSeconds())
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     if (log.isDebugEnabled()) {
