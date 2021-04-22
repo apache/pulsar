@@ -55,4 +55,27 @@ public class RetryUtilTest {
         assertEquals(atomicInteger.get(), 5);
         executor.shutdownNow();
     }
+
+    @Test
+    public void testFail() throws Exception {
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        CompletableFuture<Boolean> callback = new CompletableFuture<>();
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(500, TimeUnit.MILLISECONDS)
+                .setMax(2000, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(5000, TimeUnit.MILLISECONDS)
+                .create();
+        long start = System.currentTimeMillis();
+        RetryUtil.retryAsynchronously(() -> {
+            throw new RuntimeException("fail");
+        }, backoff, executor, callback);
+        try {
+            callback.get();
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("fail"));
+        }
+        long time = System.currentTimeMillis() - start;
+        assertTrue(time >= 5000, "Duration:" + time);
+        executor.shutdownNow();
+    }
 }

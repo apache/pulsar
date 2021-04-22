@@ -72,7 +72,7 @@ public class Backoff {
                 timeElapsedSinceFirstBackoff = now - firstBackoffTimeInMillis;
             }
 
-            if (timeElapsedSinceFirstBackoff + current > mandatoryStop) {
+            if (timeElapsedSinceFirstBackoff > mandatoryStop) {
                 current = Math.max(initial, mandatoryStop - timeElapsedSinceFirstBackoff);
                 mandatoryStopMade = true;
             }

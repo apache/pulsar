@@ -55,7 +55,10 @@ public class RetryUtil {
             if (isMandatoryStop) {
                 callback.completeExceptionally(e);
             } else {
-                log.info("RetryUtil will retry in {} ms", next);
+                if (log.isDebugEnabled()) {
+                    log.debug("execute with retry fail, will retry in {} ms", next, e);
+                }
+                log.info("Because of {} , will retry in {} ms", e.getMessage(), next);
                 scheduledExecutorService.schedule(() ->
                                 executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
                         next, TimeUnit.MILLISECONDS);
