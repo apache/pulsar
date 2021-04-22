@@ -2228,9 +2228,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return advertisedAddress;
         }
 
-        String address = result.get(internalListenerName).getBrokerServiceUrl().getHost();
-        if (address != null) {
-            return address;
+        AdvertisedListener advertisedListener = result.get(internalListenerName);
+        if (advertisedListener != null) {
+            String address = advertisedListener.getBrokerServiceUrl().getHost();
+            if (address != null) {
+                return address;
+            }
         }
 
         return ServiceConfigurationUtils.getDefaultOrConfiguredAddress(advertisedAddress);
