@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -51,7 +51,8 @@ public class JavaInstance implements AutoCloseable {
     @Getter
     private final LinkedBlockingQueue<CompletableFuture<Void>> pendingAsyncRequests;
 
-    public JavaInstance(ContextImpl contextImpl, Object userClassObject, InstanceConfig instanceConfig) {
+    @SuppressWarnings("rawtypes")
+	public JavaInstance(ContextImpl contextImpl, Object userClassObject, InstanceConfig instanceConfig) {
 
         this.context = contextImpl;
         this.instanceConfig = instanceConfig;
@@ -78,7 +79,7 @@ public class JavaInstance implements AutoCloseable {
     	JavaExecutionResult executionResult = new JavaExecutionResult();
     	
         try { 	
-        	Object result = (function != null) ? function.process(input, context) :
+        	final Object result = (function != null) ? function.process(input, context) :
         		javaUtilFunction.apply(input);
         	
             executionResult.setResult(result);  
@@ -90,25 +91,24 @@ public class JavaInstance implements AutoCloseable {
     }
     
     /**
-     * If the Function code returns a CompletableFuture object, then this method is used to handle that by
-     * adding the async request to the internal pendingAsyncRequests queue, and specifying the logic to be 
-     * executed once the function execution is complete.
+     * Used to handle asynchronous function requests.
      * 
-     * @param future
-     * @param executionResult
+     * @param future - The CompleteableFuture returned from the async function call.
+     * @param executionResult 
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
-	private void handleAsync(CompletableFuture future, JavaExecutionResult executionResult) {
+	private void handleAsync(final CompletableFuture future, JavaExecutionResult executionResult) {
     	try {
             pendingAsyncRequests.put(future);
         } catch (InterruptedException ie) {
             log.warn("Exception while put Async requests", ie);
             executionResult.setUserException(ie);
+            Thread.currentThread().interrupt();
         }
 
-        future.whenCompleteAsync((obj, throwable) -> {
+        future.whenCompleteAsync((functionResult, throwable) -> {
             if (log.isDebugEnabled()) {
-              log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
+              log.debug("Got result async: object: {}, throwable: {}", functionResult, throwable);
             }
             
             if (throwable != null) {
@@ -116,9 +116,18 @@ public class JavaInstance implements AutoCloseable {
             }
           
             pendingAsyncRequests.remove(future);
-            future.complete(obj);
+            future.complete(functionResult);
             
         }, executor);
+        
+        
+		try {
+			executionResult.setResult(future.get());
+		} catch (InterruptedException iEx) {
+			Thread.currentThread().interrupt();
+		} catch (ExecutionException eEx) {
+			executionResult.setUserException(eEx);
+		}
     }
 
     /**
@@ -138,7 +147,6 @@ public class JavaInstance implements AutoCloseable {
         JavaExecutionResult executionResult = executeFunction(input);
 
         if (executionResult.getResult() instanceof CompletableFuture) {
-            // Function is in format: Function<I, CompletableFuture<O>>
             handleAsync((CompletableFuture) executionResult.getResult(), executionResult);
         } else {
         	// The function result is contained in the result field of the executionResult object

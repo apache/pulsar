@@ -341,21 +341,23 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
     	} else { 
     		
-    		try {
-				Object output = (result.getResult() instanceof CompletableFuture) ?
-					((CompletableFuture)result.getResult()).get() : result.getResult();
-				
-				sendOutputMessage(srcRecord, output);
+    		try {			
+				sendOutputMessage(srcRecord, result.getResult());
 				
 				if (instanceConfig.getFunctionDetails().getAutoAck()) {
 					srcRecord.ack();
 				}
 				stats.incrTotalProcessedSuccessfully();
 				
-			} catch (InterruptedException | ExecutionException e) {
+			} catch (InterruptedException iEx) {
 				log.warn("Encountered exception when processing message {}",
-	                    srcRecord, e);
-	            stats.incrSysExceptions(e);
+	                    srcRecord, iEx);
+	            stats.incrSysExceptions(iEx);
+	            Thread.currentThread().interrupt();
+			} catch (ExecutionException eEx) {
+				log.warn("Encountered exception when processing message {}",
+	                    srcRecord, eEx);
+	            stats.incrSysExceptions(eEx.getCause());
 			} catch (Exception ex) {
 				throw ex;
 			}
