@@ -55,12 +55,11 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     }
 
     @Override
-    public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
-       if (op == null || numberOfMessages <= 0) {
-           return op;
-       }
+    public void beforeAddEntry(OpAddEntry op, int numberOfMessages) {
+        if (op == null || numberOfMessages <= 0) {
+            return;
+        }
         op.setData(Commands.addBrokerEntryMetadata(op.getData(), brokerEntryMetadataInterceptors, numberOfMessages));
-        return op;
     }
 
     @Override

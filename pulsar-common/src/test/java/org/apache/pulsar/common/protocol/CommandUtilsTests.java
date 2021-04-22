@@ -149,6 +149,9 @@ public class CommandUtilsTests {
         byte [] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
         dataWithBrokerEntryMetadata.readBytes(content);
         assertTrue(new String(content, StandardCharsets.UTF_8).endsWith(data));
+        dataWithBrokerEntryMetadata.release();
+        assertEquals(byteBuf.refCnt(), 0);
+        assertEquals(dataWithBrokerEntryMetadata.refCnt(), 0);
     }
 
     @Test

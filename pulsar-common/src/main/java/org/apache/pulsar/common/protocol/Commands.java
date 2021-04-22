@@ -1447,15 +1447,14 @@ public class Commands {
         }
 
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
-        ByteBuf brokerMeta =
-                PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
-        brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
-        brokerMeta.writeInt(brokerMetaSize);
-        brokerEntryMetadata.writeTo(brokerMeta);
-
-        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
-        compositeByteBuf.addComponents(true, brokerMeta, headerAndPayload);
-        return compositeByteBuf;
+        final ByteBuf bufWithBrokerEntryMetadata =
+                PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6 + headerAndPayload.readableBytes());
+        bufWithBrokerEntryMetadata.writeShort(Commands.magicBrokerEntryMetadata);
+        bufWithBrokerEntryMetadata.writeInt(brokerMetaSize);
+        brokerEntryMetadata.writeTo(bufWithBrokerEntryMetadata);
+        bufWithBrokerEntryMetadata.writeBytes(headerAndPayload);
+        headerAndPayload.release();
+        return bufWithBrokerEntryMetadata;
     }
 
     public static ByteBuf skipBrokerEntryMetadataIfExist(ByteBuf headerAndPayloadWithBrokerEntryMetadata) {

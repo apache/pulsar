@@ -36,9 +36,8 @@ public interface ManagedLedgerInterceptor {
      * Intercept an OpAddEntry and return an OpAddEntry.
      * @param op an OpAddEntry to be intercepted.
      * @param numberOfMessages
-     * @return an OpAddEntry.
      */
-    OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages);
+    void beforeAddEntry(OpAddEntry op, int numberOfMessages);
 
     /**
      * Intercept when ManagedLedger is initialized.
