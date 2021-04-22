@@ -430,7 +430,7 @@ public class PerformanceProducer {
 
             double rate = messagesSent.sumThenReset() / elapsed;
             double failureRate = messagesFailed.sumThenReset() / elapsed;
-            double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
+            double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
