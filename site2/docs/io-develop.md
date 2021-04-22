@@ -85,10 +85,10 @@ interface, which means you need to implement the {@inject: github:`open`:/pulsar
         `ack` |Acknowledge that the record is fully processed.
         `fail`|Indicate that the record fails to be processed.
 
-## Handling Schema information
+## Handle schema information
 
 Pulsar IO automatically handles the schema and provides a strongly typed API based on Java generics.
-If you know the Schema type that you are producing you can declare the Java class relative to that type in your Sink declaration.
+If you know the schema type that you are producing, you can declare the Java class relative to that type in your sink declaration.
 
 ```
 public class MySource implements Source<String> {
@@ -116,12 +116,12 @@ public class MySource implements Source<byte[]> {
 }
 ```
 
-In order to handle properly the KeyValue type your Record implementation must follow this convention:
+To handle the `KeyValue` type properly, follow the guidelines for your record implementation:
 - It must implement {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/KVRecord.java} interface and implement `getKeySchema`,`getValueSchema`, and `getKeyValueEncodingType`
 - It must return a `KeyValue` object as `Record.getValue()`
 - It may return null in `Record.getSchema()`
 
-When Pulsar IO runtime encounters a `KVRecord` it will automatically:
+When Pulsar IO runtime encounters a `KVRecord`, it brings the following changes automatically:
 - Set properly the `KeyValueSchema`
 - Encode the Message Key and the Message Value according to the `KeyValueEncoding` (SEPARATED or INLINE)
 
@@ -191,7 +191,7 @@ public class MySink implements Sink<GenericObject> {
 }
 ```
 
-In case of AVRO, JSON and Protobuf records (schemaType=AVRO,JSON,PROTOBUF_NATIVE) you can cast the
+In the case of AVRO, JSON, and Protobuf records (schemaType=AVRO,JSON,PROTOBUF_NATIVE), you can cast the
 `genericObject` variable to `GenericRecord` and use `getFields()` and `getField()` API.
 You are able to access the native AVRO record using  `genericObject.getNativeObject()`.
 
