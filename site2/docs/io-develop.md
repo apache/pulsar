@@ -87,7 +87,7 @@ interface, which means you need to implement the {@inject: github:`open`:/pulsar
 
 ## Handling Schema information
 
-Pulsar IO handles automatically the Schema and provides a strongly typed API based on Java generics.
+Pulsar IO automatically handles the schema and provides a strongly typed API based on Java generics.
 If you know the Schema type that you are producing you can declare the Java class relative to that type in your Sink declaration.
 
 ```
@@ -95,7 +95,7 @@ public class MySource implements Source<String> {
     public Record<String> read() {}
 }
 ```
-If you want to implement a Source that works with any schema then you go with `byte[]` (of `ByteBuffer`) and use Schema.AUTO_PRODUCE_BYTES().
+If you want to implement a source that works with any schema, you can go with `byte[]` (of `ByteBuffer`) and use Schema.AUTO_PRODUCE_BYTES().
 
 ```
 public class MySource implements Source<byte[]> {
@@ -117,13 +117,13 @@ public class MySource implements Source<byte[]> {
 ```
 
 In order to handle properly the KeyValue type your Record implementation must follow this convention:
-- it must implement {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/KVRecord.java} interface and implement `getKeySchema`,`getValueSchema` and `getKeyValueEncodingType`
-- it must return a `KeyValue` object as `Record.getValue()`
-- it may return null in `Record.getSchema()`
+- It must implement {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/KVRecord.java} interface and implement `getKeySchema`,`getValueSchema`, and `getKeyValueEncodingType`
+- It must return a `KeyValue` object as `Record.getValue()`
+- It may return null in `Record.getSchema()`
 
 When Pulsar IO runtime encounters a `KVRecord` it will automatically:
-- set properly the `KeyValueSchema`
-- encode the Message Key and the Message Value according to the `KeyValueEncoding` (SEPARATED or INLINE)
+- Set properly the `KeyValueSchema`
+- Encode the Message Key and the Message Value according to the `KeyValueEncoding` (SEPARATED or INLINE)
 
 > #### Tip
 >
@@ -173,15 +173,19 @@ public class MySink implements Sink<String> {
     public void write(Record<String> record) {}
 }
 ```
-If you want to implement a Sink that works with any schema then you go with the special GenericObject interface.
+
+If you want to implement a sink that works with any schema, you can you go with the special GenericObject interface.
 
 ```
 public class MySink implements Sink<GenericObject> {
     public void write(Record<GenericObject> record) {
         Schema schema = record.getSchema();
         GenericObject genericObject = record.getValue();
-        SchemaType type = genericObject.getSchemaType();
-        Object nativeObject = genericObject.getNativeObject();
+        if (genericObject != null) {
+            SchemaType type = genericObject.getSchemaType();
+            Object nativeObject = genericObject.getNativeObject();
+            ...
+        }
         ....
     }
 }
@@ -191,7 +195,7 @@ In case of AVRO, JSON and Protobuf records (schemaType=AVRO,JSON,PROTOBUF_NATIVE
 `genericObject` variable to `GenericRecord` and use `getFields()` and `getField()` API.
 You are able to access the native AVRO record using  `genericObject.getNativeObject()`.
 
-In case of KeyValue type you can access both the Schema for the Key and the schema for the Value using this code
+In the case of KeyValue type, you can access both the schema for the key and the schema for the value using this code.
 
 ```
 public class MySink implements Sink<GenericObject> {
@@ -200,14 +204,15 @@ public class MySink implements Sink<GenericObject> {
         GenericObject genericObject = record.getValue();
         SchemaType type = genericObject.getSchemaType();
         Object nativeObject = genericObject.getNativeObject();
+        if (type == SchemaType.KEY_VALUE) {
+            KeyValue keyValue = (KeyValue) nativeObject;
+            Object key = keyValue.getKey();
+            Object value = keyValue.getValue();
         
-        KeyValue keyValue = (KeyValue) nativeObject;        
-        Object key = keyValue.getKey();
-        Object value = keyValue.getValue();
-        
-        KeyValueSchema keyValueSchema = (KeyValueSchema) schema;
-        Schema keySchema = keyValueSchema.getKeySchema();
-        Schema valueSchema = keyValueSchema.getValueSchema();        
+            KeyValueSchema keyValueSchema = (KeyValueSchema) schema;
+            Schema keySchema = keyValueSchema.getKeySchema();
+            Schema valueSchema = keyValueSchema.getValueSchema();
+        }
         ....
     }
 }
