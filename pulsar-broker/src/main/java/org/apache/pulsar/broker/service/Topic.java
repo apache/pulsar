@@ -261,4 +261,11 @@ public interface Topic {
      */
     CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark);
 
+    /**
+     * Trunate a topic
+     * The latest ledger cannot be deleted ,and only delete acknowledged ledgers
+     * @return
+     */
+    CompletableFuture<Void> truncate();
+
 }

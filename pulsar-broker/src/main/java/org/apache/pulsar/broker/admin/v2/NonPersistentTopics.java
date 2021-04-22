@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
@@ -372,6 +373,26 @@ public class NonPersistentTopics extends PersistentTopics {
             }
             return null;
         });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/truncate")
+    @ApiOperation(value = "Truncate a topic.",
+            notes = "NonPersistentTopic is not support truncate.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 412, message = "NonPersistentTopic is not support truncate")
+    })
+    public void truncateTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative){
+        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED.getStatusCode(), "NonPersistentTopic is not support truncate"));
     }
 
     protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {

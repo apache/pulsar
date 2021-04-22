@@ -3923,21 +3923,21 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalTruncateTopic(AsyncResponse asyncResponse) {
+    protected void internalTruncateTopic(AsyncResponse asyncResponse, boolean authoritative) {
 
-        log.info("[{}] truncating topic {}", clientAppId(), topicName);
-        try {
-            if (topicName.isGlobal()) {
-                validateGlobalNamespaceOwnership(namespaceName);
-            }
-        } catch (Exception e) {
-            log.error("[{}] Failed to runcate topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-            return;
-        }
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (topicName.isPartitioned()) {
-            CompletableFuture<Void> future = pulsar().getBrokerService().truncateTopic(topicName.toString());
+            Topic topic;
+            try {
+                validateAdminAccessForTenant(topicName.getTenant());
+                validateTopicOwnership(topicName, authoritative);
+                topic = getTopicReference(topicName);
+            } catch (Exception e) {
+                log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
+            CompletableFuture<Void> future = topic.truncate();
             future.thenAccept(a -> {
                 asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
                         Response.Status.NO_CONTENT.getReasonPhrase()));
@@ -3946,14 +3946,14 @@ public class PersistentTopicsBase extends AdminResource {
                 return null;
             });
         } else {
-            getPartitionedTopicMetadataAsync(topicName, false, false).whenComplete((meta, t) -> {
+            getPartitionedTopicMetadataAsync(topicName, authoritative, false).whenComplete((meta, t) -> {
                 if (meta.partitions > 0) {
-                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
                     for (int i = 0; i < meta.partitions; i++) {
                         TopicName topicNamePartition = topicName.getPartition(i);
-                        CompletableFuture<Void> future =
-                                pulsar().getBrokerService().truncateTopic(topicName.toString());
+                        validateAdminAccessForTenant(topicNamePartition.getTenant());
+                        validateTopicOwnership(topicNamePartition, authoritative);
+                        Topic partitionTopic = getTopicReference(topicNamePartition);
+                        CompletableFuture<Void> future = partitionTopic.truncate();
                         future.thenAccept(a -> {
                             asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
                                     Response.Status.NO_CONTENT.getReasonPhrase()));
@@ -3964,7 +3964,17 @@ public class PersistentTopicsBase extends AdminResource {
                         });
                     }
                 } else {
-                    CompletableFuture<Void> future = pulsar().getBrokerService().truncateTopic(topicName.toString());
+                    Topic topic;
+                    try {
+                        validateAdminAccessForTenant(topicName.getTenant());
+                        validateTopicOwnership(topicName, authoritative);
+                        topic = getTopicReference(topicName);
+                    } catch (Exception e) {
+                        log.error("[{}] Failed to unload topic {}", clientAppId(), topicName, e);
+                        resumeAsyncResponseExceptionally(asyncResponse, e);
+                        return;
+                    }
+                    CompletableFuture<Void> future = topic.truncate();
                     future.thenAccept(a -> {
                         asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
                                 Response.Status.NO_CONTENT.getReasonPhrase()));

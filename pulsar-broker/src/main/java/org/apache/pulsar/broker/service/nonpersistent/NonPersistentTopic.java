@@ -998,6 +998,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 new Exception("Unsupported operation endTxn in non-persistent topic."));
     }
 
+    @Override
+    public CompletableFuture<Void> truncate() {
+        return FutureUtil.failedFuture(new NotAllowedException("Unsupported truncate"));
+    }
+
     protected boolean isTerminated() {
         return false;
     }

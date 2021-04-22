@@ -2713,6 +2713,11 @@ public class PersistentTopic extends AbstractTopic
         });
     }
 
+    @Override
+    public CompletableFuture<Void> truncate() {
+        return ledger.asyncTruncate();
+    }
+
     public long getDelayedDeliveryTickTimeMillis() {
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         //Topic level setting has higher priority than namespace level

@@ -3099,8 +3099,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/truncate")
     @ApiOperation(value = "Truncate a topic.",
-            notes = "The topic cannot be truncated if it has retention constraint."
-                    + "You can choose to ignore retention constraid to delete ledgers.")
+            notes = "The latest ledger cannot be deleted ,and only delete acknowledged ledgers.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
@@ -3114,9 +3113,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
-            @PathParam("topic") @Encoded String encodedTopic){
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative){
         validateTopicName(tenant, namespace, encodedTopic);
-        internalTruncateTopic(asyncResponse);
+        internalTruncateTopic(asyncResponse, authoritative);
 
     }
 

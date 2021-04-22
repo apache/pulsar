@@ -2611,33 +2611,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return true;
     }
 
-    public CompletableFuture<Void> truncateTopic(String topic) {
-        Optional<Topic> optTopic = getTopicReference(topic);
-        if (optTopic.isPresent()) {
-            Topic t = optTopic.get();
-
-            // v2 topics have a global name so check if the topic is replicated.
-            if (t.isReplicated()) {
-                // Truncate is disallowed on global topic
-                final List<String> clusters = t.getReplicators().keys();
-                log.error("Truncate forbidden topic {} is replicated on clusters {}", topic, clusters);
-                return FutureUtil.failedFuture(
-                        new IllegalStateException("Truncate forbidden topic is replicated on clusters " + clusters));
-            }
-        }
-
-        // Topic is not loaded, though we still might be able to delete from metadata
-        TopicName tn = TopicName.get(topic);
-        if (!tn.isPersistent()) {
-            // Nothing to do if it's not persistent
-            return CompletableFuture.completedFuture(null);
-        }
-
-        CompletableFuture<Void> future = managedLedgerFactory.asyncTruncate(tn.getPersistenceNamingEncoding());
-        return future;
-
-    }
-
     public void setInterceptor(BrokerInterceptor interceptor) {
         this.interceptor = interceptor;
     }
