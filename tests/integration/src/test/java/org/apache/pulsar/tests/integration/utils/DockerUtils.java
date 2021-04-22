@@ -320,6 +320,50 @@ public class DockerUtils {
         return result;
     }
 
+    public static CompletableFuture<Integer> runCommandAsyncWithLogging(DockerClient dockerClient,
+                                                                        String containerId, String... cmd) {
+        CompletableFuture<Integer> future = new CompletableFuture<>();
+        String execId = dockerClient.execCreateCmd(containerId)
+                .withCmd(cmd)
+                .withAttachStderr(true)
+                .withAttachStdout(true)
+                .exec()
+                .getId();
+        final String containerName = getContainerName(dockerClient, containerId);
+        String cmdString = String.join(" ", cmd);
+        dockerClient.execStartCmd(execId).withDetach(false)
+                .exec(new ResultCallback<Frame>() {
+                    @Override
+                    public void close() {
+                    }
+
+                    @Override
+                    public void onStart(Closeable closeable) {
+                        LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
+                    }
+
+                    @Override
+                    public void onNext(Frame object) {
+                        LOG.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        future.completeExceptionally(throwable);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
+                        InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
+                        int retCode = resp.getExitCode();
+                        LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
+                        future.complete(retCode);
+                    }
+                });
+        return future;
+    }
+
     private static InspectExecResponse waitForExecCmdToFinish(DockerClient dockerClient, String execId) {
         InspectExecResponse resp = dockerClient.inspectExecCmd(execId).exec();
         while (resp.isRunning()) {
