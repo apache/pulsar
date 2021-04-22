@@ -124,20 +124,20 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                         clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
                         clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
                     } catch (Exception e) {
-                        cache.refresh(topic);
+                        cache.invalidate(topic);
                         cb.completeExceptionally(e);
                         pendingRequests.remove(requestId);
                         op.recycle();
                     }
                 } else {
-                    cache.refresh(topic);
+                    cache.invalidate(topic);
                     cb.completeExceptionally(throwable);
                     pendingRequests.remove(requestId);
                     op.recycle();
                 }
             });
         } catch (ExecutionException e) {
-            cache.refresh(topic);
+            cache.invalidate(topic);
             cb.completeExceptionally(new PulsarClientException.LookupException(e.getCause().getMessage()));
             pendingRequests.remove(requestId);
             op.recycle();
@@ -165,7 +165,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         } else {
             log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(),
                     response.getError());
-            cache.refresh(op.topic);
+            cache.invalidate(op.topic);
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
         }
         op.recycle();
@@ -192,7 +192,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         } else {
             log.error("[{}] Got end txn on subscription response for request {} error {}",
                     op.topic, response.getRequestId(), response.getError());
-            cache.refresh(op.topic);
+            cache.invalidate(op.topic);
             op.cb.completeExceptionally(getException(response.getError(), response.getMessage()));
         }
         op.recycle();
