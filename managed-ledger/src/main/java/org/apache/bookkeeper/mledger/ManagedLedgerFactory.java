@@ -161,12 +161,4 @@ public interface ManagedLedgerFactory {
      */
     void shutdown() throws InterruptedException, ManagedLedgerException;
 
-    /**
-     * Tuncate a managed ledger.
-     * The latest ledger cannot be deleted ,and only delete acknowledged ledgers
-     *
-     * @param name
-     */
-    CompletableFuture<Void> asyncTruncate(String name);
-
 }

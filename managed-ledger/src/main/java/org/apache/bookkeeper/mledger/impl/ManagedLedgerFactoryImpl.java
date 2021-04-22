@@ -831,28 +831,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         return future;
     }
 
-    @Override
-    public CompletableFuture<Void> asyncTruncate(String name) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        asyncOpen(name, new OpenLedgerCallback() {
-            @Override
-            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                ledger.asyncTruncate().thenAccept(o -> {
-                    future.complete(null);
-                }).exceptionally(e -> {
-                    future.obtrudeException(e);
-                    return null;
-                });
-            }
-
-            @Override
-            public void openLedgerFailed(ManagedLedgerException e, Object ctx) {
-                future.obtrudeException(e);
-            }
-        }, null);
-        return future;
-    }
-
     public MetaStore getMetaStore() {
         return store;
     }
