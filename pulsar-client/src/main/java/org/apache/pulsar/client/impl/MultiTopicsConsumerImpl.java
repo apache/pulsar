@@ -473,6 +473,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                                        long delayTime,
                                                        TimeUnit unit) {
         MessageId messageId = message.getMessageId();
+        if (messageId == null) {
+            return FutureUtil.failedFuture(new PulsarClientException
+                    .InvalidMessageException("Cannot handle message with null messageId"));
+        }
         checkArgument(messageId instanceof TopicMessageIdImpl);
         TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
         if (getState() != State.Ready) {
@@ -602,8 +606,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             consumer.redeliverUnacknowledgedMessages();
             consumer.unAckedChunkedMessageIdSequenceMap.clear();
         });
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+        clearIncomingMessages();
         unAckedMessageTracker.clear();
 
         resumeReceivingFromPausedConsumersIfNeeded();
@@ -687,8 +690,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(targetMessageId)));
 
         unAckedMessageTracker.clear();
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+        clearIncomingMessages();
 
         return FutureUtil.waitForAll(futures);
     }
@@ -777,6 +779,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     messageIds.add(messageId);
                     break;
                 }
+                message.release();
                 message = incomingMessages.poll();
             }
         }
@@ -938,7 +941,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                     partitionIndex, true, subFuture,
                                     startMessageId, schema, interceptors,
                                     createIfDoesNotExist, startMessageRollbackDurationInSec);
-                        consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        synchronized (pauseMutex) {
+                            if (paused) {
+                                newConsumer.pause();
+                            }
+                            consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+                        }
                         return subFuture;
                     })
                 .collect(Collectors.toList());
@@ -958,7 +966,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         client.externalExecutorProvider(), -1,
                         true, subFuture, null, schema, interceptors,
                         createIfDoesNotExist);
+            synchronized (pauseMutex) {
+                if (paused) {
+                    newConsumer.pause();
+                }
                 consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
+            }
 
             futureList = Collections.singletonList(subFuture);
         }

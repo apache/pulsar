@@ -310,18 +310,39 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
     private boolean backlogQuotaCheckEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Whether to enable precise time based backlog quota check. "
+                  + "Enabling precise time based backlog quota check will cause broker to read first entry in backlog "
+                  + "of the slowest cursor on a ledger which will mostly result in reading entry from BookKeeper's " +
+                    "disk which can have negative impact on overall performance.  "
+                  + "Disabling precise time based backlog quota check will just use the timestamp indicating when a "
+                  + "ledger was closed, which is of coarser granularity."
+    )
+    private boolean preciseTimeBasedBacklogQuotaCheck = false;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How often to check for topics that have reached the quota."
             + " It only takes effects when `backlogQuotaCheckEnabled` is true"
     )
     private int backlogQuotaCheckIntervalInSeconds = 60;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default per-topic backlog quota limit, less than 0 means no limitation. default is -1."
+        doc = "Default per-topic backlog quota limit by size, less than 0 means no limitation. default is -1."
                 + " Increase it if you want to allow larger msg backlog"
     )
     private long backlogQuotaDefaultLimitGB = -1;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Default per-topic backlog quota limit by time in second, less than 0 means no limitation. " +
+                    "default is -1. Increase it if you want to allow larger msg backlog"
+    )
+    private int backlogQuotaDefaultLimitSecond = -1;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default backlog quota retention policy. Default is producer_request_hold\n\n"
@@ -331,6 +352,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog"
     )
     private BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy = BacklogQuota.RetentionPolicy.producer_request_hold;
+
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Default ttl for namespaces if ttl is not already configured at namespace policies. "

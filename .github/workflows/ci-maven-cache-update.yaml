@@ -111,7 +111,5 @@ jobs:
       - name: Download dependencies
         if: ${{ (github.event_name == 'schedule' || steps.changes.outputs.poms == 'true') && steps.cache.outputs.cache-hit != 'true' }}
         run: |
-          # workaround issue https://github.com/sundrio/sundrio/issues/168
-          perl -0777 -i.original -pe 's/<dependency>\s+<groupId>io.sundr<\/groupId>.*?<\/dependency>//sg' pulsar-functions/runtime/pom.xml pulsar-functions/secrets/pom.xml || true
           # download dependencies, ignore errors
           mvn -B -fn -ntp ${{ matrix.mvn_arguments }} dependency:go-offline

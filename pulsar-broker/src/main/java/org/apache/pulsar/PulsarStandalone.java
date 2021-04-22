@@ -27,6 +27,7 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.util.Optional;
 import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -288,6 +289,7 @@ public class PulsarStandalone implements AutoCloseable {
                                    Optional.ofNullable(fnWorkerService),
                                    (exitCode) -> {
                                        log.info("Halting standalone process with code {}", exitCode);
+                                       LogManager.shutdown();
                                        Runtime.getRuntime().halt(exitCode);
                                    });
         broker.start();

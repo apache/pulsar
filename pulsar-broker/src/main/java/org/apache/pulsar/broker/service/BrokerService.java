@@ -127,7 +127,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -146,6 +145,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -686,7 +686,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             replicationClients.forEach((cluster, client) -> {
                 try {
                     client.shutdown();
-                } catch (PulsarClientException e) {
+                } catch (Exception e) {
                     log.warn("Error shutting down repl client for cluster {}", cluster, e);
                 }
             });
@@ -701,6 +701,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             });
 
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
+            log.info("Event loops shutting down gracefully...");
             CompletableFuture<Void> shutdownFuture =
                     CompletableFuture.allOf(shutdownEventLoopGracefully(acceptorGroup),
                             shutdownEventLoopGracefully(workerGroup))
@@ -825,6 +826,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      */
     public void unloadNamespaceBundlesGracefully() {
         try {
+            log.info("Unloading namespace-bundles...");
             // make broker-node unavailable from the cluster
             if (pulsar.getLoadManager() != null && pulsar.getLoadManager().get() != null) {
                 try {
@@ -1595,8 +1597,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         forEachTopic(topic -> {
             if (topic instanceof PersistentTopic) {
                 PersistentTopic persistentTopic = (PersistentTopic) topic;
-                if (persistentTopic.isBacklogExceeded()) {
-                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic);
+                if (persistentTopic.isSizeBacklogExceeded()) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
+                            BacklogQuota.BacklogQuotaType.destination_storage, false);
+                } else if (persistentTopic.isTimeBacklogExceeded()) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
+                            BacklogQuota.BacklogQuotaType.message_age,
+                            pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("quota not exceeded for [{}]", topic.getName());

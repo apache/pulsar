@@ -160,6 +160,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             case BOOLEAN:
                 return BooleanSchema.of();
             case BYTES:
+            case NONE:
                 return BytesSchema.of();
             case DATE:
                 return DateSchema.of();
