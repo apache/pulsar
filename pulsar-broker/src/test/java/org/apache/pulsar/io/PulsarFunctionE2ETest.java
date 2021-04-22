@@ -232,7 +232,6 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         inputSpecs.put(sourceTopic, consumerConfig);
         functionConfig.setInputSpecs(inputSpecs);
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        log.info("FunctionConfig: {}", functionConfig);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         // 5 Function should only read compacted value，so we will only receive compacted messages
