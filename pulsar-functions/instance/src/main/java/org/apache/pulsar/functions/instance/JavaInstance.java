@@ -91,14 +91,14 @@ public class JavaInstance implements AutoCloseable {
     
     /**
      * If the Function code returns a CompletableFuture object, then this method is used to handle that by
-     * adding the async request to the internal pendingAsyncRequests queue, specifying the logic to be executed
-     * once the function execution is complete.
+     * adding the async request to the internal pendingAsyncRequests queue, and specifying the logic to be 
+     * executed once the function execution is complete.
      * 
      * @param future
      * @param executionResult
      */
-    @SuppressWarnings("unchecked")
-	private void handleAsync(@SuppressWarnings("rawtypes") CompletableFuture future, JavaExecutionResult executionResult) {
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+	private void handleAsync(CompletableFuture future, JavaExecutionResult executionResult) {
     	try {
             pendingAsyncRequests.put(future);
         } catch (InterruptedException ie) {
@@ -108,17 +108,14 @@ public class JavaInstance implements AutoCloseable {
 
         future.whenCompleteAsync((obj, throwable) -> {
             if (log.isDebugEnabled()) {
-                log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
+              log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
             }
             
-            pendingAsyncRequests.remove(future);
-
             if (throwable != null) {
-                executionResult.setUserException(new Exception((Throwable)throwable));      
-                future.completeExceptionally((Throwable) throwable);
-                return;
+              executionResult.setUserException(new Exception((Throwable)throwable));      
             }
           
+            pendingAsyncRequests.remove(future);
             future.complete(obj);
             
         }, executor);

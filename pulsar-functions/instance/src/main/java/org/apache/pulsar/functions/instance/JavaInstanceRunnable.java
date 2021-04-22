@@ -279,9 +279,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 addLogTopicHandler();
                 
-                // Not always a future...
-                JavaExecutionResult result;
-
                 // set last invocation time
                 stats.setLastInvocation(System.currentTimeMillis());
 
@@ -290,7 +287,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
-                result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
+                JavaExecutionResult result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
                 // register end time
@@ -329,14 +326,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     		log.warn("Encountered exception when processing message {}",
                     srcRecord, result.getUserException());
             stats.incrUserExceptions(result.getUserException());
-            throw result.getUserException();
     	} 
     	
     	if (result.getSystemException() != null) {
     		log.warn("Encountered exception when processing message {}",
                     srcRecord, result.getSystemException());
             stats.incrSysExceptions(result.getSystemException());
-            throw result.getSystemException();
     	}
     	
     	if (result.getResult() == null) {
