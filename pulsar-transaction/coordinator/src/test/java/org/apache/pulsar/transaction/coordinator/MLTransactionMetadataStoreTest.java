@@ -19,7 +19,6 @@
 package org.apache.pulsar.transaction.coordinator;
 
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -135,7 +134,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
         Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
-        TxnID txnID = transactionMetadataStore.newTransaction(100).get();
+        TxnID txnID = transactionMetadataStore.newTransaction(20000).get();
         transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
         if (isUseManagedLedger) {
             transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING).get();
@@ -156,7 +155,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
-        Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
+        Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
         txnID = transactionMetadataStore.newTransaction(100000).get();
         assertEquals(txnID.getLeastSigBits(), 1);
     }

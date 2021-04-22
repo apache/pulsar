@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -199,26 +200,40 @@ public class MLTransactionLogImpl implements TransactionLog {
     }
 
     public CompletableFuture<Long> getMaxLocalTxnId() {
-        return ((ManagedCursorImpl) cursor)
-                .readSpecifyPositionByPosition((PositionImpl) managedLedger.getLastConfirmedEntry())
-                .thenCompose(entry -> {
-                    CompletableFuture<Long> completableFuture = new CompletableFuture<>();
-                    if (entry != null) {
-                        TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
-                        ByteBuf buffer = entry.getDataBuffer();
-                        currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                        lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
-                        completableFuture.complete(lastConfirmEntry.getMaxLocalTxnId());
-                    } else if (managedLedger.getProperties()
-                            .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID) != null) {
-                        completableFuture.complete(Long.parseLong(managedLedger.getProperties()
-                                .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID)));
-                    }
-                    return completableFuture;
-        }).exceptionally(e -> {
-            log.error("[{}] MLTransactionLog recover fail!", topicName, e);
-            return null;
-        });
+
+        CompletableFuture<Long> completableFuture = new CompletableFuture<>();
+        PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
+
+        if (position != null && position.getEntryId() != -1
+                && ((ManagedLedgerImpl) managedLedger).ledgerExists(position.getLedgerId())) {
+            ((ManagedLedgerImpl) this.managedLedger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
+                    ByteBuf buffer = entry.getDataBuffer();
+                    currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+                    lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
+                    completableFuture.complete(lastConfirmEntry.getMaxLocalTxnId());
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    log.error("[{}] MLTransactionLog recover MaxLocalTxnId fail!", topicName, exception);
+                    completableFuture.completeExceptionally(exception);
+                }
+            }, null);
+        } else if (managedLedger.getProperties()
+                .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID) != null) {
+            completableFuture.complete(Long.parseLong(managedLedger.getProperties()
+                    .get(MLTransactionLogInterceptor.MAX_LOCAL_TXN_ID)));
+        } else {
+            log.error("[{}] MLTransactionLog recover MaxLocalTxnId fail! "
+                    + "not found MaxLocalTxnId in managedLedger and properties", topicName);
+            completableFuture.completeExceptionally(new ManagedLedgerException(topicName
+                    + "MLTransactionLog recover MaxLocalTxnId fail! "
+                    + "not found MaxLocalTxnId in managedLedger and properties"));
+        }
+        return completableFuture;
     }
 
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
