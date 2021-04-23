@@ -1515,19 +1515,21 @@ public class PersistentTopics extends PersistentTopicsBase {
     public Integer getMessageTTL(@PathParam("tenant") String tenant,
                              @PathParam("namespace") String namespace,
                              @PathParam("topic") @Encoded String encodedTopic,
-                             @QueryParam("applied") boolean applied) {
+                             @DefaultValue("false")@QueryParam("applied") boolean applied) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation();
-        return getTopicPolicies(topicName)
-                .map(TopicPolicies::getMessageTTLInSeconds)
-                .orElseGet(() -> {
-                    if (applied) {
-                        Integer otherLevelTTL = getNamespacePolicies(namespaceName).message_ttl_in_seconds;
-                        return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds()
-                                : otherLevelTTL;
-                    }
-                    return null;
-                });
+        Optional<Integer> messageTTL = getTopicPolicies(topicName)
+                .map(TopicPolicies::getMessageTTLInSeconds);
+        if (messageTTL.isPresent()) {
+            return messageTTL.get();
+        } else {
+            if (applied) {
+                Integer otherLevelTTL = getNamespacePolicies(namespaceName).message_ttl_in_seconds;
+                return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds()
+                        : otherLevelTTL;
+            }
+            return null;
+        }
     }
 
     @POST
