@@ -152,6 +152,7 @@ public class ServerCnxTest {
     public void setup() throws Exception {
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         svcConfig = spy(new ServiceConfiguration());
+        svcConfig.setBrokerShutdownTimeoutMs(0L);
         pulsar = spy(new PulsarService(svcConfig));
         doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
 

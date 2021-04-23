@@ -288,7 +288,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             });
         // clear caches to load data from metadata-store again
         MetadataCacheImpl<TenantInfo> tenantCache = (MetadataCacheImpl<TenantInfo>) pulsar.getPulsarResources()
-                .getTenatResources().getCache();
+                .getTenantResources().getCache();
         AbstractMetadataStore store = (AbstractMetadataStore) tenantCache.getStore();
         tenantCache.invalidateAll();
         store.invalidateAll();

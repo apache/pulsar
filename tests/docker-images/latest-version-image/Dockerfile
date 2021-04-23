@@ -28,7 +28,7 @@ RUN apt-get install -y procps curl git
 
 ENV GOLANG_VERSION 1.13.3
 
-RUN curl -sSL https://storage.googleapis.com/golang/go$GOLANG_VERSION.linux-amd64.tar.gz \
+RUN curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz \
 		| tar -C /usr/local -xz
 
 # RUN wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz && tar -xvf go1.13.3.linux-amd64.tar.gz && mv go /usr/local

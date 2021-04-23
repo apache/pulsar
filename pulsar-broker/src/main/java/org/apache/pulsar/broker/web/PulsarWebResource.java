@@ -23,6 +23,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.admin.AdminResource.POLICIES_READONLY_FLAG_PATH;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
@@ -63,6 +64,7 @@ import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
@@ -263,7 +265,7 @@ public abstract class PulsarWebResource {
                     (isClientAuthenticated(clientAppId)), clientAppId);
         }
 
-        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                 .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
@@ -319,7 +321,7 @@ public abstract class PulsarWebResource {
     protected void validateClusterForTenant(String tenant, String cluster) {
         TenantInfo tenantInfo;
         try {
-            tenantInfo = pulsar().getPulsarResources().getTenatResources().get(path(POLICIES, tenant))
+            tenantInfo = pulsar().getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (RestException e) {
             log.warn("Failed to get tenant admin data for tenant {}", tenant);
@@ -876,7 +878,7 @@ public abstract class PulsarWebResource {
     }
 
     protected TenantResources tenantResources() {
-        return pulsar().getPulsarResources().getTenatResources();
+        return pulsar().getPulsarResources().getTenantResources();
     }
 
     protected ClusterResources clusterResources() {
@@ -885,6 +887,10 @@ public abstract class PulsarWebResource {
 
     protected NamespaceResources namespaceResources() {
         return pulsar().getPulsarResources().getNamespaceResources();
+    }
+
+    protected ResourceGroupResources resourceGroupResources() {
+        return pulsar().getPulsarResources().getResourcegroupResources();
     }
 
     protected LocalPoliciesResources getLocalPolicies() {
@@ -1073,6 +1079,24 @@ public abstract class PulsarWebResource {
         namespaces.sort(null);
         return namespaces;
     }
+
+    /**
+     * Get the list of resourcegroups.
+     *
+     * @return the list of resourcegroups
+     */
+
+    protected List<String> getListOfResourcegroups(String property) throws Exception {
+        List<String> resourcegroups = Lists.newArrayList();
+
+        for (String resourcegroup : resourceGroupResources().getChildren(path(RESOURCEGROUPS))) {
+            resourcegroups.add(resourcegroup);
+        }
+
+        resourcegroups.sort(null);
+        return resourcegroups;
+    }
+
 
     public static void deleteRecursive(BaseResources resources, final String pathRoot) throws MetadataStoreException {
         PathUtils.validatePath(pathRoot);

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Cleanup;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -31,6 +32,7 @@ import static org.testng.Assert.fail;
 
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.Schema.Parser;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
@@ -523,7 +525,12 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 Message<GenericRecord> data = c.receive();
                 assertNotNull(data.getSchemaVersion());
                 assertEquals(data.getValue().getField("i"), i);
+                MessageImpl impl = (MessageImpl) data;
+
+                org.apache.avro.Schema avroSchema = (org.apache.avro.Schema) impl.getSchema().getNativeSchema().get();
+                assertNotNull(avroSchema);
             }
+
         }
     }
 
@@ -623,6 +630,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     public void testGetSchemaByVersion() throws PulsarClientException, PulsarAdminException, ExecutionException, InterruptedException {
         final String topic = "persistent://my-property/my-ns/testGetSchemaByVersion";
 
+        @Cleanup
         PulsarClientImpl httpProtocolClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         PulsarClientImpl binaryProtocolClient = (PulsarClientImpl) pulsarClient;
 

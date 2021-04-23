@@ -30,6 +30,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.LinkedList;
@@ -45,6 +46,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.exporter.HTTPServer;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -57,8 +61,10 @@ import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
@@ -166,6 +172,8 @@ public class LocalRunner implements AutoCloseable {
     protected String secretsProviderClassName;
     @Parameter(names = "--secretsProviderConfig", description = "Whats the config for the secrets provider", hidden = true)
     protected String secretsProviderConfig;
+    @Parameter(names = "--metricsPortStart", description = "The starting port range for metrics server. When running instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
+    protected Integer metricsPortStart;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
     private static final String DEFAULT_WEB_SERVICE_URL = "http://localhost:8080";
@@ -186,7 +194,7 @@ public class LocalRunner implements AutoCloseable {
                        boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
                        String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
                        String secretsProviderClassName, String secretsProviderConfig, String narExtractionDirectory,
-                       String connectorsDirectory) {
+                       String connectorsDirectory, Integer metricsPortStart) {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
@@ -218,6 +226,7 @@ public class LocalRunner implements AutoCloseable {
             }
             this.connectorsDir = Paths.get(pulsarHome, "connectors").toString();
         }
+        this.metricsPortStart = metricsPortStart;
         shutdownHook = new Thread() {
             public void run() {
                 LocalRunner.this.stop();
@@ -477,7 +486,16 @@ public class LocalRunner implements AutoCloseable {
                 instanceConfig.setInstanceId(i + instanceIdOffset);
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(FunctionCommon.findAvailablePort());
-                instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
+
+                if (metricsPortStart != null) {
+                    int metricsPort = metricsPortStart + i;
+                    if (metricsPortStart < 0 || metricsPortStart > 65535) {
+                        throw new IllegalArgumentException("Metrics port need to be within the range of 0 and 65535");
+                    }
+                    instanceConfig.setMetricsPort(metricsPort);
+                } else {
+                    instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
+                }
                 instanceConfig.setClusterName("local");
                 if (functionConfig != null) {
                     instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
@@ -529,6 +547,13 @@ public class LocalRunner implements AutoCloseable {
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile) throws Exception {
+
+        if (metricsPortStart != null) {
+            if (metricsPortStart < 0 || metricsPortStart > 65535) {
+                throw new IllegalArgumentException("Metrics port need to be within the range of 0 and 65535");
+            }
+        }
+
         SecretsProvider secretsProvider;
         if (secretsProviderClassName != null) {
             secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
@@ -544,6 +569,11 @@ public class LocalRunner implements AutoCloseable {
         if (functionConfig != null && functionConfig.getExposePulsarAdminClientEnabled() != null) {
             exposePulsarAdminClientEnabled = functionConfig.getExposePulsarAdminClientEnabled();
         }
+
+        // Collector Registry for prometheus metrics
+        FunctionCollectorRegistry collectorRegistry = FunctionCollectorRegistry.getDefaultImplementation();
+        RuntimeUtils.registerDefaultCollectors(collectorRegistry);
+
         ThreadRuntimeFactory threadRuntimeFactory;
         ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
         try {
@@ -555,7 +585,7 @@ public class LocalRunner implements AutoCloseable {
                     stateStorageServiceUrl,
                     authConfig,
                     secretsProvider,
-                    null, narExtractionDirectory,
+                    collectorRegistry, narExtractionDirectory,
                     null,
                     exposePulsarAdminClientEnabled, webServiceUrl);
         } finally {
@@ -569,8 +599,9 @@ public class LocalRunner implements AutoCloseable {
             instanceConfig.setFunctionId(UUID.randomUUID().toString());
             instanceConfig.setInstanceId(i + instanceIdOffset);
             instanceConfig.setMaxBufferedTuples(1024);
-            instanceConfig.setPort(FunctionCommon.findAvailablePort());
-            instanceConfig.setMetricsPort(FunctionCommon.findAvailablePort());
+            if (metricsPortStart != null) {
+                instanceConfig.setMetricsPort(metricsPortStart);
+            }
             instanceConfig.setClusterName("local");
             if (functionConfig != null) {
                 instanceConfig.setMaxPendingAsyncRequests(functionConfig.getMaxPendingAsyncRequests());
@@ -578,6 +609,7 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig.setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
             }
+
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,
                     userCodeFile,
@@ -586,6 +618,12 @@ public class LocalRunner implements AutoCloseable {
                     30000);
             spawners.add(runtimeSpawner);
             runtimeSpawner.start();
+        }
+
+        if (metricsPortStart != null) {
+            // starting metrics server
+            log.info("Starting metrics server on port {}", metricsPortStart);
+            new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
         }
     }
 

@@ -191,7 +191,7 @@ public class KubernetesRuntime implements Runtime {
                       Integer grpcPort,
                       String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer,
-                      String functinoInstanceClassPath,
+                      String functionInstanceClassPath,
                       String downloadDirectory) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
@@ -214,7 +214,7 @@ public class KubernetesRuntime implements Runtime {
         this.memoryOverCommitRatio = memoryOverCommitRatio;
         this.authenticationEnabled = authenticationEnabled;
         this.manifestCustomizer = manifestCustomizer;
-        this.functionInstanceClassPath = functinoInstanceClassPath;
+        this.functionInstanceClassPath = functionInstanceClassPath;
         String logConfigFile = null;
         String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
         String secretsProviderConfig = null;
@@ -275,7 +275,7 @@ public class KubernetesRuntime implements Runtime {
                         pythonDependencyRepository,
                         pythonExtraDependencyRepository,
                         narExtractionDirectory,
-                        functinoInstanceClassPath,
+                        functionInstanceClassPath,
                         true,
                         pulsarAdminUrl));
 
@@ -663,7 +663,7 @@ public class KubernetesRuntime implements Runtime {
                     try {
                         response = coreClient.listNamespacedPod(jobNamespace, null, null,
                                 null, null, labels,
-                                null, null, null, null);
+                                null, null, null, null, null);
                     } catch (ApiException e) {
 
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
@@ -1145,7 +1145,7 @@ public class KubernetesRuntime implements Runtime {
 
     public static String createJobName(Function.FunctionDetails functionDetails, String jobName) {
         return jobName == null ? createJobName(functionDetails.getTenant(),
-                functionDetails.getNamespace(), functionDetails.getName()) : 
+                functionDetails.getNamespace(), functionDetails.getName()) :
                 	createJobName(jobName, functionDetails.getTenant(),
                         functionDetails.getNamespace(), functionDetails.getName());
     }
@@ -1157,16 +1157,16 @@ public class KubernetesRuntime implements Runtime {
     private static String toValidLabelName(String ori) {
         return left(ori.toLowerCase().replaceAll("[^a-zA-Z0-9-_\\.]", "-").replaceAll("^[^a-zA-Z0-9]", "0").replaceAll("[^a-zA-Z0-9]$", "0"), maxLabelSize);
     }
-    
+
     private static String createJobName(String jobName, String tenant, String namespace, String functionName) {
     	final String convertedJobName = toValidPodName(jobName);
-        // use of customRuntimeOptions 'jobName' may cause naming collisions, 
+        // use of customRuntimeOptions 'jobName' may cause naming collisions,
     	// add a short hash here to avoid it
     	final String hashName = String.format("%s-%s-%s-%s", jobName, tenant, namespace, functionName);
         final String shortHash = DigestUtils.sha1Hex(hashName).toLowerCase().substring(0, 8);
         return convertedJobName + "-" + shortHash;
     }
-    
+
     private static String createJobName(String tenant, String namespace, String functionName) {
     	final String jobNameBase = String.format("%s-%s-%s", tenant, namespace, functionName);
         final String jobName = "pf-" + jobNameBase;

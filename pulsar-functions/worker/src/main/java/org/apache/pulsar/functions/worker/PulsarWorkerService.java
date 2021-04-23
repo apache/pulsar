@@ -301,7 +301,7 @@ public class PulsarWorkerService implements WorkerService {
         // create tenant for function worker service
         try {
             NamedEntity.checkName(property);
-            pulsarResources.getTenatResources().create(PolicyPath.path(POLICIES, property),
+            pulsarResources.getTenantResources().create(PolicyPath.path(POLICIES, property),
                     new TenantInfo(Sets.newHashSet(workerConfig.getSuperUserRoles()), Sets.newHashSet(cluster)));
             LOG.info("Created property {} for function worker", property);
         } catch (AlreadyExistsException e) {

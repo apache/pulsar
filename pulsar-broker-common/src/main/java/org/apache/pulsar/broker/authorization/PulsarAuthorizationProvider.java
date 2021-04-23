@@ -551,20 +551,24 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 break;
             case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
                 break;
-            default: isAuthorizedFuture = FutureUtil.failedFuture(
-                    new IllegalStateException("TopicOperation is not supported."));
+            default:
+                return FutureUtil.failedFuture(new IllegalStateException("TopicOperation is not supported."));
         }
 
         CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(role, authData, conf);
 
+        // check isSuperUser first
         return isSuperUserFuture
-                .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> {
+                .thenCompose(isSuperUser -> {
                     if (log.isDebugEnabled()) {
-                        log.debug("Verify if role {} is allowed to {} to topic {}:"
-                                + " isSuperUser={}, isAuthorized={}",
-                            role, operation, topicName, isSuperUser, isAuthorized);
+                        log.debug("Verify if role {} is allowed to {} to topic {}: isSuperUser={}",
+                                role, operation, topicName, isSuperUser);
                     }
-                    return isSuperUser || isAuthorized;
+                    if (isSuperUser) {
+                        return CompletableFuture.completedFuture(true);
+                    } else {
+                        return isAuthorizedFuture;
+                    }
                 });
     }
 
@@ -579,7 +583,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                  String role,
                                                                 AuthenticationDataSource authData) {
         try {
-            TenantInfo tenantInfo = pulsarResources.getTenatResources()
+            TenantInfo tenantInfo = pulsarResources.getTenantResources()
                     .get(path(POLICIES, tenantName))
                     .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
 

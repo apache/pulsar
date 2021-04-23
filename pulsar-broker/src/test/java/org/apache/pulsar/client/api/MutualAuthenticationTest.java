@@ -182,7 +182,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         }
     }
 
-    @BeforeMethod(groups = "broker-api")
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         mutualAuth = new MutualAuthentication();

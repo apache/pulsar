@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doReturn;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Consumer;
@@ -82,6 +83,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducer() throws Exception {
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).build();
@@ -90,12 +92,11 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
         }
-
-        client.close();
     }
 
     @Test
     public void testPartitions() throws Exception {
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).build();
@@ -118,8 +119,6 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
             checkNotNull(msg);
         }
-
-        client.close();
     }
 
 }

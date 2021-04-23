@@ -97,10 +97,6 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
 
     @Test(groups = "source")
     public void test() throws Exception {
-        if (pulsarCluster == null) {
-            super.setupCluster();
-            super.setupFunctionWorkers();
-        }
         startKafkaContainers(pulsarCluster);
         try {
             testSource();
