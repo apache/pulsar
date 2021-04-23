@@ -136,16 +136,17 @@ public class CLITest extends PulsarTestSuite {
         assertFalse(result.getStdout().contains(persistentTopicName));
         assertTrue(result.getStdout().contains(nonPersistentTopicName));
 
-        result = container.execCmd(
+        try {
+            container.execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "topics",
                 "list",
                 "--topic-domain",
                 "none",
                 namespace);
-
-        assertTrue(result.getStdout().contains("Invalid value for --topic-domain parameter. " +
-                "Allowed values:[persistent, non_persistent]"));
+            fail();
+        } catch (ContainerExecException ignore) {
+        }
 
         producer1.close();
         producer2.close();
