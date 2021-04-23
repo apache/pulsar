@@ -34,6 +34,7 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 import io.prometheus.client.Gauge;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -2412,6 +2413,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void execute(Runnable runnable) {
         ctx.channel().eventLoop().execute(runnable);
+    }
+
+    @Override
+    public String clientSourceAddress() {
+        if (proxyMessage != null) {
+            return proxyMessage.sourceAddress();
+        } else if (remoteAddress instanceof InetSocketAddress) {
+            InetSocketAddress inetAddress = (InetSocketAddress) remoteAddress;
+            return inetAddress.getAddress().getHostAddress();
+        } else {
+            return null;
+        }
     }
 
     private static void logAuthException(SocketAddress remoteAddress, String operation,
