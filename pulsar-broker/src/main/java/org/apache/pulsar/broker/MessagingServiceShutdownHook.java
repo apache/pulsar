@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-import java.lang.reflect.Method;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -30,14 +29,12 @@ import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.zookeeper.ZooKeeper.States;
-import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MessagingServiceShutdownHook extends Thread implements ShutdownService {
 
     private static final Logger LOG = LoggerFactory.getLogger(MessagingServiceShutdownHook.class);
-    private static final String LogbackLoggerContextClassName = "ch.qos.logback.classic.LoggerContext";
 
     private PulsarService service = null;
     private final Consumer<Integer> processTerminator;
@@ -82,9 +79,6 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
         } catch (Exception e) {
             LOG.error("Failed to perform graceful shutdown, Exiting anyway", e);
         } finally {
-
-            immediateFlushBufferedLogs();
-
             // always put system to halt immediately
             processTerminator.accept(0);
         }
@@ -104,23 +98,6 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
         }
 
         LOG.info("Invoking Runtime.halt({})", exitCode);
-        immediateFlushBufferedLogs();
         processTerminator.accept(exitCode);
     }
-
-    public static void immediateFlushBufferedLogs() {
-        ILoggerFactory loggerFactory = LoggerFactory.getILoggerFactory();
-
-        if (loggerFactory.getClass().getName().equals(LogbackLoggerContextClassName)) {
-            // Use reflection to force the flush on the logger
-            try {
-                Class<?> logbackLoggerContextClass = Class.forName(LogbackLoggerContextClassName);
-                Method stop = logbackLoggerContextClass.getMethod("stop");
-                stop.invoke(loggerFactory);
-            } catch (Throwable t) {
-                LOG.info("Failed to flush logs", t);
-            }
-        }
-    }
-
 }

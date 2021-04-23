@@ -56,6 +56,7 @@ import org.apache.pulsar.functions.api.StateStore;
 import org.apache.pulsar.functions.instance.state.DefaultStateStore;
 import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
@@ -115,7 +116,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final Function.FunctionDetails.ComponentType componentType;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
+                       SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry, String[] metricsLabels,
                        Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
                        StateManager stateManager, PulsarAdmin pulsarAdmin) {
         this.config = config;
@@ -172,15 +173,17 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             default:
                 throw new RuntimeException("Unknown component type: " + componentType);
         }
-        this.userMetricsSummary = Summary.build()
-                .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
-                .help("User defined metric.")
-                .labelNames(userMetricsLabelNames)
-                .quantile(0.5, 0.01)
-                .quantile(0.9, 0.01)
-                .quantile(0.99, 0.01)
-                .quantile(0.999, 0.01)
-                .register(collectorRegistry);
+        this.userMetricsSummary = collectorRegistry.registerIfNotExist(
+                prefix + ComponentStatsManager.USER_METRIC_PREFIX,
+                Summary.build()
+                        .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
+                        .help("User defined metric.")
+                        .labelNames(userMetricsLabelNames)
+                        .quantile(0.5, 0.01)
+                        .quantile(0.9, 0.01)
+                        .quantile(0.99, 0.01)
+                        .quantile(0.999, 0.01)
+                        .create());
         this.componentType = componentType;
         this.stateManager = stateManager;
         this.defaultStateStore = (DefaultStateStore) stateManager.getStore(

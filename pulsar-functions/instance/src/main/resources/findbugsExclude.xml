@@ -61,6 +61,14 @@
         <Bug pattern="SE_BAD_FIELD"/>
     </Match>
     <Match>
+        <Class name="org.apache.pulsar.functions.source.MultiConsumerPulsarSource"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSource"/>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+    <Match>
         <Class name="org.apache.pulsar.functions.source.batch.BatchSourceExecutor"/>
         <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
     </Match>
