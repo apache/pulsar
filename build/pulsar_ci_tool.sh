@@ -37,6 +37,16 @@ function ci_print_thread_dumps() {
   return 0
 }
 
+function _ci_mvn() {
+  mvn -B -ntp "$@"
+}
+
+# runs OWASP Dependency Check for all projects
+function ci_dependency_check() {
+  _ci_mvn -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl '!pulsar-client-tools-test' "$@"
+}
+
+
 if [ -z "$1" ]; then
   echo "usage: $0 [ci_tool_function_name]"
   echo "Available ci tool functions:"

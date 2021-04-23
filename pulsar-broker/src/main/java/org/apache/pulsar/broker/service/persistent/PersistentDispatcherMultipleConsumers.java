@@ -185,6 +185,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     redeliveryTracker.addIfAbsent(PositionImpl.get(ledgerId, entryId));
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "
+                                    + "New dispatcher permit count is {}", name, consumer.getAvailablePermits(),
+                            totalAvailablePermits);
+                }
                 readMoreEntries();
             }
         } else {
@@ -204,8 +209,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         totalAvailablePermits += additionalNumberOfMessages;
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}-{}] Trigger new read after receiving flow control message with permits {}", name, consumer,
-                    totalAvailablePermits);
+            log.debug("[{}-{}] Trigger new read after receiving flow control message with permits {} "
+                            + "after adding {} permits", name, consumer,
+                    totalAvailablePermits, additionalNumberOfMessages);
         }
         readMoreEntries();
     }
@@ -487,8 +493,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // round-robin dispatch batch size for this consumer
             int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
             if (log.isDebugEnabled() && !c.isWritable()) {
-                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {} ", topic.getName(), name,
-                        c);
+                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
+                                + "availablePermits are {}", topic.getName(), name,
+                        c, c.getAvailablePermits());
             }
             int messagesForC = Math.min(
                     Math.min(entriesToDispatch, availablePermits),
@@ -519,6 +526,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 entriesToDispatch -= messagesForC;
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
                         -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+                if (log.isDebugEnabled()){
+                    log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
+                                    + "PersistentDispatcherMultipleConsumers",
+                            name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
+                }
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
             }

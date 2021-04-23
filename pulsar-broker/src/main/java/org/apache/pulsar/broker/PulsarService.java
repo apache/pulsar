@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -336,6 +337,7 @@ public class PulsarService implements AutoCloseable {
             if (closeFuture != null) {
                 return closeFuture;
             }
+            LOG.info("Closing PulsarService");
             state = State.Closing;
 
             // close the service in reverse order v.s. in which they are started
@@ -470,6 +472,15 @@ public class PulsarService implements AutoCloseable {
 
             closeFuture = addTimeoutHandling(FutureUtil.waitForAllAndSupportCancel(asyncCloseFutures));
             closeFuture.handle((v, t) -> {
+                if (t == null) {
+                    LOG.info("Closed");
+                } else if (t instanceof CancellationException) {
+                    LOG.info("Closed (shutdown cancelled)");
+                } else if (t instanceof TimeoutException) {
+                    LOG.info("Closed (shutdown timeout)");
+                } else {
+                    LOG.warn("Closed with errors", t);
+                }
                 state = State.Closed;
                 isClosedCondition.signalAll();
                 return null;
@@ -770,11 +781,10 @@ public class PulsarService implements AutoCloseable {
             }
 
             // Start the task to publish resource usage, if necessary
-            if (config.getResourceUsageTransportClassName() != null
-              && config.getResourceUsageTransportClassName() != "") {
+            if (isNotBlank(config.getResourceUsageTransportClassName())) {
                 Class<?> clazz = Class.forName(config.getResourceUsageTransportClassName());
                 Constructor<?> ctor = clazz.getConstructor(PulsarService.class);
-                Object object = ctor.newInstance(new Object[] { this });
+                Object object = ctor.newInstance(new Object[]{this});
                 this.resourceUsageTransportManager = (ResourceUsageTransportManager) object;
             }
 
@@ -1502,6 +1512,10 @@ public class PulsarService implements AutoCloseable {
         return coordinationService;
     }
 
+    public CompletableFuture<Set<String>> getAvailableBookiesAsync() {
+        return this.localZkCacheService.availableBookiesCache().getAsync();
+    }
+
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
@@ -1549,4 +1563,5 @@ public class PulsarService implements AutoCloseable {
                         ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
     }
+
 }

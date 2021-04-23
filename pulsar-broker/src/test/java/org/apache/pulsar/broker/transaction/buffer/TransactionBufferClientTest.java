@@ -20,11 +20,13 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 
 import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import lombok.Cleanup;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -37,19 +39,31 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
 import org.apache.pulsar.broker.transaction.coordinator.TransactionMetaStoreTestBase;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.Test;
+import java.lang.reflect.Field;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.TimeUnit;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 @Test(groups = "broker")
 public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
@@ -94,17 +108,18 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         brokerServices = new BrokerService[pulsarServices.length];
         AtomicLong atomicLong = new AtomicLong(0);
         for (int i = 0; i < pulsarServices.length; i++) {
-            Subscription mockSubscription = Mockito.mock(Subscription.class);
+            Subscription mockSubscription = mock(Subscription.class);
             Mockito.when(mockSubscription.endTxn(Mockito.anyLong(),
                     Mockito.anyLong(), Mockito.anyInt(), Mockito.anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Topic mockTopic = Mockito.mock(Topic.class);
+
+            Topic mockTopic = mock(Topic.class);
             Mockito.when(mockTopic.endTxn(any(), Mockito.anyInt(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
             Mockito.when(mockTopic.getSubscription(any())).thenReturn(mockSubscription);
 
             ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topicMap =
-                    Mockito.mock(ConcurrentOpenHashMap.class);
+                    mock(ConcurrentOpenHashMap.class);
             Mockito.when(topicMap.get(Mockito.anyString())).thenReturn(
                     CompletableFuture.completedFuture(Optional.of(mockTopic)));
 
@@ -125,8 +140,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.commitTxnOnTopic(topic, 1L, i, Long.MIN_VALUE));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            assertEquals(futures.get(i).get().getMostSigBits(), 1L);
+            assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
     }
 
@@ -138,8 +153,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.abortTxnOnTopic(topic, 1L, i, Long.MIN_VALUE));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            assertEquals(futures.get(i).get().getMostSigBits(), 1L);
+            assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
     }
 
@@ -151,8 +166,8 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.commitTxnOnSubscription(topic, "test", 1L, i, -1L));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            assertEquals(futures.get(i).get().getMostSigBits(), 1L);
+            assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
     }
 
@@ -164,8 +179,78 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
             futures.add(tbClient.abortTxnOnSubscription(topic, "test", 1L, i, -1L));
         }
         for (int i = 0; i < futures.size(); i++) {
-            Assert.assertEquals(futures.get(i).get().getMostSigBits(), 1L);
-            Assert.assertEquals(futures.get(i).get().getLeastSigBits(), i);
+            assertEquals(futures.get(i).get().getMostSigBits(), 1L);
+            assertEquals(futures.get(i).get().getLeastSigBits(), i);
+        }
+    }
+
+    @Test
+    public void testTransactionBufferOpFail() throws InterruptedException, ExecutionException {
+        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>[] originalMaps =
+                new ConcurrentOpenHashMap[brokerServices.length];
+        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topicMap = new ConcurrentOpenHashMap<>();
+        for (int i = 0; i < brokerServices.length; i++) {
+            originalMaps[i] = brokerServices[i].getTopics();
+            when(brokerServices[i].getTopics()).thenReturn(topicMap);
+        }
+
+        try {
+            tbClient.abortTxnOnSubscription(
+                    partitionedTopicName.getPartition(0).toString(), "test", 1L, 1, -1L).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.LookupException);
+        }
+
+        try {
+            tbClient.abortTxnOnTopic(
+                    partitionedTopicName.getPartition(0).toString(), 1L, 1, -1L).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.LookupException);
+        }
+
+        for (int i = 0; i < brokerServices.length; i++) {
+            when(brokerServices[i].getTopics()).thenReturn(originalMaps[i]);
+        }
+
+        tbClient.abortTxnOnSubscription(
+                partitionedTopicName.getPartition(0).toString(), "test", 1L, 1, -1L).get();
+
+        tbClient.abortTxnOnTopic(
+                partitionedTopicName.getPartition(0).toString(), 1L, 1, -1L).get();
+    }
+
+    @Test
+    public void testTransactionBufferClientTimeout() throws Exception {
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        when(mockClient.getConnection(anyString())).thenReturn(new CompletableFuture<>());
+        @Cleanup("stop")
+        HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
+        TransactionBufferHandlerImpl transactionBufferHandler =
+                new TransactionBufferHandlerImpl(mockClient, hashedWheelTimer);
+        CompletableFuture<TxnID> completableFuture =
+                transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1);
+
+        Field field = TransactionBufferHandlerImpl.class.getDeclaredField("pendingRequests");
+        field.setAccessible(true);
+        ConcurrentSkipListMap<Long, Object> pendingRequests =
+                (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
+
+        assertEquals(pendingRequests.size(), 1);
+
+        Awaitility.await().atLeast(2, TimeUnit.SECONDS).until(() -> {
+            if (pendingRequests.size() == 0) {
+                return true;
+            }
+            return false;
+        });
+
+        try {
+            completableFuture.get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionBufferClientException.RequestTimeoutException);
         }
     }
 

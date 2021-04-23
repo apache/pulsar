@@ -24,6 +24,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
@@ -56,7 +57,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 new ManagedLedgerConfig());
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
         int checkReplayRetryCount = 0;
         while (true) {
             checkReplayRetryCount++;
@@ -120,7 +121,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 managedLedgerConfig);
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -160,7 +161,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 MLTransactionMetadataStore transactionMetadataStoreTest =
                         new MLTransactionMetadataStore(transactionCoordinatorID,
                                 new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                                        new ManagedLedgerConfig()), new TransactionTimeoutTrackerImpl());
+                                        new ManagedLedgerConfig()), new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
                 while (true) {
                     if (checkReplayRetryCount > 6) {
@@ -222,7 +223,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 new ManagedLedgerConfig());
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
         int checkReplayRetryCount = 0;
         while (true) {
             if (checkReplayRetryCount > 3) {
@@ -282,7 +283,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 new ManagedLedgerConfig());
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
 
         Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
@@ -299,7 +300,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 new ManagedLedgerConfig());
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
-                        new TransactionTimeoutTrackerImpl());
+                        new TransactionTimeoutTrackerImpl(), new TransactionRecoverTrackerImpl());
 
         Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(transactionMetadataStore::checkIfReady);
     }
@@ -323,6 +324,29 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
         @Override
         public void close() {
+
+        }
+    }
+
+    public static class TransactionRecoverTrackerImpl implements TransactionRecoverTracker {
+
+        @Override
+        public void updateTransactionStatus(long sequenceId, TxnStatus txnStatus) throws CoordinatorException.InvalidTxnStatusException {
+
+        }
+
+        @Override
+        public void handleOpenStatusTransaction(long sequenceId, long timeout) {
+
+        }
+
+        @Override
+        public void appendOpenTransactionToTimeoutTracker() {
+
+        }
+
+        @Override
+        public void handleCommittingAndAbortingTransaction() {
 
         }
     }

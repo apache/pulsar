@@ -52,6 +52,20 @@ public class TransactionBufferClientException extends IOException {
         }
     }
 
+    /**
+     * Thrown when transaction buffer op over max pending numbers.
+     */
+    public static class ReachMaxPendingOpsException extends TransactionBufferClientException {
+
+        public ReachMaxPendingOpsException() {
+            super("Transaction buffer op reach max pending numbers.");
+        }
+
+        public ReachMaxPendingOpsException(String message) {
+            super(message);
+        }
+    }
+
     public static TransactionBufferClientException unwrap(Throwable t) {
         if (t instanceof TransactionBufferClientException) {
             return (TransactionBufferClientException) t;
