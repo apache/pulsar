@@ -766,26 +766,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 STATE_UPDATER.set(this, State.ClosingLedger);
             }
             // interceptor entry before add to bookie
-            if (beforeAddEntry(addOperation)) {
-                addOperation.initiate();
-            }
+            beforeAddEntry(addOperation).ifPresent(OpAddEntry::initiate);
         }
     }
 
-    private boolean beforeAddEntry(OpAddEntry addOperation) {
+    private Optional<OpAddEntry> beforeAddEntry(OpAddEntry addOperation) {
         // if no interceptor, just return true to make sure addOperation will be initiate()
         if (managedLedgerInterceptor == null) {
-            return true;
+            return Optional.of(addOperation);
         }
         try {
-            managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getNumberOfMessages());
-            return true;
+            return Optional.of(
+                    managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getNumberOfMessages()));
         } catch (Exception e) {
             addOperation.failed(
                     new ManagedLedgerInterceptException("Interceptor managed ledger before add to bookie failed."));
             ReferenceCountUtil.release(addOperation.data);
             log.error("[{}] Failed to intercept adding an entry to bookie.", name, e);
-            return false;
+            return Optional.empty();
         }
     }
 
@@ -1496,9 +1494,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     existsOp = OpAddEntry.create(existsOp.ml, existsOp.data, existsOp.getNumberOfMessages(), existsOp.callback, existsOp.ctx);
                 }
                 existsOp.setLedger(currentLedger);
-                if (beforeAddEntry(existsOp)) {
-                    pendingAddEntries.add(existsOp);
-                }
+                beforeAddEntry(existsOp).ifPresent(pendingAddEntries::add);
             }
         } while (existsOp != null && --pendingSize > 0);
 
