@@ -178,11 +178,13 @@ public class PersistentTopicTest extends BrokerTestBase {
         PersistentTopic persistentTopic =
                 spy((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get());
 
-        admin.namespaces().deleteNamespace(myNamespace, true);
-
         Policies policies = new Policies();
         policies.deleted = true;
         persistentTopic.onPoliciesUpdate(policies);
         verify(persistentTopic, times(0)).checkReplicationAndRetryOnFailure();
+
+        policies.deleted = false;
+        persistentTopic.onPoliciesUpdate(policies);
+        verify(persistentTopic, times(1)).checkReplicationAndRetryOnFailure();
     }
 }
