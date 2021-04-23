@@ -625,7 +625,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return sb.toString();
     }
 
-    private CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName,
+    public CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName,
                                                                  String role,
                                                                  AuthenticationDataSource authData) {
         return isSuperUser(role, authData, conf)
