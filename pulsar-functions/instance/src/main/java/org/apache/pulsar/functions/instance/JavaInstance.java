@@ -101,27 +101,36 @@ public class JavaInstance implements AutoCloseable {
 	private void handleAsync(final CompletableFuture future, JavaExecutionResult executionResult) {
     	try {
             pendingAsyncRequests.put(future);
+            
+            future.whenCompleteAsync((functionResult, throwable) -> {
+                if (log.isDebugEnabled()) {
+                  log.debug("Got result async: object: {}, throwable: {}", functionResult, throwable);
+                }
+                
+                if (throwable != null) {
+                  Exception wrappedEx = new Exception((Throwable)throwable);
+                  if (isSystemException(throwable)) {
+                	executionResult.setSystemException(wrappedEx);  
+                  } else {
+                    executionResult.setUserException(wrappedEx); 
+                  }
+                  future.completeExceptionally(wrappedEx);
+                } else {
+                  future.complete(functionResult);
+                }
+              
+                pendingAsyncRequests.remove(future); 
+                
+            }, executor);
+              
+            executionResult.setResult(future);
+            
         } catch (InterruptedException ie) {
             log.warn("Exception while put Async requests", ie);
-            executionResult.setUserException(ie);
+            executionResult.setSystemException(ie);
             future.completeExceptionally(ie);
             Thread.currentThread().interrupt();
         }
-
-        future.whenCompleteAsync((functionResult, throwable) -> {
-            if (log.isDebugEnabled()) {
-              log.debug("Got result async: object: {}, throwable: {}", functionResult, throwable);
-            }
-            
-            if (throwable != null) {
-              executionResult.setUserException(new Exception((Throwable)throwable));      
-            }
-          
-            pendingAsyncRequests.remove(future);
-            future.complete(functionResult);     
-        }, executor);
-          
-        executionResult.setResult(future);
     }
 
     /**
@@ -169,5 +178,9 @@ public class JavaInstance implements AutoCloseable {
 
     public Map<String, Double> getMetrics() {
         return context.getMetrics();
+    }
+    
+    private static boolean isSystemException(Object throwable) {
+    	return (throwable instanceof InterruptedException);
     }
 }

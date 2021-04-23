@@ -29,6 +29,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.Getter;
@@ -362,25 +363,24 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
      * @param result
      * @return
      */
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({ "rawtypes", "unchecked" })
 	private Object getFunctionOutput(Record srcRecord, JavaExecutionResult result) {
     	
-    	Object output = null;
+    	AtomicReference output = new AtomicReference(null);
     	
 		try {
 			if (result.getResult() instanceof CompletableFuture) {
 				CompletableFuture future = ((CompletableFuture)result.getResult());
-				if (!future.isCompletedExceptionally()) {
-					output = future.get(); 
-				}
+				future.whenComplete((obj, throwable) -> {
+				   if (throwable != null) {
+                     result.setUserException(new Exception((Throwable)throwable));
+                     srcRecord.fail();
+				   }
+				   output.set(obj);
+				});
 			} else {
-				output = result.getResult();
+				output.set(result.getResult());
 			}
-		} catch (InterruptedException e) {
-			result.setSystemException(e);
-			Thread.currentThread().interrupt();
-		} catch (ExecutionException e) {
-			result.setUserException(new Exception(e.getCause()));
 		} finally {
 			if (result.getUserException() != null) {
 	    		log.warn("Encountered exception when processing message {}",
@@ -395,7 +395,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 	    	}
 		}
     	
-    	return output;
+    	return output.get();
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
