@@ -52,7 +52,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -2932,8 +2931,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
         ManagedLedgerImpl ledger2 = (ManagedLedgerImpl)factory.open("truncate_ledger", config);
         ledger2.addEntry("test-entry-2".getBytes(Encoding));
-        ManagedCursor cursor2 = ledger2.openCursor("test-cursor");
-        cursor2.resetCursor(new PositionImpl(ledger2.getLastPosition()));
 
 
         CompletableFuture<Void> future = ledger2.asyncTruncate();
@@ -2966,7 +2963,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         CompletableFuture<Void> future = ledger2.asyncTruncate();
         future.get();
 
-        assertTrue(ledger2.getLedgersInfoAsList().size() == 2);
+        assertTrue(ledger2.getLedgersInfoAsList().size() == 1);
     }
 
 }

@@ -129,6 +129,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
@@ -3752,8 +3753,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public CompletableFuture<Void> asyncTruncate() {
+
+        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        for (ManagedCursor cursor : cursors) {
+            final CompletableFuture<Void> future = new CompletableFuture<>();
+            cursor.asyncClearBacklog(new AsyncCallbacks.ClearBacklogCallback() {
+                @Override
+                public void clearBacklogComplete(Object ctx) {
+                    future.complete(null);
+                }
+
+                @Override
+                public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
+                    future.completeExceptionally(exception);
+                }
+            }, null);
+            futures.add(future);
+        }
         CompletableFuture<Void> future = new CompletableFuture();
-        internalTrimLedgers(true, future);
+        FutureUtil.waitForAll(futures).thenAccept(p -> {
+            internalTrimLedgers(true, future);
+        }).exceptionally(e -> {
+            future.completeExceptionally(e);
+            return null;
+        });
         return future;
     }
   
