@@ -58,7 +58,6 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private String tenantDomain;
     private String tenantService;
     private String providerDomain;
-    private final Object providerDomainLock = new Object();
     private PrivateKey privateKey;
     private String keyId = "0";
     private String roleHeader = null;
@@ -72,6 +71,8 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private static final int maxValidity = 24 * 60 * 60; // token has upto 24 hours validity
     private static final int cacheDurationInHour = 1; // we will cache role token for an hour then ask athenz lib again
 
+    private final Object cachedRoleTokenLock = new Object();
+
     public AuthenticationAthenz() {
     }
 
@@ -81,23 +82,24 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     }
 
     @Override
-    synchronized public AuthenticationDataProvider getAuthData() throws PulsarClientException {
-        if (cachedRoleTokenIsValid()) {
-            return new AuthenticationDataAthenz(roleToken, isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
-        }
-        try {
-            // the following would set up the API call that requests tokens from the server
-            // that can only be used if they are 10 minutes from expiration and last twenty
-            // four hours
-            RoleToken token;
-            synchronized (providerDomainLock) {
-                token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
+    public AuthenticationDataProvider getAuthData() throws PulsarClientException {
+        synchronized (cachedRoleTokenLock) {
+            if (cachedRoleTokenIsValid()) {
+                return new AuthenticationDataAthenz(roleToken,
+                        isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
             }
-            roleToken = token.getToken();
-            cachedRoleTokenTimestamp = System.nanoTime();
-            return new AuthenticationDataAthenz(roleToken, isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
-        } catch (Throwable t) {
-            throw new GettingAuthenticationDataException(t);
+            try {
+                // the following would set up the API call that requests tokens from the server
+                // that can only be used if they are 10 minutes from expiration and last twenty
+                // four hours
+                RoleToken token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
+                roleToken = token.getToken();
+                cachedRoleTokenTimestamp = System.nanoTime();
+                return new AuthenticationDataAthenz(roleToken,
+                        isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
+            } catch (Throwable t) {
+                throw new GettingAuthenticationDataException(t);
+            }
         }
     }
 
@@ -130,7 +132,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         setAuthParams(authParams);
     }
 
-    private synchronized void setAuthParams(Map<String, String> authParams) {
+    private void setAuthParams(Map<String, String> authParams) {
         this.tenantDomain = authParams.get("tenantDomain");
         this.tenantService = authParams.get("tenantService");
         this.providerDomain = authParams.get("providerDomain");
