@@ -486,7 +486,7 @@ public class CmdTopics extends CmdBase {
     }
 
     @Parameters(commandDescription = "Truncate a topic. \n"
-            + "\t\tThe topic will be truncate, but the latest ledger cannot be deleted.")
+            + "\t\tThe topic will be truncated, but the latest ledger cannot be deleted.")
     private class TruncateCmd extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
         private java.util.List<String> params;

@@ -3099,7 +3099,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/truncate")
     @ApiOperation(value = "Truncate a topic.",
-            notes = "The latest ledger cannot be deleted ,and only delete acknowledged ledgers.")
+            notes = "The latest ledger will not be deleted, and also only delete acknowledged ledgers can be deleted.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),

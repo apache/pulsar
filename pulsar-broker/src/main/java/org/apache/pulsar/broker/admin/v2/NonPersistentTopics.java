@@ -378,9 +378,9 @@ public class NonPersistentTopics extends PersistentTopics {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/truncate")
     @ApiOperation(value = "Truncate a topic.",
-            notes = "NonPersistentTopic is not support truncate.")
+            notes = "NonPersistentTopic does not support truncate.")
     @ApiResponses(value = {
-            @ApiResponse(code = 412, message = "NonPersistentTopic is not support truncate")
+            @ApiResponse(code = 412, message = "NonPersistentTopic does not support truncate.")
     })
     public void truncateTopic(
             @Suspended final AsyncResponse asyncResponse,
