@@ -30,7 +30,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -203,7 +202,6 @@ public class MLTransactionLogImpl implements TransactionLog {
                 public void readEntryComplete(Entry entry, Object ctx) {
                     TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
                     ByteBuf buffer = entry.getDataBuffer();
-                    currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                     lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
                     completableFuture.complete(lastConfirmEntry.getMaxLocalTxnId());
                 }
