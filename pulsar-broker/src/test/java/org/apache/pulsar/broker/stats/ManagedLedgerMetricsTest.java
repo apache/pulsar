@@ -104,7 +104,6 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
                 pulsar.getManagedLedgerFactory(), managedLedgerConfig);
-        Thread.sleep(2000);
         ManagedLedgerMetrics metrics = new ManagedLedgerMetrics(pulsar);
         metrics.generate();
     }

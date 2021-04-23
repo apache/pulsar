@@ -300,11 +300,11 @@ public class PersistentTopic extends AbstractTopic
         }
 
         checkReplicatedSubscriptionControllerState();
-
+        TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(topic)
-                && !topic.contains(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
-                && !topic.contains(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)) {
+                && !topicName.getEncodedLocalName().startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
+                && !topicName.getEncodedLocalName().startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
         } else {
