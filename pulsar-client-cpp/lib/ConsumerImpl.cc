@@ -1225,4 +1225,9 @@ void ConsumerImpl::trackMessage(const Message& msg) {
     }
 }
 
+bool ConsumerImpl::isConnected() const {
+    Lock lock(mutex_);
+    return getCnx().expired() && state_ == Ready;
+}
+
 } /* namespace pulsar */

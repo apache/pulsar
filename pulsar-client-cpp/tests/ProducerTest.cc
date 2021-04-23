@@ -101,11 +101,14 @@ TEST(ProducerTest, testSynchronouslySend) {
 
 TEST(ProducerTest, testIsConnected) {
     Client client(serviceUrl);
-    const std::string nonPartitionedTopic = "testIsConnectedNonPartitioned-" + std::to_string(time(nullptr));
-    const std::string partitionedTopic = "testIsConnectedPartitioned-" + std::to_string(time(nullptr));
+    const std::string nonPartitionedTopic =
+        "testProducerIsConnectedNonPartitioned-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic =
+        "testProducerIsConnectedPartitioned-" + std::to_string(time(nullptr));
 
     Producer producer;
     ASSERT_EQ(producer.isConnected(), false);
+    // ProducerImpl
     ASSERT_EQ(ResultOk, client.createProducer(nonPartitionedTopic, producer));
     ASSERT_EQ(producer.isConnected(), true);
     ASSERT_EQ(ResultOk, producer.close());
@@ -114,6 +117,7 @@ TEST(ProducerTest, testIsConnected) {
     int res = makePutRequest(adminUrl + "admin/v2/persistent/" + partitionedTopic + "/partitions", "2");
     ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
 
+    // PartitionedProducerImpl
     ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producer));
     ASSERT_EQ(producer.isConnected(), true);
     ASSERT_EQ(ResultOk, producer.close());

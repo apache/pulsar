@@ -466,4 +466,39 @@ TEST(ConsumerTest, testGetTopicNameFromReceivedMessage) {
     client.close();
 }
 
+TEST(ConsumerTest, testIsConnected) {
+    Client client(lookupUrl);
+    const std::string nonPartitionedTopic1 =
+        "testConsumerIsConnectedNonPartitioned1-" + std::to_string(time(nullptr));
+    const std::string nonPartitionedTopic2 =
+        "testConsumerIsConnectedNonPartitioned2-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic =
+        "testConsumerIsConnectedPartitioned-" + std::to_string(time(nullptr));
+    const std::string subName = "sub";
+
+    Consumer consumer;
+    ASSERT_EQ(consumer.isConnected(), false);
+    // ConsumerImpl
+    ASSERT_EQ(ResultOk, client.subscribe(nonPartitionedTopic1, subName, consumer));
+    ASSERT_EQ(consumer.isConnected(), true);
+    ASSERT_EQ(ResultOk, consumer.close());
+    ASSERT_EQ(consumer.isConnected(), false);
+
+    // MultiTopicsConsumerImpl
+    ASSERT_EQ(ResultOk, client.subscribe(std::vector<std::string>{nonPartitionedTopic1, nonPartitionedTopic2},
+                                         subName, consumer));
+    ASSERT_EQ(consumer.isConnected(), true);
+    ASSERT_EQ(ResultOk, consumer.close());
+    ASSERT_EQ(consumer.isConnected(), false);
+
+    int res = makePutRequest(adminUrl + "admin/v2/persistent/" + partitionedTopic + "/partitions", "2");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    // PartitionedConsumerImpl
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumer));
+    ASSERT_EQ(consumer.isConnected(), true);
+    ASSERT_EQ(ResultOk, consumer.close());
+    ASSERT_EQ(consumer.isConnected(), false);
+}
+
 }  // namespace pulsar
