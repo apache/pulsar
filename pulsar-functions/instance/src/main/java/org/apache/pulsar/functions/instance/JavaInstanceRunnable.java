@@ -322,20 +322,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @SuppressWarnings("rawtypes")
 	private void processResult(Record srcRecord, JavaExecutionResult result) throws Exception {
     	
-    	if (result.getUserException() != null) {
-    		log.warn("Encountered exception when processing message {}",
-                    srcRecord, result.getUserException());
-            stats.incrUserExceptions(result.getUserException());
-    	} 
-    	
-    	if (result.getSystemException() != null) {
-    		log.warn("Encountered exception when processing message {}",
-                    srcRecord, result.getSystemException());
-            stats.incrSysExceptions(result.getSystemException());
-    	}
-    	
-    	final Object output = (result.getResult() instanceof CompletableFuture) ?
-    		((CompletableFuture)result.getResult()).get() : result.getResult();
+    	final Object output = getFunctionOutput(srcRecord, result);
     		
     	if (output == null) {
     		if (instanceConfig.getFunctionDetails().getAutoAck()) {
@@ -365,6 +352,50 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 				throw ex;
 			}
     	}
+    }
+    
+    /**
+     * Returns the actual result of the Java Function invocation and reports any exceptions that
+     * may have occurred during the Function call.
+     * 
+     * @param srcRecord
+     * @param result
+     * @return
+     */
+    @SuppressWarnings("rawtypes")
+	private Object getFunctionOutput(Record srcRecord, JavaExecutionResult result) {
+    	
+    	Object output = null;
+    	
+		try {
+			if (result.getResult() instanceof CompletableFuture) {
+				CompletableFuture future = ((CompletableFuture)result.getResult());
+				if (!future.isCompletedExceptionally()) {
+					output = future.get(); 
+				}
+			} else {
+				output = result.getResult();
+			}
+		} catch (InterruptedException e) {
+			result.setSystemException(e);
+			Thread.currentThread().interrupt();
+		} catch (ExecutionException e) {
+			result.setUserException(new Exception(e.getCause()));
+		} finally {
+			if (result.getUserException() != null) {
+	    		log.warn("Encountered exception when processing message {}",
+	                    srcRecord, result.getUserException());
+	            stats.incrUserExceptions(result.getUserException());
+	    	} 
+	    	
+	    	if (result.getSystemException() != null) {
+	    		log.warn("Encountered exception when processing message {}",
+	                    srcRecord, result.getSystemException());
+	            stats.incrSysExceptions(result.getSystemException());
+	    	}
+		}
+    	
+    	return output;
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
