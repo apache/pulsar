@@ -1674,7 +1674,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().setMaxSubscriptionsPerTopicAsync(myNamespace,200).get();
         assertEquals(admin.namespaces().getMaxSubscriptionsPerTopicAsync(myNamespace).get().intValue(),200);
         admin.namespaces().removeMaxSubscriptionsPerTopicAsync(myNamespace);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(()
+        Awaitility.await().untilAsserted(()
                 -> assertNull(admin.namespaces().getMaxSubscriptionsPerTopicAsync(myNamespace).get()));
 
         try {
@@ -1695,7 +1695,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         Field field = PersistentTopic.class.getSuperclass().getDeclaredField("maxSubscriptionsPerTopic");
         field.setAccessible(true);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> (int) field.get(persistentTopic) == maxSub);
+        Awaitility.await().until(() -> (int) field.get(persistentTopic) == maxSub);
 
         List<Consumer<?>> consumerList = new ArrayList<>(maxSub);
         for (int i = 0; i < maxSub; i++) {
@@ -1712,7 +1712,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
         //After removing the restriction, it should be able to create normally
         admin.namespaces().removeMaxSubscriptionsPerTopic(myNamespace);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> field.get(persistentTopic) == null);
+        Awaitility.await().until(() -> field.get(persistentTopic) == null);
         Consumer<?> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString())
                 .subscribe();
         consumerList.add(consumer);
@@ -1759,14 +1759,14 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         Field field = PersistentTopic.class.getSuperclass().getDeclaredField("maxSubscriptionsPerTopic");
         field.setAccessible(true);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> (int) field.get(persistentTopic) == nsLevelMaxSub);
+        Awaitility.await().until(() -> (int) field.get(persistentTopic) == nsLevelMaxSub);
         Consumer<?> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString())
                 .subscribe();
         consumerList.add(consumer);
         assertEquals(consumerList.size(), 3);
         //After removing the restriction, it should fail again
         admin.namespaces().removeMaxSubscriptionsPerTopic(myNamespace);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> field.get(persistentTopic) == null);
+        Awaitility.await().until(() -> field.get(persistentTopic) == null);
         try {
             client.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString()).subscribe();
             fail("should fail");
@@ -1795,7 +1795,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://" + myNamespace + "/testMaxProducersPerTopicUnlimited";
         //the policy is set to 0, so there will be no restrictions
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 0);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == 0);
         List<Producer<byte[]>> producers = new ArrayList<>();
         for (int i = 0; i < maxProducersPerTopic + 1; i++) {
@@ -1804,7 +1804,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
 
         admin.namespaces().removeMaxProducersPerTopic(myNamespace);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == null);
         try {
             pulsarClient.newProducer().topic(topic).create();
@@ -1814,7 +1814,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
         //set the limit to 3
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> admin.namespaces().getMaxProducersPerTopic(myNamespace) == 3);
         // should success
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
@@ -1850,7 +1850,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertNull(admin.namespaces().getMaxConsumersPerTopic(myNamespace));
         //the policy is set to 0, so there will be no restrictions
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 0);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == 0);
         List<Consumer<byte[]>> consumers = new ArrayList<>();
         for (int i = 0; i < maxConsumersPerTopic + 1; i++) {
@@ -1860,7 +1860,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
 
         admin.namespaces().removeMaxConsumersPerTopic(myNamespace);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == null);
         try {
             pulsarClient.newConsumer().subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe();
@@ -1870,7 +1870,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
         //set the limit to 3
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 3);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == 3);
         // should success
         Consumer<byte[]> consumer =

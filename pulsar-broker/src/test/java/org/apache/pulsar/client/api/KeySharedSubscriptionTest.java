@@ -928,7 +928,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             producer.newMessage().key(keys[i % 3]).value(i).send();
         }
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+        Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(received.size(), messages));
 
         Map<String, Integer> maxValueOfKeys = new HashMap<>();

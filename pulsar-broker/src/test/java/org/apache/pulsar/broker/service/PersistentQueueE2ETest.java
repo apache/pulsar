@@ -493,7 +493,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             consumer1.acknowledge(msgId);
         }
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             TopicStats stats = admin.topics().getStats(topicName);
             // Unacked messages count should be 0 for both consumers at this point
             SubscriptionStats subStats = stats.subscriptions.get(subName);

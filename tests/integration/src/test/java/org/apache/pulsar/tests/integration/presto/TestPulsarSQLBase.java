@@ -128,7 +128,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                         "/bin/bash",
                         "-c", "bin/pulsar-admin namespaces unload " + topicName.getNamespace());
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().untilAsserted(
                 () -> {
                     ContainerExecResult r = execQuery(
                             String.format("show tables in pulsar.\"%s\";", topicName.getNamespace()));
@@ -155,7 +155,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\";", namespace, topic);
         }
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().untilAsserted(
                 () -> {
                     ContainerExecResult containerExecResult = execQuery(queryAllDataSql);
                     assertThat(containerExecResult.getExitCode()).isEqualTo(0);
