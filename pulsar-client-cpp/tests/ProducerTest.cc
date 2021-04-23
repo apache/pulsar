@@ -19,6 +19,8 @@
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
 
+#include "HttpHelper.h"
+
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include "lib/LogUtils.h"
@@ -26,7 +28,8 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
-static std::string serviceUrl = "pulsar://localhost:6650";
+static const std::string serviceUrl = "pulsar://localhost:6650";
+static const std::string adminUrl = "http://localhost:8080/";
 
 TEST(ProducerTest, producerNotInitialized) {
     Producer producer;
@@ -92,6 +95,29 @@ TEST(ProducerTest, testSynchronouslySend) {
     LOG_INFO("Received message from " << receivedMessage.getMessageId());
     ASSERT_EQ(receivedMessage.getMessageId(), messageId);
     ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMessage));
+
+    client.close();
+}
+
+TEST(ProducerTest, testIsConnected) {
+    Client client(serviceUrl);
+    const std::string nonPartitionedTopic = "testIsConnectedNonPartitioned-" + std::to_string(time(nullptr));
+    const std::string partitionedTopic = "testIsConnectedPartitioned-" + std::to_string(time(nullptr));
+
+    Producer producer;
+    ASSERT_EQ(producer.isConnected(), false);
+    ASSERT_EQ(ResultOk, client.createProducer(nonPartitionedTopic, producer));
+    ASSERT_EQ(producer.isConnected(), true);
+    ASSERT_EQ(ResultOk, producer.close());
+    ASSERT_EQ(producer.isConnected(), false);
+
+    int res = makePutRequest(adminUrl + "admin/v2/persistent/" + partitionedTopic + "/partitions", "2");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producer));
+    ASSERT_EQ(producer.isConnected(), true);
+    ASSERT_EQ(ResultOk, producer.close());
+    ASSERT_EQ(producer.isConnected(), false);
 
     client.close();
 }
