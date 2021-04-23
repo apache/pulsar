@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
-import com.google.common.collect.*;
+import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -108,14 +111,33 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response.Status;
 import java.lang.reflect.Field;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
+
 
 @Slf4j
 @Test(groups = "broker")
@@ -2842,7 +2864,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String subName = "my-sub";
         this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setSystemTopicEnabled(true);
-        admin.topics().createPartitionedTopic(topicName,3);
+        admin.topics().createPartitionedTopic(topicName,6);
         admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(60, 50));
         List<MessageId> messageIds = publishMessagesOnPersistentTopic(topicName, 10);
         admin.topics().createSubscription(topicName, subName, messageIds.get(0));
@@ -2850,11 +2872,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         publishMessagesOnPersistentTopic(topicName, 10);
         admin.topics().unload(topicName);
         publishMessagesOnPersistentTopic(topicName, 10);
-        admin.topics().skipAllMessages(topicName, subName);
         admin.topics().truncate(topicName);
         PartitionedTopicInternalStats stats = admin.topics().getPartitionedInternalStats(topicName);
         for (Map.Entry<String, PersistentTopicInternalStats> statsEntry : stats.partitions.entrySet()) {
-            assertTrue(statsEntry.getValue().ledgers.size() <= 1);
+            assertTrue(statsEntry.getValue().ledgers.size() <= 2);
         }
 
     }
@@ -2872,7 +2893,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         publishMessagesOnPersistentTopic(topicName, 10);
         admin.topics().unload(topicName);
         publishMessagesOnPersistentTopic(topicName, 10);
-        admin.topics().skipAllMessages(topicName, subName);
         admin.topics().truncate(topicName);
         PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
         assertTrue(stats.ledgers.size() <= 1);
