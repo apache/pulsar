@@ -53,7 +53,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Lookup a topic from the current serving broker")
     private class Lookup extends CliCommand {
-        @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "non-persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -63,10 +63,10 @@ public class CmdNonPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the stats for the topic and its connected producers and consumers. \n"
-            + "\t       All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
+    @Parameters(commandDescription = "Get the stats for the topic and its connected producers and consumers. "
+            + "All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
     private class GetStats extends CliCommand {
-        @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "non-persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -78,7 +78,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get the internal stats for the topic")
     private class GetInternalStats extends CliCommand {
-        @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "non-persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -88,11 +88,11 @@ public class CmdNonPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create a partitioned topic. \n"
-            + "\t\tThe partitioned topic has to be created before creating a producer on it.")
+    @Parameters(commandDescription = "Create a partitioned topic. "
+            + "The partitioned topic has to be created before creating a producer on it.")
     private class CreatePartitionedCmd extends CliCommand {
 
-        @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "non-persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-p",
@@ -106,11 +106,11 @@ public class CmdNonPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the partitioned topic metadata. \n"
-            + "\t\tIf the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
+    @Parameters(commandDescription = "Get the partitioned topic metadata. "
+            + "If the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
     private class GetPartitionedTopicMetadataCmd extends CliCommand {
 
-        @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "non-persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -122,7 +122,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get list of non-persistent topics present under a namespace")
     private class GetList extends CliCommand {
-        @Parameter(description = "property/cluster/namespace\n", required = true)
+        @Parameter(description = "property/cluster/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -134,7 +134,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get list of non-persistent topics present under a namespace bundle")
     private class GetListInBundle extends CliCommand {
-        @Parameter(description = "property/cluster/namespace\n", required = true)
+        @Parameter(description = "property/cluster/namespace", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-b",

@@ -631,14 +631,14 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--client-auth-params", description = "Client authentication param")
         protected String clientAuthParams;
         // for backwards compatibility purposes
-        @Parameter(names = "--use_tls", description = "Use tls connection\n", hidden = true)
+        @Parameter(names = "--use_tls", description = "Use tls connection", hidden = true)
         protected Boolean DEPRECATED_useTls = null;
-        @Parameter(names = "--use-tls", description = "Use tls connection\n")
+        @Parameter(names = "--use-tls", description = "Use tls connection")
         protected boolean useTls;
         // for backwards compatibility purposes
-        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n", hidden = true)
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection", hidden = true)
         protected Boolean DEPRECATED_tlsAllowInsecureConnection = null;
-        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection\n")
+        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection")
         protected boolean tlsAllowInsecureConnection;
         // for backwards compatibility purposes
         @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification", hidden = true)
