@@ -16,26 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.coordinator;
 
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
+package org.apache.pulsar.functions.source;
 
-/**
- * The callback of transaction log replay the transaction operate.
- */
-public interface TransactionLogReplayCallback {
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-    /**
-     * Transaction log replay complete callback for transaction metadata store.
-     */
-    void replayComplete();
+import java.io.IOException;
+import java.util.Map;
+import java.util.TreeMap;
 
-    /**
-     * Handle metadata entry.
-     *
-     * @param position the transaction operation position
-     * @param transactionMetadataEntry the metadata entry of transaction
-     */
-    void handleMetadataEntry(Position position, TransactionMetadataEntry transactionMetadataEntry);
+@Data
+public class MultiConsumerPulsarSourceConfig extends PulsarSourceConfig {
+
+    private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
+
+    public static MultiConsumerPulsarSourceConfig load(Map<String, Object> map) throws IOException {
+        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), MultiConsumerPulsarSourceConfig.class);
+    }
 }

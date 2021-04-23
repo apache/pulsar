@@ -27,7 +27,6 @@ Compatibility between each version of the Node.js client and the C++ client is a
 | 1.0.0          | 2.3.0 or later |
 | 1.1.0          | 2.4.0 or later |
 | 1.2.0          | 2.5.0 or later |
-| 1.3.0          | 2.7.0 or later |
 
 If an incompatible version of the C++ client is installed, you may fail to build or run this library.
 
@@ -437,3 +436,162 @@ The following static methods are available for the message id object:
 | `earliest()` | MessageId representing the earliest, or oldest available message stored in the topic. | `Object` |
 | `latest()` | MessageId representing the latest, or last published message in the topic. | `Object` |
 | `deserialize(Buffer)` | Deserialize a message id object from a Buffer. | `Object` |
+
+## End-to-end encryption
+
+[End-to-end encryption](https://pulsar.apache.org/docs/en/next/cookbooks-encryption/#docsNav) allows applications to encrypt messages at producers and decrypt at consumers.
+
+### Configuration
+
+If you want to use the end-to-end encryption feature in the Node.js client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
+
+```
+publicKeyPath: "./public.pem"
+privateKeyPath: "./private.pem"
+```
+
+### Tutorial
+
+This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Node.js client.
+
+**Prerequisite**
+
+- Pulsar C++ client 2.7.1 or later 
+
+**Step**
+
+1. Create both public and private key pairs.
+
+    **Input**
+
+    ```shell
+    openssl genrsa -out private.pem 2048
+    openssl rsa -in private.pem -pubout -out public.pem
+    ```
+
+2. Create a producer to send encrypted messages.
+
+    **Input**
+
+    ```nodejs
+    const Pulsar = require('pulsar-client');
+
+    (async () => {
+      // Create a client
+      const client = new Pulsar.Client({
+        serviceUrl: 'pulsar://localhost:6650',
+        operationTimeoutSeconds: 30,
+      });
+
+      // Create a producer
+      const producer = await client.createProducer({
+        topic: 'persistent://public/default/my-topic',
+        sendTimeoutMs: 30000,
+        batchingEnabled: true,
+        publicKeyPath: "./public.pem",
+        privateKeyPath: "./private.pem",
+        encryptionKey: "encryption-key"
+      });
+
+      console.log(producer.ProducerConfig)
+      // Send messages
+      for (let i = 0; i < 10; i += 1) {
+        const msg = `my-message-${i}`;
+        producer.send({
+          data: Buffer.from(msg),
+        });
+        console.log(`Sent message: ${msg}`);
+      }
+      await producer.flush();
+
+      await producer.close();
+      await client.close();
+    })();
+    ```
+
+3. Create a consumer to receive encrypted messages.
+
+    **Input**
+
+    ```nodejs
+    const Pulsar = require('pulsar-client');
+
+    (async () => {
+      // Create a client
+      const client = new Pulsar.Client({
+        serviceUrl: 'pulsar://172.25.0.3:6650',
+        operationTimeoutSeconds: 30
+      });
+
+      // Create a consumer
+      const consumer = await client.subscribe({
+        topic: 'persistent://public/default/my-topic',
+        subscription: 'sub1',
+        subscriptionType: 'Shared',
+        ackTimeoutMs: 10000,
+        publicKeyPath: "./public.pem",
+        privateKeyPath: "./private.pem"
+      });
+
+      console.log(consumer)
+      // Receive messages
+      for (let i = 0; i < 10; i += 1) {
+        const msg = await consumer.receive();
+        console.log(msg.getData().toString());
+        consumer.acknowledge(msg);
+      }
+
+      await consumer.close();
+      await client.close();
+    })();
+    ```
+
+4. Run the consumer to receive encrypted messages.
+
+    **Input**
+
+    ```shell
+    node consumer.js
+    ```
+
+5. In a new terminal tab, run the producer to produce encrypted messages.
+
+    **Input**
+
+    ```shell
+    node producer.js
+    ```
+
+    Now you can see the producer sends messages and the consumer receives messages successfully.
+
+    **Output**
+
+    This is from the producer side.
+
+    ```
+    Sent message: my-message-0
+    Sent message: my-message-1
+    Sent message: my-message-2
+    Sent message: my-message-3
+    Sent message: my-message-4
+    Sent message: my-message-5
+    Sent message: my-message-6
+    Sent message: my-message-7
+    Sent message: my-message-8
+    Sent message: my-message-9
+    ```
+
+    This is from the consumer side.
+
+    ```
+    my-message-0
+    my-message-1
+    my-message-2
+    my-message-3
+    my-message-4
+    my-message-5
+    my-message-6
+    my-message-7
+    my-message-8
+    my-message-9
+    ```

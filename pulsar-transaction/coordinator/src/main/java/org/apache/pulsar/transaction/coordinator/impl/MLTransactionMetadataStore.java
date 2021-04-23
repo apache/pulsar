@@ -50,7 +50,6 @@ import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
  */
@@ -84,13 +83,16 @@ public class MLTransactionMetadataStore
 
             @Override
             public void replayComplete() {
-                recoverTracker.appendOpenTransactionToTimeoutTracker();
-                if (!changeToReadyState()) {
-                    log.error("Managed ledger transaction metadata store change state error when replay complete");
-                } else {
-                    recoverTracker.handleCommittingAndAbortingTransaction();
-                    timeoutTracker.start();
-                }
+                mlTransactionLog.getMaxLocalTxnId().thenAccept(id -> {
+                    recoverTracker.appendOpenTransactionToTimeoutTracker();
+                    sequenceId.set(id);
+                    if (!changeToReadyState()) {
+                        log.error("Managed ledger transaction metadata store change state error when replay complete");
+                    } else {
+                        recoverTracker.handleCommittingAndAbortingTransaction();
+                        timeoutTracker.start();
+                    }
+                });
             }
 
             @Override
@@ -103,9 +105,6 @@ public class MLTransactionMetadataStore
                     switch (transactionMetadataEntry.getMetadataOp()) {
                         case NEW:
                             long txnSequenceId = transactionMetadataEntry.getTxnidLeastBits();
-                            if (sequenceId.get() < txnSequenceId) {
-                                sequenceId.set(txnSequenceId);
-                            }
                             if (txnMetaMap.containsKey(txnID)) {
                                 txnMetaMap.get(txnID).getRight().add(position);
                             } else {
@@ -186,7 +185,7 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<TxnID> newTransaction(long timeOut) {
+    public synchronized CompletableFuture<TxnID> newTransaction(long timeOut) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
                     new CoordinatorException
@@ -203,7 +202,8 @@ public class MLTransactionMetadataStore
                 .setStartTime(currentTimeMillis)
                 .setTimeoutMs(timeOut)
                 .setMetadataOp(TransactionMetadataEntry.TransactionMetadataOp.NEW)
-                .setLastModificationTime(currentTimeMillis);
+                .setLastModificationTime(currentTimeMillis)
+                .setMaxLocalTxnId(sequenceId.get());
         return transactionLog.append(transactionMetadataEntry)
                 .thenCompose(position -> {
                     TxnMeta txn = new TxnMetaImpl(txnID);
@@ -218,7 +218,7 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnID, List<String> partitions) {
+    public synchronized CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnID, List<String> partitions) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
                     new CoordinatorException.TransactionMetadataStoreStateException(tcID,
@@ -230,7 +230,8 @@ public class MLTransactionMetadataStore
                     .setTxnidLeastBits(txnID.getLeastSigBits())
                     .setMetadataOp(TransactionMetadataOp.ADD_PARTITION)
                     .addAllPartitions(partitions)
-                    .setLastModificationTime(System.currentTimeMillis());
+                    .setLastModificationTime(System.currentTimeMillis())
+                    .setMaxLocalTxnId(sequenceId.get());
 
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
@@ -252,7 +253,7 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnID,
+    public synchronized CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnID,
                                                           List<TransactionSubscription> txnSubscriptions) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
@@ -265,7 +266,8 @@ public class MLTransactionMetadataStore
                     .setTxnidLeastBits(txnID.getLeastSigBits())
                     .setMetadataOp(TransactionMetadataOp.ADD_SUBSCRIPTION)
                     .addAllSubscriptions(txnSubscriptionToSubscription(txnSubscriptions))
-                    .setLastModificationTime(System.currentTimeMillis());
+                    .setLastModificationTime(System.currentTimeMillis())
+                    .setMaxLocalTxnId(sequenceId.get());
 
             return transactionLog.append(transactionMetadataEntry)
                     .thenCompose(position -> {
@@ -287,7 +289,8 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<Void> updateTxnStatus(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
+    public synchronized CompletableFuture<Void> updateTxnStatus(TxnID txnID, TxnStatus newStatus,
+                                                                TxnStatus expectedStatus) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
                     new CoordinatorException.TransactionMetadataStoreStateException(tcID,
@@ -303,7 +306,8 @@ public class MLTransactionMetadataStore
                     .setExpectedStatus(expectedStatus)
                     .setMetadataOp(TransactionMetadataOp.UPDATE)
                     .setLastModificationTime(System.currentTimeMillis())
-                    .setNewStatus(newStatus);
+                    .setNewStatus(newStatus)
+                    .setMaxLocalTxnId(sequenceId.get());
 
             return transactionLog.append(transactionMetadataEntry).thenCompose(position -> {
                 try {
