@@ -1015,12 +1015,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     "[{}][{}][{}] Failed to create consumer because exclusive consumer"
                                                             + " is already connected: {}",
                                                     remoteAddress, topicName, subscriptionName,
-                                                    exception.getCause().getMessage());
+                                                    exception.getCause().getMessage(), exception);
                                         }
                                     } else if (exception.getCause() instanceof BrokerServiceException) {
                                         log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
                                                  remoteAddress, topicName, subscriptionName,
-                                                 consumerId,  exception.getCause().getMessage());
+                                                 consumerId,  exception.getCause().getMessage(), exception);
                                     } else {
                                         log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
                                                  remoteAddress, topicName, subscriptionName,

@@ -2974,15 +2974,19 @@ public class PersistentTopic extends AbstractTopic
     public boolean checkSubscriptionTypesEnable(SubType subType) throws Exception {
         TopicName topicName = TopicName.get(topic);
         if (brokerService.pulsar().getConfiguration().isTopicLevelPoliciesEnabled()) {
-            TopicPolicies topicPolicies =
-                    brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
-            if (topicPolicies == null) {
-                return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
-            } else {
-                if (topicPolicies.getSubscriptionTypesEnabled().isEmpty()) {
+            try {
+                TopicPolicies topicPolicies =
+                        brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
+                if (topicPolicies == null) {
                     return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+                } else {
+                    if (topicPolicies.getSubscriptionTypesEnabled().isEmpty()) {
+                        return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
+                    }
+                    return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
                 }
-                return topicPolicies.getSubscriptionTypesEnabled().contains(subType);
+            } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+                return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
             }
         } else {
             return checkNsAndBrokerSubscriptionTypesEnable(topicName, subType);
