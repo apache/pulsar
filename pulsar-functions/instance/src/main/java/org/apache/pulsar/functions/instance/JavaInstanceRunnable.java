@@ -351,10 +351,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @SuppressWarnings("unchecked")
 	private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
     	
-    	if (output == null) {
-    		return; // No point in sending null messages.
-    	}
-    	
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
