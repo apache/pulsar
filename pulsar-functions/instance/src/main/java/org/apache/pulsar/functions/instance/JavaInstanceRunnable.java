@@ -21,10 +21,11 @@ package org.apache.pulsar.functions.instance;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.prometheus.client.CollectorRegistry;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -64,8 +65,11 @@ import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
-import org.apache.pulsar.functions.source.PulsarSource;
+import org.apache.pulsar.functions.source.MultiConsumerPulsarSourceConfig;
+import org.apache.pulsar.functions.source.MultiConsumerPulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
+import org.apache.pulsar.functions.source.SingleConsumerPulsarSource;
+import org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig;
 import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -338,7 +342,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) {
-        if (!(this.sink instanceof PulsarSink)) {
+        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
         try {
@@ -354,7 +358,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Record readInput() throws Exception {
         Record record;
-        if (!(this.source instanceof PulsarSource)) {
+        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
         try {
@@ -393,7 +397,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (source != null) {
-            if (!(this.source instanceof PulsarSource)) {
+            if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
             }
             try {
@@ -407,7 +411,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (sink != null) {
-            if (!(this.sink instanceof PulsarSink)) {
+            if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
             }
             try {
@@ -602,7 +606,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Object object;
         // If source classname is not set, we default pulsar source
         if (sourceSpec.getClassName().isEmpty()) {
-            PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
+            Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
             sourceSpec.getInputSpecsMap().forEach((topic, conf) -> {
                 ConsumerConfig consumerConfig = ConsumerConfig.builder().isRegexPattern(conf.getIsRegexPattern()).build();
                 if (conf.getSchemaType() != null && !conf.getSchemaType().isEmpty()) {
@@ -619,11 +623,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
                 }
 
-                pulsarSourceConfig.getTopicSchema().put(topic, consumerConfig);
+                topicSchema.put(topic, consumerConfig);
             });
 
             sourceSpec.getTopicsToSerDeClassNameMap().forEach((topic, serde) -> {
-                pulsarSourceConfig.getTopicSchema().put(topic,
+                topicSchema.put(topic,
                         ConsumerConfig.builder()
                                 .serdeClassName(serde)
                                 .isRegexPattern(false)
@@ -631,7 +635,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             });
 
             if (!StringUtils.isEmpty(sourceSpec.getTopicsPattern())) {
-                pulsarSourceConfig.getTopicSchema().get(sourceSpec.getTopicsPattern()).setRegexPattern(true);
+                topicSchema.get(sourceSpec.getTopicsPattern()).setRegexPattern(true);
+            }
+
+            PulsarSourceConfig pulsarSourceConfig;
+            // we can use a single consumer to read
+            if (topicSchema.size() == 1) {
+                SingleConsumerPulsarSourceConfig singleConsumerPulsarSourceConfig = new SingleConsumerPulsarSourceConfig();
+                Map.Entry<String, ConsumerConfig> entry = topicSchema.entrySet().iterator().next();
+                singleConsumerPulsarSourceConfig.setTopic(entry.getKey());
+                singleConsumerPulsarSourceConfig.setConsumerConfig(entry.getValue());
+                pulsarSourceConfig = singleConsumerPulsarSourceConfig;
+            } else {
+                MultiConsumerPulsarSourceConfig multiConsumerPulsarSourceConfig = new MultiConsumerPulsarSourceConfig();
+                multiConsumerPulsarSourceConfig.setTopicSchema(topicSchema);
+                pulsarSourceConfig = multiConsumerPulsarSourceConfig;
             }
 
             pulsarSourceConfig.setSubscriptionName(
@@ -675,7 +693,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSourceConfig.setMaxMessageRetries(this.instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
                 pulsarSourceConfig.setDeadLetterTopic(this.instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
             }
-            object = new PulsarSource(this.client, pulsarSourceConfig, this.properties, this.functionClassLoader);
+
+            // Use SingleConsumerPulsarSource if possible because it will have higher performance since it is not a push source
+            // that require messages to be put into an immediate queue
+            if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
+                object = new SingleConsumerPulsarSource(this.client, (SingleConsumerPulsarSourceConfig) pulsarSourceConfig, this.properties, this.functionClassLoader);
+            } else {
+                object = new MultiConsumerPulsarSource(this.client, (MultiConsumerPulsarSourceConfig) pulsarSourceConfig, this.properties, this.functionClassLoader);
+            }
         } else {
 
             // check if source is a batch source
@@ -699,7 +724,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         this.source = (Source<?>) object;
 
-        if (!(this.source instanceof PulsarSource)) {
+        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
             Thread.currentThread().setContextClassLoader(this.functionClassLoader);
         }
         try {
@@ -767,7 +792,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw new RuntimeException("Sink does not implement correct interface");
         }
 
-        if (!(this.sink instanceof PulsarSink)) {
+        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(this.functionClassLoader);
         }
         try {

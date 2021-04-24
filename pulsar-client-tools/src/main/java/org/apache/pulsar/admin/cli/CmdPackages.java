@@ -135,7 +135,7 @@ class CmdPackages extends CmdBase {
 
     @Parameters(commandDescription = "List all versions of the given package")
     private class ListPackageVersionsCmd extends CliCommand {
-        @Parameter(description = "the package name you want to query, don't need to specify the package version.\n" +
+        @Parameter(description = "the package name you want to query, don't need to specify the package version. " +
             "type://tenant/namespace/packageName", required = true)
         private String packageName;
 
