@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -45,6 +46,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -252,6 +254,51 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://my-property/my-ns/testKeyHashRangeReader";
         admin.topics().createPartitionedTopic(topic, 3);
         publishMessages(topic,100,false);
+    }
+
+    @Test
+    public void testMultiTopicSeekByFunction() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/test" + UUID.randomUUID();
+        int partitionNum = 4;
+        int msgNum = 20;
+        admin.topics().createPartitionedTopic(topicName, partitionNum);
+        publishMessages(topicName, msgNum, false);
+        Reader<byte[]> reader = pulsarClient
+                .newReader().startMessageIdInclusive().startMessageId(MessageId.latest)
+                .topic(topicName).subscriptionName("my-sub").create();
+        long now = System.currentTimeMillis();
+        reader.seek((topic) -> now);
+        assertNull(reader.readNext(1, TimeUnit.SECONDS));
+
+        reader.seek((topic) -> {
+            TopicName name = TopicName.get(topic);
+            switch (name.getPartitionIndex()) {
+                case 0:
+                    return MessageId.latest;
+                case 1:
+                    return MessageId.earliest;
+                case 2:
+                    return now;
+                case 3:
+                    return now - 999999;
+                default:
+                    return null;
+            }
+        });
+        int count = 0;
+        while (true) {
+            Message<byte[]> message = reader.readNext(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+        }
+        int msgNumInPartition0 = 0;
+        int msgNumInPartition1 = msgNum / partitionNum;
+        int msgNumInPartition2 = 0;
+        int msgNumInPartition3 = msgNum / partitionNum;
+
+        assertEquals(count, msgNumInPartition0 + msgNumInPartition1 + msgNumInPartition2 + msgNumInPartition3);
     }
 
     @Test(timeOut = 20000)

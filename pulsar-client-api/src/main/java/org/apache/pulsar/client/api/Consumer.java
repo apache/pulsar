@@ -600,7 +600,7 @@ public interface Consumer<T> extends Closeable {
     void seek(long timestamp) throws PulsarClientException;
 
     /**
-     * Reset the subscription associated with this consumer to a specific message id.
+     * Reset the subscription associated with this consumer to a specific message id or message publish time.
      * <p>
      * The Function input is topic+partition.
      * <p>
@@ -613,7 +613,8 @@ public interface Consumer<T> extends Closeable {
     void seek(Function<String, Object> function) throws PulsarClientException;
 
     /**
-     * Reset the subscription associated with this consumer to a specific message id asynchronously.
+     * Reset the subscription associated with this consumer to a specific message id
+     * or message publish time asynchronously.
      * <p>
      * The Function input is topic+partition.
      * <p>

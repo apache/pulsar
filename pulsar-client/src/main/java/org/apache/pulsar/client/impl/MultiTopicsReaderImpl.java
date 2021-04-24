@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -140,7 +141,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
 
     @Override
     public boolean hasMessageAvailable() throws PulsarClientException {
-        return multiTopicsConsumer.hasMessageAvailable() || multiTopicsConsumer.numMessagesInQueue() > 0;
+        return multiTopicsConsumer.hasMessageAvailable();
     }
 
     @Override
@@ -164,6 +165,11 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     }
 
     @Override
+    public void seek(Function<String, Object> function) throws PulsarClientException {
+        multiTopicsConsumer.seek(function);
+    }
+
+    @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
         return multiTopicsConsumer.seekAsync(messageId);
     }
@@ -171,6 +177,11 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     @Override
     public CompletableFuture<Void> seekAsync(long timestamp) {
         return multiTopicsConsumer.seekAsync(timestamp);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+        return multiTopicsConsumer.seekAsync(function);
     }
 
     @Override
