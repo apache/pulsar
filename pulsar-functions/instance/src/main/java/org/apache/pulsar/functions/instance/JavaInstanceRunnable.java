@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.Getter;
@@ -272,7 +273,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 removeLogTopicHandler();
 
                 try {
-                    processResult(currentRecord, result);
+                    sendOutputMessage(currentRecord, processResult(currentRecord, result));
                 } catch (Exception e) {
                     log.warn("Failed to process result of message {}", currentRecord, e);
                     currentRecord.fail();
@@ -317,8 +318,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void processResult(Record srcRecord,
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+	private Object processResult(Record srcRecord,
                                CompletableFuture<JavaExecutionResult> result) throws Exception {
+    	
+    	final AtomicReference<Object> actualResult = new AtomicReference(null);
+    	
         result.whenComplete((result1, throwable) -> {
             if (throwable != null || result1.getUserException() != null) {
                 Throwable t = throwable != null ? throwable : result1.getUserException();
@@ -328,7 +333,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 srcRecord.fail();
             } else {
                 if (result1.getResult() != null) {
-                    sendOutputMessage(srcRecord, result1.getResult());
+                	actualResult.set(result1.getResult());
                 } else {
                     if (instanceConfig.getFunctionDetails().getAutoAck()) {
                         // the function doesn't produce any result or the user doesn't want the result.
@@ -339,18 +344,29 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.incrTotalProcessedSuccessfully();
             }
         });
+        
+        return actualResult.get();
     }
 
-    private void sendOutputMessage(Record srcRecord, Object output) {
+    @SuppressWarnings("unchecked")
+	private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
+    	
+    	if (output == null) {
+    		return; // No point in sending null messages.
+    	}
+    	
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
+        
         try {
             this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
+        	if (stats != null) {
+              stats.incrSinkExceptions(e);
+        	}
             log.info("Encountered exception in sink write: ", e);
-            stats.incrSinkExceptions(e);
-            throw new RuntimeException(e);
+            throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }
