@@ -625,7 +625,7 @@ bool PartitionedConsumerImpl::isConnected() const {
     stateLock.unlock();
 
     Lock consumersLock(consumersMutex_);
-    auto consumers = consumers_;
+    const auto consumers = consumers_;
     consumersLock.unlock();
     for (const auto& consumer : consumers_) {
         if (!consumer->isConnected()) {

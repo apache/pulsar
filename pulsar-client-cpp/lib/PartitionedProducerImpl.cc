@@ -377,7 +377,7 @@ bool PartitionedProducerImpl::isConnected() const {
     stateLock.unlock();
 
     Lock producersLock(producersMutex_);
-    auto producers = producers_;
+    const auto producers = producers_;
     producersLock.unlock();
     for (const auto& producer : producers_) {
         if (!producer->isConnected()) {
