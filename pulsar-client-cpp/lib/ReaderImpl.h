@@ -62,6 +62,8 @@ class PULSAR_PUBLIC ReaderImpl : public std::enable_shared_from_this<ReaderImpl>
 
     ReaderImplWeakPtr getReaderImplWeakPtr();
 
+    bool isConnected() const;
+
    private:
     void handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer);
 

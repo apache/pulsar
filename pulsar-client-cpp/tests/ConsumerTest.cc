@@ -477,28 +477,29 @@ TEST(ConsumerTest, testIsConnected) {
     const std::string subName = "sub";
 
     Consumer consumer;
-    ASSERT_EQ(consumer.isConnected(), false);
+    ASSERT_FALSE(consumer.isConnected());
     // ConsumerImpl
     ASSERT_EQ(ResultOk, client.subscribe(nonPartitionedTopic1, subName, consumer));
-    ASSERT_EQ(consumer.isConnected(), true);
+    ASSERT_TRUE(consumer.isConnected());
     ASSERT_EQ(ResultOk, consumer.close());
-    ASSERT_EQ(consumer.isConnected(), false);
+    ASSERT_FALSE(consumer.isConnected());
 
     // MultiTopicsConsumerImpl
     ASSERT_EQ(ResultOk, client.subscribe(std::vector<std::string>{nonPartitionedTopic1, nonPartitionedTopic2},
                                          subName, consumer));
-    ASSERT_EQ(consumer.isConnected(), true);
+    ASSERT_TRUE(consumer.isConnected());
     ASSERT_EQ(ResultOk, consumer.close());
-    ASSERT_EQ(consumer.isConnected(), false);
+    ASSERT_FALSE(consumer.isConnected());
 
-    int res = makePutRequest(adminUrl + "admin/v2/persistent/" + partitionedTopic + "/partitions", "2");
+    int res = makePutRequest(
+        adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "2");
     ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
 
     // PartitionedConsumerImpl
     ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumer));
-    ASSERT_EQ(consumer.isConnected(), true);
+    ASSERT_TRUE(consumer.isConnected());
     ASSERT_EQ(ResultOk, consumer.close());
-    ASSERT_EQ(consumer.isConnected(), false);
+    ASSERT_FALSE(consumer.isConnected());
 }
 
 }  // namespace pulsar

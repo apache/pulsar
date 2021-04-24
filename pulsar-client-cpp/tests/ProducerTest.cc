@@ -107,21 +107,22 @@ TEST(ProducerTest, testIsConnected) {
         "testProducerIsConnectedPartitioned-" + std::to_string(time(nullptr));
 
     Producer producer;
-    ASSERT_EQ(producer.isConnected(), false);
+    ASSERT_FALSE(producer.isConnected());
     // ProducerImpl
     ASSERT_EQ(ResultOk, client.createProducer(nonPartitionedTopic, producer));
-    ASSERT_EQ(producer.isConnected(), true);
+    ASSERT_TRUE(producer.isConnected());
     ASSERT_EQ(ResultOk, producer.close());
-    ASSERT_EQ(producer.isConnected(), false);
+    ASSERT_FALSE(producer.isConnected());
 
-    int res = makePutRequest(adminUrl + "admin/v2/persistent/" + partitionedTopic + "/partitions", "2");
+    int res = makePutRequest(
+        adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "2");
     ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
 
     // PartitionedProducerImpl
     ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producer));
-    ASSERT_EQ(producer.isConnected(), true);
+    ASSERT_TRUE(producer.isConnected());
     ASSERT_EQ(ResultOk, producer.close());
-    ASSERT_EQ(producer.isConnected(), false);
+    ASSERT_FALSE(producer.isConnected());
 
     client.close();
 }

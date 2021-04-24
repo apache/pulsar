@@ -823,7 +823,7 @@ bool ProducerImpl::isClosed() {
 
 bool ProducerImpl::isConnected() const {
     Lock lock(mutex_);
-    return getCnx().expired() && state_ == Ready;
+    return !getCnx().expired() && state_ == Ready;
 }
 
 }  // namespace pulsar
