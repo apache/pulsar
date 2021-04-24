@@ -412,22 +412,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
-        Message<T> message = null;
-        try {
-            message = incomingMessages.poll(0, TimeUnit.MILLISECONDS);
+        client.getInternalExecutorService(consumerId).execute(() -> {
+            Message<T> message = incomingMessages.poll();
             if (message == null) {
                 pendingReceives.add(result);
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            result.completeExceptionally(e);
-        }
-
-        if (message != null) {
-            messageProcessed(message);
-            result.complete(beforeConsume(message));
-        }
+            if (message != null) {
+                messageProcessed(message);
+                result.complete(beforeConsume(message));
+            }
+        });
 
         return result;
     }
@@ -1066,11 +1061,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(),
                         Collections.singletonList(message));
             }
-            if (peekPendingReceive() != null) {
-                notifyPendingReceivedCallback(message, null);
-            } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
-                notifyPendingBatchReceivedCallBack();
-            }
+            client.getInternalExecutorService(consumerId).execute(() -> {
+                if (peekPendingReceive() != null) {
+                    notifyPendingReceivedCallback(message, null);
+                } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
+                    notifyPendingBatchReceivedCallBack();
+                }
+            });
         } else {
             // handle batch message enqueuing; uncompressed payload has all messages in batch
             receiveIndividualMessagesFromBatch(msgMetadata, redeliveryCount, ackSet, uncompressedPayload, messageId, cnx);
@@ -1280,12 +1277,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
                 }
-
-                if (peekPendingReceive() != null) {
-                    notifyPendingReceivedCallback(message, null);
-                } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
-                    notifyPendingBatchReceivedCallBack();
-                }
+                client.getInternalExecutorService(consumerId).execute(() -> {
+                    if (peekPendingReceive() != null) {
+                        notifyPendingReceivedCallback(message, null);
+                    } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
+                        notifyPendingBatchReceivedCallBack();
+                    }
+                });
                 singleMessagePayload.release();
             }
             if (ackBitSet != null) {
