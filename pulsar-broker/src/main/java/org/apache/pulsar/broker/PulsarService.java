@@ -303,7 +303,8 @@ public class PulsarService implements AutoCloseable {
                 new DefaultThreadFactory("zk-cache-callback"));
 
         if (config.isTransactionCoordinatorEnabled()) {
-            this.transactionReplayExecutor = Executors.newScheduledThreadPool(config.getNumTransactionExecutorThreadPoolSize(),
+            this.transactionReplayExecutor = Executors.newScheduledThreadPool(
+                    config.getNumTransactionReplayThreadPoolSize(),
                     new DefaultThreadFactory("transaction-replay"));
         } else {
             this.transactionReplayExecutor = null;

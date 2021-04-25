@@ -142,8 +142,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         for (MutablePair<PositionImpl, Integer> positionIntegerMutablePair : positions) {
 
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}] individualAcknowledgeMessage position: [{}], " +
-                                        "txnId: [{}], subName: [{}]", topicName,
+                                log.debug("[{}] individualAcknowledgeMessage position: [{}], "
+                                                + "txnId: [{}], subName: [{}]", topicName,
                                         positionIntegerMutablePair.left, txnID, subName);
                             }
                             PositionImpl position = positionIntegerMutablePair.left;
