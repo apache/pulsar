@@ -254,13 +254,6 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         publishMessages(topic,100,false);
     }
 
-    @Test
-    public void test() throws Exception {
-        for (int i = 0; i < 100; i++) {
-            testMultiTopic();
-        }
-    }
-
     @Test(timeOut = 20000)
     public void testMultiTopic() throws Exception {
         final String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
