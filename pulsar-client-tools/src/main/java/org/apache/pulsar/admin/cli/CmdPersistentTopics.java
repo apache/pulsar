@@ -288,7 +288,7 @@ public class CmdPersistentTopics extends CmdBase {
     }
 
     @Parameters(commandDescription = "Truncate a topic. \n"
-            + "\t\tThe topic will be truncated, but the latest ledger cannot be deleted.")
+            + "\t\tThe truncate operation will move all cursors to the end of the topic and delete all inactive ledgers. ")
     private class TruncateCmd extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
         private java.util.List<String> params;

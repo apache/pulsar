@@ -603,7 +603,7 @@ public interface ManagedLedger {
 
     /**
      * Truncate ledgers
-     * The latest ledger cannot be deleted ,and only delete acknowledged ledgers
+     * The truncate operation will move all cursors to the end of the topic and delete all inactive ledgers.
      */
     CompletableFuture<Void> asyncTruncate();
 }
