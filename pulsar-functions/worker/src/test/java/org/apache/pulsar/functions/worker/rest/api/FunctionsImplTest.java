@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttp;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.Namespaces;
@@ -55,6 +56,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
@@ -263,7 +265,7 @@ public class FunctionsImplTest {
         final String pulsarSuperUser = "pulsarSuperUser";
         when(authorizationService.isSuperUser(pulsarSuperUser, null)).thenReturn(CompletableFuture.completedFuture(true));
         assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", pulsarSuperUser, authenticationDataSource));
-        assertTrue(functionImpl.isSuperUser(pulsarSuperUser));
+        assertTrue(functionImpl.isSuperUser(pulsarSuperUser, null));
 
         // test normal user
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
@@ -333,10 +335,10 @@ public class FunctionsImplTest {
             });
 
         AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
-        assertTrue(functionImpl.isSuperUser(superUser));
+        assertTrue(functionImpl.isSuperUser(superUser, null));
 
-        assertFalse(functionImpl.isSuperUser("normal-user"));
-        assertFalse(functionImpl.isSuperUser( null));
+        assertFalse(functionImpl.isSuperUser("normal-user", null));
+        assertFalse(functionImpl.isSuperUser( null, null));
 
         // test super roles is null and it's not a pulsar super user
         when(authorizationService.isSuperUser(superUser, null))
@@ -345,7 +347,24 @@ public class FunctionsImplTest {
         workerConfig = new WorkerConfig();
         workerConfig.setAuthorizationEnabled(true);
         doReturn(workerConfig).when(mockedWorkerService).getWorkerConfig();
-        assertFalse(functionImpl.isSuperUser(superUser));
+        assertFalse(functionImpl.isSuperUser(superUser, null));
+
+        // test super role is null but the auth datasource contains superuser
+        when(authorizationService.isSuperUser(anyString(), any(AuthenticationDataSource.class)))
+            .thenAnswer((invocationOnMock -> {
+                AuthenticationDataSource authData = invocationOnMock.getArgument(1, AuthenticationDataSource.class);
+                String user = authData.getHttpHeader("mockedUser");
+                return CompletableFuture.completedFuture(superUser.equals(user));
+            }));
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getHeader("mockedUser")).thenReturn(superUser);
+        AuthenticationDataHttp authData = new AuthenticationDataHttp(request);
+        assertTrue(functionImpl.isSuperUser("non-superuser", authData));
+
+        HttpServletRequest nonSuperuser= mock(HttpServletRequest.class);
+        when(nonSuperuser.getHeader("mockedUser")).thenReturn("non-superuser");
+        AuthenticationDataHttp nonSuperuserAuthData = new AuthenticationDataHttp(nonSuperuser);
+        assertFalse(functionImpl.isSuperUser("non-superuser", nonSuperuserAuthData));
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {
