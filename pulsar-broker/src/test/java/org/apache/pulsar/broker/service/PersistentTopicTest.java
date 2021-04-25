@@ -40,9 +40,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -574,8 +572,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
-        InetAddress address1 = InetAddress.getLoopbackAddress();
-        InetAddress address2 = InetAddress.getLocalHost();
+        InetAddress address1 = InetAddress.getByName("127.0.0.1");
+        InetAddress address2 = InetAddress.getByName("0.0.0.0");
         String ipAddress1 = address1.getHostAddress();
         String ipAddress2 = address2.getHostAddress();
 
@@ -827,9 +825,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer3 = new Consumer(sub, SubType.Shared, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub, consumer3);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub, consumer3)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
 
@@ -851,9 +849,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer5 = new Consumer(sub2, SubType.Shared, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub2, consumer5);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer5)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
     }
@@ -922,9 +920,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer3 = new Consumer(sub, SubType.Failover, topic.getName(), 3 /* consumer id */, 0,
                     "Cons3"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub, consumer3);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub, consumer3)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
 
@@ -946,9 +944,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             Consumer consumer5 = new Consumer(sub2, SubType.Failover, topic.getName(), 5 /* consumer id */, 0,
                     "Cons5"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
                     false /* read compacted */, InitialPosition.Latest, null);
-            addConsumerToSubscription.invoke(topic, sub2, consumer5);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer5)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
     }
@@ -1007,8 +1005,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentSubscription sub1 = new PersistentSubscription(topic, "sub1", cursorMock, false);
         PersistentSubscription sub2 = new PersistentSubscription(topic, "sub2", cursorMock, false);
 
-        InetAddress address1 = InetAddress.getLoopbackAddress();
-        InetAddress address2 = InetAddress.getLocalHost();
+        InetAddress address1 = InetAddress.getByName("127.0.0.1");
+        InetAddress address2 = InetAddress.getByName("0.0.0.0");
         String ipAddress1 = address1.getHostAddress();
         String ipAddress2 = address2.getHostAddress();
 
@@ -1026,14 +1024,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 1. add consumer1 with ipAddress1 to sub1
         Consumer consumer1 = getMockedConsumerWithSpecificAddress(topic, sub1, 1, address1);
-        addConsumerToSubscription.invoke(topic, sub1, consumer1);
+        ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub1, consumer1)).get();
         assertEquals(topic.getNumberOfConsumers(), 1);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 1);
         assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 1);
 
         // 2. add consumer2 with ipAddress1 to sub2
         Consumer consumer2 = getMockedConsumerWithSpecificAddress(topic, sub2, 2, address1);
-        addConsumerToSubscription.invoke(topic, sub2, consumer2);
+        ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer2)).get();
         assertEquals(topic.getNumberOfConsumers(), 2);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
         assertEquals(sub1.getNumberOfSameAddressConsumers(ipAddress1), 1);
@@ -1041,7 +1039,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 3. add consumer3 with ipAddress2 to sub1
         Consumer consumer3 = getMockedConsumerWithSpecificAddress(topic, sub1, 3, address2);
-        addConsumerToSubscription.invoke(topic, sub1, consumer3);
+        ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub1, consumer3)).get();
         assertEquals(topic.getNumberOfConsumers(), 3);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress2), 1);
@@ -1050,7 +1048,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // 4. add consumer4 with ipAddress2 to sub2
         Consumer consumer4 = getMockedConsumerWithSpecificAddress(topic, sub2, 4, address2);
-        addConsumerToSubscription.invoke(topic, sub2, consumer4);
+        ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer4)).get();
         assertEquals(topic.getNumberOfConsumers(), 4);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress1), 2);
         assertEquals(topic.getNumberOfSameAddressConsumers(ipAddress2), 2);
@@ -1060,9 +1058,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 5. add consumer5 with ipAddress1 to sub1 but reach maxSameAddressConsumersPerTopic
         try {
             Consumer consumer5 = getMockedConsumerWithSpecificAddress(topic, sub1, 5, address1);
-            addConsumerToSubscription.invoke(topic, sub1, consumer5);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub1, consumer5)).get();
+
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
         assertEquals(topic.getNumberOfConsumers(), 4);
@@ -1072,9 +1071,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // 6. add consumer6 with ipAddress2 to sub2 but reach maxSameAddressConsumersPerTopic
         try {
             Consumer consumer6 = getMockedConsumerWithSpecificAddress(topic, sub2, 6, address2);
-            addConsumerToSubscription.invoke(topic, sub2, consumer6);
+            ((CompletableFuture<Void>) addConsumerToSubscription.invoke(topic, sub2, consumer6)).get();
             fail("should have failed");
-        } catch (InvocationTargetException e) {
+        } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
         }
         assertEquals(topic.getNumberOfConsumers(), 4);
