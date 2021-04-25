@@ -294,7 +294,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 } catch (SinkException se) {
                 	log.warn("Failed to publish the result of message {}", currentRecord, se);
                 	currentRecord.fail();
-                	throw new RuntimeException(se);  // Sink write exceptions are fatal.
+//                	throw new RuntimeException(se);  // Sink write exceptions are fatal.
                 } catch (Exception e) {
                     log.warn("Failed to process result of message {}", currentRecord, e);
                     currentRecord.fail();
