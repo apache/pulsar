@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.instance;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -54,6 +55,52 @@ public class JavaInstanceTest {
         assertEquals(new String(testString + "-lambda"), result.get().getResult());
         instance.close();
     }
+    
+    @Test
+    public void testNullReturningFunction() throws Exception  {
+    	JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                (Function<String, String>) (input, context) -> null,
+                new InstanceConfig());
+    	String testString = "ABC123";
+    	CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
+    	assertNull(result.get().getResult());
+    	instance.close();
+    }
+
+    @Test
+    public void testUserExceptionThrowingFunction() throws Exception  {
+    	Function<String, String> func = (input, context) -> {
+    		throw new UserException("Boom");
+    	};
+
+    	JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                func,
+                new InstanceConfig());
+    	String testString = "ABC123";
+    	CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
+    	assertNull(result.get().getResult());
+    	assertNotNull(result.get().getUserException());
+    	instance.close();
+    }
+
+    @Test
+    public void testSystemExceptionThrowingFunction() throws Exception  {
+    	Function<String, String> func = (input, context) -> {
+    		throw new InterruptedException("Boom");
+    	};
+
+    	JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                func,
+                new InstanceConfig());
+    	String testString = "ABC123";
+    	CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
+    	assertNull(result.get().getResult());
+    	assertNotNull(result.get().getUserException());
+    	instance.close();
+    }
 
     @Test
     public void testAsyncFunction() throws Exception {
@@ -84,6 +131,92 @@ public class JavaInstanceTest {
         CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
         assertNotNull(result.get().getResult());
         assertEquals(new String(testString + "-lambda"), result.get().getResult());
+        instance.close();
+    }
+    
+    @Test
+    public void testNullReturningAsyncFunction() throws Exception {
+        InstanceConfig instanceConfig = new InstanceConfig();
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+
+        Function<String, CompletableFuture<String>> function = (input, context) -> {
+            log.info("input string: {}", input);
+            CompletableFuture<String> result  = new CompletableFuture<>();
+            executor.submit(() -> {
+                try {
+                    Thread.sleep(500);
+                    result.complete(null);
+                } catch (Exception e) {
+                    result.completeExceptionally(e);
+                }
+            });
+
+            return result;
+        };
+
+        JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                function,
+                instanceConfig);
+        String testString = "ABC123";
+        CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
+        assertNull(result.get().getResult());
+        instance.close();
+    }
+
+    @Test
+    public void testSystemExceptionThrowingAsyncFunction() throws Exception {
+        InstanceConfig instanceConfig = new InstanceConfig();
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+
+        Function<String, CompletableFuture<String>> function = (input, context) -> {
+            log.info("input string: {}", input);
+            CompletableFuture<String> result  = new CompletableFuture<>();
+            executor.submit(() -> {
+            	result.completeExceptionally(new InterruptedException(""));
+            });
+
+            return result;
+        };
+
+        JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                function,
+                instanceConfig);
+        String testString = "ABC123";
+        CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
+        assertNull(result.get().getResult());
+        // TODO Change this
+        assertNotNull(result.get().getUserException());
+        instance.close();
+    }
+
+    @Test
+    public void testUserExceptionThrowingAsyncFunction() throws Exception {
+        InstanceConfig instanceConfig = new InstanceConfig();
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+
+        Function<String, CompletableFuture<String>> function = (input, context) -> {
+            log.info("input string: {}", input);
+            CompletableFuture<String> result  = new CompletableFuture<>();
+            executor.submit(() -> {
+            	result.completeExceptionally(new UserException("Boom"));
+            });
+
+            return result;
+        };
+
+        JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                function,
+                instanceConfig);
+        String testString = "ABC123";
+        CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
+        assertNull(result.get().getResult());
+        assertNotNull(result.get().getUserException());
         instance.close();
     }
 
@@ -136,5 +269,12 @@ public class JavaInstanceTest {
 
         log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
         instance.close();
+    }
+    
+    @SuppressWarnings("serial")
+	private static class UserException extends Exception {
+    	public UserException(String msg) {
+    		super(msg);
+    	}
     }
 }
