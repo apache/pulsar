@@ -163,7 +163,7 @@ public class ConsumerImplTest {
     public void testReceiveAsyncCanBeCancelled() {
         // given
         CompletableFuture<Message<byte[]>> future = consumer.receiveAsync();
-        Assert.assertEquals(consumer.peekPendingReceive(), future);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(consumer.peekPendingReceive(), future));
         // when
         future.cancel(true);
         // then

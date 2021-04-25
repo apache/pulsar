@@ -1075,8 +1075,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             receiveIndividualMessagesFromBatch(msgMetadata, redeliveryCount, ackSet, uncompressedPayload, messageId, cnx);
 
             uncompressedPayload.release();
-            tryTriggerListener();
         }
+
     }
 
     private void tryTriggerListener() {
@@ -1288,8 +1288,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
                         notifyPendingBatchReceivedCallBack();
                     }
+                    singleMessagePayload.release();
+                    tryTriggerListener();
                 });
-                singleMessagePayload.release();
             }
             if (ackBitSet != null) {
                 ackBitSet.recycle();
