@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -52,7 +53,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 public interface Topics {
 
     /**
-     * Get the list of topics under a namespace.
+     * Get the both persistent and non-persistent topics under a namespace.
      * <p/>
      * Response example:
      *
@@ -75,7 +76,36 @@ public interface Topics {
     List<String> getList(String namespace) throws PulsarAdminException;
 
     /**
-     * Get the list of topics under a namespace asynchronously.
+     * Get the list of topics under a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["topic://my-tenant/my-namespace/topic-1",
+     *  "topic://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @param topicDomain
+     *            use {@link TopicDomain#persistent} to get persistent topics
+     *            use {@link TopicDomain#non_persistent} to get non-persistent topics
+     *            Use null to get both persistent and non-persistent topics
+     *
+     * @return a list of topics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getList(String namespace, TopicDomain topicDomain) throws PulsarAdminException;
+
+    /**
+     * Get both persistent and non-persistent topics under a namespace asynchronously.
      * <p/>
      * Response example:
      *
@@ -89,6 +119,28 @@ public interface Topics {
      * @return a list of topics
      */
     CompletableFuture<List<String>> getListAsync(String namespace);
+
+    /**
+     * Get the list of topics under a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["topic://my-tenant/my-namespace/topic-1",
+     *  "topic://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @param topicDomain
+     *            use {@link TopicDomain#persistent} to get persistent topics
+     *            use {@link TopicDomain#non_persistent} to get non-persistent topics
+     *            Use null to get both persistent and non-persistent topics
+     *
+     * @return a list of topics
+     */
+    CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain);
 
     /**
      * Get the list of partitioned topics under a namespace.

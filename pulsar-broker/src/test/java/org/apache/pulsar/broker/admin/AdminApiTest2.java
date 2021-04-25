@@ -74,6 +74,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -1959,4 +1960,48 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         verify(mockTopic, times(2)).triggerCompaction();
     }
 
+    @Test
+    public void testGetTopicsWithDifferentMode() throws Exception {
+        final String namespace = "prop-xyz/ns1";
+
+        final String persistentTopicName = TopicName.get(
+                "persistent",
+                NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+
+        final String nonPersistentTopicName = TopicName.get(
+                "non-persistent",
+                NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistentTopicName).create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(nonPersistentTopicName).create();
+
+        List<String> topics = new ArrayList<>(admin.topics().getList(namespace));
+        assertEquals(topics.size(), 2);
+        assertTrue(topics.contains(persistentTopicName));
+        assertTrue(topics.contains(nonPersistentTopicName));
+
+        topics.clear();
+
+        topics.addAll(admin.topics().getList(namespace, TopicDomain.persistent));
+        assertEquals(topics.size(), 1);
+        assertTrue(topics.contains(persistentTopicName));
+
+        topics.clear();
+
+        topics.addAll(admin.topics().getList(namespace, TopicDomain.non_persistent));
+        assertEquals(topics.size(), 1);
+        assertTrue(topics.contains(nonPersistentTopicName));
+
+        try {
+            admin.topics().getList(namespace, TopicDomain.getEnum("none"));
+            fail("Should failed with invalid get topic mode.");
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "Invalid topic domain: 'none'");
+        }
+
+        producer1.close();
+        producer2.close();
+    }
 }
