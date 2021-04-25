@@ -1172,7 +1172,8 @@ public class PersistentTopic extends AbstractTopic
         return closeFuture;
     }
 
-    private CompletableFuture<Void> checkReplicationAndRetryOnFailure() {
+    @VisibleForTesting
+    CompletableFuture<Void> checkReplicationAndRetryOnFailure() {
         CompletableFuture<Void> result = new CompletableFuture<Void>();
         checkReplication().thenAccept(res -> {
             log.info("[{}] Policies updated successfully", topic);
@@ -2182,6 +2183,10 @@ public class PersistentTopic extends AbstractTopic
         if (log.isDebugEnabled()) {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired,
                     data.encryption_required);
+        }
+        if (data.deleted) {
+            log.debug("Ignore the update because it has been deleted : {}", data);
+            return CompletableFuture.completedFuture(null);
         }
         isEncryptionRequired = data.encryption_required;
 
