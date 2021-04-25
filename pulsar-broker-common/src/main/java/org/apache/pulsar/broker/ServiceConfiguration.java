@@ -218,13 +218,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Number of threads to use for pulsar broker service."
-                    + " The executor in thread pool will do transaction recover"
-    )
-    private int numTransactionExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
-
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 
@@ -2047,7 +2040,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Number of threads to use for pulsar transaction replay PendingAckStore or TransactionBuffer."
                     + "Default is 5"
     )
-    private int numTransactionReplayThreadPoolSize = 5;
+    private int numTransactionReplayThreadPoolSize = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,

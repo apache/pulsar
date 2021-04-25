@@ -224,7 +224,6 @@ public class PulsarService implements AutoCloseable {
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
     private TransactionBufferClient transactionBufferClient;
-    private ScheduledExecutorService transactionExecutor;
     private HashedWheelTimer transactionTimer;
 
     private BrokerInterceptor brokerInterceptor;
@@ -304,7 +303,7 @@ public class PulsarService implements AutoCloseable {
                 new DefaultThreadFactory("zk-cache-callback"));
 
         if (config.isTransactionCoordinatorEnabled()) {
-            this.transactionReplayExecutor = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
+            this.transactionReplayExecutor = Executors.newScheduledThreadPool(config.getNumTransactionExecutorThreadPoolSize(),
                     new DefaultThreadFactory("transaction-replay"));
         } else {
             this.transactionReplayExecutor = null;
@@ -464,8 +463,6 @@ public class PulsarService implements AutoCloseable {
             if (transactionBufferClient != null) {
                 transactionBufferClient.close();
             }
-
-            executorServicesShutdown.shutdown(transactionExecutor);
 
             if (coordinationService != null) {
                 coordinationService.close();
@@ -755,9 +752,6 @@ public class PulsarService implements AutoCloseable {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
-                this.transactionExecutor = Executors.newScheduledThreadPool(
-                        config.getNumTransactionExecutorThreadPoolSize(),
-                        new DefaultThreadFactory("pulsar-transaction"));
                 this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));

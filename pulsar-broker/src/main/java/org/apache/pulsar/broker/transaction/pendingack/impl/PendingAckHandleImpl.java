@@ -140,6 +140,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 pendingAckStore.appendIndividualAck(txnID, positions).thenAccept(v -> {
                     synchronized (org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl.this) {
                         for (MutablePair<PositionImpl, Integer> positionIntegerMutablePair : positions) {
+
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] individualAcknowledgeMessage position: [{}], " +
+                                        "txnId: [{}], subName: [{}]", topicName,
+                                        positionIntegerMutablePair.left, txnID, subName);
+                            }
                             PositionImpl position = positionIntegerMutablePair.left;
 
                             // If try to ack message already acked by committed transaction or
@@ -249,8 +255,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
                 pendingAckStore.appendCumulativeAck(txnID, position).thenAccept(v -> {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] TxnID:[{}] Cumulative ack on {}.", topicName,
-                                subName, txnID.toString(), position);
+                        log.debug("[{}] cumulativeAcknowledgeMessage position: [{}], "
+                                + "txnID:[{}], subName: [{}].", topicName, txnID.toString(), position, subName);
                     }
 
                     if (position.compareTo((PositionImpl) persistentSubscription.getCursor()
@@ -307,8 +313,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 pendingAckStoreFuture.thenAccept(pendingAckStore -> pendingAckStore
                         .appendCommitMark(txnID, AckType.Cumulative).thenAccept(v -> {
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}] Transaction pending ack store commit txnId : [{}] success!",
-                                        topicName, txnID);
+                                log.debug("[{}] Transaction pending ack store commit txnId : [{}] "
+                                        + "success! subName: [{}]", topicName, txnID, subName);
                             }
                             persistentSubscription.acknowledgeMessage(
                                     Collections.singletonList(cumulativeAckOfTransaction.getValue()),
@@ -335,8 +341,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                 HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                                         individualAckOfTransaction.get(txnID);
                                 if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Transaction pending ack store commit txnId : [{}] success!",
-                                            topicName, txnID);
+                                    log.debug("[{}] Transaction pending ack store commit txnId : "
+                                            + "[{}] success! subName: [{}]", topicName, txnID, subName);
                                 }
                                 individualAckCommitCommon(txnID, pendingAckMessageForCurrentTxn, properties);
                                 commitFuture.complete(null);
@@ -361,7 +367,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Override
     public synchronized CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark) {
         if (!checkIfReady()) {
-            log.error("[{}] abortTxn", txnId);
             return FutureUtil.failedFuture(new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
         }
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
@@ -369,8 +374,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             pendingAckStoreFuture.thenAccept(pendingAckStore ->
                     pendingAckStore.appendAbortMark(txnId, AckType.Cumulative).thenAccept(v -> {
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] Transaction pending ack store abort txnId : [{}] success!",
-                                    topicName, txnId);
+                            log.debug("[{}] Transaction pending ack store abort txnId : [{}] success! subName: [{}]",
+                                    topicName, txnId, subName);
                         }
                         if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
                             cumulativeAckOfTransaction = null;
@@ -388,15 +393,16 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 return null;
             });
         } else if (this.individualAckOfTransaction != null) {
-            log.error("[{}] individualAckOfTransaction", txnId);
             pendingAckStoreFuture.thenAccept(pendingAckStore ->
                     pendingAckStore.appendAbortMark(txnId, AckType.Individual).thenAccept(v -> {
                         synchronized (PendingAckHandleImpl.this) {
                             HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                                     individualAckOfTransaction.get(txnId);
                             if (pendingAckMessageForCurrentTxn != null) {
-                                log.error("[{}] Transaction pending ack store abort txnId : [{}] success!",
-                                        topicName, txnId);
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] Transaction pending ack store abort txnId : [{}] success! "
+                                            + "subName: [{}]", topicName, txnId, subName);
+                                }
                                 individualAckAbortCommon(txnId, pendingAckMessageForCurrentTxn);
                                 persistentSubscription.redeliverUnacknowledgedMessages(consumer,
                                         new ArrayList<>(pendingAckMessageForCurrentTxn.values()));

@@ -293,15 +293,15 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 future.complete(consumer);
             }
         }).exceptionally(e -> {
-            if (e instanceof ConsumerBusyException) {
+            if (e.getCause() instanceof ConsumerBusyException) {
                 log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                         consumerName);
-            } else if (e instanceof SubscriptionBusyException) {
+            } else if (e.getCause() instanceof SubscriptionBusyException) {
                 log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
             }
 
             decrementUsageCount();
-            future.completeExceptionally(e);
+            future.completeExceptionally(e.getCause());
             return null;
         });
 
