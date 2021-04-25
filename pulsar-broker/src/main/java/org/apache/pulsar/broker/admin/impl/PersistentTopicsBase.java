@@ -3923,28 +3923,32 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected void internalTruncateNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
+        Topic topic;
+        try {
+            validateAdminAccessForTenant(topicName.getTenant());
+            validateTopicOwnership(topicName, authoritative);
+            topic = getTopicReference(topicName);
+        } catch (Exception e) {
+            log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
+        }
+        CompletableFuture<Void> future = topic.truncate();
+        future.thenAccept(a -> {
+            asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
+                    Response.Status.NO_CONTENT.getReasonPhrase()));
+        }).exceptionally(e -> {
+            asyncResponse.resume(e);
+            return null;
+        });
+    }
+
     protected void internalTruncateTopic(AsyncResponse asyncResponse, boolean authoritative) {
 
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (topicName.isPartitioned()) {
-            Topic topic;
-            try {
-                validateAdminAccessForTenant(topicName.getTenant());
-                validateTopicOwnership(topicName, authoritative);
-                topic = getTopicReference(topicName);
-            } catch (Exception e) {
-                log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, e);
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
-            CompletableFuture<Void> future = topic.truncate();
-            future.thenAccept(a -> {
-                asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
-                        Response.Status.NO_CONTENT.getReasonPhrase()));
-            }).exceptionally(e -> {
-                asyncResponse.resume(e);
-                return null;
-            });
+            internalTruncateNonPartitionedTopic(asyncResponse, authoritative);
         } else {
             getPartitionedTopicMetadataAsync(topicName, authoritative, false).whenComplete((meta, t) -> {
                 if (meta.partitions > 0) {
@@ -3977,24 +3981,7 @@ public class PersistentTopicsBase extends AdminResource {
                         return null;
                     });
                 } else {
-                    Topic topic;
-                    try {
-                        validateAdminAccessForTenant(topicName.getTenant());
-                        validateTopicOwnership(topicName, authoritative);
-                        topic = getTopicReference(topicName);
-                    } catch (Exception e) {
-                        log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, e);
-                        resumeAsyncResponseExceptionally(asyncResponse, e);
-                        return;
-                    }
-                    CompletableFuture<Void> future = topic.truncate();
-                    future.thenAccept(a -> {
-                        asyncResponse.resume(new RestException(Response.Status.NO_CONTENT.getStatusCode(),
-                                Response.Status.NO_CONTENT.getReasonPhrase()));
-                    }).exceptionally(e -> {
-                        asyncResponse.resume(e);
-                        return null;
-                    });
+                    internalTruncateNonPartitionedTopic(asyncResponse, authoritative);
                 }
             }).exceptionally(t -> {
                 log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, t);
