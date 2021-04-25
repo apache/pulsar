@@ -74,6 +74,12 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
         private String proxyServiceUrl;
 
+        @Parameter(names = "--auth-plugin", description = "authentication plugin", required = false)
+        private String authenticationPlugin;
+
+        @Parameter(names = "--auth-parameters", description = "authentication parameters", required = false)
+        private String authenticationParameters;
+
         @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
         private ProxyProtocol proxyProtocol;
 
@@ -81,7 +87,7 @@ public class CmdClusters extends CmdBase {
             String cluster = getOneArgument(params);
             getAdmin().clusters().createCluster(cluster,
                     new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls, proxyServiceUrl,
-                            proxyProtocol));
+                            authenticationPlugin, authenticationParameters, proxyProtocol));
         }
     }
 
@@ -105,13 +111,19 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
         private String proxyServiceUrl;
 
+        @Parameter(names = "--auth-plugin", description = "authentication plugin", required = false)
+        private String authenticationPlugin;
+
+        @Parameter(names = "--auth-parameters", description = "authentication parameters", required = false)
+        private String authenticationParameters;
+
         @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
         private ProxyProtocol proxyProtocol;
 
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
             getAdmin().clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl,
-                    brokerServiceUrlTls, proxyServiceUrl, proxyProtocol));
+                    brokerServiceUrlTls, proxyServiceUrl, authenticationPlugin, authenticationParameters, proxyProtocol));
         }
     }
 

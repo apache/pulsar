@@ -1026,7 +1026,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         .enableTcpNoDelay(false)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
                         .statsInterval(0, TimeUnit.SECONDS);
-                if (pulsar.getConfiguration().isAuthenticationEnabled()) {
+                if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
+                    clientBuilder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
+                } else if (pulsar.getConfiguration().isAuthenticationEnabled()) {
                     clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
