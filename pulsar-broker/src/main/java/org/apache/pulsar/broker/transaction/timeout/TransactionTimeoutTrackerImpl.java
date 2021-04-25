@@ -70,10 +70,13 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
                 currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
                 nowTaskTimeoutTime = transactionTimeoutTime;
             } else if (nowTaskTimeoutTime > transactionTimeoutTime) {
-                if (currentTimeout.cancel()) {
+                if (currentTimeout.cancel() || currentTimeout.isExpired()) {
                     currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
                     nowTaskTimeoutTime = transactionTimeoutTime;
                 }
+            } else if (currentTimeout.isExpired()) {
+                currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
+                nowTaskTimeoutTime = transactionTimeoutTime;
             }
         }
         return CompletableFuture.completedFuture(false);
