@@ -22,6 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -70,8 +71,9 @@ public class JavaInstanceTest {
 
     @Test
     public void testUserExceptionThrowingFunction() throws Exception  {
+    	final UserException userException = new UserException("Boom");
     	Function<String, String> func = (input, context) -> {
-    		throw new UserException("Boom");
+    		throw userException;
     	};
 
     	JavaInstance instance = new JavaInstance(
@@ -80,25 +82,7 @@ public class JavaInstanceTest {
                 new InstanceConfig());
     	String testString = "ABC123";
     	CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
-    	assertNull(result.get().getResult());
-    	assertNotNull(result.get().getUserException());
-    	instance.close();
-    }
-
-    @Test
-    public void testSystemExceptionThrowingFunction() throws Exception  {
-    	Function<String, String> func = (input, context) -> {
-    		throw new InterruptedException("Boom");
-    	};
-
-    	JavaInstance instance = new JavaInstance(
-                mock(ContextImpl.class),
-                func,
-                new InstanceConfig());
-    	String testString = "ABC123";
-    	CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
-    	assertNull(result.get().getResult());
-    	assertNotNull(result.get().getUserException());
+    	assertSame(userException, result.get().getUserException());
     	instance.close();
     }
 
@@ -166,35 +150,8 @@ public class JavaInstanceTest {
     }
 
     @Test
-    public void testSystemExceptionThrowingAsyncFunction() throws Exception {
-        InstanceConfig instanceConfig = new InstanceConfig();
-        @Cleanup("shutdownNow")
-        ExecutorService executor = Executors.newCachedThreadPool();
-
-        Function<String, CompletableFuture<String>> function = (input, context) -> {
-            log.info("input string: {}", input);
-            CompletableFuture<String> result  = new CompletableFuture<>();
-            executor.submit(() -> {
-            	result.completeExceptionally(new InterruptedException(""));
-            });
-
-            return result;
-        };
-
-        JavaInstance instance = new JavaInstance(
-                mock(ContextImpl.class),
-                function,
-                instanceConfig);
-        String testString = "ABC123";
-        CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
-        assertNull(result.get().getResult());
-        // TODO Change this
-        assertNotNull(result.get().getUserException());
-        instance.close();
-    }
-
-    @Test
     public void testUserExceptionThrowingAsyncFunction() throws Exception {
+    	final UserException userException = new UserException("Boom");
         InstanceConfig instanceConfig = new InstanceConfig();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
@@ -203,7 +160,7 @@ public class JavaInstanceTest {
             log.info("input string: {}", input);
             CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
-            	result.completeExceptionally(new UserException("Boom"));
+            	result.completeExceptionally(userException);
             });
 
             return result;
@@ -215,8 +172,7 @@ public class JavaInstanceTest {
                 instanceConfig);
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
-        assertNull(result.get().getResult());
-        assertNotNull(result.get().getUserException());
+        assertSame(userException, result.get().getUserException().getCause());
         instance.close();
     }
 
