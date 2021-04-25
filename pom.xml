@@ -191,13 +191,14 @@ flexible messaging model and an intuitive client API.</description>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.3</cron-utils.version>
     <spring-context.version>5.3.1</spring-context.version>
-    <docker-java.version>3.2.7</docker-java.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
-    <testcontainers.version>1.15.1</testcontainers.version>
+    <testcontainers.version>1.15.3</testcontainers.version>
+    <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
+    <docker-java.version>3.2.8</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
     <junit4.version>4.13.1</junit4.version>
@@ -683,6 +684,16 @@ flexible messaging model and an intuitive client API.</description>
          <artifactId>docker-java-core</artifactId>
          <version>${docker-java.version}</version>
       </dependency>
+      <dependency>
+        <groupId>com.github.docker-java</groupId>
+        <artifactId>docker-java-api</artifactId>
+        <version>${docker-java.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.docker-java</groupId>
+        <artifactId>docker-java-transport-zerodep</artifactId>
+        <version>${docker-java.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson</groupId>
@@ -954,23 +965,10 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
       <dependency>
         <groupId>org.testcontainers</groupId>
-        <artifactId>testcontainers</artifactId>
+        <artifactId>testcontainers-bom</artifactId>
         <version>${testcontainers.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>kafka</artifactId>
-        <version>${testcontainers.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>mysql</artifactId>
-        <version>${testcontainers.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.testcontainers</groupId>
-        <artifactId>postgresql</artifactId>
-        <version>${testcontainers.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>com.datastax.cassandra</groupId>

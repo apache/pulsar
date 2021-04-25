@@ -16,26 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.coordinator;
 
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
+package org.apache.pulsar.functions.source;
 
-/**
- * The callback of transaction log replay the transaction operate.
- */
-public interface TransactionLogReplayCallback {
+import lombok.Builder;
+import lombok.Data;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.Schema;
 
-    /**
-     * Transaction log replay complete callback for transaction metadata store.
-     */
-    void replayComplete();
+import java.util.Map;
 
-    /**
-     * Handle metadata entry.
-     *
-     * @param position the transaction operation position
-     * @param transactionMetadataEntry the metadata entry of transaction
-     */
-    void handleMetadataEntry(Position position, TransactionMetadataEntry transactionMetadataEntry);
+@Data
+@Builder
+class PulsarSourceConsumerConfig<T> {
+    private Schema<T> schema;
+    private boolean isRegexPattern;
+    private Integer receiverQueueSize;
+    private Map<String, String> consumerProperties;
+    private CryptoKeyReader cryptoKeyReader;
+    private ConsumerCryptoFailureAction consumerCryptoFailureAction;
 }

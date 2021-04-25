@@ -495,7 +495,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (log.isDebugEnabled() && !c.isWritable()) {
                 log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
                                 + "availablePermits are {}", topic.getName(), name,
-                        c, availablePermits);
+                        c, c.getAvailablePermits());
             }
             int messagesForC = Math.min(
                     Math.min(entriesToDispatch, availablePermits),
