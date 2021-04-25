@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
 import io.netty.util.Timer;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.mockito.Mockito;
@@ -48,6 +47,7 @@ class ClientTestFixtures {
         when(clientMock.timer()).thenReturn(mock(Timer.class));
 
         when(clientMock.externalExecutorProvider()).thenReturn(mock(ExecutorProvider.class));
+        when(clientMock.getInternalExecutorService()).thenReturn(Executors.newSingleThreadExecutor());
         when(clientMock.eventLoopGroup().next()).thenReturn(mock(EventLoop.class));
 
         return clientMock;

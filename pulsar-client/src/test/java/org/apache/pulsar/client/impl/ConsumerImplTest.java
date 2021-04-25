@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -173,7 +174,7 @@ public class ConsumerImplTest {
     public void testBatchReceiveAsyncCanBeCancelled() {
         // given
         CompletableFuture<Messages<byte[]>> future = consumer.batchReceiveAsync();
-        Assert.assertTrue(consumer.hasPendingBatchReceive());
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(consumer.hasPendingBatchReceive()));
         // when
         future.cancel(true);
         // then
