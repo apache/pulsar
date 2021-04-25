@@ -225,7 +225,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         // Cant't receive transaction messages after abort.
         message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             boolean flag = true;
             for (int partition = 0; partition < TOPIC_PARTITION; partition ++) {
                 String topic;
@@ -766,7 +766,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
         });
 
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             try {
                 transactionMetadataStore.get().getTxnMeta(new TxnID(((TransactionImpl) timeoutTxn)
                         .getTxnIdMostBits(), ((TransactionImpl) timeoutTxn).getTxnIdLeastBits())).get();
