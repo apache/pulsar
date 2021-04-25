@@ -210,7 +210,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 }).exceptionally(e -> {
                     synchronized (PendingAckHandleImpl.this) {
                         // we also modify the in memory state when append fail,
-                        // because we don't know the persistent state, when were play it,
+                        // because we don't know the persistent state, when were replay it,
                         // it will produce the wrong operation. so we append fail,
                         // we should wait tc time out or client abort this transaction.
                         handleIndividualAck(txnID, positions);

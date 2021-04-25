@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -45,10 +46,12 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -788,5 +791,45 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         field.setAccessible(true);
         TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxn);
         assertEquals(state, TransactionImpl.State.ERROR);
+    }
+
+    @Test
+    public void transactionTimeoutTest() throws Exception {
+        String topic = NAMESPACE1 + "/txn-timeout";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .producerName("txn-timeout")
+                .create();
+
+        producer.send("Hello Pulsar!");
+
+        Transaction consumeTimeoutTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(3, TimeUnit.SECONDS)
+                .build().get();
+
+        Message<String> message = consumer.receive();
+
+        consumer.acknowledgeAsync(message.getMessageId(), consumeTimeoutTxn).get();
+
+        Message<String> reReceiveMessage = consumer.receive(2, TimeUnit.SECONDS);
+        assertNull(reReceiveMessage);
+
+        reReceiveMessage = consumer.receive(2, TimeUnit.SECONDS);
+
+        assertEquals(reReceiveMessage.getValue(), message.getValue());
+
+        assertEquals(reReceiveMessage.getMessageId(), message.getMessageId());
+
     }
 }

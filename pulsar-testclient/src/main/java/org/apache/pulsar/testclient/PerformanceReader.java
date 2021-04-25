@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.testclient;
 
+import org.HdrHistogram.Histogram;
+import org.HdrHistogram.Recorder;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
@@ -51,6 +53,12 @@ public class PerformanceReader {
     private static final LongAdder messagesReceived = new LongAdder();
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat dec = new DecimalFormat("0.000");
+
+    private static final LongAdder totalMessagesReceived = new LongAdder();
+    private static final LongAdder totalBytesReceived = new LongAdder();
+
+    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
     @Parameters(commandDescription = "Test pulsar reader performance.")
     static class Arguments {
@@ -214,8 +222,17 @@ public class PerformanceReader {
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 
+            totalMessagesReceived.increment();
+            totalBytesReceived.add(msg.getData().length);
+
             if (limiter != null) {
                 limiter.acquire();
+            }
+
+            long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
+            if (latencyMillis >= 0) {
+                recorder.recordValue(latencyMillis);
+                cumulativeRecorder.recordValue(latencyMillis);
             }
         };
 
@@ -268,7 +285,14 @@ public class PerformanceReader {
 
         log.info("Start reading from {} topics", arguments.numTopics);
 
+        final long start = System.nanoTime();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            printAggregatedThroughput(start);
+            printAggregatedStats();
+        }));
+
         long oldTime = System.nanoTime();
+        Histogram reportHistogram = null;
 
         while (true) {
             try {
@@ -282,11 +306,41 @@ public class PerformanceReader {
             double rate = messagesReceived.sumThenReset() / elapsed;
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
 
-            log.info("Read throughput: {}  msg/s -- {} Mbit/s", dec.format(rate), dec.format(throughput));
+            reportHistogram = recorder.getIntervalHistogram(reportHistogram);
+            log.info(
+                    "Read throughput: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
+                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
+                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
+                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
+
+            reportHistogram.reset();
             oldTime = now;
         }
 
         pulsarClient.close();
+    }
+
+    private static void printAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;
+        double rate = totalMessagesReceived.sum() / elapsed;
+        double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
+        log.info(
+                "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
+                totalMessagesReceived,
+                dec.format(rate),
+                dec.format(throughput));
+    }
+
+    private static void printAggregatedStats() {
+        Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
+
+        log.info(
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
+                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceReader.class);

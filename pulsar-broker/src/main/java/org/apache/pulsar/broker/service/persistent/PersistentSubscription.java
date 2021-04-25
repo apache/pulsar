@@ -940,6 +940,10 @@ public class PersistentSubscription implements Subscription {
         return expiryMonitor.getMessageExpiryRate();
     }
 
+    public PersistentMessageExpiryMonitor getExpiryMonitor() {
+        return expiryMonitor;
+    }
+
     public long estimateBacklogSize() {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }

@@ -66,6 +66,10 @@ public class ZooKeeperChildrenCache implements Watcher, CacheUpdater<Set<String>
         return children;
     }
 
+    public CompletableFuture<Set<String>> getAsync() {
+        return getAsync(this.path);
+    }
+
     public CompletableFuture<Set<String>> getAsync(String path) {
         return cache.getChildrenAsync(path, this);
     }

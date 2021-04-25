@@ -323,11 +323,10 @@ The Apache Software License, Version 2.0
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.1.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.17.0.jar
- * Joda -- org.joda-joda-convert-2.2.1.jar
- * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.2.jar
+ * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.6.jar
  * Gson
     - com.google.code.gson-gson-2.8.6.jar
-    - io.gsonfire-gson-fire-1.8.4.jar
+    - io.gsonfire-gson-fire-1.8.5.jar
  * Guava
     - com.google.guava-guava-30.1-jre.jar
     - com.google.guava-failureaccess-1.0.1.jar
@@ -346,7 +345,7 @@ The Apache Software License, Version 2.0
     - commons-codec-commons-codec-1.10.jar
     - commons-collections-commons-collections-3.2.2.jar
     - commons-configuration-commons-configuration-1.10.jar
-    - commons-io-commons-io-2.5.jar
+    - commons-io-commons-io-2.8.0.jar
     - commons-lang-commons-lang-2.6.jar
     - commons-logging-commons-logging-1.1.1.jar
     - org.apache.commons-commons-collections4-4.1.jar
@@ -445,7 +444,7 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty.websocket-websocket-servlet-9.4.39.v20210325.jar
  * SnakeYaml -- org.yaml-snakeyaml-1.26.jar
  * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
- * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.3.4.jar
+ * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
  * Apache Thrifth - org.apache.thrift-libthrift-0.12.0.jar
  * OkHttp and OkHttp3
      - com.squareup.okhttp-okhttp-2.7.4.jar
@@ -489,12 +488,9 @@ The Apache Software License, Version 2.0
   * @FreeBuilder
     - org.inferred-freebuilder-1.14.9.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-10.0.0.jar
-    - io.kubernetes-client-java-api-10.0.0.jar
-    - io.kubernetes-client-java-proto-10.0.0.jar
-  * Joda Time
-    - joda-time-2.10.1.jar
-    - joda-time-joda-time-2.10.1.jar
+    - io.kubernetes-client-java-12.0.0.jar
+    - io.kubernetes-client-java-api-12.0.0.jar
+    - io.kubernetes-client-java-proto-12.0.0.jar
   * Dropwizard
     - io.dropwizard.metrics-metrics-core-3.2.5.jar
     - io.dropwizard.metrics-metrics-graphite-3.2.5.jar
@@ -508,11 +504,10 @@ The Apache Software License, Version 2.0
   * JCTools - Java Concurrency Tools for the JVM
     - org.jctools-jctools-core-2.1.2.jar
   * Vertx
-    - io.vertx-vertx-auth-common-3.9.7.jar
-    - io.vertx-vertx-bridge-common-3.9.7.jar
-    - io.vertx-vertx-core-3.9.7.jar
-    - io.vertx-vertx-web-3.9.7.jar
-    - io.vertx-vertx-web-common-3.9.7.jar
+    - io.vertx-vertx-auth-common-3.5.4.jar
+    - io.vertx-vertx-bridge-common-3.5.4.jar
+    - io.vertx-vertx-core-3.5.4.jar
+    - io.vertx-vertx-web-3.5.4.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-jute-3.6.2.jar
   * Snappy Java
