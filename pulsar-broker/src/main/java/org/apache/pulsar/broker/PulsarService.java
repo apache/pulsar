@@ -480,8 +480,6 @@ public class PulsarService implements AutoCloseable {
                 transactionReplayExecutor.shutdown();
             }
 
-            state = State.Closed;
-            isClosedCondition.signalAll();
             // add timeout handling for closing executors
             asyncCloseFutures.add(executorServicesShutdown.handle());
 

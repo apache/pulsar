@@ -738,6 +738,7 @@ public class PersistentTopic extends AbstractTopic
 
                         decrementUsageCount();
                         future.completeExceptionally(e);
+                        return;
                     }
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
@@ -753,10 +754,10 @@ public class PersistentTopic extends AbstractTopic
                     future.complete(consumer);
                 }
             }).exceptionally(e -> {
-                if (e instanceof ConsumerBusyException) {
+                if (e.getCause() instanceof ConsumerBusyException) {
                     log.warn("[{}][{}] Consumer {} {} already connected", topic, subscriptionName, consumerId,
                             consumerName);
-                } else if (e instanceof SubscriptionBusyException) {
+                } else if (e.getCause() instanceof SubscriptionBusyException) {
                     log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
                 }
 
@@ -767,7 +768,11 @@ public class PersistentTopic extends AbstractTopic
         }).exceptionally(ex -> {
             log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
             decrementUsageCount();
-            future.completeExceptionally(new PersistenceException(ex));
+            if (ex.getCause() instanceof NotAllowedException) {
+                future.completeExceptionally(ex.getCause());
+            } else {
+                future.completeExceptionally(new PersistenceException(ex));
+            }
             return null;
         });
 
