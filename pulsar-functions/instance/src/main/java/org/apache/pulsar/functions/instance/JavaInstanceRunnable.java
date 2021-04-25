@@ -27,13 +27,15 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
@@ -132,6 +134,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // a read write lock for stats operations
     private ReadWriteLock statsLock = new ReentrantReadWriteLock();
+    
+    private static final class SinkException extends Exception {
+    	public SinkException(Exception e) {
+    		super(e);
+    	}
+    }
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 PulsarClient pulsarClient,
@@ -278,9 +286,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 removeLogTopicHandler();
 
-                if (result != null) {
-                    // process the synchronous results
-                    handleResult(currentRecord, result);
+                try {
+                	Pair<Boolean, Object> output = processResult(currentRecord, result);
+                	if (output.getLeft()) { // The function completed successfully
+                      sendOutputMessage(currentRecord, output);
+                	}
+                } catch (SinkException se) {
+                	log.warn("Failed to publish the result of message {}", currentRecord, se);
+                	currentRecord.fail();
+                	throw new RuntimeException(se);  // Sink write exceptions are fatal.
+                } catch (Exception e) {
+                    log.warn("Failed to process result of message {}", currentRecord, e);
+                    currentRecord.fail();
                 }
             }
         } catch (Throwable t) {
@@ -322,42 +339,50 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void processAsyncResults() throws InterruptedException {
-
-    }
-
-    private void handleResult(Record srcRecord, JavaExecutionResult result) {
-        if (result.getUserException() != null) {
-            Exception t = result.getUserException();
-            log.warn("Encountered exception when processing message {}",
-                    srcRecord, t);
-            stats.incrUserExceptions(t);
-            srcRecord.fail();
-        } else {
-            if (result.getResult() != null) {
-                sendOutputMessage(srcRecord, result.getResult());
+    private Pair<Boolean, Object> processResult(Record srcRecord,
+                               CompletableFuture<JavaExecutionResult> result) throws Exception {
+    	
+    	/* We use the boolean to indicate whether we actually set the value or not. This helps us distinguish
+    	 * between when the function completed successfully and returned a value of null versus when it
+    	 * completed exceptionally.
+    	 */
+    	final AtomicReference<Pair<Boolean, Object>> actualResult = 
+    		new AtomicReference<Pair<Boolean, Object>>(Pair.of(false, null));
+    	
+        result.whenComplete((result1, throwable) -> {
+            if (throwable != null || result1.getUserException() != null) {
+                Throwable t = throwable != null ? throwable : result1.getUserException();
+                log.warn("Encountered exception when processing message {}",
+                        srcRecord, t);
+                stats.incrUserExceptions(t);
+                srcRecord.fail();
             } else {
-                if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                    // the function doesn't produce any result or the user doesn't want the result.
-                    srcRecord.ack();
+                if (result1.getResult() != null) {
+                	// Grab the actual result
+                	actualResult.set(Pair.of(true, result1.getResult()));
+                } else {
+                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                        // the function doesn't produce any result or the user doesn't want the result.
+                        srcRecord.ack();
+                    }
                 }
             }
-            // increment total successfully processed
-            stats.incrTotalProcessedSuccessfully();
-        }
+        });
+        return actualResult.get();
     }
 
-    private void sendOutputMessage(Record srcRecord, Object output) {
+    private void sendOutputMessage(Record srcRecord, Object output) throws SinkException {
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
         try {
             this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
+        	if (stats != null) {
+                stats.incrSinkExceptions(e);
+          	}
             log.info("Encountered exception in sink write: ", e);
-            stats.incrSinkExceptions(e);
-            // fail the source record
-            srcRecord.fail();
+            throw new SinkException(e);
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }
