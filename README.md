@@ -136,6 +136,27 @@ required plugins.
 
 ### Intellij
 
+#### Configure Project JDK to Java 8 (1.8) JDK
+
+1. Open Project Settings dialog by going to  
+   `File -> Project Structure -> Project Settings -> Project`.
+   
+2. Click on the JDK version drop down and select `Download JDK...` or choose an existing recent Java 8 (1.8) JDK version.
+
+3. In the download dialog, select version `1.8` and vendor `AdoptOpenJDK (Hotspot)` for the JDK to download.
+ 
+
+#### Configure Java version for Maven in IntelliJ
+
+1. Open Maven Importing Settings dialog by going to 
+   `Settings -> Build, Execution, Deployment -> Build Tools -> Maven -> Importing`.
+
+2. Choose "Use Project JDK" for "JDK for Importer" setting. This uses the Java 8 (1.8) JDK for running Maven 
+   when importing the project to IntelliJ. Some of the configuration in the Maven build is conditional based on 
+   the JDK version. Incorrect configuration gets chosen when the "JDK for Importer" isn't the same as the "Project JDK".
+
+3. Validate that the JRE setting in "Maven -> Runner" dialog is set to "Use Project JDK".
+
 #### Configure annotation processing in IntelliJ
 
 1. Open Annotation Processors Settings dialog box by going to
