@@ -70,7 +70,7 @@ import org.apache.pulsar.common.util.RelativeTimeUtil;
 public class CmdNamespaces extends CmdBase {
     @Parameters(commandDescription = "Get the namespaces for a tenant")
     private class GetNamespacesPerProperty extends CliCommand {
-        @Parameter(description = "tenant-name\n", required = true)
+        @Parameter(description = "tenant-name", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -82,7 +82,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the namespaces for a tenant in a cluster", hidden = true)
     private class GetNamespacesPerCluster extends CliCommand {
-        @Parameter(description = "tenant/cluster\n", required = true)
+        @Parameter(description = "tenant/cluster", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -94,7 +94,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the list of topics for a namespace")
     private class GetTopics extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -106,7 +106,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the list of bundles for a namespace")
     private class GetBundles extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -118,7 +118,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the list of destinations for a namespace", hidden = true)
     private class GetDestinations extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -130,7 +130,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the configuration policies of a namespace")
     private class GetPolicies extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -142,7 +142,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Creates a new namespace")
     private class Create extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--clusters", "-c" }, description = "List of clusters this namespace will be assigned", required = false)
@@ -187,7 +187,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Deletes a namespace.")
     private class Delete extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-f",
@@ -272,7 +272,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the permissions on a namespace")
     private class Permissions extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -301,7 +301,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get replication clusters for a namespace")
     private class GetReplicationClusters extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -331,7 +331,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get subscription types enabled for a namespace")
     private class GetSubscriptionTypesEnabled extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -370,7 +370,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get max subscriptions per topic for a namespace")
     private class GetMaxSubscriptionsPerTopic extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -440,7 +440,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get Anti-affinity group name for a namespace")
     private class GetAntiAffinityGroup extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -471,7 +471,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove Anti-affinity group name for a namespace")
     private class DeleteAntiAffinityGroup extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -483,7 +483,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get Deduplication for a namespace")
     private class GetDeduplication extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -495,7 +495,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove Deduplication for a namespace")
     private class RemoveDeduplication extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -659,7 +659,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the retention policy for a namespace")
     private class GetRetention extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -704,7 +704,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the bookie-affinity group name")
     private class GetBookieAffinityGroup extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -716,7 +716,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get message TTL for a namespace")
     private class GetMessageTTL extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -728,7 +728,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get subscription expiration time for a namespace")
     private class GetSubscriptionExpirationTime extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -740,10 +740,10 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Unload a namespace from the current serving broker")
     private class Unload extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n")
+        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}")
         private String bundle;
 
         @Override
@@ -759,18 +759,18 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Split a namespace-bundle from the current serving broker")
     private class SplitBundle extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n", required = true)
+        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}", required = true)
         private String bundle;
 
         @Parameter(names = { "--unload",
                 "-u" }, description = "Unload newly split bundles after splitting old bundle", required = false)
         private boolean unload;
 
-        @Parameter(names = { "--split-algorithm-name", "-san" }, description = "Algorithm name for split namespace bundle.\n" +
-            " Valid options are: [range_equally_divide, topic_count_equally_divide].\n" +
+        @Parameter(names = { "--split-algorithm-name", "-san" }, description = "Algorithm name for split namespace bundle." +
+            " Valid options are: [range_equally_divide, topic_count_equally_divide]." +
             " Use broker side config if absent", required = false)
         private String splitAlgorithmName;
 
@@ -783,23 +783,23 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Set message-dispatch-rate for all topics of the namespace")
     private class SetDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--msg-dispatch-rate",
-                "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+                "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
         private int msgDispatchRate = -1;
 
         @Parameter(names = { "--byte-dispatch-rate",
-                "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+                "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
         private long byteDispatchRate = -1;
 
         @Parameter(names = { "--dispatch-rate-period",
-                "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
+                "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)", required = false)
         private int dispatchRatePeriodSec = 1;
 
         @Parameter(names = { "--relative-to-publish-rate",
-                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))\n", required = false)
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
         private boolean relativeToPublishRate = false;
 
         @Override
@@ -812,7 +812,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove configured message-dispatch-rate for all topics of the namespace")
     private class RemoveDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -824,7 +824,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)")
     private class GetDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -837,15 +837,15 @@ public class CmdNamespaces extends CmdBase {
     @Parameters(commandDescription = "Set subscribe-rate per consumer for all topics of the namespace")
     private class SetSubscribeRate extends CliCommand {
 
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--subscribe-rate",
-                "-sr" }, description = "subscribe-rate (default -1 will be overwrite if not passed)\n", required = false)
+                "-sr" }, description = "subscribe-rate (default -1 will be overwrite if not passed)", required = false)
         private int subscribeRate = -1;
 
         @Parameter(names = { "--subscribe-rate-period",
-                "-st" }, description = "subscribe-rate-period in second type (default 30 second will be overwrite if not passed)\n", required = false)
+                "-st" }, description = "subscribe-rate-period in second type (default 30 second will be overwrite if not passed)", required = false)
         private int subscribeRatePeriodSec = 30;
 
         @Override
@@ -858,7 +858,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get configured subscribe-rate per consumer for all topics of the namespace")
     private class GetSubscribeRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -870,7 +870,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove configured subscribe-rate per consumer for all topics of the namespace")
     private class RemoveSubscribeRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -883,23 +883,23 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Set subscription message-dispatch-rate for all subscription of the namespace")
     private class SetSubscriptionDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--msg-dispatch-rate",
-            "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+            "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
         private int msgDispatchRate = -1;
 
         @Parameter(names = { "--byte-dispatch-rate",
-            "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+            "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
         private long byteDispatchRate = -1;
 
         @Parameter(names = { "--dispatch-rate-period",
-            "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
+            "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)", required = false)
         private int dispatchRatePeriodSec = 1;
 
         @Parameter(names = { "--relative-to-publish-rate",
-                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))\n", required = false)
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
         private boolean relativeToPublishRate = false;
 
         @Override
@@ -913,7 +913,7 @@ public class CmdNamespaces extends CmdBase {
     @Parameters(commandDescription = "Remove subscription configured message-dispatch-rate " +
             "for all topics of the namespace")
     private class RemoveSubscriptionDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -925,7 +925,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get subscription configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)")
     private class GetSubscriptionDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -937,15 +937,15 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Set publish-rate for all topics of the namespace")
     private class SetPublishRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
          @Parameter(names = { "--msg-publish-rate",
-            "-m" }, description = "message-publish-rate (default -1 will be overwrite if not passed)\n", required = false)
+            "-m" }, description = "message-publish-rate (default -1 will be overwrite if not passed)", required = false)
         private int msgPublishRate = -1;
 
          @Parameter(names = { "--byte-publish-rate",
-            "-b" }, description = "byte-publish-rate (default -1 will be overwrite if not passed)\n", required = false)
+            "-b" }, description = "byte-publish-rate (default -1 will be overwrite if not passed)", required = false)
         private long bytePublishRate = -1;
 
          @Override
@@ -958,7 +958,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove publish-rate for all topics of the namespace")
     private class RemovePublishRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -970,7 +970,7 @@ public class CmdNamespaces extends CmdBase {
 
      @Parameters(commandDescription = "Get configured message-publish-rate for all topics of the namespace (Disabled if value < 0)")
     private class GetPublishRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
          @Override
@@ -982,19 +982,19 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Set replicator message-dispatch-rate for all topics of the namespace")
     private class SetReplicatorDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--msg-dispatch-rate",
-            "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+            "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
         private int msgDispatchRate = -1;
 
         @Parameter(names = { "--byte-dispatch-rate",
-            "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+            "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
         private long byteDispatchRate = -1;
 
         @Parameter(names = { "--dispatch-rate-period",
-            "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
+            "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)", required = false)
         private int dispatchRatePeriodSec = 1;
 
         @Override
@@ -1007,7 +1007,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get replicator configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)")
     private class GetReplicatorDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1020,7 +1020,7 @@ public class CmdNamespaces extends CmdBase {
     @Parameters(commandDescription = "Remove replicator configured message-dispatch-rate " +
             "for all topics of the namespace")
     private class RemoveReplicatorDispatchRate extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1032,7 +1032,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the backlog quota policies for a namespace")
     private class GetBacklogQuotaMap extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1087,7 +1087,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the persistence policies for a namespace")
     private class GetPersistence extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1099,7 +1099,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove the persistence policies for a namespace")
     private class RemovePersistence extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1146,7 +1146,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--sub", "-s" }, description = "subscription name")
         private String subscription;
 
-        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n")
+        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}")
         private String bundle;
 
         @Parameter(names = { "--force", "-force" }, description = "Whether to force clear backlog without prompt")
@@ -1182,7 +1182,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--sub", "-s" }, description = "subscription name", required = true)
         private String subscription;
 
-        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n")
+        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}")
         private String bundle;
 
         @Override
@@ -1221,7 +1221,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the delayed delivery policy for a namespace")
     private class GetDelayedDelivery extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1245,7 +1245,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the inactive topic policy for a namespace")
     private class GetInactiveTopicPolicies extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1350,7 +1350,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get deduplicationSnapshotInterval for a namespace")
     private class GetDeduplicationSnapshotInterval extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1362,7 +1362,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove deduplicationSnapshotInterval for a namespace")
     private class RemoveDeduplicationSnapshotInterval extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1390,7 +1390,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get maxProducersPerTopic for a namespace")
     private class GetMaxProducersPerTopic extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1429,7 +1429,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get maxConsumersPerTopic for a namespace")
     private class GetMaxConsumersPerTopic extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1468,7 +1468,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get maxConsumersPerSubscription for a namespace")
     private class GetMaxConsumersPerSubscription extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1480,7 +1480,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove maxConsumersPerSubscription for a namespace")
     private class RemoveMaxConsumersPerSubscription extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1507,7 +1507,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get maxUnackedMessagesPerConsumer for a namespace")
     private class GetMaxUnackedMessagesPerConsumer extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1534,7 +1534,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get maxUnackedMessagesPerSubscription for a namespace")
     private class GetMaxUnackedMessagesPerSubscription extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1573,7 +1573,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get compactionThreshold for a namespace")
     private class GetCompactionThreshold extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1585,7 +1585,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove compactionThreshold for a namespace")
     private class RemoveCompactionThreshold extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1615,7 +1615,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get offloadThreshold for a namespace")
     private class GetOffloadThreshold extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -1648,7 +1648,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get offloadDeletionLag, in minutes, for a namespace")
     private class GetOffloadDeletionLag extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -2040,7 +2040,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get the offload policies for a namespace")
     private class GetOffloadPolicies extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -2067,7 +2067,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Get max topics per namespace")
     private class GetMaxTopicsPerNamespace extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -2079,7 +2079,7 @@ public class CmdNamespaces extends CmdBase {
 
     @Parameters(commandDescription = "Remove max topics per namespace")
     private class RemoveMaxTopicsPerNamespace extends CliCommand {
-        @Parameter(description = "tenant/namespace\n", required = true)
+        @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -2195,6 +2195,45 @@ public class CmdNamespaces extends CmdBase {
         void run() throws Exception {
             String namespace = validateNamespace(params);
             getAdmin().namespaces().clearProperties(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Get ResourceGroup for a namespace")
+    private class GetResourceGroup extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getNamespaceResourceGroup(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set ResourceGroup for a namespace")
+    private class SetResourceGroup extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--resource-group-name", "-rgn" }, description = "ResourceGroup name", required = true)
+        private String rgName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().setNamespaceResourceGroup(namespace, rgName);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove ResourceGroup from a namespace")
+    private class RemoveResourceGroup extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeNamespaceResourceGroup(namespace);
         }
     }
 
@@ -2365,5 +2404,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-properties", new SetPropertiesForNamespace());
         jcommander.addCommand("get-properties", new GetPropertiesForNamespace());
         jcommander.addCommand("clear-properties", new ClearPropertiesForNamespace());
+
+        jcommander.addCommand("get-resource-group", new GetResourceGroup());
+        jcommander.addCommand("set-resource-group", new SetResourceGroup());
+        jcommander.addCommand("remove-resource-group", new RemoveResourceGroup());
     }
 }

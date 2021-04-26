@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -45,10 +46,12 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -97,7 +100,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.topics().createPartitionedTopic(TOPIC_OUTPUT, TOPIC_PARTITION);
-        admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, TOPIC_PARTITION);
+        admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
@@ -222,7 +225,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         // Cant't receive transaction messages after abort.
         message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             boolean flag = true;
             for (int partition = 0; partition < TOPIC_PARTITION; partition ++) {
                 String topic;
@@ -395,7 +398,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         log.info("produce transaction messages finished");
 
         // Can't receive transaction messages before commit.
-        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
         log.info("transaction messages can't be received before transaction committed");
 
@@ -414,10 +417,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         Assert.assertEquals(messageCnt, receiveCnt);
 
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
-        markDeletePositionCheck(topic, subName, false);
+        String checkTopic = TopicName.get(topic).getPartition(0).toString();
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);;
+
+        Assert.assertNotEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
 
         consumer.redeliverUnacknowledgedMessages();
 
@@ -432,46 +438,45 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
-        for (int partition = 0; partition < TOPIC_PARTITION; partition ++) {
-            topic = TopicName.get(topic).getPartition(partition).toString();
-            boolean exist = false;
-            for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
-                Field field = BrokerService.class.getDeclaredField("topics");
-                field.setAccessible(true);
-                ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                        (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                                .get(getPulsarServiceList().get(i).getBrokerService());
-                CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+        topic = TopicName.get(topic).getPartition(0).toString();
+        boolean exist = false;
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
-                if (topicFuture != null) {
-                    Optional<Topic> topicOptional = topicFuture.get();
-                    if (topicOptional.isPresent()) {
-                        PersistentSubscription persistentSubscription =
-                                (PersistentSubscription) topicOptional.get().getSubscription(subName);
-                        Position markDeletePosition = persistentSubscription.getCursor().getMarkDeletedPosition();
-                        Position lastConfirmedEntry = persistentSubscription.getCursor()
-                                .getManagedLedger().getLastConfirmedEntry();
-                        exist = true;
-                        if (!markDeletePosition.equals(lastConfirmedEntry)) {
-                            //this because of the transaction commit marker have't delete
-                            //delete commit marker after ack position
-                            //when delete commit marker operation is processing, next delete operation will not do again
-                            //when delete commit marker operation finish, it can run next delete commit marker operation
-                            //so this test may not delete all the position in this manageLedger.
-                            Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
-                                    .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
-                            //marker is the lastConfirmedEntry, after commit the marker will only be write in
-                            if (!markerPosition.equals(lastConfirmedEntry)) {
-                                log.error("Mark delete position is not commit marker position!");
-                                fail();
-                            }
+            Field field = BrokerService.class.getDeclaredField("topics");
+            field.setAccessible(true);
+            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
+                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
+                            .get(getPulsarServiceList().get(i).getBrokerService());
+            CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+
+            if (topicFuture != null) {
+                Optional<Topic> topicOptional = topicFuture.get();
+                if (topicOptional.isPresent()) {
+                    PersistentSubscription persistentSubscription =
+                            (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                    Position markDeletePosition = persistentSubscription.getCursor().getMarkDeletedPosition();
+                    Position lastConfirmedEntry = persistentSubscription.getCursor()
+                            .getManagedLedger().getLastConfirmedEntry();
+                    exist = true;
+                    if (!markDeletePosition.equals(lastConfirmedEntry)) {
+                        //this because of the transaction commit marker have't delete
+                        //delete commit marker after ack position
+                        //when delete commit marker operation is processing, next delete operation will not do again
+                        //when delete commit marker operation finish, it can run next delete commit marker operation
+                        //so this test may not delete all the position in this manageLedger.
+                        Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
+                                .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                        //marker is the lastConfirmedEntry, after commit the marker will only be write in
+                        if (!markerPosition.equals(lastConfirmedEntry)) {
+                            log.error("Mark delete position is not commit marker position!");
+                            fail();
                         }
                     }
                 }
             }
-            assertTrue(exist);
         }
+        assertTrue(exist);
 
         log.info("receive transaction messages count: {}", receiveCnt);
     }
@@ -761,7 +766,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
         });
 
-        Awaitility.await().atMost(3000, TimeUnit.MILLISECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             try {
                 transactionMetadataStore.get().getTxnMeta(new TxnID(((TransactionImpl) timeoutTxn)
                         .getTxnIdMostBits(), ((TransactionImpl) timeoutTxn).getTxnIdLeastBits())).get();
@@ -781,5 +786,45 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         field.setAccessible(true);
         TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxn);
         assertEquals(state, TransactionImpl.State.ERROR);
+    }
+
+    @Test
+    public void transactionTimeoutTest() throws Exception {
+        String topic = NAMESPACE1 + "/txn-timeout";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .producerName("txn-timeout")
+                .create();
+
+        producer.send("Hello Pulsar!");
+
+        Transaction consumeTimeoutTxn = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(3, TimeUnit.SECONDS)
+                .build().get();
+
+        Message<String> message = consumer.receive();
+
+        consumer.acknowledgeAsync(message.getMessageId(), consumeTimeoutTxn).get();
+
+        Message<String> reReceiveMessage = consumer.receive(2, TimeUnit.SECONDS);
+        assertNull(reReceiveMessage);
+
+        reReceiveMessage = consumer.receive(2, TimeUnit.SECONDS);
+
+        assertEquals(reReceiveMessage.getValue(), message.getValue());
+
+        assertEquals(reReceiveMessage.getMessageId(), message.getMessageId());
+
     }
 }

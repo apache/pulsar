@@ -54,11 +54,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
@@ -125,7 +127,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -144,6 +145,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -165,6 +167,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
@@ -187,6 +190,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private static final TimeoutException FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Failed to load topic within timeout", BrokerService.class,
                     "futureWithDeadline(...)");
+    private static final long GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS = 5000L;
+    private static final double GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT = 0.25d;
+    private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
 
     private final PulsarService pulsar;
     private final ManagedLedgerFactory managedLedgerFactory;
@@ -680,7 +686,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             replicationClients.forEach((cluster, client) -> {
                 try {
                     client.shutdown();
-                } catch (PulsarClientException e) {
+                } catch (Exception e) {
                     log.warn("Error shutting down repl client for cluster {}", cluster, e);
                 }
             });
@@ -694,60 +700,119 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 }
             });
 
-            List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
-
-            if (listenChannel != null && listenChannel.isOpen()) {
-                asyncCloseFutures.add(closeChannel(listenChannel));
-            }
-
-            if (listenChannelTls != null && listenChannelTls.isOpen()) {
-                asyncCloseFutures.add(closeChannel(listenChannelTls));
-            }
-
-            acceptorGroup.shutdownGracefully();
-            workerGroup.shutdownGracefully();
-
-            if (interceptor != null) {
-                interceptor.close();
-                interceptor = null;
-            }
-
-            statsUpdater.shutdown();
-            inactivityMonitor.shutdown();
-            messageExpiryMonitor.shutdown();
-            compactionMonitor.shutdown();
-            messagePublishBufferMonitor.shutdown();
-            consumedLedgersMonitor.shutdown();
-            backlogQuotaChecker.shutdown();
-            authenticationService.close();
-            pulsarStats.close();
-            ClientCnxnAspect.removeListener(zkStatsListener);
-            ClientCnxnAspect.registerExecutor(null);
-            topicOrderedExecutor.shutdown();
-            delayedDeliveryTrackerFactory.close();
-            if (topicPublishRateLimiterMonitor != null) {
-                topicPublishRateLimiterMonitor.shutdown();
-            }
-            if (brokerPublishRateLimiterMonitor != null) {
-                brokerPublishRateLimiterMonitor.shutdown();
-            }
-            if (deduplicationSnapshotMonitor != null) {
-                deduplicationSnapshotMonitor.shutdown();
-            }
-
+            CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
+            log.info("Event loops shutting down gracefully...");
             CompletableFuture<Void> shutdownFuture =
-                    CompletableFuture.allOf(asyncCloseFutures.toArray(new CompletableFuture[0]))
-                            .thenAccept(__ -> log.info("Broker service completely shut down"));
+                    CompletableFuture.allOf(shutdownEventLoopGracefully(acceptorGroup),
+                            shutdownEventLoopGracefully(workerGroup))
+                            .handle((v, t) -> {
+                                if (t != null) {
+                                    log.warn("Error shutting down event loops gracefully", t);
+                                } else {
+                                    log.info("Event loops shutdown completed.");
+                                }
+                                return null;
+                            })
+                            .thenCompose(__ -> {
+                                log.info("Continuing to second phase in shutdown.");
+
+                                List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
+
+                                if (listenChannel != null && listenChannel.isOpen()) {
+                                    asyncCloseFutures.add(closeChannel(listenChannel));
+                                }
+
+                                if (listenChannelTls != null && listenChannelTls.isOpen()) {
+                                    asyncCloseFutures.add(closeChannel(listenChannelTls));
+                                }
+
+                                if (interceptor != null) {
+                                    interceptor.close();
+                                    interceptor = null;
+                                }
+
+                                try {
+                                    authenticationService.close();
+                                } catch (IOException e) {
+                                    log.warn("Error in closing authenticationService", e);
+                                }
+                                pulsarStats.close();
+                                ClientCnxnAspect.removeListener(zkStatsListener);
+                                ClientCnxnAspect.registerExecutor(null);
+                                try {
+                                    delayedDeliveryTrackerFactory.close();
+                                } catch (IOException e) {
+                                    log.warn("Error in closing delayedDeliveryTrackerFactory", e);
+                                }
+
+                                asyncCloseFutures.add(GracefulExecutorServicesShutdown
+                                        .initiate()
+                                        .timeout(
+                                                Duration.ofMillis(
+                                                        (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
+                                                                * pulsar.getConfiguration()
+                                                                .getBrokerShutdownTimeoutMs())))
+                                        .shutdown(
+                                                statsUpdater,
+                                                inactivityMonitor,
+                                                messageExpiryMonitor,
+                                                compactionMonitor,
+                                                messagePublishBufferMonitor,
+                                                consumedLedgersMonitor,
+                                                backlogQuotaChecker,
+                                                topicOrderedExecutor,
+                                                topicPublishRateLimiterMonitor,
+                                                brokerPublishRateLimiterMonitor,
+                                                deduplicationSnapshotMonitor)
+                                        .handle());
+
+                                CompletableFuture<Void> combined =
+                                        FutureUtil.waitForAllAndSupportCancel(asyncCloseFutures);
+                                cancellableDownstreamFutureReference.complete(combined);
+                                combined.handle((v, t) -> {
+                                    if (t == null) {
+                                        log.info("Broker service completely shut down");
+                                    } else {
+                                        if (t instanceof CancellationException) {
+                                            log.warn("Broker service didn't complete gracefully. "
+                                                    + "Terminating Broker service.");
+                                        } else {
+                                            log.warn("Broker service shut down completed with exception", t);
+                                        }
+                                    }
+                                    return null;
+                                });
+                                return combined;
+                            });
+            FutureUtil.whenCancelledOrTimedOut(shutdownFuture, () -> cancellableDownstreamFutureReference
+                    .thenAccept(future -> future.cancel(false)));
             return shutdownFuture;
         } catch (Exception e) {
             return FutureUtil.failedFuture(e);
         }
     }
 
+    CompletableFuture<Void> shutdownEventLoopGracefully(EventLoopGroup eventLoopGroup) {
+        long brokerShutdownTimeoutMs = pulsar.getConfiguration().getBrokerShutdownTimeoutMs();
+        long quietPeriod = Math.min((long) (
+                GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs),
+                GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS);
+        long timeout = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs);
+        return NettyFutureUtil.toCompletableFutureVoid(
+                eventLoopGroup.shutdownGracefully(quietPeriod,
+                        timeout, TimeUnit.MILLISECONDS));
+    }
+
     private CompletableFuture<Void> closeChannel(Channel channel) {
         return ChannelFutures.toCompletableFuture(channel.close())
-                // convert to CompletableFuture<Void>
-                .thenAccept(__ -> {});
+                .handle((c, t) -> {
+                    // log problem if closing of channel fails
+                    // ignore RejectedExecutionException
+                    if (t != null && !(t instanceof RejectedExecutionException)) {
+                        log.warn("Cannot close channel {}", channel, t);
+                    }
+                    return null;
+                });
     }
 
     /**
@@ -761,6 +826,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      */
     public void unloadNamespaceBundlesGracefully() {
         try {
+            log.info("Unloading namespace-bundles...");
             // make broker-node unavailable from the cluster
             if (pulsar.getLoadManager() != null && pulsar.getLoadManager().get() != null) {
                 try {
@@ -1531,8 +1597,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         forEachTopic(topic -> {
             if (topic instanceof PersistentTopic) {
                 PersistentTopic persistentTopic = (PersistentTopic) topic;
-                if (persistentTopic.isBacklogExceeded()) {
-                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic);
+                if (persistentTopic.isSizeBacklogExceeded()) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
+                            BacklogQuota.BacklogQuotaType.destination_storage, false);
+                } else if (persistentTopic.isTimeBacklogExceeded()) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
+                            BacklogQuota.BacklogQuotaType.message_age,
+                            pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("quota not exceeded for [{}]", topic.getName());

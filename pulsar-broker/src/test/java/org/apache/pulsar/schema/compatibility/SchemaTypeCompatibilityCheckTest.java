@@ -30,14 +30,18 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.schema.Schemas;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 
@@ -173,101 +177,6 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void structTypeProducerProducerAlwaysCompatible() throws Exception {
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-
-        String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "structTypeProducerProducerAlwaysCompatible"
-        ).toString();
-
-        pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
-                .topic(topicName)
-                .create();
-
-        pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
-                .topic(topicName)
-                .create();
-    }
-
-    @Test
-    public void structTypeProducerConsumerAlwaysCompatible() throws Exception {
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-
-        final String subName = "my-sub";
-        String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "structTypeProducerConsumerAlwaysCompatible"
-        ).toString();
-
-        pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
-                .topic(topicName)
-                .create();
-
-        pulsarClient.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
-                .topic(topicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName)
-                .subscribe();
-    }
-
-    @Test
-    public void structTypeConsumerProducerAlwaysCompatible() throws Exception {
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-
-        final String subName = "my-sub";
-        String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "structTypeConsumerProducerAlwaysCompatible"
-        ).toString();
-
-        pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
-                .topic(topicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName)
-                .subscribe();
-
-        pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
-                .topic(topicName)
-                .create();
-    }
-
-    @Test
-    public void structTypeConsumerConsumerAlwaysCompatible() throws Exception {
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-
-        final String subName = "my-sub";
-        String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "structTypeConsumerConsumerAlwaysCompatible"
-        ).toString();
-
-        pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
-                .topic(topicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName + "1")
-                .subscribe();
-
-        pulsarClient.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
-                .topic(topicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName + "2")
-                .subscribe();
-    }
-
-    @Test
     public void primitiveTypeProducerProducerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -371,98 +280,50 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     }
 
     @Test
-    public void primitiveTypeProducerProducerAlwaysCompatible() throws Exception {
+    public void testAlwaysCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-
-        String topicName = TopicName.get(
+        final String topicName = TopicName.get(
                 TopicDomain.persistent.value(),
                 PUBLIC_TENANT,
                 namespace,
-                "primitiveTypeProducerProducerAlwaysCompatible"
+                "testAlwaysCompatible" + UUID.randomUUID().toString()
         ).toString();
+        Schema<?>[] schemas = new Schema[] {
+                Schema.AVRO(Schemas.PersonOne.class),
+                Schema.AVRO(Schemas.PersonFour.class),
+                Schema.JSON(Schemas.PersonOne.class),
+                Schema.JSON(Schemas.PersonFour.class),
+                Schema.INT8,
+                Schema.INT16,
+                Schema.INT32,
+                Schema.INT64,
+                Schema.DATE,
+                Schema.BOOL,
+                Schema.DOUBLE,
+                Schema.STRING,
+                Schema.BYTES,
+                Schema.FLOAT,
+                Schema.INSTANT,
+                Schema.BYTEBUFFER,
+                Schema.TIME,
+                Schema.TIMESTAMP,
+                Schema.LOCAL_DATE,
+                Schema.LOCAL_DATE_TIME,
+                Schema.LOCAL_TIME
+        };
 
-        pulsarClient.newProducer(Schema.INT32)
-                .topic(topicName)
-                .create();
+        for (Schema<?> schema : schemas) {
+            pulsarClient.newProducer(schema)
+                    .topic(topicName)
+                    .create();
+        }
 
-        pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .create();
-    }
-
-    @Test
-    public void primitiveTypeProducerConsumerAlwaysCompatible() throws Exception {
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-
-        final String subName = "my-sub";
-        String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "primitiveTypeProducerConsumerAlwaysCompatible"
-        ).toString();
-
-        pulsarClient.newProducer(Schema.INT32)
-                .topic(topicName)
-                .create();
-
-        pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName + "2")
-                .subscribe();
-    }
-
-    @Test
-    public void primitiveTypeConsumerProducerAlwaysCompatible() throws Exception {
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-
-        final String subName = "my-sub";
-        String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "primitiveTypeConsumerProducerAlwaysCompatible"
-        ).toString();
-
-        pulsarClient.newConsumer(Schema.INT32)
-                .topic(topicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName)
-                .subscribe();
-
-        pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .create();
-    }
-
-    @Test
-    public void primitiveTypeConsumerConsumerAlwaysCompatible() throws Exception {
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-
-        final String subName = "my-sub";
-        String topicName = TopicName.get(
-                TopicDomain.persistent.value(),
-                PUBLIC_TENANT,
-                namespace,
-                "primitiveTypeConsumerConsumerAlwaysCompatible"
-        ).toString();
-
-        pulsarClient.newConsumer(Schema.INT32)
-                .topic(topicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName + "1")
-                .subscribe();
-
-        pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscriptionName(subName + "2")
-                .subscribe();
+        for (Schema<?> schema : schemas) {
+            pulsarClient.newConsumer(schema)
+                    .topic(topicName)
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .subscribe();
+        }
     }
 
 }

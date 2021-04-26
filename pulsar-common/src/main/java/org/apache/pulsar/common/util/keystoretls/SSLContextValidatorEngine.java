@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.common.util.keystoretls;
 
+import static javax.net.ssl.SSLEngineResult.HandshakeStatus.FINISHED;
 import java.nio.ByteBuffer;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLParameters;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -31,12 +30,9 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class SSLContextValidatorEngine {
-    /**
-     * Mode of peer.
-     */
-    public enum Mode {
-        CLIENT,
-        SERVER
+    @FunctionalInterface
+    public interface SSLEngineProvider {
+        SSLEngine createSSLEngine(String peerHost, int peerPort);
     }
 
     private static final ByteBuffer EMPTY_BUF = ByteBuffer.allocate(0);
@@ -44,11 +40,12 @@ public class SSLContextValidatorEngine {
     private SSLEngineResult handshakeResult;
     private ByteBuffer appBuffer;
     private ByteBuffer netBuffer;
-    private Mode mode;
+    private boolean finished = false;
 
-    public static void validate(SSLContext clientSslContext, SSLContext serverSslContext) throws SSLException {
-        SSLContextValidatorEngine clientEngine = new SSLContextValidatorEngine(clientSslContext, Mode.CLIENT);
-        SSLContextValidatorEngine serverEngine = new SSLContextValidatorEngine(serverSslContext, Mode.SERVER);
+    public static void validate(SSLEngineProvider clientSslEngineSupplier, SSLEngineProvider serverSslEngineSupplier)
+            throws SSLException {
+        SSLContextValidatorEngine clientEngine = new SSLContextValidatorEngine(clientSslEngineSupplier);
+        SSLContextValidatorEngine serverEngine = new SSLContextValidatorEngine(serverSslEngineSupplier);
         try {
             clientEngine.beginHandshake();
             serverEngine.beginHandshake();
@@ -62,25 +59,10 @@ public class SSLContextValidatorEngine {
         }
     }
 
-    private SSLContextValidatorEngine(SSLContext sslContext, Mode mode) {
-        this.mode = mode;
-        this.sslEngine = createSslEngine(sslContext, "localhost", 0); // these hints are not used for validation
-        sslEngine.setUseClientMode(mode == Mode.CLIENT);
+    private SSLContextValidatorEngine(SSLEngineProvider sslEngineSupplier) {
+        this.sslEngine = sslEngineSupplier.createSSLEngine("localhost", 0);
         appBuffer = ByteBuffer.allocate(sslEngine.getSession().getApplicationBufferSize());
         netBuffer = ByteBuffer.allocate(sslEngine.getSession().getPacketBufferSize());
-    }
-
-    private SSLEngine createSslEngine(SSLContext sslContext, String peerHost, int peerPort) {
-        SSLEngine sslEngine = sslContext.createSSLEngine(peerHost, peerPort);
-
-        if (mode == Mode.SERVER) {
-            sslEngine.setNeedClientAuth(true);
-        } else {
-            sslEngine.setUseClientMode(true);
-            SSLParameters sslParams = sslEngine.getSSLParameters();
-            sslEngine.setSSLParameters(sslParams);
-        }
-        return sslEngine;
     }
 
     void beginHandshake() throws SSLException {
@@ -134,9 +116,10 @@ public class SSLContextValidatorEngine {
                 case FINISHED:
                     return;
                 case NOT_HANDSHAKING:
-                    if (handshakeResult.getHandshakeStatus() != SSLEngineResult.HandshakeStatus.FINISHED) {
+                    if (handshakeResult.getHandshakeStatus() != FINISHED) {
                         throw new SSLException("Did not finish handshake");
                     }
+                    finished = true;
                     return;
                 default:
                     throw new IllegalStateException("Unexpected handshake status " + handshakeStatus);
@@ -145,8 +128,7 @@ public class SSLContextValidatorEngine {
     }
 
     boolean complete() {
-        return sslEngine.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.FINISHED
-               || sslEngine.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+        return finished;
     }
 
     void close() {

@@ -79,6 +79,7 @@ import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -97,6 +98,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -183,6 +185,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final BlockingQueue<String> pendingChunkedMessageUuidQueue;
 
     private final boolean createTopicIfDoesNotExist;
+    private final boolean poolMessages;
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
 
@@ -251,6 +254,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.pendingChunkedMessageUuidQueue = new GrowableArrayBlockingQueue<>();
         this.expireTimeOfIncompleteChunkedMessageMillis = conf.getExpireTimeOfIncompleteChunkedMessageMillis();
         this.autoAckOldestChunkedMessageOnQueueFull = conf.isAutoAckOldestChunkedMessageOnQueueFull();
+        this.poolMessages = conf.isPoolMessages();
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -534,6 +538,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                        long delayTime,
                                                        TimeUnit unit) {
         MessageId messageId = message.getMessageId();
+        if (messageId == null) {
+            return FutureUtil.failedFuture(new PulsarClientException
+                    .InvalidMessageException("Cannot handle message with null messageId"));
+        }
+
         if(messageId instanceof TopicMessageIdImpl) {
             messageId = ((TopicMessageIdImpl)messageId).getInnerMessageId();
         }
@@ -834,7 +843,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 previousMessage = new BatchMessageIdImpl(nextMessageInQueue.getLedgerId(),
                         nextMessageInQueue.getEntryId() - 1, nextMessageInQueue.getPartitionIndex(), -1);
             }
-
+            // release messages if they are pooled messages
+            currentMessageQueue.forEach(Message::release);
             return previousMessage;
         } else if (!lastDequeuedMessageId.equals(MessageId.earliest)) {
             // If the queue was empty we need to restart from the message just after the last one that has been dequeued
@@ -1043,8 +1053,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
-                    uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
+            final MessageImpl<T> message =  MessageImpl.create(topicName.toString(), msgId, msgMetadata,
+                    uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount,
+                    poolMessages);
             uncompressedPayload.release();
 
             // Enqueue the message so that it can be retrieved when application calls receive()
@@ -1263,9 +1274,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i, batchSize, acker);
-                final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
+                final MessageImpl<T> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadata, singleMessagePayload,
-                        createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
+                        createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount, poolMessages);
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
                 }
@@ -1541,8 +1552,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             int currentSize = 0;
             synchronized (this) {
                 currentSize = incomingMessages.size();
-                incomingMessages.clear();
-                resetIncomingMessageSize();
+                clearIncomingMessages();
                 unAckedMessageTracker.clear();
             }
             cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
@@ -1565,8 +1575,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     public int clearIncomingMessagesAndGetMessageNumber() {
         int messagesNumber = incomingMessages.size();
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+        incomingMessages.forEach(Message::release);
+        clearIncomingMessages();
         unAckedMessageTracker.clear();
         return messagesNumber;
     }
@@ -1788,8 +1798,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             duringSeek.set(true);
             lastDequeuedMessageId = MessageId.earliest;
 
-            incomingMessages.clear();
-            resetIncomingMessageSize();
+            clearIncomingMessages();
             seekFuture.complete(null);
         }).exceptionally(e -> {
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
@@ -1892,8 +1901,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
-                booleanFuture.complete(true);
-                return booleanFuture;
+                //this situation will occur when :
+                // 1.We haven't read yet 2.The connection was reset multiple times
+                // 3.Broker has pushed messages to ReceiverQueue, but messages were cleaned due to connection reset
+                Backoff backoff = new BackoffBuilder()
+                        .setInitialTime(100, TimeUnit.MILLISECONDS)
+                        .setMax(2000, TimeUnit.MILLISECONDS)
+                        .setMandatoryStop(client.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS)
+                        .create();
+                RetryUtil.retryAsynchronously(() -> {
+                    try {
+                        seek(startMessageId);
+                        return true;
+                    } catch (PulsarClientException e) {
+                        throw new RuntimeException(e);
+                    }
+                }, backoff, pinnedExecutor, booleanFuture);
+                return  booleanFuture;
             }
 
             getLastMessageIdAsync().thenAccept(messageId -> {
@@ -2112,6 +2136,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     messageIds.add(id);
                     break;
                 }
+                message.release();
                 message = incomingMessages.poll();
             }
         }

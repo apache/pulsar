@@ -462,7 +462,7 @@ public abstract class TestPulsarConnector {
         });
 
         Topics topics = mock(Topics.class);
-        when(topics.getList(anyString())).thenAnswer(new Answer<List<String>>() {
+        when(topics.getList(anyString(), any())).thenAnswer(new Answer<List<String>>() {
             @Override
             public List<String> answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Object[] args = invocationOnMock.getArguments();

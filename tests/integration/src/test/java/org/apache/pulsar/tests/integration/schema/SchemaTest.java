@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 
 import com.google.common.collect.Sets;
+import java.time.temporal.ChronoUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.*;
@@ -200,7 +201,7 @@ public class SchemaTest extends PulsarTestSuite {
                 .decimal(new BigDecimal("12.34"))
                 .timestampMicros(System.currentTimeMillis() * 1000)
                 .timestampMillis(Instant.parse("2019-03-26T04:39:58.469Z"))
-                .timeMillis(LocalTime.now())
+                .timeMillis(LocalTime.now().truncatedTo(ChronoUnit.MILLIS))
                 .timeMicros(System.currentTimeMillis() * 1000)
                 .date(LocalDate.now())
                 .build();

@@ -24,7 +24,7 @@ import org.testng.util.RetryAnalyzerCount;
 
 public class RetryAnalyzer extends RetryAnalyzerCount {
     // Only try again once
-    private static final int MAX_RETRIES = Integer.parseInt(System.getProperty("testRetryCount", "1"));
+    static final int MAX_RETRIES = Integer.parseInt(System.getProperty("testRetryCount", "1"));
 
     public RetryAnalyzer() {
         setCount(MAX_RETRIES);

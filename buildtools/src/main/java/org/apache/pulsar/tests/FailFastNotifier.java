@@ -20,6 +20,7 @@ package org.apache.pulsar.tests;
 
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
+import org.testng.ITestListener;
 import org.testng.ITestResult;
 import org.testng.SkipException;
 
@@ -39,7 +40,7 @@ import org.testng.SkipException;
  *
  */
 public class FailFastNotifier
-        implements IInvokedMethodListener {
+        implements IInvokedMethodListener, ITestListener {
     private static final boolean FAIL_FAST_ENABLED = Boolean.valueOf(
             System.getProperty("testFailFast", "true"));
 
@@ -68,6 +69,16 @@ public class FailFastNotifier
         FailFastSkipException(String skipMessage) {
             super(skipMessage);
             reduceStackTrace();
+        }
+    }
+
+    @Override
+    public void onTestFailure(ITestResult result) {
+        FailFastNotifier.FailFastEventsSingleton.getInstance().setSkipOnNextTest();
+        // Hide FailFastSkipExceptions and mark the test as skipped
+        if (result.getThrowable() instanceof FailFastSkipException) {
+            result.setThrowable(null);
+            result.setStatus(ITestResult.SKIP);
         }
     }
 

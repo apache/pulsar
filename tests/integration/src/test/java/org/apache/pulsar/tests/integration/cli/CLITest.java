@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -35,6 +36,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.examples.pojo.Tick;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
@@ -69,6 +72,84 @@ public class CLITest extends PulsarTestSuite {
         result = pulsarCluster.runAdminCommandOnAnyBroker(
             "tenants", "list");
         assertTrue(result.getStdout().contains(tenantName));
+    }
+
+    @Test
+    public void testGetTopicListCommand() throws Exception {
+        ContainerExecResult result;
+
+        final String namespaceLocalName = "list-topics-" + randomName(8);
+        result = pulsarCluster.createNamespace(namespaceLocalName);
+        final String namespace = "public/" + namespaceLocalName;
+        assertEquals(0, result.getExitCode());
+
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+
+        final String persistentTopicName = TopicName.get(
+                "persistent",
+                NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+
+        final String nonPersistentTopicName = TopicName.get(
+                "non-persistent",
+                NamespaceName.get(namespace),
+                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+
+        Producer<byte[]> producer1 = client.newProducer()
+                .topic(persistentTopicName)
+                .create();
+
+        Producer<byte[]> producer2 = client.newProducer()
+                .topic(nonPersistentTopicName)
+                .create();
+
+        BrokerContainer container = pulsarCluster.getAnyBroker();
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "list",
+                namespace);
+
+        assertTrue(result.getStdout().contains(persistentTopicName));
+        assertTrue(result.getStdout().contains(nonPersistentTopicName));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "list",
+                "--topic-domain",
+                "persistent",
+                namespace);
+
+        assertTrue(result.getStdout().contains(persistentTopicName));
+        assertFalse(result.getStdout().contains(nonPersistentTopicName));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "list",
+                "--topic-domain",
+                "non_persistent",
+                namespace);
+
+        assertFalse(result.getStdout().contains(persistentTopicName));
+        assertTrue(result.getStdout().contains(nonPersistentTopicName));
+
+        try {
+            container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "list",
+                "--topic-domain",
+                "none",
+                namespace);
+            fail();
+        } catch (ContainerExecException ignore) {
+        }
+
+        producer1.close();
+        producer2.close();
     }
 
     @Test
