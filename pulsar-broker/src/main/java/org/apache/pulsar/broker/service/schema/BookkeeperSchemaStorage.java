@@ -29,7 +29,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -292,12 +291,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(optLocatorEntry -> {
 
             if (optLocatorEntry.isPresent()) {
-                // Schema locator was already present
+
                 SchemaStorageFormat.SchemaLocator locator = optLocatorEntry.get().locator;
-                byte[] storedHash = locator.getInfo().getHash().toByteArray();
-                if (storedHash.length > 0 && Arrays.equals(storedHash, hash)) {
-                    return completedFuture(locator.getInfo().getVersion());
-                }
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] findSchemaEntryByHash - hash={}", schemaId, hash);
