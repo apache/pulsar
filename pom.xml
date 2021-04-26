@@ -509,6 +509,12 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-alpn-conscrypt-server</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-servlet</artifactId>
         <version>${jetty.version}</version>
       </dependency>
