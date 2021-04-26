@@ -132,8 +132,9 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().triggerOffload(topicName, currentId);
 
-        assertEquals(admin.topics().offloadStatus(topicName).status,
-                            LongRunningProcessStatus.Status.SUCCESS);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().offloadStatus(topicName).status,
+                LongRunningProcessStatus.Status.SUCCESS));
         MessageIdImpl firstUnoffloaded = admin.topics().offloadStatus(topicName).firstUnoffloadedMessage;
         // First unoffloaded is the first entry of current ledger
         assertEquals(firstUnoffloaded.getLedgerId(), info.ledgers.get(1).ledgerId);
