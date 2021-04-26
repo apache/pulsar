@@ -18,24 +18,30 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable.SinkException;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class JavaInstanceRunnableMockTests {
@@ -43,22 +49,40 @@ public class JavaInstanceRunnableMockTests {
   public static final String EXCLAMATION_JAVA_CLASS =
 	        "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
-  @SuppressWarnings("unchecked")
-  private ProducerBuilderImpl<byte[]> mockProducerBuilder = mock(ProducerBuilderImpl.class);
-	  
-  private PulsarClientImpl mockPulsarClient = mock(PulsarClientImpl.class);
+  private ProducerBuilderImpl<byte[]> mockProducerBuilder;
+  private PulsarClientImpl mockPulsarClient;
   
+  @SuppressWarnings("unchecked")
   @BeforeMethod
   private void init() { 
+	  mockPulsarClient = mock(PulsarClientImpl.class);
+	  mockProducerBuilder = mock(ProducerBuilderImpl.class);
 	  when(mockProducerBuilder.blockIfQueueFull(true)).thenReturn(mockProducerBuilder);
 	  when(mockProducerBuilder.enableBatching(true)).thenReturn(mockProducerBuilder);
 	  when(mockProducerBuilder.batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)).thenReturn(mockProducerBuilder);
 	  when(mockPulsarClient.newProducer()).thenReturn(mockProducerBuilder);
   }
+  
+  @Test
+  public final void testWorkingFunction() throws InterruptedException, SinkException {
+	  InstanceConfig config = createInstanceConfig(
+				RandomStringSource.class.getName(), 
+				PassThroughSink.class.getName());
+	  
+	  JavaInstanceRunnable spiedRunnable = spy(createRunnable(config));
+	  spiedRunnable.run();
+	  Thread.sleep(2 * 1000);
+	  
+	  verify(spiedRunnable, atLeast(1)).sendOutputMessage(any(Record.class), any());
+  }
 	
   @Test
   public void testSinkException() throws Exception {
-    JavaInstanceRunnable spiedRunnable = spy(createRunnable());
+	InstanceConfig config = createInstanceConfig(
+			RandomStringSource.class.getName(), 
+            BadSink.class.getName());
+	
+    JavaInstanceRunnable spiedRunnable = spy(createRunnable(config));
     spiedRunnable.run();
     Thread.sleep(2 * 1000);
     
@@ -68,27 +92,26 @@ public class JavaInstanceRunnableMockTests {
     assertTrue(throwable instanceof SinkException);
   }
   
-  private JavaInstanceRunnable createRunnable() {
-	  InstanceConfig config = createInstanceConfig();
+  private JavaInstanceRunnable createRunnable(InstanceConfig config) {
       JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
               config, mockPulsarClient, null, null, null, null, 
               Thread.currentThread().getContextClassLoader());
       return javaInstanceRunnable;
   }
   
-  private static InstanceConfig createInstanceConfig() {
+  private static InstanceConfig createInstanceConfig(String srcClassName, String sinkClassName) {
 	  InstanceConfig instanceConfig = new InstanceConfig();
 	  FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 	  
 	  functionDetailsBuilder.setSource(
-		SourceSpec.newBuilder().setClassName(RandomStringSource.class.getName()).build());
+		SourceSpec.newBuilder().setClassName(srcClassName).build());
 	  
 	  // The function itself
 	  functionDetailsBuilder.setClassName(EXCLAMATION_JAVA_CLASS);
 	  
 	  // Output handler
 	  functionDetailsBuilder.setSink(
-		 SinkSpec.newBuilder().setClassName(BadSink.class.getName()).build());
+		 SinkSpec.newBuilder().setClassName(sinkClassName).build());
 	  
 	  functionDetailsBuilder.setTenant("test-tenant");
 	  functionDetailsBuilder.setNamespace("test-ns");
@@ -99,5 +122,24 @@ public class JavaInstanceRunnableMockTests {
 	  instanceConfig.setClusterName("test-cluster");
 	  instanceConfig.setMaxBufferedTuples(1024);
 	  return instanceConfig;
+  }
+  
+  private static class PassThroughSink implements Sink<String> {
+
+	@Override
+	public void close() throws Exception {
+		
+	}
+
+	@Override
+	public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+		
+	}
+
+	@Override
+	public void write(Record<String> record) throws Exception {
+		
+	}
+	  
   }
 }

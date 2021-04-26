@@ -359,6 +359,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
             }
         });
+        result.join();  // Wait for the above clause to be executed.
         return actualResult.get();
     }
     
@@ -370,7 +371,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-	private void sendOutputMessage(Record srcRecord, Object output) throws SinkException {
+	void sendOutputMessage(Record srcRecord, Object output) throws SinkException {
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
