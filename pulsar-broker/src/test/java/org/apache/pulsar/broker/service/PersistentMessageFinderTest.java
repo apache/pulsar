@@ -426,7 +426,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
         // Expire by position and verify mark delete position of cursor.
         issued = monitor.expireMessages(positions.get(15));
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
+        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
         assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
         assertTrue(issued);
         clearInvocations(monitor);
@@ -438,21 +438,21 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
         // Expire by position again and verify mark delete position of cursor didn't change.
         issued = monitor.expireMessages(positions.get(15));
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
+        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
         assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
         assertTrue(issued);
         clearInvocations(monitor);
 
         // Expire by position before current mark delete position and verify mark delete position of cursor didn't change.
         issued = monitor.expireMessages(positions.get(10));
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
+        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
         assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(15).getLedgerId(), positions.get(15).getEntryId()));
         assertTrue(issued);
         clearInvocations(monitor);
 
         // Expire by position after current mark delete position and verify mark delete position of cursor move to new position.
         issued = monitor.expireMessages(positions.get(16));
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
+        Awaitility.await().untilAsserted(() -> verify(monitor, times(1)).findEntryComplete(any(), any()));
         assertEquals(cursor.getMarkDeletedPosition(), PositionImpl.get(positions.get(16).getLedgerId(), positions.get(16).getEntryId()));
         assertTrue(issued);
         clearInvocations(monitor);
