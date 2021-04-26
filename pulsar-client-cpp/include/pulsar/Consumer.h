@@ -385,6 +385,11 @@ class PULSAR_PUBLIC Consumer {
      */
     virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
 
+    /**
+     * @return Whether the consumer is currently connected to the broker
+     */
+    bool isConnected() const;
+
    private:
     ConsumerImplBasePtr impl_;
     explicit Consumer(ConsumerImplBasePtr);

@@ -1185,14 +1185,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         admin.topics().deletePartitionedTopic(topicName, true);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 0);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 0);
         });
 
         admin.topics().createPartitionedTopic(topicName, 7);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 7);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 7);
         });
@@ -1218,7 +1218,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName0, 5);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
 
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 5);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 5);
         });
@@ -1229,7 +1229,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         consumer.getRecheckPatternTimeout().task().run(consumer.getRecheckPatternTimeout());
 
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 8);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 8);
         });
@@ -1237,7 +1237,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().updatePartitionedTopic(topicName1, 5);
         consumer.getPartitionsAutoUpdateTimeout().task().run(consumer.getPartitionsAutoUpdateTimeout());
 
-        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 10);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 10);
         });

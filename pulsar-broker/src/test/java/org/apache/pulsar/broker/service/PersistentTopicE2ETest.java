@@ -1470,7 +1470,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         producer.close();
         pulsarClient.close();
 
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             brokerService.updateRates();
             List<Metrics> closeMetrics = brokerService.getTopicMetrics();
             Map<String, Object> closeMap = null;

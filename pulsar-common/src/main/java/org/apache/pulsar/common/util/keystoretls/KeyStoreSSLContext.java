@@ -76,7 +76,6 @@ public class KeyStoreSSLContext {
     private boolean needClientAuth;
     private Set<String> ciphers;
     private Set<String> protocols;
-    @Getter
     private SSLContext sslContext;
 
     private String protocol = DEFAULT_SSL_PROTOCOL;
@@ -168,12 +167,19 @@ public class KeyStoreSSLContext {
         return sslContext;
     }
 
+    public SSLContext getSslContext() {
+        if (sslContext == null) {
+            throw new IllegalStateException("createSSLContext hasn't been called.");
+        }
+        return sslContext;
+    }
+
     public SSLEngine createSSLEngine() {
-        return configureSSLEngine(sslContext.createSSLEngine());
+        return configureSSLEngine(getSslContext().createSSLEngine());
     }
 
     public SSLEngine createSSLEngine(String peerHost, int peerPort) {
-        return configureSSLEngine(sslContext.createSSLEngine(peerHost, peerPort));
+        return configureSSLEngine(getSslContext().createSSLEngine(peerHost, peerPort));
     }
 
     private SSLEngine configureSSLEngine(SSLEngine sslEngine) {

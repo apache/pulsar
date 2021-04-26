@@ -786,8 +786,6 @@ void ProducerImpl::disconnectProducer() {
     scheduleReconnection(shared_from_this());
 }
 
-const std::string& ProducerImpl::getName() const { return producerStr_; }
-
 void ProducerImpl::start() { HandlerBase::start(); }
 
 void ProducerImpl::shutdown() {
@@ -821,6 +819,11 @@ bool ProducerImplCmp::operator()(const ProducerImplPtr& a, const ProducerImplPtr
 bool ProducerImpl::isClosed() {
     Lock lock(mutex_);
     return state_ == Closed;
+}
+
+bool ProducerImpl::isConnected() const {
+    Lock lock(mutex_);
+    return !getCnx().expired() && state_ == Ready;
 }
 
 }  // namespace pulsar

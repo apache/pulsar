@@ -361,7 +361,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         ManagedLedger ledger = topicRef.getManagedLedger();
 
         Awaitility.await()
-                .atMost(5, TimeUnit.SECONDS)
+                
                 .untilAsserted(() ->
                         Assert.assertEquals(
                                 ledger.openCursor(subscription).getProperties().get("foobar"),

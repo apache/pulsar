@@ -211,7 +211,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         cluster2Data.setServiceUrl(cluster2ServiceUrls);
         String cluster2 = "activeCLuster2";
         admin2.clusters().createCluster(cluster2, cluster2Data);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+        Awaitility.await().until(()
                 -> admin2.clusters().getCluster(cluster2) != null);
 
         List<String> list = admin1.brokers().getActiveBrokers(cluster2);
