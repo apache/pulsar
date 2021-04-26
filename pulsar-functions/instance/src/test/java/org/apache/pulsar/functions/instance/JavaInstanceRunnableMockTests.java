@@ -25,6 +25,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
@@ -37,17 +38,23 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class JavaInstanceRunnableMockTests {
 	
   public static final String EXCLAMATION_JAVA_CLASS =
 	        "org.apache.pulsar.functions.api.examples.ExclamationFunction";
+  
+  private static ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
 
   private ProducerBuilderImpl<byte[]> mockProducerBuilder;
   private PulsarClientImpl mockPulsarClient;
@@ -70,10 +77,16 @@ public class JavaInstanceRunnableMockTests {
 				PassThroughSink.class.getName());
 	  
 	  JavaInstanceRunnable spiedRunnable = spy(createRunnable(config));
-	  spiedRunnable.run();
+	  Future<?> runner = executor.submit(spiedRunnable);
 	  Thread.sleep(2 * 1000);
+	  runner.cancel(true);
 	  
-	  verify(spiedRunnable, atLeast(1)).sendOutputMessage(any(Record.class), any());
+	  ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+	  
+	  verify(spiedRunnable, atLeast(1)).sendOutputMessage(any(Record.class), captor.capture());
+	  
+	  assertNotNull(captor.getValue());
+	  assertEquals(((String)captor.getValue()).length(), 11);
   }
 	
   @Test
@@ -83,8 +96,9 @@ public class JavaInstanceRunnableMockTests {
             BadSink.class.getName());
 	
     JavaInstanceRunnable spiedRunnable = spy(createRunnable(config));
-    spiedRunnable.run();
-    Thread.sleep(2 * 1000);
+    Future<?> runner = executor.submit(spiedRunnable);
+	Thread.sleep(2 * 1000);
+	runner.cancel(true);
     
     verify(spiedRunnable, times(1)).close();
     Object throwable = ReflectionTestUtils.getField(spiedRunnable, "deathException");
