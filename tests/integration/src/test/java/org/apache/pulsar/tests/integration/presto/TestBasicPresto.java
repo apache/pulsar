@@ -153,7 +153,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     public void testListTopicShouldNotShowNonPersistentTopics() throws Exception {
         String tableName = "non_persistent" + randomName(5);
 
-        String topic1 = "public/default/" + tableName.toUpperCase();
+        String topic1 = "non-persistent://public/default/" + tableName.toUpperCase();
         TopicName topicName1 = TopicName.get(topic1);
         prepareData(topicName1, false, false, JSONSchema.of(Stock.class));
 
