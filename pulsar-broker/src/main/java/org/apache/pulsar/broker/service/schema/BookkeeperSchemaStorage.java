@@ -40,7 +40,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 import org.apache.bookkeeper.client.BKException;
@@ -80,9 +79,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private final ZooKeeperCache localZkCache;
     private final ServiceConfiguration config;
     private BookKeeper bookKeeper;
-
-    // schemaId => ledgers of the schemaId
-    private final Map<String, List<Long>> schemaLedgers = new ConcurrentHashMap<>();
 
     private final ConcurrentMap<String, CompletableFuture<StoredSchema>> readSchemaOperations =
             new ConcurrentHashMap<>();
@@ -159,7 +155,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return result;
     }
 
-    private CompletableFuture<Optional<LocatorEntry>> getLocator(String key) {
+    public CompletableFuture<Optional<LocatorEntry>> getLocator(String key) {
         return getSchemaLocator(getSchemaPath(key));
     }
 
@@ -167,8 +163,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         localZkCache.invalidate(getSchemaPath(key));
     }
 
-    @VisibleForTesting
-    List<Long> getSchemaLedgerList(String key) throws IOException {
+    public List<Long> getSchemaLedgerList(String key) throws IOException {
         Optional<LocatorEntry> locatorEntry = null;
         try {
             locatorEntry = getLocator(key).get();
@@ -396,33 +391,41 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             } else {
                 // The version is only for the compatibility of the current interface
                 final long version = -1;
-                final List<Long> ledgerIds = schemaLedgers.get(schemaId);
-                if (ledgerIds != null) {
-                    CompletableFuture<Long> future = new CompletableFuture<>();
-                    final AtomicInteger numOfLedgerIds = new AtomicInteger(ledgerIds.size());
-                    for (long ledgerId : ledgerIds) {
-                        bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
-                            if (rc != BKException.Code.OK) {
-                                // It's not a serious error, we didn't need call future.completeExceptionally()
-                                log.warn("Failed to delete ledger {} of {}: {}", ledgerId, schemaId, rc);
-                            }
-                            if (numOfLedgerIds.decrementAndGet() == 0) {
-                                try {
-                                    ZkUtils.deleteFullPathOptimistic(zooKeeper, getSchemaPath(schemaId), -1);
-                                } catch (InterruptedException | KeeperException e) {
-                                    future.completeExceptionally(e);
+                CompletableFuture<Long> future = new CompletableFuture<>();
+                getLocator(schemaId).whenComplete((locator, ex) -> {
+                    if (ex != null) {
+                        future.completeExceptionally(ex);
+                    } else {
+                        if (!locator.isPresent()) {
+                            future.complete(null);
+                            return;
+                        }
+                        List<SchemaStorageFormat.IndexEntry> indexEntryList = locator.get().locator.getIndexList();
+                        List<CompletableFuture<Void>> deleteFutures = new ArrayList<>(indexEntryList.size());
+                        indexEntryList.forEach(indexEntry -> {
+                            final long ledgerId = indexEntry.getPosition().getLedgerId();
+                            CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
+                            deleteFutures.add(deleteFuture);
+                            bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
+                                if (rc != BKException.Code.OK) {
+                                    // It's not a serious error, we didn't need call future.completeExceptionally()
+                                    log.warn("Failed to delete ledger {} of {}: {}", ledgerId, schemaId, rc);
                                 }
-                                clearLocatorCache(getSchemaPath(schemaId));
-                                future.complete(version);
+                                deleteFuture.complete(null);
+                            }, null);
+                        });
+                        FutureUtil.waitForAll(deleteFutures).whenComplete((v, e) -> {
+                            try {
+                                ZkUtils.deleteFullPathOptimistic(zooKeeper, getSchemaPath(schemaId), -1);
+                            } catch (InterruptedException | KeeperException thr) {
+                                future.completeExceptionally(thr);
                             }
-                        }, null);
+                            clearLocatorCache(getSchemaPath(schemaId));
+                            future.complete(version);
+                        });
                     }
-                    return future;
-                } else {
-                    // It should never reach here
-                    log.warn("No ledgers for schema id: {}", schemaId);
-                    return completedFuture(version);
-                }
+                });
+                return future;
             }
         });
     }
@@ -585,10 +588,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         if (rc != BKException.Code.OK) {
                             future.completeExceptionally(bkException("Failed to create ledger", rc, -1, -1));
                         } else {
-                            schemaLedgers.computeIfAbsent(
-                                    schemaId,
-                                    key -> Collections.synchronizedList(new ArrayList<>())
-                            ).add(handle.getId());
                             future.complete(handle);
                         }
                     }, null, metadata);
