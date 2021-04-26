@@ -360,7 +360,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
     
     @SuppressWarnings("serial")
-	final class SinkException extends Exception {
+	static final class SinkException extends Exception {
     	public SinkException(Exception ex) {
     		super(ex);
     	}
