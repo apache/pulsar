@@ -35,7 +35,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
@@ -135,12 +134,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     // a read write lock for stats operations
     private ReadWriteLock statsLock = new ReentrantReadWriteLock();
     
-    private static final class SinkException extends Exception {
-    	public SinkException(Exception e) {
-    		super(e);
-    	}
-    }
-
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 PulsarClient pulsarClient,
                                 PulsarAdmin pulsarAdmin,
@@ -287,14 +280,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 removeLogTopicHandler();
 
                 try {
-                	Pair<Boolean, Object> output = processResult(currentRecord, result);
-                	if (output.getLeft()) { // The function completed successfully
+                	Object output = processResult(currentRecord, result);
+                	if (output != null) { // The function completed successfully
                       sendOutputMessage(currentRecord, output);
                 	}
                 } catch (SinkException se) {
                 	log.warn("Failed to publish the result of message {}", currentRecord, se);
-                	currentRecord.fail();
-//                	throw new RuntimeException(se);  // Sink write exceptions are fatal.
+                    currentRecord.fail();
+                    throw se; // Sink Exceptions are fatal
                 } catch (Exception e) {
                     log.warn("Failed to process result of message {}", currentRecord, e);
                     currentRecord.fail();
@@ -339,15 +332,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private Pair<Boolean, Object> processResult(Record srcRecord,
+    private Object processResult(Record srcRecord,
                                CompletableFuture<JavaExecutionResult> result) throws Exception {
     	
-    	/* We use the boolean to indicate whether we actually set the value or not. This helps us distinguish
-    	 * between when the function completed successfully and returned a value of null versus when it
-    	 * completed exceptionally.
-    	 */
-    	final AtomicReference<Pair<Boolean, Object>> actualResult = 
-    		new AtomicReference<Pair<Boolean, Object>>(Pair.of(false, null));
+    	final AtomicReference<Object> actualResult = new AtomicReference<Object>(null);
     	
         result.whenComplete((result1, throwable) -> {
             if (throwable != null || result1.getUserException() != null) {
@@ -359,7 +347,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             } else {
                 if (result1.getResult() != null) {
                 	// Grab the actual result
-                	actualResult.set(Pair.of(true, result1.getResult()));
+                	actualResult.set(result1.getResult());
                 } else {
                     if (instanceConfig.getFunctionDetails().getAutoAck()) {
                         // the function doesn't produce any result or the user doesn't want the result.
@@ -369,6 +357,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
         });
         return actualResult.get();
+    }
+    
+    @SuppressWarnings("serial")
+	final class SinkException extends Exception {
+    	public SinkException(Exception ex) {
+    		super(ex);
+    	}
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) throws SinkException {
