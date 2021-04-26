@@ -414,6 +414,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
         Message<T> message = null;
         try {
+            lock.writeLock().lock();
             message = incomingMessages.poll(0, TimeUnit.MILLISECONDS);
             if (message == null) {
                 pendingReceives.add(result);
@@ -422,6 +423,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             result.completeExceptionally(e);
+        } finally {
+            lock.writeLock().unlock();
         }
 
         if (message != null) {
@@ -498,7 +501,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } finally {
             lock.writeLock().unlock();
         }
-
         return result;
     }
 
@@ -957,9 +959,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void failPendingReceive() {
-        if (pinnedExecutor != null && !pinnedExecutor.isShutdown()) {
-            failPendingReceives(this.pendingReceives);
-            failPendingBatchReceives(this.pendingBatchReceives);
+        lock.readLock().lock();
+        try {
+            if (pinnedExecutor != null && !pinnedExecutor.isShutdown()) {
+                failPendingReceives(this.pendingReceives);
+                failPendingBatchReceives(this.pendingBatchReceives);
+            }
+        } finally {
+            lock.readLock().unlock();
         }
     }
 
@@ -1058,18 +1065,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     poolMessages);
             uncompressedPayload.release();
 
-            // Enqueue the message so that it can be retrieved when application calls receive()
-            // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
-            // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
-            if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null &&
-                    redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
-                possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(),
-                        Collections.singletonList(message));
-            }
-            if (peekPendingReceive() != null) {
-                notifyPendingReceivedCallback(message, null);
-            } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
-                notifyPendingBatchReceivedCallBack();
+            lock.readLock().lock();
+            try {
+                // Enqueue the message so that it can be retrieved when application calls receive()
+                // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
+                // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
+                if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null &&
+                        redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+                    possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(),
+                            Collections.singletonList(message));
+                }
+                if (peekPendingReceive() != null) {
+                    notifyPendingReceivedCallback(message, null);
+                } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
+                    notifyPendingBatchReceivedCallBack();
+                }
+            } finally {
+                lock.readLock().unlock();
             }
         } else {
             // handle batch message enqueuing; uncompressed payload has all messages in batch
@@ -1280,11 +1292,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
                 }
-
-                if (peekPendingReceive() != null) {
-                    notifyPendingReceivedCallback(message, null);
-                } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
-                    notifyPendingBatchReceivedCallBack();
+                lock.readLock().lock();
+                try {
+                    if (peekPendingReceive() != null) {
+                        notifyPendingReceivedCallback(message, null);
+                    } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
+                        notifyPendingBatchReceivedCallBack();
+                    }
+                } finally {
+                    lock.readLock().unlock();
                 }
                 singleMessagePayload.release();
             }
