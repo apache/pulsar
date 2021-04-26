@@ -184,8 +184,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
     @Test
     public void testTimeoutTrackerExpired() throws Exception {
         pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
-        Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS)
-                .until(() -> pulsar.getTransactionMetadataStoreService()
+        Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService()
                         .getStores().get(TransactionCoordinatorID.get(0)) != null);
         MLTransactionMetadataStore transactionMetadataStore =
                 (MLTransactionMetadataStore) pulsar.getTransactionMetadataStoreService()
@@ -198,17 +197,18 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
         transactionMetadataStore.newTransaction(2000).get();
 
+        assertEquals(txnMap.size(), 1);
+
         txnMap.forEach((txnID, txnMetaListPair) ->
                 Assert.assertEquals(txnMetaListPair.getLeft().status(), TxnStatus.OPEN));
-        Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).atMost(3000, TimeUnit.MILLISECONDS)
-                .until(() -> txnMap.size() == 0);
+        Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).until(() -> txnMap.size() == 0);
 
         transactionMetadataStore.newTransaction(2000).get();
+        assertEquals(txnMap.size(), 1);
 
         txnMap.forEach((txnID, txnMetaListPair) ->
                 Assert.assertEquals(txnMetaListPair.getLeft().status(), TxnStatus.OPEN));
-        Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).atMost(3000, TimeUnit.MILLISECONDS)
-                .until(() -> txnMap.size() == 0);
+        Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).until(() -> txnMap.size() == 0);
     }
 
     @Test
