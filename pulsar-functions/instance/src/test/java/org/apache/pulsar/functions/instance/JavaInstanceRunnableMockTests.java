@@ -39,6 +39,9 @@ import org.testng.annotations.Test;
 import java.util.concurrent.TimeUnit;
 
 public class JavaInstanceRunnableMockTests {
+	
+  public static final String EXCLAMATION_JAVA_CLASS =
+	        "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
   @SuppressWarnings("unchecked")
   private ProducerBuilderImpl<byte[]> mockProducerBuilder = mock(ProducerBuilderImpl.class);
@@ -81,7 +84,7 @@ public class JavaInstanceRunnableMockTests {
 		SourceSpec.newBuilder().setClassName(RandomStringSource.class.getName()).build());
 	  
 	  // The function itself
-	  functionDetailsBuilder.setClassName(RandomStringFunction.class.getName());
+	  functionDetailsBuilder.setClassName(EXCLAMATION_JAVA_CLASS);
 	  
 	  // Output handler
 	  functionDetailsBuilder.setSink(

@@ -110,8 +110,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Record<?> currentRecord;
 
-    private Source source;
-    private Sink sink;
+    @SuppressWarnings("rawtypes")
+	private Source source;
+    
+    @SuppressWarnings("rawtypes")
+	private Sink sink;
 
     private final SecretsProvider secretsProvider;
 
@@ -316,7 +319,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stateStoreProvider = StateStoreProvider.NULL;
         } else {
             stateStoreProvider = new BKStateStoreProviderImpl();
-            Map<String, Object> stateStoreProviderConfig = new HashMap();
+            Map<String, Object> stateStoreProviderConfig = new HashMap<String, Object>();
             stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_SERVICE_URL, stateStorageServiceUrl);
             stateStoreProvider.init(stateStoreProviderConfig, instanceConfig.getFunctionDetails());
 
@@ -332,7 +335,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private Object processResult(Record srcRecord,
+    private Object processResult(@SuppressWarnings("rawtypes") Record srcRecord,
                                CompletableFuture<JavaExecutionResult> result) throws Exception {
     	
     	final AtomicReference<Object> actualResult = new AtomicReference<Object>(null);
@@ -366,7 +369,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     	}
     }
 
-    private void sendOutputMessage(Record srcRecord, Object output) throws SinkException {
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+	private void sendOutputMessage(Record srcRecord, Object output) throws SinkException {
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
@@ -383,7 +387,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private Record readInput() throws Exception {
+    @SuppressWarnings("rawtypes")
+	private Record readInput() throws Exception {
         Record record;
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
@@ -630,7 +635,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         context.updateLoggers();
     }
 
-    private void setupInput(ContextImpl contextImpl) throws Exception {
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+	private void setupInput(ContextImpl contextImpl) throws Exception {
 
         SourceSpec sourceSpec = this.instanceConfig.getFunctionDetails().getSource();
         Object object;
@@ -766,7 +772,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void setupOutput(ContextImpl contextImpl) throws Exception {
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+	private void setupOutput(ContextImpl contextImpl) throws Exception {
 
         SinkSpec sinkSpec = this.instanceConfig.getFunctionDetails().getSink();
         Object object;
