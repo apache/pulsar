@@ -419,6 +419,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                                 ZkUtils.deleteFullPathOptimistic(zooKeeper, getSchemaPath(schemaId), -1);
                             } catch (InterruptedException | KeeperException thr) {
                                 future.completeExceptionally(thr);
+                                return;
                             }
                             clearLocatorCache(getSchemaPath(schemaId));
                             future.complete(version);
