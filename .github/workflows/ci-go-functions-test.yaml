@@ -53,7 +53,7 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Changed files check
+      - name: Detect changed files
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
@@ -68,15 +68,19 @@ jobs:
               - '*.md'
               - '**/*.md'
 
+      - name: Check changed files
+        id: check_changes
+        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: Run tests
-        if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
           go test -v $(go list ./... | grep -v examples)
