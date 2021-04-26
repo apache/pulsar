@@ -34,6 +34,7 @@ DEFAULT_PULSAR_PRESTO_CONF=${PULSAR_HOME}/conf/presto
 
 # functions related variables
 FUNCTIONS_HOME=$PULSAR_HOME/pulsar-functions
+FUNCTIONS_LOG_CONF=$PULSAR_HOME/conf/functions_log4j2.xml
 DEFAULT_WORKER_CONF=$PULSAR_HOME/conf/functions_worker.yml
 DEFAULT_JAVA_INSTANCE_JAR=$PULSAR_HOME/instances/java-instance.jar
 JAVA_INSTANCE_JAR=${PULSAR_JAVA_INSTANCE_JAR:-"${DEFAULT_JAVA_INSTANCE_JAR}"}
