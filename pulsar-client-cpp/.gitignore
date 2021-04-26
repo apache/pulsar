@@ -76,3 +76,6 @@ pulsar-dist
 install_manifest.txt
 merged-library
 python/venv
+
+# vcpkg dependencies directory
+vcpkg_installed/
