@@ -162,7 +162,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 60000)
     public void testDurableSubscribe() throws Exception {
 
         Properties properties = new Properties();
