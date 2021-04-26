@@ -155,7 +155,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return result;
     }
 
-    public CompletableFuture<Optional<LocatorEntry>> getLocator(String key) {
+    CompletableFuture<Optional<LocatorEntry>> getLocator(String key) {
         return getSchemaLocator(getSchemaPath(key));
     }
 
