@@ -31,8 +31,6 @@ env:
 
 jobs:
   cpp-build-windows:
-    name:
-    runs-on: windows-latest
     timeout-minutes: 120
 
     name: ${{ matrix.name }}
