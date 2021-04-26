@@ -22,6 +22,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -47,7 +48,9 @@ public class ReaderImplTest {
     void shouldSupportCancellingReadNextAsync() {
         // given
         CompletableFuture<Message<byte[]>> future = reader.readNextAsync();
-        assertNotNull(reader.getConsumer().peekPendingReceive());
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(reader.getConsumer().peekPendingReceive());
+        });
 
         // when
         future.cancel(false);
