@@ -53,9 +53,6 @@ endif(MSVC)
 
 
 set(LIB_NAME_SHARED ${LIB_NAME})
-if (WIN32)
-    string(APPEND LIB_NAME_SHARED dll)
-endif()
 
 add_library(pulsarShared SHARED ${PULSAR_SOURCES})
 set_property(TARGET pulsarShared PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED})
