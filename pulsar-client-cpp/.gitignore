@@ -77,5 +77,8 @@ install_manifest.txt
 merged-library
 python/venv
 
+# Visual Studio output build directory for CMake
+out/
+
 # vcpkg dependencies directory
 vcpkg_installed/

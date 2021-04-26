@@ -10,6 +10,7 @@
     "boost-asio",
     "boost-date-time",
     "boost-predef",
+    "boost-program-options",
     "boost-property-tree",
     "boost-random",
     "boost-serialization",
@@ -18,6 +19,8 @@
     "dlfcn-win32",
     "openssl",
     "protobuf",
-    "zlib"
+    "snappy",
+    "zlib",
+    "zstd"
   ]
 }
