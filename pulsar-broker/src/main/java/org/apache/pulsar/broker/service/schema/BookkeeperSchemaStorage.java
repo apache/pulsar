@@ -292,12 +292,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(optLocatorEntry -> {
 
             if (optLocatorEntry.isPresent()) {
-                // Schema locator was already present
+
                 SchemaStorageFormat.SchemaLocator locator = optLocatorEntry.get().locator;
-                byte[] storedHash = locator.getInfo().getHash().toByteArray();
-                if (storedHash.length > 0 && Arrays.equals(storedHash, hash)) {
-                    return completedFuture(locator.getInfo().getVersion());
-                }
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] findSchemaEntryByHash - hash={}", schemaId, hash);
