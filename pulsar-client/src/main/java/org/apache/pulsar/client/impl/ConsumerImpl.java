@@ -413,8 +413,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
         Message<T> message = null;
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
             message = incomingMessages.poll(0, TimeUnit.MILLISECONDS);
             if (message == null) {
                 pendingReceives.add(result);
@@ -475,8 +475,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected CompletableFuture<Messages<T>> internalBatchReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
+        lock.writeLock().lock();
         try {
-            lock.writeLock().lock();
             if (pendingBatchReceives == null) {
                 pendingBatchReceives = Queues.newConcurrentLinkedQueue();
             }
@@ -563,8 +563,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             delayTime = 0;
         }
         if (retryLetterProducer == null) {
+            createProducerLock.writeLock().lock();
             try {
-                createProducerLock.writeLock().lock();
                 if (retryLetterProducer == null) {
                     retryLetterProducer = client.newProducer(schema)
                             .topic(this.deadLetterPolicy.getRetryLetterTopic())
@@ -1721,8 +1721,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private void initDeadLetterProducerIfNeeded() {
         if (deadLetterProducer == null) {
+            createProducerLock.writeLock().lock();
             try {
-                createProducerLock.writeLock().lock();
                 if (deadLetterProducer == null) {
                     deadLetterProducer = client.newProducer(schema)
                             .topic(this.deadLetterPolicy.getDeadLetterTopic())
