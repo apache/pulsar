@@ -2194,7 +2194,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(1000);
         admin.topics().expireMessages("persistent://prop-xyz/ns1/ds2", "my-sub1", 1);
         // Wait at most 2 seconds for sub1's message to expire.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+        Awaitility.await().untilAsserted(() -> assertTrue(
                 admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub1").lastMarkDeleteAdvancedTimestamp > 0L));
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
         SubscriptionStats subStats1 = topicStats.subscriptions.get("my-sub1");
@@ -2209,7 +2209,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().expireMessages("persistent://prop-xyz/ns1/ds2", "my-sub2",
                 messageIds.get(4), false);
         // Wait at most 2 seconds for sub2's message to expire.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+        Awaitility.await().untilAsserted(() -> assertTrue(
                 admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub2").lastMarkDeleteAdvancedTimestamp > 0L));
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
         subStats1 = topicStats.subscriptions.get("my-sub1");
@@ -2229,7 +2229,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
         }
         // Wait at most 2 seconds for sub3's message to expire.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+        Awaitility.await().untilAsserted(() -> assertTrue(
                 admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub3").lastMarkDeleteAdvancedTimestamp > 0L));
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
         subStats1 = topicStats.subscriptions.get("my-sub1");
@@ -2672,7 +2672,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(10000);
         // Update policy to trigger message expiry check.
         admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 5);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
+        Awaitility.await().until(() -> admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
     }
 
     @Test(timeOut = 150000)

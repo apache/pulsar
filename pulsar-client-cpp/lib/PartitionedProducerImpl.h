@@ -46,33 +46,24 @@ class PartitionedProducerImpl : public ProducerImplBase,
                             const ProducerConfiguration& config);
     virtual ~PartitionedProducerImpl();
 
-    virtual void sendAsync(const Message& msg, SendCallback callback);
-
+    // overrided methods from ProducerImplBase
+    const std::string& getProducerName() const override;
+    int64_t getLastSequenceId() const override;
+    const std::string& getSchemaVersion() const override;
+    void sendAsync(const Message& msg, SendCallback callback) override;
     /*
      * closes all active producers, it can be called explicitly from client as well as createProducer
      * when it fails to create one of the producers and we want to fail createProducer
      */
-    virtual void closeAsync(CloseCallback closeCallback);
-
-    virtual const std::string& getProducerName() const;
-
-    virtual int64_t getLastSequenceId() const;
-
-    virtual const std::string& getSchemaVersion() const;
-
-    virtual void start();
-
-    virtual void shutdown();
-
-    virtual bool isClosed();
-
-    virtual const std::string& getTopic() const;
-
-    virtual Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture();
-
-    virtual void triggerFlush();
-
-    virtual void flushAsync(FlushCallback callback);
+    void closeAsync(CloseCallback callback) override;
+    void start() override;
+    void shutdown() override;
+    bool isClosed() override;
+    const std::string& getTopic() const override;
+    Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture() override;
+    void triggerFlush() override;
+    void flushAsync(FlushCallback callback) override;
+    bool isConnected() const override;
 
     void handleSinglePartitionProducerCreated(Result result, ProducerImplBaseWeakPtr producerBaseWeakPtr,
                                               const unsigned int partitionIndex);
@@ -118,7 +109,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     MessageRoutingPolicyPtr routerPolicy_;
 
     // mutex_ is used to share state_, and numProducersCreated_
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
 
     PartitionedProducerState state_;
 

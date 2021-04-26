@@ -115,4 +115,6 @@ Result Reader::seek(uint64_t timestamp) {
     return result;
 }
 
+bool Reader::isConnected() const { return impl_ && impl_->isConnected(); }
+
 }  // namespace pulsar

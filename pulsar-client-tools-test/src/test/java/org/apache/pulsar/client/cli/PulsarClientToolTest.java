@@ -239,7 +239,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         });
 
         // Make sure subscription has been created
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().until(() -> {
             boolean isCreated = false;
             try {
                 List<String> subscriptions = admin.topics().getSubscriptions(topicName);
