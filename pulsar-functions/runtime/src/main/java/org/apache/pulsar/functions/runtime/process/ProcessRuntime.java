@@ -103,7 +103,9 @@ class ProcessRuntime implements Runtime {
         }
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
-                if(Files.exists(Paths.get(System.getenv("FUNCTIONS_LOG_CONF")))){
+                String logConfigPath = System.getenv("FUNCTIONS_LOG_CONF");
+                // Added null check to prevent test failures
+                if(logConfigPath != null && Files.exists(Paths.get(logConfigPath))){
                     logConfigFile = System.getenv("FUNCTIONS_LOG_CONF");
                 } else {
                     logConfigFile = "java_instance_log4j2.xml";
