@@ -42,6 +42,8 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
@@ -2547,22 +2549,144 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("max_topics_per_namespace", maxTopicsPerNamespace);
    }
 
-   private void updatePolicies(String path, Function<Policies, Policies> updateFunction) {
-       try {
-           // Force to read the data s.t. the watch to the cache content is setup.
-           namespaceResources().set(path, updateFunction);
-           log.info("[{}] Successfully updated the {} on namespace {}", clientAppId(), path, namespaceName);
-       } catch (NotFoundException e) {
-           log.warn("[{}] Namespace {}: does not exist", clientAppId(), namespaceName);
-           throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-       } catch (BadVersionException e) {
-           log.warn("[{}] Failed to update the replication clusters on" + " namespace {} : concurrent modification",
-                   clientAppId(), namespaceName);
+   protected void internalSetProperty(String key, String value, AsyncResponse asyncResponse) {
+       validatePoliciesReadOnlyAccess();
+       final String path = path(POLICIES, namespaceName.toString());
+       updatePoliciesAsync(path, (policies) -> {
+           policies.properties.put(key, value);
+           return policies;
+       }).thenAccept(v -> {
+           log.info("[{}] Successfully set property for key {} on namespace {}", clientAppId(), key,
+                   namespaceName);
+           asyncResponse.resume(Response.noContent().build());
+       }).exceptionally(ex -> {
+           Throwable cause = ex.getCause();
+           log.error("[{}] Failed to set property for key {} on namespace {}", clientAppId(), key,
+                   namespaceName, cause);
+           asyncResponse.resume(cause);
+           return null;
+       });
+   }
 
-           throw new RestException(Status.CONFLICT, "Concurrent modification");
+   protected void internalSetProperties(Map<String, String> properties, AsyncResponse asyncResponse) {
+       validatePoliciesReadOnlyAccess();
+       final String path = path(POLICIES, namespaceName.toString());
+       updatePoliciesAsync(path, (policies) -> {
+           policies.properties.putAll(properties);
+           return policies;
+       }).thenAccept(v -> {
+           log.info("[{}] Successfully set {} properties on namespace {}", clientAppId(), properties.size(),
+                   namespaceName);
+           asyncResponse.resume(Response.noContent().build());
+       }).exceptionally(ex -> {
+           Throwable cause = ex.getCause();
+           log.error("[{}] Failed to set {} properties on namespace {}", clientAppId(), properties.size(),
+                   namespaceName, cause);
+           asyncResponse.resume(cause);
+           return null;
+       });
+   }
+
+   protected void internalGetProperty(String key, AsyncResponse asyncResponse) {
+        getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
+            asyncResponse.resume(policies.properties.get(key));
+        }).exceptionally(ex -> {
+            Throwable cause = ex.getCause();
+            log.error("[{}] Failed to get property for key {} of namespace {}", clientAppId(), key,
+                    namespaceName, cause);
+            asyncResponse.resume(cause);
+            return null;
+        });
+   }
+
+   protected void internalGetProperties(AsyncResponse asyncResponse) {
+       getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
+           asyncResponse.resume(policies.properties);
+       }).exceptionally(ex -> {
+           Throwable cause = ex.getCause();
+           log.error("[{}] Failed to get properties of namespace {}", clientAppId(), namespaceName, cause);
+           asyncResponse.resume(cause);
+           return null;
+       });
+   }
+
+   protected void internalRemoveProperty(String key, AsyncResponse asyncResponse) {
+       validatePoliciesReadOnlyAccess();
+       final String path = path(POLICIES, namespaceName.toString());
+       AtomicReference<String> oldVal = new AtomicReference<>(null);
+       updatePoliciesAsync(path, (policies) -> {
+           oldVal.set(policies.properties.remove(key));
+           return policies;
+       }).thenAccept(v -> {
+           asyncResponse.resume(oldVal.get());
+           log.info("[{}] Successfully remove property for key {} on namespace {}", clientAppId(), key,
+                   namespaceName);
+       }).exceptionally(ex -> {
+           Throwable cause = ex.getCause();
+           log.error("[{}] Failed to remove property for key {} on namespace {}", clientAppId(), key,
+                   namespaceName, cause);
+           asyncResponse.resume(cause);
+          return null;
+       });
+   }
+
+   protected void internalClearProperties(AsyncResponse asyncResponse) {
+       validatePoliciesReadOnlyAccess();
+       final String path = path(POLICIES, namespaceName.toString());
+       AtomicReference<Integer> clearedCount = new AtomicReference<>(0);
+       updatePoliciesAsync(path, (policies) -> {
+           clearedCount.set(policies.properties.size());
+           policies.properties.clear();
+           return policies;
+       }).thenAccept(v -> {
+           asyncResponse.resume(Response.noContent().build());
+           log.info("[{}] Successfully clear {} properties for on namespace {}", clientAppId(), clearedCount.get(),
+                   namespaceName);
+       }).exceptionally(ex -> {
+           Throwable cause = ex.getCause();
+           log.error("[{}] Failed to remove property for key {} on namespace {}", clientAppId(), clearedCount.get(),
+                   namespaceName, cause);
+           asyncResponse.resume(cause);
+           return null;
+       });
+   }
+
+   private CompletableFuture<Void> updatePoliciesAsync(String path, Function<Policies, Policies> updateFunction) {
+       CompletableFuture<Void> result = new CompletableFuture<>();
+       namespaceResources().setAsync(path, updateFunction)
+           .thenAccept(v -> {
+               log.info("[{}] Successfully updated the {} on namespace {}", clientAppId(), path, namespaceName);
+               result.complete(null);
+           })
+           .exceptionally(ex -> {
+               Throwable cause = ex.getCause();
+               if (cause instanceof NotFoundException) {
+                   result.completeExceptionally(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+               } else if (cause instanceof BadVersionException) {
+                   log.warn("[{}] Failed to update the replication clusters on"
+                                   + " namespace {} : concurrent modification", clientAppId(), namespaceName);
+                   result.completeExceptionally(new RestException(Status.CONFLICT, "Concurrent modification"));
+               } else {
+                   log.error("[{}] Failed to update namespace policies {}", clientAppId(), namespaceName, cause);
+                   result.completeExceptionally(new RestException(cause));
+               }
+               return null;
+           });
+       return result;
+   }
+
+   private void updatePolicies(String path, Function<Policies, Policies> updateFunction) {
+       // Force to read the data s.t. the watch to the cache content is setup.
+       try {
+           updatePoliciesAsync(path, updateFunction).get(namespaceResources().getOperationTimeoutSec(),
+                   TimeUnit.SECONDS);
        } catch (Exception e) {
-           log.error("[{}] Failed to update namespace policies {}", clientAppId(), namespaceName, e);
-           throw new RestException(e);
+           Throwable cause = e.getCause();
+           if (!(cause instanceof RestException)) {
+               throw new RestException(cause);
+           } else {
+               throw (RestException) cause;
+           }
        }
    }
 
