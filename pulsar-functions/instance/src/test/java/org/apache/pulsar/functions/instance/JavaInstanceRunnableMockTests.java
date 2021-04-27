@@ -39,7 +39,7 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.mockito.ArgumentCaptor;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -82,9 +82,7 @@ public class JavaInstanceRunnableMockTests {
 	  runner.cancel(true);
 	  
 	  ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
-	  
 	  verify(spiedRunnable, atLeast(1)).sendOutputMessage(any(Record.class), captor.capture());
-	  
 	  assertNotNull(captor.getValue());
 	  assertEquals(((String)captor.getValue()).length(), 11);
   }
@@ -101,7 +99,7 @@ public class JavaInstanceRunnableMockTests {
 	runner.cancel(true);
     
     verify(spiedRunnable, times(1)).close();
-    Object throwable = ReflectionTestUtils.getField(spiedRunnable, "deathException");
+    Object throwable = Whitebox.getInternalState(spiedRunnable, "deathException");
     assertNotNull(throwable);
     assertTrue(throwable instanceof SinkException);
   }
