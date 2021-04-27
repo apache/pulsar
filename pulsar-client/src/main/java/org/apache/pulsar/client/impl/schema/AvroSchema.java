@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Conversion;
@@ -91,8 +92,11 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
                     schemaDefinition.getSchemaWriterOpt().get(), parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
         }
         ClassLoader pojoClassLoader = null;
-        if (schemaDefinition.getPojo() != null) {
-            pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
+
+        Class<T> pojo = schemaDefinition.getPojo();
+        if (pojo != null) {
+            checkArgument(existsDefaultConstructor(pojo), "No default constructor found, can not deserialize " + pojo.getName());
+            pojoClassLoader = pojo.getClassLoader();
         }
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
     }
@@ -102,12 +106,7 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
-        ClassLoader pojoClassLoader = null;
-        if (pojo != null) {
-            pojoClassLoader = pojo.getClassLoader();
-        }
-        SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
-        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
+        return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build());
     }
 
     public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled) {

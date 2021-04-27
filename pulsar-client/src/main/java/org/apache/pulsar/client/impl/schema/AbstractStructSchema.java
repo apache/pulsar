@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import java.lang.reflect.Constructor;
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 
@@ -40,7 +44,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
     protected SchemaWriter<T> writer;
     protected SchemaInfoProvider schemaInfoProvider;
 
-    public AbstractStructSchema(SchemaInfo schemaInfo){
+    public AbstractStructSchema(SchemaInfo schemaInfo) {
         this.schemaInfo = schemaInfo;
     }
 
@@ -82,6 +86,25 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         }
     }
 
+    @SuppressWarnings("rawtypes")
+    public static boolean existsDefaultConstructor(Class<?> pojo) {
+        if (pojo.isInterface()) {
+            return false;
+        }
+        try {
+            if (System.getSecurityManager() != null) {
+                AccessController.doPrivileged((PrivilegedExceptionAction<Constructor<?>>)
+                        () -> pojo.getDeclaredConstructor((Class[]) null)
+                );
+            } else {
+                pojo.getDeclaredConstructor((Class[]) null);
+            }
+            return true;
+        } catch (Throwable ex) {
+            return false;
+        }
+    }
+
     protected void setWriter(SchemaWriter<T> writer) {
         this.writer = writer;
     }
@@ -91,7 +114,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
     }
 
     protected SchemaReader<T> getReader() {
-        return  reader;
+        return reader;
     }
 
 }

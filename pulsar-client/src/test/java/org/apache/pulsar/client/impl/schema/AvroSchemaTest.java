@@ -24,6 +24,7 @@ import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_A
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_AVRO_NOT_ALLOW_NULL;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertSame;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -421,6 +422,15 @@ public class AvroSchemaTest {
         foo = schema.decode(schema.encode(foo));
         assertEquals(foo.getColor(), SchemaTestUtils.Color.RED);
         assertEquals(field1, foo.getField1());
+    }
+
+    @Test
+    public void testAvroSchemaWithoutDefaultConstructor() {
+        try {
+            AvroSchema.of(SchemaTestUtils.FooV3.class);
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("No default constructor found, can not deserialize"));
+        }
     }
 
 }

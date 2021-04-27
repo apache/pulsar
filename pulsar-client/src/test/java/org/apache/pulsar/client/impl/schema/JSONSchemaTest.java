@@ -449,4 +449,13 @@ public class JSONSchemaTest {
         assertEquals("oakstreet", seller3Record.getField("street"));
         assertEquals(9999, seller3Record.getField("zipCode"));
     }
+
+    @Test
+    public void testJSONSchemaWithoutDefaultConstructor() {
+        try {
+            JSONSchema.of(SchemaTestUtils.FooV3.class);
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("No default constructor found, can not deserialize"));
+        }
+    }
 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema;
 
 import java.util.List;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.avro.reflect.AvroDefault;
@@ -50,6 +51,12 @@ public class SchemaTestUtils {
         @Nullable
         private String field1;
         private int field3;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class FooV3 {
+        private String field1;
     }
 
     @Data

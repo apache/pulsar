@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -86,11 +88,13 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     public static <T> JSONSchema<T> of(SchemaDefinition<T> schemaDefinition) {
+        Class<T> pojo = schemaDefinition.getPojo();
+        checkArgument(existsDefaultConstructor(pojo), "No default constructor found, can not deserialize " + pojo.getName());
         SchemaReader<T> reader = schemaDefinition.getSchemaReaderOpt()
-                .orElseGet(() -> new JacksonJsonReader<>(JSON_MAPPER.get(), schemaDefinition.getPojo()));
+                .orElseGet(() -> new JacksonJsonReader<>(JSON_MAPPER.get(), pojo));
         SchemaWriter<T> writer = schemaDefinition.getSchemaWriterOpt()
                 .orElseGet(() -> new JacksonJsonWriter<>(JSON_MAPPER.get()));
-        return new JSONSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.JSON), schemaDefinition.getPojo(), reader, writer);
+        return new JSONSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.JSON), pojo, reader, writer);
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo) {
