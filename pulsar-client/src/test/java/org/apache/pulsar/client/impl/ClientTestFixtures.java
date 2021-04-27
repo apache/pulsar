@@ -47,7 +47,6 @@ class ClientTestFixtures {
         when(clientMock.timer()).thenReturn(mock(Timer.class));
 
         when(clientMock.externalExecutorProvider()).thenReturn(mock(ExecutorProvider.class));
-        when(clientMock.getInternalExecutorService()).thenReturn(Executors.newSingleThreadExecutor());
         when(clientMock.eventLoopGroup().next()).thenReturn(mock(EventLoop.class));
 
         return clientMock;
