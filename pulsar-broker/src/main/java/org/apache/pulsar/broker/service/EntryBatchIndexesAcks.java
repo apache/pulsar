@@ -24,8 +24,8 @@ import java.util.BitSet;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class EntryBatchIndexesAcks {
-
-    Pair<Integer, long[]>[] indexesAcks = new Pair[100];
+    int maxSize = 100;
+    Pair<Integer, long[]>[] indexesAcks = new Pair[maxSize];
 
     public void setIndexesAcks(int entryIdx, Pair<Integer, long[]> indexesAcks) {
         this.indexesAcks[entryIdx] = indexesAcks;
@@ -38,7 +38,8 @@ public class EntryBatchIndexesAcks {
 
     public int getTotalAckedIndexCount() {
         int count = 0;
-        for (Pair<Integer, long[]> pair : indexesAcks) {
+        for (int i = 0; i < maxSize; i++) {
+            Pair<Integer, long[]> pair = indexesAcks[i];
             if (pair != null) {
                 count += pair.getLeft() - BitSet.valueOf(pair.getRight()).cardinality();
             }
@@ -50,12 +51,21 @@ public class EntryBatchIndexesAcks {
         handle.recycle(this);
     }
 
+    private void ensureCapacityAndReset(int entriesListSize) {
+        if (indexesAcks.length < entriesListSize) {
+            maxSize = entriesListSize;
+            indexesAcks = new Pair[maxSize];
+        } else {
+            maxSize = entriesListSize;
+            for (int i = 0; i < maxSize; i++) {
+                indexesAcks[i] = null;
+            }
+        }
+    }
+
     public static EntryBatchIndexesAcks get(int entriesListSize) {
         EntryBatchIndexesAcks ebi = RECYCLER.get();
-
-        if (ebi.indexesAcks.length < entriesListSize) {
-            ebi.indexesAcks = new Pair[entriesListSize];
-        }
+        ebi.ensureCapacityAndReset(entriesListSize);
         return ebi;
     }
 
