@@ -35,6 +35,8 @@ import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
 import org.apache.pulsar.broker.transaction.recover.TransactionRecoverTrackerImpl;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
@@ -403,7 +405,8 @@ public class TransactionMetadataStoreService {
                 || e instanceof ManagedLedgerException
                 || e instanceof BrokerPersistenceException
                 || e instanceof LookupException
-                || e instanceof ReachMaxPendingOpsException) {
+                || e instanceof ReachMaxPendingOpsException
+                || e instanceof ConnectException) {
             return true;
         } else {
             return false;

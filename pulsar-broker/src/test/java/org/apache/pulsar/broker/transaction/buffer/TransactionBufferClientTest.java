@@ -24,6 +24,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 
 import com.google.common.collect.Sets;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Cleanup;
@@ -45,6 +47,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
@@ -248,6 +251,41 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
 
         try {
             completableFuture.get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TransactionBufferClientException.RequestTimeoutException);
+        }
+    }
+
+    @Test
+    public void testTransactionBufferChannelUnActive() {
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
+        ClientCnx clientCnx = mock(ClientCnx.class);
+        completableFuture.complete(clientCnx);
+        when(mockClient.getConnection(anyString())).thenReturn(completableFuture);
+        ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
+        when(clientCnx.ctx()).thenReturn(cnx);
+        Channel channel = mock(Channel.class);
+        when(cnx.channel()).thenReturn(channel);
+
+        when(channel.isActive()).thenReturn(false);
+
+        @Cleanup("stop")
+        HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
+        TransactionBufferHandlerImpl transactionBufferHandler =
+                new TransactionBufferHandlerImpl(mockClient, hashedWheelTimer);
+        try {
+            transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1).get();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.LookupException);
+        }
+
+        when(channel.isActive()).thenReturn(true);
+
+        try {
+            transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1).get();
             fail();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof TransactionBufferClientException.RequestTimeoutException);
