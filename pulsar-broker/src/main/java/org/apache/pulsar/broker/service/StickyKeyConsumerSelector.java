@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 public interface StickyKeyConsumerSelector {
 
