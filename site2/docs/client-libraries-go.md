@@ -127,6 +127,10 @@ producer, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic: "my-topic",
 })
 
+if err != nil {
+	log.Fatal(err)
+}
+
 _, err = producer.Send(context.Background(), &pulsar.ProducerMessage{
 	Payload: []byte("hello"),
 })
@@ -158,7 +162,7 @@ Method | Description | Return type
 #### How to use message router in producer
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: serviceURL,
 })
 
@@ -168,7 +172,7 @@ if err != nil {
 defer client.Close()
 
 // Only subscribe on the specific partition
-consumer, err := client.Subscribe(ConsumerOptions{
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topic:            "my-partitioned-topic-partition-2",
 	SubscriptionName: "my-sub",
 })
@@ -178,7 +182,7 @@ if err != nil {
 }
 defer consumer.Close()
 
-producer, err := client.CreateProducer(ProducerOptions{
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic: "my-partitioned-topic",
 	MessageRouter: func(msg *ProducerMessage, tm TopicMetadata) int {
 		fmt.Println("Routing message ", msg, " -- Partitions: ", tm.NumPartitions())
@@ -195,7 +199,7 @@ defer producer.Close()
 #### How to use delay relative in producer
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
@@ -204,7 +208,7 @@ if err != nil {
 defer client.Close()
 
 topicName := newTopicName()
-producer, err := client.CreateProducer(ProducerOptions{
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic: topicName,
 })
 if err != nil {
@@ -212,7 +216,7 @@ if err != nil {
 }
 defer producer.Close()
 
-consumer, err := client.Subscribe(ConsumerOptions{
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topic:            topicName,
 	SubscriptionName: "subName",
 	Type:             Shared,
@@ -222,7 +226,7 @@ if err != nil {
 }
 defer consumer.Close()
 
-ID, err := producer.Send(context.Background(), &ProducerMessage{
+ID, err := producer.Send(context.Background(), &pulsar.ProducerMessage{
 	Payload:      []byte(fmt.Sprintf("test")),
 	DeliverAfter: 3 * time.Second,
 })
@@ -324,7 +328,7 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 
 defer client.Close()
 
-p, err := client.CreateProducer(ProducerOptions{
+p, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic:           topicInRegex,
 	DisableBatching: true,
 })
@@ -334,7 +338,7 @@ if err != nil {
 defer p.Close()
 
 topicsPattern := fmt.Sprintf("persistent://%s/foo.*", namespace)
-opts := ConsumerOptions{
+opts := pulsar.ConsumerOptions{
 	TopicsPattern:    topicsPattern,
 	SubscriptionName: "regex-sub",
 }
@@ -356,14 +360,14 @@ func newTopicName() string {
 topic1 := "topic-1"
 topic2 := "topic-2"
 
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
 	log.Fatal(err)
 }
 topics := []string{topic1, topic2}
-consumer, err := client.Subscribe(ConsumerOptions{
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topics:           topics,
 	SubscriptionName: "multi-topic-sub",
 })
@@ -424,7 +428,7 @@ func main() {
 #### How to use consumer receive timeout
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
@@ -437,7 +441,7 @@ ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 defer cancel()
 
 // create consumer
-consumer, err := client.Subscribe(ConsumerOptions{
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 	Topic:            topic,
 	SubscriptionName: "my-sub1",
 	Type:             Shared,
@@ -559,7 +563,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 #### How to use reader to read specific message
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := NewClient(pulsar.ClientOptions{
 	URL: lookupURL,
 })
 
@@ -572,7 +576,7 @@ topic := "topic-1"
 ctx := context.Background()
 
 // create producer
-producer, err := client.CreateProducer(ProducerOptions{
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
 	Topic:           topic,
 	DisableBatching: true,
 })
@@ -584,7 +588,7 @@ defer producer.Close()
 // send 10 messages
 msgIDs := [10]MessageID{}
 for i := 0; i < 10; i++ {
-	msgID, err := producer.Send(ctx, &ProducerMessage{
+	msgID, err := producer.Send(ctx, &pulsar.ProducerMessage{
 		Payload: []byte(fmt.Sprintf("hello-%d", i)),
 	})
 	assert.NoError(t, err)
@@ -593,7 +597,7 @@ for i := 0; i < 10; i++ {
 }
 
 // create reader on 5th message (not included)
-reader, err := client.CreateReader(ReaderOptions{
+reader, err := client.CreateReader(pulsar.ReaderOptions{
 	Topic:          topic,
 	StartMessageID: msgIDs[4],
 })
@@ -611,7 +615,7 @@ for i := 5; i < 10; i++ {
 }
 
 // create reader on 5th message (included)
-readerInclusive, err := client.CreateReader(ReaderOptions{
+readerInclusive, err := client.CreateReader(pulsar.ReaderOptions{
 	Topic:                   topic,
 	StartMessageID:          msgIDs[4],
 	StartMessageIDInclusive: true,
