@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -74,7 +75,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
@@ -275,7 +275,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
                         reapDeadBrokerPreallocations(brokers);
                     });
 
-            scheduler.submit(ModularLoadManagerImpl.this::updateAll);
+            try {
+                scheduler.submit(ModularLoadManagerImpl.this::updateAll);
+            } catch (RejectedExecutionException e) {
+                // Executor is shutting down
+            }
         }
     }
 
@@ -862,17 +866,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
             final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
             updateLocalBrokerData();
 
-            try {
-                brokerDataLock = brokersData.acquireLock(brokerZnodePath, localData).join();
-            } catch (Exception e) {
-                if (e.getCause() instanceof LockBusyException) {
-                    // Retry after giving chance to previous session to expire
-                    Thread.sleep(pulsar.getConfig().getZooKeeperSessionTimeoutMillis());
-                    brokerDataLock = brokersData.acquireLock(brokerZnodePath, localData).join();
-                } else {
-                    throw new PulsarServerException(e);
-                }
-            }
+            brokerDataLock = brokersData.acquireLock(brokerZnodePath, localData).join();
 
             timeAverageBrokerDataCache.updateOrCreate(timeAverageZPath, new TimeAverageBrokerData()).join();
             updateAll();
