@@ -33,8 +33,7 @@ import org.testng.annotations.Test;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 
-/**
- */
+@Test(groups = "broker")
 public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
 
     @BeforeClass

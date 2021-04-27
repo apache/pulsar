@@ -21,11 +21,14 @@ package org.apache.pulsar.broker.service.persistent;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.apache.pulsar.client.api.DispatcherBlockConsumerTest;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * DispatcherBlockConsumerTest with {@link StreamingDispatcher}
  */
+@Test(groups = "flaky")
 public class PersistentStreamingDispatcherBlockConsumerTest extends DispatcherBlockConsumerTest {
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {

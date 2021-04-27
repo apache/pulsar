@@ -137,6 +137,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest.class);
@@ -631,7 +632,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(Long.parseLong(admin.brokers().getAllDynamicConfigurations().get(configName)), shutdownTime);
     }
 
-    @Test(enabled = true)
+    @Test
     public void properties() throws PulsarAdminException {
         try {
             admin.tenants().getTenantInfo("does-not-exist");
@@ -667,7 +668,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void namespaces() throws PulsarAdminException, PulsarServerException, Exception {
+    public void namespaces() throws Exception {
         admin.clusters().createCluster("usw", new ClusterData());
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"),
                 Sets.newHashSet("test", "usw"));
@@ -785,6 +786,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList("persistent://prop-xyz/ns1/" + topicName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -890,6 +892,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(subscriptions.size(), 0);
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -1268,7 +1271,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testNamespaceSplitBundleWithInvalidAlgorithm() throws Exception {
+    public void testNamespaceSplitBundleWithInvalidAlgorithm() {
         // Force to create a topic
         final String namespace = "prop-xyz/ns1";
         try {
@@ -1345,6 +1348,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(bundles.getBundles().get(i).toString(), splitRange[i]);
         }
 
+        @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newCachedThreadPool();
 
         try {
@@ -1402,7 +1406,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         producer.close();
-        executorService.shutdown();
     }
 
     @Test
@@ -1493,7 +1496,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
         }
 
-        NamespaceBundle bundle = (NamespaceBundle) pulsar.getNamespaceService()
+        NamespaceBundle bundle = pulsar.getNamespaceService()
                 .getBundle(TopicName.get("persistent://prop-xyz/ns1-bundles/ds2"));
 
         consumer.close();
@@ -1541,6 +1544,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getSubscriptions(persistentTopicName), Lists.newArrayList(subName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
             .serviceUrl(pulsar.getWebServiceAddress())
             .statsInterval(0, TimeUnit.SECONDS)
@@ -1692,9 +1696,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList());
     }
 
-    long messageTimestamp = System.currentTimeMillis();
-    long secondTimestamp = System.currentTimeMillis();
-
     private List<MessageId> publishMessagesOnPersistentTopic(String topicName, int messages) throws Exception {
         return publishMessagesOnPersistentTopic(topicName, messages, 0, false);
     }
@@ -1805,7 +1806,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testJacksonWithTypeDifferencies() throws Exception {
+    public void testJacksonWithTypeDifferences() throws Exception {
         String expectedJson = "{\"adminRoles\":[\"role1\",\"role2\"],\"allowedClusters\":[\"usw\",\"test\"]}";
         IncompatibleTenantAdmin r1 = ObjectMapperFactory.getThreadLocal().readerFor(IncompatibleTenantAdmin.class)
                 .readValue(expectedJson);
@@ -1815,7 +1816,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testBackwardCompatiblity() throws Exception {
+    public void testBackwardCompatibility() throws Exception {
         assertEquals(admin.tenants().getTenants(), Lists.newArrayList("prop-xyz"));
         assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAdminRoles(),
                 Lists.newArrayList("role1", "role2"));
@@ -2092,6 +2093,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList(topicName));
 
         // create consumer and subscription
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
@@ -2130,7 +2132,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testObjectWithUnknowProperties() {
+    public void testObjectWithUnknownProperties() {
 
         class CustomTenantAdmin extends TenantInfo {
             @SuppressWarnings("unused")
@@ -2192,7 +2194,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(1000);
         admin.topics().expireMessages("persistent://prop-xyz/ns1/ds2", "my-sub1", 1);
         // Wait at most 2 seconds for sub1's message to expire.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+        Awaitility.await().untilAsserted(() -> assertTrue(
                 admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub1").lastMarkDeleteAdvancedTimestamp > 0L));
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
         SubscriptionStats subStats1 = topicStats.subscriptions.get("my-sub1");
@@ -2207,13 +2209,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().expireMessages("persistent://prop-xyz/ns1/ds2", "my-sub2",
                 messageIds.get(4), false);
         // Wait at most 2 seconds for sub2's message to expire.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+        Awaitility.await().untilAsserted(() -> assertTrue(
                 admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub2").lastMarkDeleteAdvancedTimestamp > 0L));
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
         subStats1 = topicStats.subscriptions.get("my-sub1");
         assertEquals(subStats1.msgBacklog, 0);
         assertTrue(subStats1.lastMarkDeleteAdvancedTimestamp > 0L);
-        Long sub2lastMarkDeleteAdvancedTimestamp = subStats1.lastMarkDeleteAdvancedTimestamp;
+        long sub2lastMarkDeleteAdvancedTimestamp = subStats1.lastMarkDeleteAdvancedTimestamp;
         subStats2 = topicStats.subscriptions.get("my-sub2");
         assertEquals(subStats2.msgBacklog, 5);
         subStats3 = topicStats.subscriptions.get("my-sub3");
@@ -2227,7 +2229,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
         }
         // Wait at most 2 seconds for sub3's message to expire.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
+        Awaitility.await().untilAsserted(() -> assertTrue(
                 admin.topics().getStats("persistent://prop-xyz/ns1/ds2").subscriptions.get("my-sub3").lastMarkDeleteAdvancedTimestamp > 0L));
         topicStats = admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
         subStats1 = topicStats.subscriptions.get("my-sub1");
@@ -2280,12 +2282,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      * @throws Exception
      */
     @Test
-    public void testPersistentTopicExpireMessageOnParitionTopic() throws Exception {
+    public void testPersistentTopicExpireMessageOnPartitionTopic() throws Exception {
 
         admin.topics().createPartitionedTopic("persistent://prop-xyz/ns1/ds1", 4);
 
         // create consumer and subscription
         URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop-xyz/ns1/ds1")
@@ -2329,7 +2332,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testNamespaceNotExist() throws Exception {
+    public void testNamespaceNotExist() {
         final String nonPartitionedtopic = "persistent://prop-xyz/no-exist/non-partitioned-topic";
         try {
             admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
@@ -2669,7 +2672,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(10000);
         // Update policy to trigger message expiry check.
         admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 5);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
+        Awaitility.await().until(() -> admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
     }
 
     @Test(timeOut = 150000)

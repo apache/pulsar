@@ -23,16 +23,37 @@ import org.apache.pulsar.tests.integration.topologies.PulsarStandaloneTestBase;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
-public class PulsarStandaloneTestSuite extends PulsarStandaloneTestBase {
+public abstract class PulsarStandaloneTestSuite extends PulsarStandaloneTestBase {
+    private final String imageName;
 
-    @BeforeClass
+    protected PulsarStandaloneTestSuite() {
+        this(PulsarContainer.DEFAULT_IMAGE_NAME);
+    }
+
+    protected PulsarStandaloneTestSuite(String imageName) {
+        this.imageName = imageName;
+    }
+
     public void setUpCluster() throws Exception {
-        super.startCluster(PulsarContainer.DEFAULT_IMAGE_NAME);
+        incrementSetupNumber();
+        super.startCluster(imageName);
+    }
+
+    public void tearDownCluster() throws Exception {
+        markCurrentSetupNumberCleaned();
+        super.stopCluster();
+    }
+
+    @BeforeClass(alwaysRun = true)
+    @Override
+    protected final void setup() throws Exception {
+        setUpCluster();
     }
 
     @AfterClass(alwaysRun = true)
-    public void tearDownCluster() throws Exception {
-        super.stopCluster();
+    @Override
+    protected final void cleanup() throws Exception {
+        tearDownCluster();
     }
 
 }

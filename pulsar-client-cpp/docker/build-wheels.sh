@@ -23,7 +23,8 @@ set -e
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 
-ROOT_DIR=$(dirname $0)/../..
+# ROOT_DIR should be an absolute path so that Docker accepts it as a valid volumes path
+ROOT_DIR=`cd $(dirname $0)/../..; pwd`
 cd $ROOT_DIR
 
 PYTHON_VERSIONS=(
@@ -75,7 +76,7 @@ for line in "${PYTHON_VERSIONS[@]}"; do
 
     VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
     COMMAND="/pulsar/pulsar-client-cpp/docker/build-wheel-file-within-docker.sh"
-    DOCKER_CMD="docker run -i ${VOLUME_OPTION} ${IMAGE}"
+    DOCKER_CMD="docker run -i ${VOLUME_OPTION} -e USE_FULL_POM_NAME -e NAME_POSTFIX ${IMAGE}"
 
     $DOCKER_CMD bash -c "${COMMAND}"
 

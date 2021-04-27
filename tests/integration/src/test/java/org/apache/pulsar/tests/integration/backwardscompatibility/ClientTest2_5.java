@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.backwardscompatibility;
 
 
+import java.util.function.Supplier;
 import org.apache.pulsar.tests.integration.topologies.ClientTestBase;
 import org.testng.annotations.Test;
 
@@ -27,9 +28,9 @@ public class ClientTest2_5 extends PulsarStandaloneTestSuite2_5 {
     private final ClientTestBase clientTestBase = new ClientTestBase();
 
     @Test(dataProvider = "StandaloneServiceUrlAndHttpUrl")
-    public void testResetCursorCompatibility(String serviceUrl, String httpServiceUrl) throws Exception {
+    public void testResetCursorCompatibility(Supplier<String> serviceUrl, Supplier<String> httpServiceUrl) throws Exception {
         String topicName = generateTopicName("test-reset-cursor-compatibility", true);
-        clientTestBase.resetCursorCompatibility(serviceUrl, httpServiceUrl, topicName);
+        clientTestBase.resetCursorCompatibility(serviceUrl.get(), httpServiceUrl.get(), topicName);
     }
 
 }

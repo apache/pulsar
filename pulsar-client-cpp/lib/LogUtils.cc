@@ -20,8 +20,8 @@
 
 #include <atomic>
 #include <iostream>
+#include <pulsar/SimpleLoggerFactory.h>
 
-#include "SimpleLoggerImpl.h"
 #include "Log4CxxLogger.h"
 
 namespace pulsar {

@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
-
 import java.security.Provider;
-import javax.net.ssl.SSLContext;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.common.util.keystoretls.SSLContextValidatorEngine;
 import org.testng.annotations.Test;
@@ -60,7 +58,7 @@ public class KeyStoreTlsTest {
                 true,
                 null,
                 null);
-        SSLContext serverCnx = serverSSLContext.createSSLContext();
+        serverSSLContext.createSSLContext();
 
         KeyStoreSSLContext clientSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.CLIENT,
                 null,
@@ -74,8 +72,8 @@ public class KeyStoreTlsTest {
                 false,
                 null,
                 null);
-        SSLContext clientCnx = clientSSLContext.createSSLContext();
+        clientSSLContext.createSSLContext();
 
-        SSLContextValidatorEngine.validate(clientCnx, serverCnx);
+        SSLContextValidatorEngine.validate(clientSSLContext::createSSLEngine, serverSSLContext::createSSLEngine);
     }
 }

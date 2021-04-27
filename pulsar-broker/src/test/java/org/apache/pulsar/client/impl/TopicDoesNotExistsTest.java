@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.util.HashedWheelTimer;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -52,6 +53,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
 
     @Test
     public void testCreateProducerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
         try {
             pulsarClient.newProducer()
@@ -65,11 +67,11 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
         HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
         Assert.assertEquals(timer.pendingTimeouts(), 0);
         Assert.assertEquals(((PulsarClientImpl) pulsarClient).producersCount(), 0);
-        pulsarClient.close();
     }
 
     @Test
     public void testCreateConsumerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
+        @Cleanup
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
         try {
             pulsarClient.newConsumer()

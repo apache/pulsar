@@ -81,6 +81,7 @@ import org.testng.annotations.Test;
 
 @PrepareForTest({ ZooKeeperDataCache.class, BrokerService.class })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
+@Test(groups = "broker")
 public class PersistentSubscriptionTest {
 
     private PulsarService pulsarMock;
@@ -109,6 +110,7 @@ public class PersistentSubscriptionTest {
         executor = Executors.newSingleThreadExecutor();
 
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setTransactionCoordinatorEnabled(true);
         pulsarMock = spy(new PulsarService(svcConfig));
         doReturn(new InMemTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();

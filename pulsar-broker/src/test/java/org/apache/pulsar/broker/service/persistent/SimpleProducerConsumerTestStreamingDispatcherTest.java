@@ -21,15 +21,17 @@ package org.apache.pulsar.broker.service.persistent;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.apache.pulsar.client.api.SimpleProducerConsumerTest;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * SimpleProducerConsumerTest with {@link StreamingDispatcher}
  */
+@Test(groups = "flaky")
 public class SimpleProducerConsumerTestStreamingDispatcherTest extends SimpleProducerConsumerTest {
-    @BeforeMethod
+
     @Override
-    protected void setup() throws Exception {
-        super.setup();
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
         conf.setStreamingDispatch(true);
     }
 }

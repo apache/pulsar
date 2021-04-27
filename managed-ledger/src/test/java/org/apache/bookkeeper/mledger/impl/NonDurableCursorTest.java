@@ -325,6 +325,13 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    void markDeleteGreaterThanLastConfirmedEntry() throws Exception {
+        ManagedLedger ml1 = factory.open("my_test_ledger");
+        ManagedCursor mc1 = ml1.newNonDurableCursor(PositionImpl.get(Long.MAX_VALUE - 1, Long.MAX_VALUE - 1));
+        assertEquals(mc1.getMarkDeletedPosition(), ml1.getLastConfirmedEntry());
+    }
+
+    @Test(timeOut = 20000)
     void testResetCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_move_cursor_ledger",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(10));

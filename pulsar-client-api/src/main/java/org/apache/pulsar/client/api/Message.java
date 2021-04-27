@@ -67,6 +67,13 @@ public interface Message<T> {
     byte[] getData();
 
     /**
+     * Get the uncompressed message payload size in bytes.
+     * 
+     * @return size in bytes. 
+     */
+    int size();
+
+    /**
      * Get the de-serialized value of the message, according the configured {@link Schema}.
      *
      * @return the deserialized value of the message
@@ -217,4 +224,12 @@ public interface Message<T> {
      * @return the name of cluster, from which the message is replicated.
      */
     String getReplicatedFrom();
+
+    /**
+     * Release a message back to the pool. This is required only if the consumer was created with the option to pool
+     * messages, otherwise it will have no effect.
+     * 
+     * @since 2.8.0
+     */
+    void release();
 }

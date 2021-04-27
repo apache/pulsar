@@ -1019,6 +1019,8 @@ admin.topics().getList(namespace);
 
 You can check the current statistics of a given partitioned topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
 
+Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. Please use `chunkedMessageRate`. Both will be sent in the JSON for now.
+
 ```json
 {
   "msgRateIn" : 999.992947159793,
@@ -1048,6 +1050,7 @@ You can check the current statistics of a given partitioned topic. The following
       "msgOutCounter" : 0,
       "msgRateRedeliver" : 0.0,
       "chuckedMessageRate" : 0,
+      "chunkedMessageRate" : 0,
       "msgBacklog" : 144318,
       "msgBacklogNoDelayed" : 144318,
       "blockedSubscriptionOnUnackedMsgs" : false,

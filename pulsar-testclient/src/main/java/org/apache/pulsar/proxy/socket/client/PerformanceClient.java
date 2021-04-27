@@ -21,6 +21,10 @@ package org.apache.pulsar.proxy.socket.client;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -54,9 +58,6 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.google.common.util.concurrent.RateLimiter;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -68,6 +69,7 @@ public class PerformanceClient {
     private static final LongAdder bytesSent = new LongAdder();
     private JCommander jc;
 
+    @Parameters(commandDescription = "Test pulsar websocket producer performance.")
     static class Arguments {
 
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
@@ -123,18 +125,18 @@ public class PerformanceClient {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.topics.size() != 1) {
             System.err.println("Only one topic name is allowed");
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.confFile != null) {
@@ -145,7 +147,7 @@ public class PerformanceClient {
             } catch (IOException e) {
                 log.error("Error in loading config file");
                 jc.usage();
-                System.exit(1);
+                PerfClientUtils.exit(1);
             }
 
             if (isBlank(arguments.proxyURL)) {
@@ -248,7 +250,7 @@ public class PerformanceClient {
                             if (totalSent >= messages) {
                                 log.trace("------------------- DONE -----------------------");
                                 Thread.sleep(10000);
-                                System.exit(0);
+                                PerfClientUtils.exit(0);
                             }
                         }
 
@@ -256,7 +258,7 @@ public class PerformanceClient {
 
                         if (producersMap.get(topic).getSocket().getSession() == null) {
                             Thread.sleep(10000);
-                            System.exit(0);
+                            PerfClientUtils.exit(0);
                         }
                         producersMap.get(topic).getSocket().sendMsg(String.valueOf(totalSent++), sizeOfMessage);
                         messagesSent.increment();
@@ -266,7 +268,7 @@ public class PerformanceClient {
 
             } catch (Throwable t) {
                 log.error(t.getMessage());
-                System.exit(0);
+                PerfClientUtils.exit(0);
             }
         });
 

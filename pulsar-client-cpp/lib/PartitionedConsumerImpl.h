@@ -47,34 +47,36 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     PartitionedConsumerImpl(ClientImplPtr client, const std::string& subscriptionName,
                             const TopicNamePtr topicName, const unsigned int numPartitions,
                             const ConsumerConfiguration& conf);
-    virtual ~PartitionedConsumerImpl();
-    virtual Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture();
-    virtual const std::string& getSubscriptionName() const;
-    virtual const std::string& getTopic() const;
-    virtual Result receive(Message& msg);
-    virtual Result receive(Message& msg, int timeout);
-    virtual void receiveAsync(ReceiveCallback& callback);
-    virtual void unsubscribeAsync(ResultCallback callback);
-    virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
-    virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
-    virtual void closeAsync(ResultCallback callback);
-    virtual void start();
-    virtual void shutdown();
-    virtual bool isClosed();
-    virtual bool isOpen();
-    virtual Result pauseMessageListener();
-    virtual Result resumeMessageListener();
-    virtual void redeliverUnacknowledgedMessages();
-    virtual void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds);
-    virtual const std::string& getName() const;
-    virtual int getNumOfPrefetchedMessages() const;
-    virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
+    ~PartitionedConsumerImpl();
+    // overrided methods from ConsumerImplBase
+    Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture() override;
+    const std::string& getSubscriptionName() const override;
+    const std::string& getTopic() const override;
+    Result receive(Message& msg) override;
+    Result receive(Message& msg, int timeout) override;
+    void receiveAsync(ReceiveCallback& callback) override;
+    void unsubscribeAsync(ResultCallback callback) override;
+    void acknowledgeAsync(const MessageId& msgId, ResultCallback callback) override;
+    void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) override;
+    void closeAsync(ResultCallback callback) override;
+    void start() override;
+    void shutdown() override;
+    bool isClosed() override;
+    bool isOpen() override;
+    Result pauseMessageListener() override;
+    Result resumeMessageListener() override;
+    void redeliverUnacknowledgedMessages() override;
+    void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds) override;
+    const std::string& getName() const override;
+    int getNumOfPrefetchedMessages() const override;
+    void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) override;
+    void seekAsync(const MessageId& msgId, ResultCallback callback) override;
+    void seekAsync(uint64_t timestamp, ResultCallback callback) override;
+    void negativeAcknowledge(const MessageId& msgId) override;
+    bool isConnected() const override;
+
     void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, PartitionedBrokerConsumerStatsPtr,
                                 size_t, BrokerConsumerStatsCallback);
-    virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
-    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
-
-    virtual void negativeAcknowledge(const MessageId& msgId);
 
    private:
     const ClientImplPtr client_;
@@ -87,7 +89,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     ConsumerList consumers_;
     // consumersMutex_ is used to share consumers_ and numPartitions_
     mutable std::mutex consumersMutex_;
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     std::mutex pendingReceiveMutex_;
     PartitionedConsumerState state_;
     unsigned int unsubscribedSoFar_;
@@ -117,7 +119,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     void internalListener(Consumer consumer);
     void receiveMessages();
     void failPendingReceiveCallback();
-    virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
+    void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;
     Promise<Result, ConsumerImplBaseWeakPtr> partitionedConsumerCreatedPromise_;
     UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
     std::queue<ReceiveCallback> pendingReceives_;

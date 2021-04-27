@@ -22,9 +22,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.api.KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
 import com.google.common.base.Preconditions;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
@@ -79,7 +81,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     @Override
     public CompletableFuture<Reader<T>> createAsync() {
-        if (conf.getTopicName() == null) {
+        if (conf.getTopicNames().isEmpty()) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the reader builder"));
         }
@@ -109,6 +111,17 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public ReaderBuilder<T> topic(String topicName) {
         conf.setTopicName(StringUtils.trim(topicName));
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> topics(List<String> topicNames) {
+        checkArgument(topicNames != null && topicNames.size() > 0,
+                "Passed in topicNames should not be null or empty.");
+        topicNames.forEach(topicName ->
+                checkArgument(StringUtils.isNotBlank(topicName), "topicNames cannot have blank topic"));
+        conf.getTopicNames().addAll(topicNames.stream().map(StringUtils::trim)
+                .collect(Collectors.toList()));
         return this;
     }
 

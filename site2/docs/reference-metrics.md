@@ -95,21 +95,32 @@ All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}
 
 The following metrics are available for broker:
 
-* [Namespace metrics](#namespace-metrics)
-    * [Replication metrics](#replication-metrics)
-* [Topic metrics](#topic-metrics)
-    * [Replication metrics](#replication-metrics-1)
-* [ManagedLedgerCache metrics](#managedledgercache-metrics)
-* [ManagedLedger metrics](#managedledger-metrics)
-* [LoadBalancing metrics](#loadbalancing-metrics)
-    * [BundleUnloading metrics](#bundleunloading-metrics)
-    * [BundleSplit metrics](#bundlesplit-metrics)
-* [Subscription metrics](#subscription-metrics)
-* [Consumer metrics](#consumer-metrics)
-* [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
-* [Token metrics](#token-metrics)
-* [Authentication metrics](#authentication-metrics) 
-* [Connection metrics](#connection-metrics)
+- [ZooKeeper](#zookeeper)
+  - [Server metrics](#server-metrics)
+  - [Request metrics](#request-metrics)
+- [BookKeeper](#bookkeeper)
+  - [Server metrics](#server-metrics-1)
+  - [Journal metrics](#journal-metrics)
+  - [Storage metrics](#storage-metrics)
+- [Broker](#broker)
+  - [Namespace metrics](#namespace-metrics)
+    - [Replication metrics](#replication-metrics)
+  - [Topic metrics](#topic-metrics)
+    - [Replication metrics](#replication-metrics-1)
+  - [ManagedLedgerCache metrics](#managedledgercache-metrics)
+  - [ManagedLedger metrics](#managedledger-metrics)
+  - [LoadBalancing metrics](#loadbalancing-metrics)
+    - [BundleUnloading metrics](#bundleunloading-metrics)
+    - [BundleSplit metrics](#bundlesplit-metrics)
+  - [Subscription metrics](#subscription-metrics)
+  - [Consumer metrics](#consumer-metrics)
+  - [Managed ledger bookie client metrics](#managed-ledger-bookie-client-metrics)
+  - [Token metrics](#token-metrics)
+  - [Authentication metrics](#authentication-metrics)
+  - [Connection metrics](#connection-metrics)
+- [Pulsar Functions](#pulsar-functions)
+- [Proxy](#proxy)
+- [Pulsar SQL Worker](#pulsar-sql-worker)
 
 ### Namespace metrics
 
@@ -382,6 +393,8 @@ All the connection metrics are labelled with the following labels:
 | pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
 | pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
 | pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
+| pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
+| pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections because of per-connection limit. |
 
 ## Pulsar Functions
 
@@ -392,17 +405,61 @@ All the Pulsar Functions metrics are labelled with the following labels:
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_function_processed_successfully_total | Counter | Total number of messages processed successfully. |
-| pulsar_function_processed_successfully_total_1min | Counter | Total number of messages processed successfully in the last 1 minute. |
-| pulsar_function_system_exceptions_total | Counter | Total number of system exceptions. |
-| pulsar_function_system_exceptions_total_1min | Counter | Total number of system exceptions in the last 1 minute. |
-| pulsar_function_user_exceptions_total | Counter | Total number of user exceptions. |
-| pulsar_function_user_exceptions_total_1min | Counter | Total number of user exceptions in the last 1 minute. |
-| pulsar_function_process_latency_ms | Summary | Process latency in milliseconds. |
-| pulsar_function_process_latency_ms_1min | Summary | Process latency in milliseconds in the last 1 minute. |
+| pulsar_function_processed_successfully_total | Counter | The total number of messages processed successfully. |
+| pulsar_function_processed_successfully_total_1min | Counter | The total number of messages processed successfully in the last 1 minute. |
+| pulsar_function_system_exceptions_total | Counter | The total number of system exceptions. |
+| pulsar_function_system_exceptions_total_1min | Counter | The total number of system exceptions in the last 1 minute. |
+| pulsar_function_user_exceptions_total | Counter | The total number of user exceptions. |
+| pulsar_function_user_exceptions_total_1min | Counter | The total number of user exceptions in the last 1 minute. |
+| pulsar_function_process_latency_ms | Summary | The process latency in milliseconds. |
+| pulsar_function_process_latency_ms_1min | Summary | The process latency in milliseconds in the last 1 minute. |
 | pulsar_function_last_invocation | Gauge | The timestamp of the last invocation of the function. |
-| pulsar_function_received_total | Counter | Total number of messages received from source. |
-| pulsar_function_received_total_1min | Counter | Total number of messages received from source in the last 1 minute. |
+| pulsar_function_received_total | Counter | The total number of messages received from source. |
+| pulsar_function_received_total_1min | Counter | The total number of messages received from source in the last 1 minute. |
+pulsar_function_user_metric_ | Summary|The user-defined metrics.
+
+## Connectors
+
+All the Pulsar connector metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+- *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
+
+Connector metrics contain **source** metrics and **sink** metrics.
+
+- **Source** metrics
+
+  | Name | Type | Description |
+  |---|---|---|
+  pulsar_source_written_total|Counter|The total number of records written to a Pulsar topic.
+  pulsar_source_written_total_1min|Counter|The total number of records written to a Pulsar topic in the last 1 minute.
+  pulsar_source_received_total|Counter|The total number of records received from source.
+  pulsar_source_received_total_1min|Counter|The total number of records received from source in the last 1 minute.
+  pulsar_source_last_invocation|Gauge|The timestamp of the last invocation of the source.
+  pulsar_source_source_exception|Gauge|The exception from a source.
+  pulsar_source_source_exceptions_total|Counter|The total number of source exceptions.
+  pulsar_source_source_exceptions_total_1min |Counter|The total number of source exceptions in the last 1 minute.
+  pulsar_source_system_exception|Gauge|The exception from system code.
+  pulsar_source_system_exceptions_total|Counter|The total number of system exceptions.
+  pulsar_source_system_exceptions_total_1min|Counter|The total number of system exceptions in the last 1 minute.
+  pulsar_source_user_metric_ | Summary|The user-defined metrics.
+
+- **Sink** metrics
+
+  | Name | Type | Description |
+  |---|---|---|
+  pulsar_sink_written_total|Counter| The total number of records processed by a sink. 
+  pulsar_sink_written_total_1min|Counter| The total number of records processed by a sink in the last 1 minute.
+  pulsar_sink_received_total_1min|Counter| The total number of messages that a sink has received from Pulsar topics in the last 1 minute. 
+  pulsar_sink_received_total|Counter| The total number of records that a sink has received from Pulsar topics. 
+  pulsar_sink_last_invocation|Gauge|The timestamp of the last invocation of the sink.
+  pulsar_sink_sink_exception|Gauge|The exception from a sink.
+  pulsar_sink_sink_exceptions_total|Counter|The total number of sink exceptions.
+  pulsar_sink_sink_exceptions_total_1min |Counter|The total number of sink exceptions in the last 1 minute.
+  pulsar_sink_system_exception|Gauge|The exception from system code.
+  pulsar_sink_system_exceptions_total|Counter|The total number of system exceptions.
+  pulsar_sink_system_exceptions_total_1min|Counter|The total number of system exceptions in the last 1 minute.
+  pulsar_sink_user_metric_ | Summary|The user-defined metrics.
 
 ## Proxy
 

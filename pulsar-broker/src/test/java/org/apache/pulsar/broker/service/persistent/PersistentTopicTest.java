@@ -23,15 +23,18 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 import java.lang.reflect.Field;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.common.collect.Sets;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -43,14 +46,16 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- */
+@Test(groups = "broker")
 public class PersistentTopicTest extends BrokerTestBase {
-    @BeforeMethod
+
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -64,7 +69,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
     /**
      * Test validates that broker cleans up topic which failed to unload while bundle unloading.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -96,7 +101,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
     /**
      * Test validates if topic's dispatcher is stuck then broker can doscover and unblock it.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -155,5 +160,31 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertNotNull(msg);
         msg = consumer2.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg);
+    }
+
+    @Test
+    public void testDeleteNamespaceInfiniteRetry() throws Exception {
+        //init namespace
+        final String myNamespace = "prop/ns" + UUID.randomUUID();
+        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
+        final String topic = "persistent://" + myNamespace + "/testDeleteNamespaceInfiniteRetry";
+        conf.setForceDeleteNamespaceAllowed(true);
+        //init topic and policies
+        pulsarClient.newProducer().topic(topic).create().close();
+        admin.namespaces().setMaxConsumersPerTopic(myNamespace, 0);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
+                -> admin.namespaces().getMaxConsumersPerTopic(myNamespace) == 0);
+
+        PersistentTopic persistentTopic =
+                spy((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get());
+
+        Policies policies = new Policies();
+        policies.deleted = true;
+        persistentTopic.onPoliciesUpdate(policies);
+        verify(persistentTopic, times(0)).checkReplicationAndRetryOnFailure();
+
+        policies.deleted = false;
+        persistentTopic.onPoliciesUpdate(policies);
+        verify(persistentTopic, times(1)).checkReplicationAndRetryOnFailure();
     }
 }

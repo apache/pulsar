@@ -23,9 +23,9 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 
 import io.netty.buffer.ByteBuf;
@@ -72,6 +72,7 @@ public class ManagedLedgerWriter {
     private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
 
+    @Parameters(commandDescription = "Write directly on managed-ledgers")
     static class Arguments {
 
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
@@ -132,12 +133,12 @@ public class ManagedLedgerWriter {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         if (arguments.help) {
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
 
         arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
@@ -247,7 +248,7 @@ public class ManagedLedgerWriter {
                         @Override
                         public void addFailed(ManagedLedgerException exception, Object ctx) {
                             log.warn("Write error on message", exception);
-                            System.exit(-1);
+                            PerfClientUtils.exit(-1);
                         }
                     };
 
@@ -261,7 +262,7 @@ public class ManagedLedgerWriter {
                                     printAggregatedStats();
                                     isDone.set(true);
                                     Thread.sleep(5000);
-                                    System.exit(0);
+                                    PerfClientUtils.exit(0);
                                 }
                             }
 
@@ -271,7 +272,7 @@ public class ManagedLedgerWriter {
                                     printAggregatedStats();
                                     isDone.set(true);
                                     Thread.sleep(5000);
-                                    System.exit(0);
+                                    PerfClientUtils.exit(0);
                                 }
                             }
 

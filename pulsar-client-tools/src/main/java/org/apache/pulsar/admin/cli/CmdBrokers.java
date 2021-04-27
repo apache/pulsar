@@ -30,7 +30,7 @@ public class CmdBrokers extends CmdBase {
 
     @Parameters(commandDescription = "List active brokers of the cluster")
     private class List extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -51,9 +51,9 @@ public class CmdBrokers extends CmdBase {
 
     @Parameters(commandDescription = "List namespaces owned by the broker")
     private class Namespaces extends CliCommand {
-        @Parameter(description = "cluster-name\n", required = true)
+        @Parameter(description = "cluster-name", required = true)
         private java.util.List<String> params;
-        @Parameter(names = "--url", description = "broker-url\n", required = true)
+        @Parameter(names = "--url", description = "broker-url", required = true)
         private String brokerUrl;
 
         @Override
@@ -146,6 +146,15 @@ public class CmdBrokers extends CmdBase {
 
     }
 
+    @Parameters(commandDescription = "Get the version of the currently connected broker")
+    private class PulsarVersion extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            System.out.println(getAdmin().brokers().getVersion());
+        }
+    }
+
     public CmdBrokers(Supplier<PulsarAdmin> admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
@@ -159,5 +168,6 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("get-runtime-config", new GetRuntimeConfigCmd());
         jcommander.addCommand("healthcheck", new HealthcheckCmd());
         jcommander.addCommand("backlog-quota-check", new BacklogQuotaCheckCmd());
+        jcommander.addCommand("version", new PulsarVersion());
     }
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
@@ -28,16 +29,28 @@ import java.util.Objects;
  * <code>limit</code> representing a quota limit in bytes and <code>policy</code> for backlog retention policy.
  */
 public class BacklogQuota {
-    private long limit;
+    @JsonAlias("limit")
+    private long limitSize;
+    // backlog quota by time in second
+    private int limitTime;
     private RetentionPolicy policy;
 
     /**
-     * Gets quota limit in bytes.
+     * Gets quota limit in size.
      *
      * @return quota limit in bytes
      */
-    public long getLimit() {
-        return limit;
+    public long getLimitSize() {
+        return limitSize;
+    }
+
+    /**
+     * Gets quota limit in time.
+     *
+     * @return quota limit in second
+     */
+    public int getLimitTime() {
+        return limitTime;
     }
 
     public RetentionPolicy getPolicy() {
@@ -47,11 +60,11 @@ public class BacklogQuota {
     /**
      * Sets quota limit in bytes.
      *
-     * @param limit
+     * @param limitSize
      *            quota limit in bytes
      */
-    public void setLimit(long limit) {
-        this.limit = limit;
+    public void setLimitSize(long limitSize) {
+        this.limitSize = limitSize;
     }
 
     public void setPolicy(RetentionPolicy policy) {
@@ -61,26 +74,33 @@ public class BacklogQuota {
     protected BacklogQuota() {
     }
 
-    public BacklogQuota(long limit, RetentionPolicy policy) {
-        this.limit = limit;
+    public BacklogQuota(long limitSize, RetentionPolicy policy) {
+        this(limitSize, -1, policy);
+    }
+
+    public BacklogQuota(long limitSize, int limitTime, RetentionPolicy policy) {
+        this.limitTime = limitTime;
+        this.limitSize = limitSize;
         this.policy = policy;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(Long.valueOf(limit), policy);
+        return Objects.hash(Long.valueOf(limitSize), Long.valueOf(limitTime), policy);
     }
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("limit", limit).add("policy", policy).toString();
+        return MoreObjects.toStringHelper(this).add("limitSize", limitSize).add("limitTime", limitTime)
+                .add("policy", policy).toString();
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof BacklogQuota) {
             BacklogQuota other = (BacklogQuota) obj;
-            return Objects.equals(limit, other.limit) && Objects.equals(policy, other.policy);
+            return Objects.equals(limitSize, other.limitSize) && Objects.equals(limitTime, other.limitTime)
+                    && Objects.equals(policy, other.policy);
         }
         return false;
     };
@@ -89,7 +109,8 @@ public class BacklogQuota {
      * Identifier to a backlog quota configuration (an instance of {@link BacklogQuota}).
      */
     public enum BacklogQuotaType {
-        destination_storage;
+        destination_storage,
+        message_age,
     }
 
     /**

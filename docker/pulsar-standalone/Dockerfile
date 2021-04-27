@@ -35,6 +35,7 @@ RUN apt-get update \
     && apt-get -y install python3.7 python3.7-dev python3-pip postgresql sudo nginx supervisor libpq-dev
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+RUN update-ca-certificates
 RUN ln -s /usr/bin/pip3 /usr/bin/pip
 
 # Postgres configuration

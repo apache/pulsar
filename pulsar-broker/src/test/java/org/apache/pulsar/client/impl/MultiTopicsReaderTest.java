@@ -30,7 +30,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Future;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -49,7 +50,9 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -60,7 +63,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-multi-topics-sub";
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -89,9 +92,9 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         testReadMessages(topic, false);
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 20000)
     public void testReadMessageWithoutBatchingWithMessageInclusive() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-reader-topic-inclusive";
+        String topic = "persistent://my-property/my-ns/my-reader-topic-inclusive" + UUID.randomUUID();
         int topicNum = 3;
         admin.topics().createPartitionedTopic(topic, topicNum);
         Set<String> keys = publishMessages(topic, 10, false);
@@ -100,11 +103,13 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 .startMessageIdInclusive().readerName(subscription).create();
         int count = 0;
         while (reader.hasMessageAvailable()) {
-            Assert.assertTrue(keys.remove(reader.readNext(1, TimeUnit.SECONDS).getKey()));
-            count++;
+            if (keys.remove(reader.readNext(5, TimeUnit.SECONDS).getKey())) {
+                count++;
+            }
         }
         Assert.assertEquals(count, topicNum);
         Assert.assertFalse(reader.hasMessageAvailable());
+        reader.close();
     }
 
     @Test(timeOut = 10000)
@@ -116,7 +121,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 10000)
     public void testReadMessageWithBatchingWithMessageInclusive() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
+        String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive" + UUID.randomUUID();
         int topicNum = 3;
         int msgNum = 15;
         admin.topics().createPartitionedTopic(topic, topicNum);
@@ -126,7 +131,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 .startMessageIdInclusive().readerName(subscription).create();
 
         while (reader.hasMessageAvailable()) {
-            Assert.assertTrue(keys.remove(reader.readNext(2, TimeUnit.SECONDS).getKey()));
+            keys.remove(reader.readNext(2, TimeUnit.SECONDS).getKey());
         }
         // start from latest with start message inclusive should only read the last 3 message from 3 partition
         Assert.assertEquals(keys.size(), msgNum - topicNum);
@@ -134,12 +139,13 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertFalse(keys.contains("key13"));
         Assert.assertFalse(keys.contains("key12"));
         Assert.assertFalse(reader.hasMessageAvailable());
+        reader.close();
     }
 
     @Test(timeOut = 10000)
     public void testReaderWithTimeLong() throws Exception {
         String ns = "my-property/my-ns";
-        String topic = "persistent://" + ns + "/testReadFromPartition";
+        String topic = "persistent://" + ns + "/testReadFromPartition" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         RetentionPolicies retention = new RetentionPolicies(-1, -1);
         admin.namespaces().setRetention(ns, retention);
@@ -159,6 +165,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 .setSequenceId(i)
                 .setProducerName(producer.getProducerName())
                 .setReplicatedFrom("us-west1");
+            msg.send();
         }
 
         // (2) Publish 10 messages with publish-time 1 HOUR back
@@ -197,6 +204,9 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         restartBroker();
 
         assertFalse(reader.hasMessageAvailable());
+
+        reader.close();
+        producer.close();
     }
 
     @Test(timeOut = 10000)
@@ -242,6 +252,46 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://my-property/my-ns/testKeyHashRangeReader";
         admin.topics().createPartitionedTopic(topic, 3);
         publishMessages(topic,100,false);
+    }
+
+    @Test(timeOut = 20000)
+    public void testMultiTopic() throws Exception {
+        final String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        final String topic2 = "persistent://my-property/my-ns/topic2" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic2, 3);
+        final String topic3 = "persistent://my-property/my-ns/topic3" + UUID.randomUUID();
+        List<String> topics = Arrays.asList(topic, topic2, topic3);
+        PulsarClientImpl client = (PulsarClientImpl) pulsarClient;
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .startMessageId(MessageId.earliest)
+                .topics(topics).readerName("my-reader").create();
+        // create producer and send msg
+        List<Producer<String>> producerList = new ArrayList<>();
+        for (String topicName : topics) {
+            producerList.add(pulsarClient.newProducer(Schema.STRING).topic(topicName).create());
+        }
+        int msgNum = 10;
+        Set<String> messages = new HashSet<>();
+        for (int i = 0; i < producerList.size(); i++) {
+            Producer<String> producer = producerList.get(i);
+            for (int j = 0; j < msgNum; j++) {
+                String msg = i + "msg" + j;
+                producer.send(msg);
+                messages.add(msg);
+            }
+        }
+        // receive messages
+        while (reader.hasMessageAvailable()) {
+            messages.remove(reader.readNext(5, TimeUnit.SECONDS).getValue());
+        }
+        assertEquals(messages.size(), 0);
+        assertEquals(client.consumersCount(), 1);
+        // clean up
+        for (Producer<String> producer : producerList) {
+            producer.close();
+        }
+        reader.close();
+        Awaitility.await().untilAsserted(() -> assertEquals(client.consumersCount(), 0));
     }
 
     @Test(timeOut = 10000)
@@ -335,8 +385,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         while (reader.hasMessageAvailable()) {
-            Message<byte[]> message = reader.readNext();
-            Assert.assertTrue(keys.remove(message.getKey()));
+            keys.remove(reader.readNext(5, TimeUnit.SECONDS).getKey());
         }
         Assert.assertEquals(keys.size(), 0);
 
@@ -349,7 +398,6 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         Set<String> keys = new HashSet<>();
         ProducerBuilder<byte[]> builder = pulsarClient.newProducer();
         builder.messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        builder.maxPendingMessages(count);
         // disable periodical flushing
         builder.batchingMaxPublishDelay(1, TimeUnit.DAYS);
         builder.topic(topic);
@@ -358,17 +406,22 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
             builder.batchingMaxMessages(count);
         } else {
             builder.enableBatching(false);
+            builder.maxPendingMessages(1);
         }
         try (Producer<byte[]> producer = builder.create()) {
-            Future<?> lastFuture = null;
+            List<CompletableFuture<MessageId>> list = new ArrayList<>();
             for (int i = 0; i < count; i++) {
-                String key = "key"+i;
+                String key = "key" + i;
                 byte[] data = ("my-message-" + i).getBytes();
-                lastFuture = producer.newMessage().key(key).value(data).sendAsync();
+                if (enableBatch) {
+                    list.add(producer.newMessage().key(key).value(data).sendAsync());
+                } else {
+                    producer.newMessage().key(key).value(data).send();
+                }
                 keys.add(key);
             }
             producer.flush();
-            lastFuture.get();
+            FutureUtil.waitForAll(list).get();
         }
         return keys;
     }

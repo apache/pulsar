@@ -45,4 +45,14 @@ public class Stat {
      * When the value was last modified.
      */
     final long modificationTimestamp;
+
+    /**
+     * Whether the key-value pair is ephemeral or persistent
+     */
+    final boolean ephemeral;
+
+    /**
+     * Whether the key-value pair had been created within the current "session"
+     */
+    final boolean createdBySelf;
 }

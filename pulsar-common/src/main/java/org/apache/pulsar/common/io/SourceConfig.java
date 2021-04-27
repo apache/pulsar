@@ -71,6 +71,4 @@ public class SourceConfig {
     private BatchSourceConfig batchSourceConfig;
     // batchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED
     private String batchBuilder;
-
-    private Boolean forwardSourceMessageProperty;
 }

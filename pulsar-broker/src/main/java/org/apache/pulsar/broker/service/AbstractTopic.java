@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.base.MoreObjects;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -171,6 +172,30 @@ public abstract class AbstractTopic implements Topic {
         return false;
     }
 
+    protected boolean isSameAddressProducersExceeded(Producer producer) {
+        final int maxSameAddressProducers = brokerService.pulsar().getConfiguration()
+                .getMaxSameAddressProducersPerTopic();
+
+        if (maxSameAddressProducers > 0
+                && getNumberOfSameAddressProducers(producer.getClientAddress()) >= maxSameAddressProducers) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public int getNumberOfSameAddressProducers(final String clientAddress) {
+        int count = 0;
+        if (clientAddress != null) {
+            for (Producer producer : producers.values()) {
+                if (clientAddress.equals(producer.getClientAddress())) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
     protected boolean isConsumersExceededOnTopic() {
         Integer maxConsumers = null;
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
@@ -202,7 +227,31 @@ public abstract class AbstractTopic implements Topic {
         return false;
     }
 
+    protected boolean isSameAddressConsumersExceededOnTopic(Consumer consumer) {
+        final int maxSameAddressConsumers = brokerService.pulsar().getConfiguration()
+                .getMaxSameAddressConsumersPerTopic();
+
+        if (maxSameAddressConsumers > 0
+                && getNumberOfSameAddressConsumers(consumer.getClientAddress()) >= maxSameAddressConsumers) {
+            return true;
+        }
+
+        return false;
+    }
+
     public abstract int getNumberOfConsumers();
+    public abstract int getNumberOfSameAddressConsumers(String clientAddress);
+
+    protected int getNumberOfSameAddressConsumers(final String clientAddress,
+            final List<? extends Subscription> subscriptions) {
+        int count = 0;
+        if (clientAddress != null) {
+            for (Subscription subscription : subscriptions) {
+                count += subscription.getNumberOfSameAddressConsumers(clientAddress);
+            }
+        }
+        return count;
+    }
 
     protected void addConsumerToSubscription(Subscription subscription, Consumer consumer)
             throws BrokerServiceException {
@@ -210,6 +259,12 @@ public abstract class AbstractTopic implements Topic {
             log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", topic);
             throw new ConsumerBusyException("Topic reached max consumers limit");
         }
+
+        if (isSameAddressConsumersExceededOnTopic(consumer)) {
+            log.warn("[{}] Attempting to add consumer to topic which reached max same address consumers limit", topic);
+            throw new ConsumerBusyException("Topic reached max same address consumers limit");
+        }
+
         subscription.addConsumer(consumer);
     }
 
@@ -582,6 +637,11 @@ public abstract class AbstractTopic implements Topic {
             throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
         }
 
+        if (isSameAddressProducersExceeded(producer)) {
+            log.warn("[{}] Attempting to add producer to topic which reached max same address producers limit", topic);
+            throw new BrokerServiceException.ProducerBusyException("Topic reached max same address producers limit");
+        }
+
         if (log.isDebugEnabled()) {
             log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
         }
@@ -806,10 +866,10 @@ public abstract class AbstractTopic implements Topic {
         try {
             return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
             return null;
         } catch (NullPointerException e) {
-            log.warn("Topic level policies are not enabled. "
+            log.debug("Topic level policies are not enabled. "
                     + "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
             return null;
         }

@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.testclient;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -52,10 +56,6 @@ import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-
 /**
  * This class provides a shell for the user to dictate how simulation clients should incur load.
  */
@@ -84,6 +84,7 @@ public class LoadSimulationController {
     private static final ExecutorService threadPool = Executors.newCachedThreadPool();
 
     // JCommander arguments for starting a controller via main.
+    @Parameters(commandDescription = "Provides a shell for the user to dictate how simulation clients should incur load.")
     private static class MainArguments {
         @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
         boolean help;
@@ -678,7 +679,7 @@ public class LoadSimulationController {
                     break;
                 case "quit":
                 case "exit":
-                    System.exit(0);
+                    PerfClientUtils.exit(0);
                     break;
                 default:
                     log.info("ERROR: Unknown command \"{}\"", command);
@@ -720,7 +721,7 @@ public class LoadSimulationController {
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
             jc.usage();
-            System.exit(-1);
+            PerfClientUtils.exit(-1);
         }
         (new LoadSimulationController(arguments)).run();
     }

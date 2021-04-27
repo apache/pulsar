@@ -68,7 +68,9 @@ public class ClientCnxRequestTimeoutQueueTest {
 
     @AfterTest(alwaysRun = true)
     void cleanupClientCnx() {
-        eventLoop.shutdownNow();
+        if (eventLoop != null) {
+            eventLoop.shutdownGracefully();
+        }
     }
 
     @Test

@@ -24,18 +24,13 @@ import java.util.List;
 import org.apache.pulsar.broker.PulsarService;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class TransactionMetaStoreAssignmentTest extends TransactionMetaStoreTestBase {
 
-    @BeforeClass
-    public void init() throws Exception {
-        super.setup();
-    }
-
-    @Test
-    public void testTransactionMetaStoreAssignAndFailover() throws IOException, InterruptedException {
+    @Test(groups = "broker")
+    public void testTransactionMetaStoreAssignAndFailover() throws IOException {
 
         int transactionMetaStoreCount = 0;
         for (PulsarService pulsarService : pulsarServices) {
