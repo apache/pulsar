@@ -98,7 +98,7 @@ $ mvn install -DskipTests
 
 ## Minimal build (This skips most of external connectors and tiered storage handlers)
 ```
-mvn install -Pcore-modules
+mvn install -Pcore-modules,-main
 ```
 
 Run Unit Tests:
