@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.testng.annotations.Test;

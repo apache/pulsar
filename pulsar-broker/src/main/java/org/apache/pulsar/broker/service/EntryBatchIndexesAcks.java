@@ -24,8 +24,8 @@ import java.util.BitSet;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class EntryBatchIndexesAcks {
-    private int maxSize = 100;
-    private Pair<Integer, long[]>[] indexesAcks = new Pair[maxSize];
+    private int size = 100;
+    private Pair<Integer, long[]>[] indexesAcks = new Pair[size];
 
     public void setIndexesAcks(int entryIdx, Pair<Integer, long[]> indexesAcks) {
         this.indexesAcks[entryIdx] = indexesAcks;
@@ -38,7 +38,7 @@ public class EntryBatchIndexesAcks {
 
     public int getTotalAckedIndexCount() {
         int count = 0;
-        for (int i = 0; i < maxSize; i++) {
+        for (int i = 0; i < size; i++) {
             Pair<Integer, long[]> pair = indexesAcks[i];
             if (pair != null) {
                 count += pair.getLeft() - BitSet.valueOf(pair.getRight()).cardinality();
@@ -52,12 +52,11 @@ public class EntryBatchIndexesAcks {
     }
 
     private void ensureCapacityAndReset(int entriesListSize) {
-        if (indexesAcks.length < entriesListSize) {
-            maxSize = entriesListSize;
-            indexesAcks = new Pair[maxSize];
+        size = entriesListSize;
+        if (indexesAcks.length < size) {
+            indexesAcks = new Pair[size];
         } else {
-            maxSize = entriesListSize;
-            for (int i = 0; i < maxSize; i++) {
+            for (int i = 0; i < size; i++) {
                 indexesAcks[i] = null;
             }
         }
