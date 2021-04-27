@@ -57,6 +57,7 @@ import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
+import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -415,14 +416,19 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                             }, null);
                         });
                         FutureUtil.waitForAll(deleteFutures).whenComplete((v, e) -> {
-                            try {
-                                ZkUtils.deleteFullPathOptimistic(zooKeeper, getSchemaPath(schemaId), -1);
-                            } catch (InterruptedException | KeeperException thr) {
-                                future.completeExceptionally(thr);
-                                return;
-                            }
-                            clearLocatorCache(getSchemaPath(schemaId));
-                            future.complete(version);
+                            final String path = getSchemaPath(schemaId);
+                            ZkUtils.asyncDeleteFullPathOptimistic(zooKeeper, path, -1, new AsyncCallback.VoidCallback() {
+                                @Override
+                                public void processResult(int rc, String path, Object ctx) {
+                                    if (rc != Code.OK.intValue()) {
+                                        future.completeExceptionally(KeeperException.create(Code.get(rc)));
+                                    } else {
+                                        clearLocatorCache(getSchemaPath(schemaId));
+                                        future.complete(version);
+                                    }
+                                }
+                            }, path);
+
                         });
                     }
                 });
