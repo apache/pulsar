@@ -30,7 +30,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.*;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers.ReadType;
-import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -67,7 +66,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     private BrokerService brokerMock;
     private ManagedCursorImpl cursorMock;
     private Consumer consumerMock;
-    private Consumer consumerStickMock;
     private PersistentTopic topicMock;
     private PersistentSubscription subscriptionMock;
     private ServiceConfiguration configMock;
