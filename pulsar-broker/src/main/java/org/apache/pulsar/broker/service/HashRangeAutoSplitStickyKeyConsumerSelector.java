@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -103,24 +104,15 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public Consumer select(byte[] stickyKey) {
-        return select(generateKeyHash(stickyKey));
-    }
-
-    /**
-     * Select a consumer by sticky key.
-     *
-     * @param stickyKeyHash sticky key hash
-     * @return consumer
-     */
-    @Override
-    public Consumer select(int stickyKeyHash) {
+        int hash = Murmur3_32Hash.getInstance().makeHash(stickyKey);
         if (rangeMap.size() > 0) {
-            int slot = stickyKeyHash % rangeSize;
+            int slot = hash % rangeSize;
             return rangeMap.ceilingEntry(slot).getValue();
         } else {
             return null;
         }
     }
+
     @Override
     public Map<String, List<String>> getConsumerKeyHashRanges() {
         Map<String, List<String>> result = new HashMap<>();

@@ -49,28 +49,8 @@ public interface StickyKeyConsumerSelector {
     Consumer select(byte[] stickyKey);
 
     /**
-     * Select a consumer by sticky key.
-     *
-     * @param stickyKeyHash sticky key hash
-     * @return consumer
-     */
-    Consumer select(int stickyKeyHash);
-
-    /**
-     * generate key hash code  by sticky key.
-     *
-     * @param stickyKey sticky key
-     * @return hashCode
-     */
-    default int generateKeyHash(byte[] stickyKey) {
-        return Murmur3_32Hash.getInstance().makeHash(stickyKey);
-    }
-    /**
      * Get key hash ranges handled by each consumer.
      * @return A map where key is a consumer name and value is list of hash range it receiving message for.
      */
     Map<String, List<String>> getConsumerKeyHashRanges();
-
-
-
 }

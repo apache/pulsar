@@ -25,10 +25,12 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.*;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers.ReadType;
+import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -216,8 +218,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                     .setStart(0)
                     .setEnd(9);
 
+            doReturn(new PositionImpl(1,3)).when(cursorMock).getReadPosition();
             Consumer consumerMock = mock(Consumer.class);
-
+            doReturn(keySharedMeta).when(consumerMock).getKeySharedMeta();
+            persistentDispatcher.addConsumer(consumerMock);
+            /**
+             * permit == 0, and  readPositionWhenJoining == [1,0]
+             */
             persistentDispatcher.getRecentlyJoinedConsumers().put(consumerMock,new PositionImpl(1
                     ,0));
 
@@ -225,25 +232,42 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                     , entries, 0, ReadType.Replay);
             Assert.assertEquals(messagesForC, 0);
 
-
-            int hashCode = persistentDispatcher.getSelector().generateKeyHash("testKey".getBytes());
-            persistentDispatcher.getCurrentSendPositionPerKeyMap().put(hashCode,new PositionImpl(1
-                    ,0));
-            messagesForC = persistentDispatcher.getRestrictedMaxEntriesForConsumer(consumerMock
-                    , entries, 2, ReadType.Replay);
-            Assert.assertEquals(messagesForC, 2);
-
-            persistentDispatcher.getCurrentSendPositionPerKeyMap().put(hashCode,new PositionImpl(1
-                    ,2));
+            /**
+             * maxMessages == 2, and  readPositionWhenJoining == [1,0] and message has been send
+             */
+            ConcurrentLongLongPairHashMap pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
+            pendingAcks.put(1,1,1,0);
+            doReturn(null).when(cursorMock).getMarkDeletedPosition();
+            doReturn(pendingAcks).when(consumerMock).getPendingAcks();
             messagesForC = persistentDispatcher.getRestrictedMaxEntriesForConsumer(consumerMock
                     , entries, 2, ReadType.Replay);
             Assert.assertEquals(messagesForC, 0);
 
 
-            persistentDispatcher.getCurrentSendPositionPerKeyMap().clear();
+            /**
+             * maxMessages == 2, and  readPositionWhenJoining == [1,0] and message did not been
+             * send or last time send error
+             */
+            pendingAcks.clear();
+            doReturn(null).when(cursorMock).getMarkDeletedPosition();
+            doReturn(pendingAcks).when(consumerMock).getPendingAcks();
             messagesForC = persistentDispatcher.getRestrictedMaxEntriesForConsumer(consumerMock
                     , entries, 2, ReadType.Replay);
             Assert.assertEquals(messagesForC, 2);
+
+
+            /**
+             * maxMessages == 2, and  readPositionWhenJoining == [1,0] and message has been send
+             * persistentDispatcher.getRecentlyJoinedConsumers.size == 0
+             */
+            persistentDispatcher.getRecentlyJoinedConsumers().clear();
+            pendingAcks.put(1,1,1,0);
+            doReturn(null).when(cursorMock).getMarkDeletedPosition();
+            doReturn(pendingAcks).when(consumerMock).getPendingAcks();
+            messagesForC = persistentDispatcher.getRestrictedMaxEntriesForConsumer(consumerMock
+                    , entries, 2, ReadType.Replay);
+            Assert.assertEquals(messagesForC, 2);
+
 
         } catch (Exception e) {
             fail("Failed to add mock consumer", e);

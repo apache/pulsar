@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
@@ -66,8 +67,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     private final LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers;
 
-    private final LinkedHashMap<Integer, Position> currentSendPositionPerKeyMap;
-
     private final Set<Consumer> stuckConsumers;
     private final Set<Consumer> nextStuckConsumers;
 
@@ -77,7 +76,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
-        this.currentSendPositionPerKeyMap = new LinkedHashMap<>();
         this.stuckConsumers = new HashSet<>();
         this.nextStuckConsumers = new HashSet<>();
 
@@ -224,12 +222,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                         getRedeliveryTracker()).addListener(future -> {
-                            if (future.isSuccess()) {
-                                Entry entry = entriesWithSameKey.get(entriesWithSameKey.size() - 1);
-                                Integer hashCode =
-                                        selector.generateKeyHash(peekStickyKey(entry.getDataBuffer()));
-                                currentSendPositionPerKeyMap.put(hashCode, entry.getPosition());
-                            }
                             if (future.isDone() && keyNumbers.decrementAndGet() == 0) {
                                 readMoreEntries();
                             }
@@ -336,28 +328,35 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         // Here, the consumer is one that has recently joined, so we can only send messages that were
         // published before it has joined.
-        PositionImpl p = null;
-        PositionImpl entryPosition = null;
-
-        if (entries != null && entries.size() > 0) {
-            entryPosition = (PositionImpl) entries.get(0).getPosition();
-            Integer hashCode =
-                    selector.generateKeyHash(peekStickyKey(entries.get(0).getDataBuffer()));
-            p = (PositionImpl) currentSendPositionPerKeyMap.get(hashCode);
-            if (p == null || (p != null && entryPosition != null && entryPosition.compareTo(p) >= 0)) {
-                return maxMessages;
-            }
-        }
-
+        int messageNum = 0;
         for (int i = 0; i < maxMessages; i++) {
             if (((PositionImpl) entries.get(i).getPosition()).compareTo(maxReadPosition) >= 0) {
                 // We have already crossed the divider line. All messages in the list are now
                 // newer than what we can currently dispatch to this consumer
-
-                return i;
+                messageNum  = i;
+                break;
             }
         }
-        return maxMessages;
+
+        if (messageNum == 0) {
+            messageNum = maxMessages;
+            CopyOnWriteArrayList<Consumer> consumers = this.getConsumers();
+            for (Consumer consumer1 : consumers) {
+                if (isApendMessage(consumer1, entries.get(0).getLedgerId(),
+                        entries.get(0).getEntryId())) {
+                    messageNum = 0;
+                    break;
+                }
+            }
+        }
+        return messageNum;
+    }
+
+    private boolean isApendMessage(Consumer consuemr, long ledgerId, long entryId) {
+        if (consuemr != null && consuemr.getPendingAcks().get(ledgerId, entryId) != null) {
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -417,9 +416,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return recentlyJoinedConsumers;
     }
 
-    public LinkedHashMap<Integer, Position> getCurrentSendPositionPerKeyMap() {
-         return currentSendPositionPerKeyMap;
-    }
     public Map<String, List<String>> getConsumerKeyHashRanges() {
         return selector.getConsumerKeyHashRanges();
     }
