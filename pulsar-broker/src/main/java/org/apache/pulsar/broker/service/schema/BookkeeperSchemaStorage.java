@@ -417,15 +417,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         });
                         FutureUtil.waitForAll(deleteFutures).whenComplete((v, e) -> {
                             final String path = getSchemaPath(schemaId);
-                            ZkUtils.asyncDeleteFullPathOptimistic(zooKeeper, path, -1, new AsyncCallback.VoidCallback() {
-                                @Override
-                                public void processResult(int rc, String path, Object ctx) {
-                                    if (rc != Code.OK.intValue()) {
-                                        future.completeExceptionally(KeeperException.create(Code.get(rc)));
-                                    } else {
-                                        clearLocatorCache(getSchemaPath(schemaId));
-                                        future.complete(version);
-                                    }
+                            ZkUtils.asyncDeleteFullPathOptimistic(zooKeeper, path, -1, (rc, path1, ctx) -> {
+                                if (rc != Code.OK.intValue()) {
+                                    future.completeExceptionally(KeeperException.create(Code.get(rc)));
+                                } else {
+                                    clearLocatorCache(getSchemaPath(schemaId));
+                                    future.complete(version);
                                 }
                             }, path);
 
