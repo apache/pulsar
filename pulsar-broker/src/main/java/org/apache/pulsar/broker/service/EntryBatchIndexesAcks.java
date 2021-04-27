@@ -48,23 +48,22 @@ public class EntryBatchIndexesAcks {
     }
 
     public void recycle() {
+        for (int i = 0; i < size; i++) {
+            indexesAcks[i] = null;
+        }
         handle.recycle(this);
     }
 
-    private void ensureCapacityAndReset(int entriesListSize) {
+    private void ensureCapacityAndSetSize(int entriesListSize) {
         size = entriesListSize;
         if (indexesAcks.length < size) {
             indexesAcks = new Pair[size];
-        } else {
-            for (int i = 0; i < size; i++) {
-                indexesAcks[i] = null;
-            }
         }
     }
 
     public static EntryBatchIndexesAcks get(int entriesListSize) {
         EntryBatchIndexesAcks ebi = RECYCLER.get();
-        ebi.ensureCapacityAndReset(entriesListSize);
+        ebi.ensureCapacityAndSetSize(entriesListSize);
         return ebi;
     }
 
