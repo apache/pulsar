@@ -675,7 +675,7 @@ When you create a reader, you can use the `loadConf` configuration. The followin
 String|`topicName`|Topic name. |None
 int|`receiverQueueSize`|Size of a consumer's receiver queue.<br/><br/>For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.<br/><br/>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000
 ReaderListener&lt;T&gt;|`readerListener`|A listener that is called for message received.|None
-String|`readerName`|Read name.|null
+String|`readerName`|Reader name.|null
 String| `subscriptionName`|Subscription name|When there is a single topic, the default subscription name is `"reader-" + 10-digit UUID`.
 When there are multiple topics, the default subscription name is `"multiTopicsReader-" + 10-digit UUID`.
 String|`subscriptionRolePrefix`|Prefix of subscription role. |null

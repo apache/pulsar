@@ -20,7 +20,9 @@ package org.apache.pulsar.schema.compatibility;
 
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -313,17 +315,34 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         };
 
         for (Schema<?> schema : schemas) {
-            pulsarClient.newProducer(schema)
+            Producer<?> p = pulsarClient.newProducer(schema)
                     .topic(topicName)
                     .create();
+            p.close();
         }
 
         for (Schema<?> schema : schemas) {
-            pulsarClient.newConsumer(schema)
+            Consumer<?> c = pulsarClient.newConsumer(schema)
                     .topic(topicName)
                     .subscriptionName(UUID.randomUUID().toString())
                     .subscribe();
+            c.close();
         }
+
+        List<SchemaInfo> schemasOfTopic = admin.schemas().getAllSchemas(topicName);
+
+        // bytes[] schema and bytebuffer schema does not upload schema info to the schema registry
+        assertEquals(schemasOfTopic.size(), schemas.length - 2);
+
+        // Try to upload the schema again.
+        for (Schema<?> schema : schemas) {
+            Producer<?> p = pulsarClient.newProducer(schema)
+                    .topic(topicName)
+                    .create();
+            p.close();
+        }
+
+        assertEquals(schemasOfTopic.size(), schemas.length - 2);
     }
 
 }
