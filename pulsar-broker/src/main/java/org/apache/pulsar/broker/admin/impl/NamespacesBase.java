@@ -2684,6 +2684,8 @@ public abstract class NamespacesBase extends AdminResource {
            Throwable cause = e.getCause();
            if (!(cause instanceof RestException)) {
                throw new RestException(cause);
+           } else {
+               throw (RestException) cause;
            }
        }
    }
