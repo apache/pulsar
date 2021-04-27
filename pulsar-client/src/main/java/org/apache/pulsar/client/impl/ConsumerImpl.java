@@ -853,18 +853,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Adding {} additional permits", topic, subscription, numMessages);
             }
-
-            cnx.ctx().writeAndFlush(Commands.newFlow(consumerId, numMessages))
-                    .addListener(writeFuture -> {
-                        if (log.isDebugEnabled()) {
+            if (log.isDebugEnabled()) {
+                cnx.ctx().writeAndFlush(Commands.newFlow(consumerId, numMessages))
+                        .addListener(writeFuture -> {
                             if (!writeFuture.isSuccess()) {
                                 log.debug("Consumer {} failed to send {} permits to broker: {}", consumerId, numMessages,
                                         writeFuture.cause().getMessage());
                             } else {
                                 log.debug("Consumer {} sent {} permits to broker", consumerId, numMessages);
                             }
-                        }
-                    });
+                        });
+            } else {
+                cnx.ctx().writeAndFlush(Commands.newFlow(consumerId, numMessages), cnx.ctx().voidPromise());
+            }
         }
     }
 
