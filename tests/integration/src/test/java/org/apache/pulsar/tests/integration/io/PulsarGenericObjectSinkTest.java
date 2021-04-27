@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Cleanup;
 import lombok.Data;
@@ -70,6 +71,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
     @Data
     @Builder
     @NoArgsConstructor
+    @AllArgsConstructor
     public static final class Pojo {
         private String field1;
         private int field2;
@@ -78,6 +80,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
     @Data
     @Builder
     @NoArgsConstructor
+    @AllArgsConstructor
     public static final class PojoKey {
         private String field1;
     }
