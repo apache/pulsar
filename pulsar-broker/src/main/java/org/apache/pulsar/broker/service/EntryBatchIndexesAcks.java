@@ -24,8 +24,8 @@ import java.util.BitSet;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class EntryBatchIndexesAcks {
-    int maxSize = 100;
-    Pair<Integer, long[]>[] indexesAcks = new Pair[maxSize];
+    private int maxSize = 100;
+    private Pair<Integer, long[]>[] indexesAcks = new Pair[maxSize];
 
     public void setIndexesAcks(int entryIdx, Pair<Integer, long[]> indexesAcks) {
         this.indexesAcks[entryIdx] = indexesAcks;
