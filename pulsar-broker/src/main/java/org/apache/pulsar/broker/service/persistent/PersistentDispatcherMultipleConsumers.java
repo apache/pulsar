@@ -480,7 +480,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
 
-        while (entriesToDispatch > 0 && (totalAvailablePermits - entriesToDispatch) > 0 && isAtleastOneConsumerAvailable()) {
+        while (entriesToDispatch > 0 && (totalAvailablePermits - entriesToDispatch) > 0
+                && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
