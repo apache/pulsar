@@ -421,7 +421,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 pendingReceives.add(result);
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             }
-
             if (message != null) {
                 messageProcessed(message);
                 result.complete(beforeConsume(message));
