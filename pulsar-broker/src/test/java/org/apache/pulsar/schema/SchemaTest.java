@@ -20,13 +20,23 @@ package org.apache.pulsar.schema;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import com.google.common.collect.Sets;
 import java.util.Collections;
-
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -39,13 +49,10 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SchemaTest extends MockedPulsarServiceBaseTest {
@@ -203,6 +210,64 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 assertTrue(SchemaRegistryServiceImpl.isUsingAvroSchemaParser(value));
             } else {
                 assertFalse(SchemaRegistryServiceImpl.isUsingAvroSchemaParser(value));
+            }
+        }
+    }
+
+    @Test
+    public void testDeleteTopicAndSchema() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicName = "test-delete-topic-and-schema";
+
+        final String topic = TopicName.get(
+                TopicDomain.persistent.value(),
+                tenant,
+                namespace,
+                topicName).toString();
+
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME));
+
+        @Cleanup
+        Producer<Schemas.PersonOne> p1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+                .topic(topic)
+                .create();
+
+        @Cleanup
+        Producer<Schemas.PersonThree> p2 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+                .topic(topic)
+                .create();
+
+        List<CompletableFuture<SchemaRegistry.SchemaAndMetadata>> schemaFutures =
+                this.pulsar.getSchemaRegistryService().getAllSchemas(TopicName.get(topic).getSchemaName()).get();
+        FutureUtil.waitForAll(schemaFutures).get();
+        List<SchemaRegistry.SchemaAndMetadata> schemas = schemaFutures.stream().map(future -> {
+            try {
+                return future.get();
+            } catch (Exception e) {
+                return null;
+            }
+        }).collect(Collectors.toList());
+
+        assertEquals(schemas.size(), 2);
+        for (SchemaRegistry.SchemaAndMetadata schema : schemas) {
+            assertNotNull(schema);
+        }
+
+        List<Long> ledgers = ((BookkeeperSchemaStorage)this.pulsar.getSchemaStorage())
+                .getSchemaLedgerList(TopicName.get(topic).getSchemaName());
+        assertEquals(ledgers.size(), 2);
+        admin.topics().delete(topic, true, true);
+        assertEquals(this.pulsar.getSchemaRegistryService()
+                .trimDeletedSchemaAndGetList(TopicName.get(topic).getSchemaName()).get().size(), 0);
+
+        for (Long ledger : ledgers) {
+            try {
+                pulsar.getBookKeeperClient().openLedger(ledger, BookKeeper.DigestType.CRC32, new byte[]{});
+                fail();
+            } catch (BKException.BKNoSuchLedgerExistsException ignore) {
             }
         }
     }
