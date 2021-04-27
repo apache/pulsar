@@ -104,6 +104,9 @@ class ProcessRuntime implements Runtime {
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 String logConfigPath = System.getenv("FUNCTIONS_LOG_CONF");
+                if(log.isDebugEnabled()){
+                    log.debug("The loaded value of FUNCTIONS_LOG_CONF is {}", logConfigPath);
+                }
                 // Added null check to prevent test failures
                 if(logConfigPath != null && Files.exists(Paths.get(logConfigPath))){
                     logConfigFile = System.getenv("FUNCTIONS_LOG_CONF");
