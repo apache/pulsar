@@ -109,11 +109,7 @@ class ProcessRuntime implements Runtime {
                     log.debug("The loaded value of pulsar.functions.log.conf is {}", logConfigPath);
                 }
                 // Added null check to prevent test failures
-                if(logConfigPath != null){
-                    if(Files.notExists(Paths.get(logConfigPath))){
-                        throw new FileNotFoundException("ERROR: The file provided by -Dpulsar.functions.log.conf"
-                        + " was not found");
-                    }
+                if(logConfigPath != null && Files.exists(Paths.get(logConfigPath))){
                     logConfigFile = logConfigPath;
                 } else { // Keeping existing file for backwards compatibility
                     logConfigFile = "java_instance_log4j2.xml";
