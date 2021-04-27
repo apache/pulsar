@@ -25,6 +25,8 @@ public class Stock {
     private int entryId;
     private String symbol;
     private double sharePrice;
+    
+    public Stock() {}
 
     public Stock(int entryId, String symbol, double sharePrice) {
         this.entryId = entryId;

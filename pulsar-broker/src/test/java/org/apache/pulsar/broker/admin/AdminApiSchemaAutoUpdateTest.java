@@ -204,6 +204,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         String foo;
         int bar;
 
+        V1Data() {}
+
         V1Data(String foo, int bar) {
             this.foo = foo;
             this.bar = bar;
@@ -214,6 +216,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     @AvroAlias(space="blah", alias="data")
     static class V2Data {
         String foo;
+
+        V2Data() {}
 
         V2Data(String foo) {
             this.foo = foo;
@@ -226,6 +230,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         String foo;
         int bar;
         long baz;
+
+        V3Data() {}
 
         V3Data(String foo, int bar, long baz) {
             this.foo = foo;
@@ -241,6 +247,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         int bar;
         @AvroDefault(value = "10")
         short blah;
+
+        V4Data() {}
 
         V4Data(String foo, int bar, short blah) {
             this.foo = foo;
