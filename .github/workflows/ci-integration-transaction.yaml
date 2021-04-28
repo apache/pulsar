@@ -46,16 +46,7 @@ jobs:
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
-          filters: |
-            # pattern syntax: https://github.com/micromatch/picomatch
-            all:
-              - '**'
-            docs:
-              - 'site2/**'
-              - 'deployment/**'
-              - '.asf.yaml'
-              - '*.md'
-              - '**/*.md'
+          filters: .github/changes-filter.yaml
 
       - name: Check changed files
         id: check_changes

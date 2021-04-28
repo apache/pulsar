@@ -22,9 +22,15 @@ on:
   pull_request:
     branches:
       - master
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-client-cpp/**'
   push:
     branches:
       - branch-*
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-client-cpp/**'
 
 env:
   VCPKG_FEATURE_FLAGS: manifests
@@ -51,12 +57,24 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
 
+      - name: Detect changed files
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
+        with:
+          filters: .github/changes-filter.yaml
+
+      - name: Check changed files
+        id: check_changes
+        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+
       - name: Install vcpkg packages
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         shell: bash
         run: |
           cd pulsar-client-cpp && vcpkg install --triplet ${{ matrix.triplet }}
 
       - name: Configure
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
@@ -71,6 +89,7 @@ jobs:
           fi
 
       - name: Compile
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
