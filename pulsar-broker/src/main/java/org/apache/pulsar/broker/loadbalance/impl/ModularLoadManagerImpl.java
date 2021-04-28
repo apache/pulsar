@@ -201,7 +201,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
     private long unloadBrokerCount = 0;
     private long unloadBundleCount = 0;
 
-    private Lock lock = new ReentrantLock();
+    private final Lock lock = new ReentrantLock();
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
