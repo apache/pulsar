@@ -28,6 +28,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration.ThreadingModel;
+import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -226,8 +227,19 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
 
         @Override
         public void onFailure(Throwable exception) {
-            LOG.error("[{}] Failed to published message for replicator of {}-{}, {} ", kinesisSink.streamName,
-                    resultContext.getPartitionId(), resultContext.getRecordSequence(), exception.getMessage());
+            if (exception instanceof UserRecordFailedException) {
+                // If the exception is UserRecordFailedException, we need to extract it to see real error messages.
+                UserRecordFailedException failedException = (UserRecordFailedException) exception;
+                StringBuffer stringBuffer = new StringBuffer();
+                failedException.getResult().getAttempts().forEach(attempt ->
+                        stringBuffer.append(String.format("errorMessage:%s, errorCode:%s, delay:%d, duration:%d;",
+                                attempt.getErrorMessage(), attempt.getErrorCode(), attempt.getDelay(), attempt.getDuration())));
+                LOG.error("[{}] Failed to published message for replicator of {}-{}: Attempts:{}", kinesisSink.streamName,
+                        resultContext.getPartitionId(), resultContext.getRecordSequence(), stringBuffer.toString());
+            } else {
+                LOG.error("[{}] Failed to published message for replicator of {}-{}, {} ", kinesisSink.streamName,
+                        resultContext.getPartitionId(), resultContext.getRecordSequence(), exception.getMessage());
+            }
             kinesisSink.previousPublishFailed = TRUE;
             if (kinesisSink.sinkContext != null) {
                 kinesisSink.sinkContext.recordMetric(METRICS_TOTAL_FAILURE, 1);
