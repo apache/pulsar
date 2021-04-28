@@ -227,12 +227,22 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     @Test
     public void testTransactionBufferClientTimeout() throws Exception {
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
-        when(mockClient.getConnection(anyString())).thenReturn(new CompletableFuture<>());
+        CompletableFuture<ClientCnx> completableFuture = new CompletableFuture<>();
+        ClientCnx clientCnx = mock(ClientCnx.class);
+        completableFuture.complete(clientCnx);
+        when(mockClient.getConnection(anyString())).thenReturn(completableFuture);
+        ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
+        when(clientCnx.ctx()).thenReturn(cnx);
+        Channel channel = mock(Channel.class);
+        when(cnx.channel()).thenReturn(channel);
+
+        when(channel.isActive()).thenReturn(true);
+
         @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
         TransactionBufferHandlerImpl transactionBufferHandler =
                 new TransactionBufferHandlerImpl(mockClient, hashedWheelTimer);
-        CompletableFuture<TxnID> completableFuture =
+        CompletableFuture<TxnID> endFuture =
                 transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1);
 
         Field field = TransactionBufferHandlerImpl.class.getDeclaredField("pendingRequests");
@@ -250,7 +260,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         });
 
         try {
-            completableFuture.get();
+            endFuture.get();
             fail();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof TransactionBufferClientException.RequestTimeoutException);
