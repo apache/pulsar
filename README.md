@@ -138,8 +138,9 @@ required plugins.
 
 #### Configure Project JDK to Java 8 (1.8) JDK
 
-1. Open Project Settings dialog by going to  
-   `File -> Project Structure -> Project Settings -> Project`.
+1. Open **Project Settings**. 
+
+    Click **File** -> **Project Structure** -> **Project Settings** -> **Project**.
    
 2. Click on the JDK version drop down and select `Download JDK...` or choose an existing recent Java 8 (1.8) JDK version.
 
