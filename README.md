@@ -146,35 +146,35 @@ required plugins.
     
     From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 8 (1.8) JDK version.
 
-3. In the download dialog, select version `1.8`. You can pick a version from many vendors. Unless you have a specific preference, choose `AdoptOpenJDK (Hotspot)`.
+3. In the download dialog, select version **1.8**. You can pick a version from many vendors. Unless you have a specific preference, choose **AdoptOpenJDK (Hotspot)**.
  
 
 #### Configure Java version for Maven in IntelliJ
 
 1. Open Maven Importing Settings dialog by going to 
-   `Settings -> Build, Execution, Deployment -> Build Tools -> Maven -> Importing`.
+   **Settings** -> **Build, Execution, Deployment** -> **Build Tools** -> **Maven** -> **Importing**.
 
-2. Choose "Use Project JDK" for "JDK for Importer" setting. This uses the Java 8 (1.8) JDK for running Maven 
+2. Choose **Use Project JDK** for **JDK for Importer** setting. This uses the Java 8 (1.8) JDK for running Maven 
    when importing the project to IntelliJ. Some of the configuration in the Maven build is conditional based on 
    the JDK version. Incorrect configuration gets chosen when the "JDK for Importer" isn't the same as the "Project JDK".
 
-3. Validate that the JRE setting in "Maven -> Runner" dialog is set to "Use Project JDK".
+3. Validate that the JRE setting in **Maven** -> **Runner** dialog is set to **Use Project JDK**.
 
 #### Configure annotation processing in IntelliJ
 
 1. Open Annotation Processors Settings dialog box by going to
-   `Settings -> Build, Execution, Deployment -> Compiler -> Annotation Processors`.
+   **Settings** -> **Build, Execution, Deployment** -> **Compiler** -> **Annotation Processors**.
 
 2. Select the following buttons:
-   1. "Enable annotation processing"
-   2. "Obtain processors from project classpath"
-   3. "Store generated sources relative to: Module content root"
+   1. **Enable annotation processing**
+   2. **Obtain processors from project classpath**
+   3. Store generated sources relative to: **Module content root**
 
 3. Set the generated source directories to be equal to the Maven directories:
    1. Set "Production sources directory:" to "target/generated-sources/annotations".
    2. Set "Test sources directory:" to "target/generated-test-sources/test-annotations".
 
-4. Click "OK".
+4. Click **OK**.
 
 5. Install the lombok plugin in intellij.
 
