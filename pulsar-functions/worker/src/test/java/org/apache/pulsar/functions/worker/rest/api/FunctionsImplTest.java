@@ -263,7 +263,8 @@ public class FunctionsImplTest {
 
         // test pulsar super user
         final String pulsarSuperUser = "pulsarSuperUser";
-        when(authorizationService.isSuperUser(pulsarSuperUser, null)).thenReturn(CompletableFuture.completedFuture(true));
+        when(authorizationService.isSuperUser(eq(pulsarSuperUser), any()))
+            .thenReturn(CompletableFuture.completedFuture(true));
         assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", pulsarSuperUser, authenticationDataSource));
         assertTrue(functionImpl.isSuperUser(pulsarSuperUser, null));
 
@@ -276,7 +277,7 @@ public class FunctionsImplTest {
         when(admin.tenants()).thenReturn(tenants);
         when(this.mockedWorkerService.getBrokerAdmin()).thenReturn(admin);
         when(authorizationService.isTenantAdmin("test-tenant", "test-user", tenantInfo, authenticationDataSource)).thenReturn(CompletableFuture.completedFuture(false));
-        when(authorizationService.isSuperUser("test-user", null)).thenReturn(CompletableFuture.completedFuture(false));
+        when(authorizationService.isSuperUser(eq("test-user"), any())).thenReturn(CompletableFuture.completedFuture(false));
         assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
 
         // if user is tenant admin
@@ -356,14 +357,12 @@ public class FunctionsImplTest {
                 String user = authData.getHttpHeader("mockedUser");
                 return CompletableFuture.completedFuture(superUser.equals(user));
             }));
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getHeader("mockedUser")).thenReturn(superUser);
-        AuthenticationDataHttp authData = new AuthenticationDataHttp(request);
+        AuthenticationDataSource authData = mock(AuthenticationDataSource.class);
+        when(authData.getHttpHeader("mockedUser")).thenReturn(superUser);
         assertTrue(functionImpl.isSuperUser("non-superuser", authData));
 
-        HttpServletRequest nonSuperuser= mock(HttpServletRequest.class);
-        when(nonSuperuser.getHeader("mockedUser")).thenReturn("non-superuser");
-        AuthenticationDataHttp nonSuperuserAuthData = new AuthenticationDataHttp(nonSuperuser);
+        AuthenticationDataSource nonSuperuserAuthData = mock(AuthenticationDataSource.class);
+        when(nonSuperuserAuthData.getHttpHeader("mockedUser")).thenReturn("non-superuser");
         assertFalse(functionImpl.isSuperUser("non-superuser", nonSuperuserAuthData));
     }
 
