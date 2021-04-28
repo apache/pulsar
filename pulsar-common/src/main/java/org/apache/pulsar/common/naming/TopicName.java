@@ -335,20 +335,17 @@ public class TopicName implements ServiceUnitId {
     }
 
     public String getLookupName(String listenerName) {
+        String lookupName;
         if (isV2()) {
-            if (StringUtils.isNotBlank(listenerName)) {
-                return String.format("%s/%s/%s/%s?listenerName=%s", domain, tenant, namespacePortion,
-                        getEncodedLocalName(),
-                        Codec.encode(listenerName));
-            }
-            return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
+            lookupName =  String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
         } else {
-            if (StringUtils.isNotBlank(listenerName)) {
-                return String.format("%s/%s/%s/%s/%s?listenerName=%s", domain, tenant, cluster,
-                        namespacePortion, getEncodedLocalName(), Codec.encode(listenerName));
-            }
-            return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
+            lookupName = String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion,
+                    getEncodedLocalName());
         }
+        if (StringUtils.isNotBlank(listenerName)) {
+            lookupName = lookupName + "?listenerName=" + Codec.encode(listenerName);
+        }
+        return lookupName;
     }
 
     public boolean isGlobal() {
