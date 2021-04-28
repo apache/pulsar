@@ -75,7 +75,7 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Changed files check
+      - name: Detect changed files
         if: ${{ github.event_name != 'schedule' }}
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master

@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -42,6 +43,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.BrokerData;
@@ -190,6 +193,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
     private long bundleSplitCount = 0;
     private long unloadBrokerCount = 0;
     private long unloadBundleCount = 0;
+
+    private final Lock lock = new ReentrantLock();
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -900,12 +905,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
      */
     @Override
     public LocalBrokerData updateLocalBrokerData() {
+        lock.lock();
         try {
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
             updateLoadBalancingMetrics(systemResourceUsage);
         } catch (Exception e) {
             log.warn("Error when attempting to update local broker data", e);
+            if (e instanceof ConcurrentModificationException) {
+                throw (ConcurrentModificationException) e;
+            }
+        } finally {
+            lock.unlock();
         }
         return localData;
     }
@@ -942,6 +953,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
 
     @Override
     public void writeBrokerDataOnZooKeeper(boolean force) {
+        lock.lock();
         try {
             updateLocalBrokerData();
             if (needBrokerDataUpdate() || force) {
@@ -950,14 +962,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
                 brokerDataLock.updateValue(localData).join();
 
                 // Clear deltas.
-                localData.getLastBundleGains().clear();
-                localData.getLastBundleLosses().clear();
+                localData.cleanDeltas();
 
                 // Update previous data.
                 lastData.update(localData);
             }
         } catch (Exception e) {
             log.warn("Error writing broker data on metadata store", e);
+            if (e instanceof ConcurrentModificationException) {
+                throw (ConcurrentModificationException) e;
+            }
+        } finally {
+            lock.unlock();
         }
     }
 

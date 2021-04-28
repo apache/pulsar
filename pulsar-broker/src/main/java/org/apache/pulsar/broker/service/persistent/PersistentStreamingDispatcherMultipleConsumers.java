@@ -135,7 +135,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    public void readMoreEntries() {
+    public synchronized void readMoreEntries() {
         // totalAvailablePermits may be updated by other threads
         int currentTotalAvailablePermits = totalAvailablePermits;
         if (currentTotalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {

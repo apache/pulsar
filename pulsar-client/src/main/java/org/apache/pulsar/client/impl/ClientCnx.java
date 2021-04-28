@@ -54,6 +54,7 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -250,7 +251,7 @@ public class ClientCnx extends PulsarHandler {
             connectionFuture.completeExceptionally(new PulsarClientException("Connection already closed"));
         }
 
-        PulsarClientException e = new PulsarClientException(
+        ConnectException e = new ConnectException(
                 "Disconnected from server at " + ctx.channel().remoteAddress());
 
         // Fail out all the pending ops
