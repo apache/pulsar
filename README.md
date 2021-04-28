@@ -146,7 +146,7 @@ required plugins.
     
     From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 8 (1.8) JDK version.
 
-3. In the download dialog, select version `1.8`. You can pick from many vendors. Unless you have a specific preference, choose  `AdoptOpenJDK (Hotspot)`.
+3. In the download dialog, select version `1.8`. You can pick a version from many vendors. Unless you have a specific preference, choose `AdoptOpenJDK (Hotspot)`.
  
 
 #### Configure Java version for Maven in IntelliJ
