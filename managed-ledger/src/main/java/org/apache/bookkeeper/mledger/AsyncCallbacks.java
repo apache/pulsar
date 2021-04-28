@@ -148,5 +148,4 @@ public interface AsyncCallbacks {
 
         void updatePropertiesFailed(ManagedLedgerException exception, Object ctx);
     }
-
 }
