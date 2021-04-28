@@ -142,7 +142,9 @@ required plugins.
 
     Click **File** -> **Project Structure** -> **Project Settings** -> **Project**.
    
-2. Click on the JDK version drop down and select `Download JDK...` or choose an existing recent Java 8 (1.8) JDK version.
+2. Select the JDK version.
+    
+    From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 8 (1.8) JDK version.
 
 3. In the download dialog, select version `1.8`. You can pick from many vendors. Unless you have a specific preference, choose  `AdoptOpenJDK (Hotspot)`.
  
