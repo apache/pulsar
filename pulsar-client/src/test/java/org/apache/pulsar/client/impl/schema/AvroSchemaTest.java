@@ -35,6 +35,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.UUID;
+
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
@@ -421,6 +423,18 @@ public class AvroSchemaTest {
         foo = schema.decode(schema.encode(foo));
         assertEquals(foo.getColor(), SchemaTestUtils.Color.RED);
         assertEquals(field1, foo.getField1());
+    }
+
+    static class MyPojo {
+        public UUID uid;
+    }
+
+    @Test
+    public void testAvroUUID() {
+        org.apache.pulsar.client.api.Schema schema = org.apache.pulsar.client.api.Schema.AVRO(MyPojo.class);
+        MyPojo pojo = new MyPojo();
+        pojo.uid = UUID.randomUUID();
+        schema.encode(pojo);
     }
 
 }
