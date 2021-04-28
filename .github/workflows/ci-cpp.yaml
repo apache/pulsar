@@ -90,7 +90,7 @@ jobs:
 
       - name: build package
         if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}
-        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
+        run: mvn -B -ntp -q install -Pcore-modules,-main -DskipTests
 
       - name: build cpp artifacts
         if: ${{ steps.changes.outputs.all_count }} > ${{ steps.changes.outputs.docs_count }}

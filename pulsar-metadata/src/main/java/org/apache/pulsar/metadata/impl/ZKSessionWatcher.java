@@ -117,6 +117,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
 
     @Override
     public synchronized void process(WatchedEvent event) {
+        log.info("Got ZK session watch event: {}", event);
         checkState(event.getState());
     }
 
@@ -156,7 +157,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
         default:
             if (currentStatus != SessionEvent.SessionReestablished) {
                 // since it reconnected to zoo keeper, we reset the disconnected time
-                log.info("ZooKeeper client reconnection with server quorum");
+                log.info("ZooKeeper client reconnection with server quorum. Current status: {}", currentStatus);
                 disconnectedAt = 0;
 
                 sessionListener.accept(SessionEvent.Reconnected);

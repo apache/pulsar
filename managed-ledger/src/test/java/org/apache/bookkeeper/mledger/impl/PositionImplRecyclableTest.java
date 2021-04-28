@@ -16,21 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef JAVA_DEFAULT_HASH_HPP_
-#define JAVA_DEFAULT_HASH_HPP_
+package org.apache.bookkeeper.mledger.impl;
 
-#include <pulsar/defines.h>
-#include "Hash.h"
+import static org.testng.Assert.assertNull;
+import org.testng.annotations.Test;
 
-#include <cstdint>
-#include <string>
+public class PositionImplRecyclableTest {
 
-namespace pulsar {
-class PULSAR_PUBLIC JavaStringHash : public Hash {
-   public:
-    JavaStringHash();
-    int32_t makeHash(const std::string &key);
-};
-}  // namespace pulsar
-
-#endif /* JAVA_DEFAULT_HASH_HPP_ */
+    @Test
+    void shouldNotCarryStateInAckSetWhenRecycled() {
+        PositionImplRecyclable position = PositionImplRecyclable.create();
+        position.ackSet = new long[]{1L, 2L, 3L};
+        position.recycle();
+        PositionImplRecyclable position2 = PositionImplRecyclable.create();
+        assertNull(position2.ackSet);
+    }
+}

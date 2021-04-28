@@ -56,7 +56,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
-    protected final ExecutorService executor;
+    private final ExecutorService executor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
@@ -233,6 +233,17 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public void invalidateAll() {
         childrenCache.synchronous().invalidateAll();
         existsCache.synchronous().invalidateAll();
+    }
+
+    /**
+     * Run the task in the executor thread and fail the future if the executor is shutting down
+     */
+    protected void execute(Runnable task, CompletableFuture<?> future) {
+        try {
+            executor.execute(task);
+        } catch (Throwable t) {
+            future.completeExceptionally(t);
+        }
     }
 
     protected static String parent(String path) {

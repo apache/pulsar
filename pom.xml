@@ -1822,8 +1822,9 @@ flexible messaging model and an intuitive client API.</description>
     <profile>
       <id>main</id>
       <activation>
-        <activeByDefault>true</activeByDefault>
-        <jdk>[8,)</jdk>
+        <!-- always activate this profile by default. Use "-main" or "!main" in the "-P" parameter to exclude it -->
+        <!-- for example use "-Pcore-modules,-main" to activate the core-modules profile -->
+        <file><exists>pom.xml</exists></file>
       </activation>
       <modules>
         <module>buildtools</module>

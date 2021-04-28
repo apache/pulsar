@@ -189,6 +189,14 @@ public abstract class BaseResource {
         return future;
     }
 
+    public <T> void asyncDeleteRequest(final WebTarget target, InvocationCallback<T> callback) {
+        try {
+            request(target).async().delete(callback);
+        } catch (PulsarAdminException cae) {
+            callback.failed(cae);
+        }
+    }
+
     public PulsarAdminException getApiException(Throwable e) {
         if (e instanceof PulsarAdminException) {
             return (PulsarAdminException) e;
