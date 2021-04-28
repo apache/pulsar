@@ -218,8 +218,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     public void readMoreEntries() {
         // totalAvailablePermits may be updated by other threads
-        int currentTotalAvailablePermits = totalAvailablePermits;
-        if (currentTotalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
+        int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
+        int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
+        if (currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0) {
             int messagesToRead = calculateNumOfMessageToRead(currentTotalAvailablePermits);
 
             if (-1 == messagesToRead) {
@@ -480,7 +481,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
 
-        while (entriesToDispatch > 0 && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
+        int firstAvailableConsumerPermits, currentTotalAvailablePermits;
+        boolean dispatchMessage;
+        while (entriesToDispatch > 0) {
+            firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
+            currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
+            dispatchMessage = currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0;
+            if (!dispatchMessage) {
+                break;
+            }
             Consumer c = getNextConsumer();
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
@@ -638,16 +647,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * @return
      */
     protected boolean isAtleastOneConsumerAvailable() {
+        return getFirstAvailableConsumerPermits() > 0;
+    }
+
+    protected int getFirstAvailableConsumerPermits() {
         if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
-            return false;
+            return 0;
         }
         for (Consumer consumer : consumerList) {
             if (isConsumerAvailable(consumer)) {
-                return true;
+                return consumer.getAvailablePermits();
             }
         }
-        return false;
+        return 0;
     }
 
     private boolean isConsumerWritable() {
