@@ -152,7 +152,7 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    protected void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer) {
+    protected synchronized void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer) {
         // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
         cursor.rewind();
 
@@ -276,7 +276,7 @@ public class PersistentReplicator extends AbstractReplicator
         return availablePermits;
     }
 
-    protected void readMoreEntries() {
+    protected synchronized void readMoreEntries() {
         int availablePermits = getAvailablePermits();
 
         if (availablePermits > 0) {
@@ -320,7 +320,7 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+    public synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{} -> {}] Read entries complete of {} messages", topicName, localCluster, remoteCluster,
                     entries.size());
@@ -550,7 +550,7 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+    public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
         if (STATE_UPDATER.get(this) != State.Started) {
             log.info("[{}][{} -> {}] Replicator was stopped while reading entries."
                             + " Stop reading. Replicator state: {}",
