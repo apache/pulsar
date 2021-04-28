@@ -61,7 +61,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         if (ctx.isLast()) {
             readFailureBackoff.reduceToHalf();
             if (readType == ReadType.Normal) {
-                havePendingRead = false;
+                havePendingRead.set(false);
             } else {
                 havePendingReplayRead = false;
             }
@@ -99,11 +99,11 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
      */
     @Override
     public void canReadMoreEntries(boolean withBackoff) {
-        havePendingRead = false;
+        havePendingRead.set(false);
         topic.getBrokerService().executor().schedule(() -> {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topic.getName(), SafeRun.safeRun(() -> {
                 synchronized (PersistentStreamingDispatcherMultipleConsumers.this) {
-                    if (!havePendingRead) {
+                    if (!havePendingRead.get()) {
                         log.info("[{}] Scheduling read operation", name);
                         readMoreEntries();
                     } else {
@@ -129,8 +129,8 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     protected void cancelPendingRead() {
-        if (havePendingRead && streamingEntryReader.cancelReadRequests()) {
-            havePendingRead = false;
+        if (havePendingRead.get() && streamingEntryReader.cancelReadRequests()) {
+            havePendingRead.set(false);
         }
     }
 
@@ -170,12 +170,11 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                         totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
-            } else if (!havePendingRead) {
+            } else if (havePendingRead.compareAndSet(false, true)) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
                             consumerList.size());
                 }
-                havePendingRead = true;
                 streamingEntryReader.asyncReadEntries(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(),
                         ReadType.Normal);
             } else {

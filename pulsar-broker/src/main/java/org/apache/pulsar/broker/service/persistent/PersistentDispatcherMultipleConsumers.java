@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -81,7 +82,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
 
-    protected volatile boolean havePendingRead = false;
+    protected volatile AtomicBoolean havePendingRead = new AtomicBoolean(false);
     protected volatile boolean havePendingReplayRead = false;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
@@ -134,7 +135,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
         if (consumerList.isEmpty()) {
-            if (havePendingRead || havePendingReplayRead) {
+            if (havePendingRead.get() || havePendingReplayRead) {
                 // There is a pending read from previous run. We must wait for it to complete and then rewind
                 shouldRewindBeforeReadingOrReplaying = true;
             } else {
@@ -251,12 +252,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                         totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
-            } else if (!havePendingRead) {
+            } else if (havePendingRead.compareAndSet(false, true)) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
                             consumerList.size());
                 }
-                havePendingRead = true;
                 cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(),
                         this,
                         ReadType.Normal, topic.getMaxReadPosition());
@@ -402,8 +402,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     protected void cancelPendingRead() {
-        if (havePendingRead && cursor.cancelPendingReadRequest()) {
-            havePendingRead = false;
+        if (havePendingRead.get() && cursor.cancelPendingReadRequest()) {
+            havePendingRead.set(false);
         }
     }
 
@@ -432,7 +432,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     public synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
         ReadType readType = (ReadType) ctx;
         if (readType == ReadType.Normal) {
-            havePendingRead = false;
+            havePendingRead.set(false);
         } else {
             havePendingReplayRead = false;
         }
@@ -594,7 +594,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         if (readType == ReadType.Normal) {
-            havePendingRead = false;
+            havePendingRead.set(false);
         } else {
             havePendingReplayRead = false;
             if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
@@ -611,7 +611,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {
-                if (!havePendingRead) {
+                if (!havePendingRead.get()) {
                     log.info("[{}] Retrying read operation", name);
                     readMoreEntries();
                 } else {
@@ -839,7 +839,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return false;
         }
         // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
-        if (totalAvailablePermits > 0 && !havePendingReplayRead && !havePendingRead
+        if (totalAvailablePermits > 0 && !havePendingReplayRead && !havePendingRead.get()
                 && cursor.getNumberOfEntriesInBacklog(false) > 0) {
             log.warn("{}-{} Dispatcher is stuck and unblocking by issuing reads", topic.getName(), name);
             readMoreEntries();

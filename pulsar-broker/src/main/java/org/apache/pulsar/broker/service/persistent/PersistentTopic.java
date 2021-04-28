@@ -1861,7 +1861,7 @@ public class PersistentTopic extends AbstractTopic
                 if (sub.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
                     PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) sub
                             .getDispatcher();
-                    cs.subscriptionHavePendingRead = dispatcher.havePendingRead;
+                    cs.subscriptionHavePendingRead = dispatcher.havePendingRead.get();
                     cs.subscriptionHavePendingReplayRead = dispatcher.havePendingReplayRead;
                 } else if (sub.getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
                     PersistentDispatcherSingleActiveConsumer dispatcher = (PersistentDispatcherSingleActiveConsumer) sub
