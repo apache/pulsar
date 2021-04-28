@@ -120,7 +120,7 @@ You are now ready to start developing!
 
 #### IDE Setup
 
-Please find the [instructions for IDE Setup in the README.md](https://github.com/apache/pulsar/#setting-up-your-ide) file. 
+For how to set up IDE, see [here](https://github.com/apache/pulsar/blob/master/README.md#setting-up-your-ide). 
 
 
 ### Create a branch in your fork
