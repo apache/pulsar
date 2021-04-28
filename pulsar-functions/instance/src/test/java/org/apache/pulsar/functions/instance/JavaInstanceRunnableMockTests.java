@@ -40,6 +40,7 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.mockito.ArgumentCaptor;
 import org.powermock.reflect.Whitebox;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -54,7 +55,7 @@ public class JavaInstanceRunnableMockTests {
   public static final String EXCLAMATION_JAVA_CLASS =
 	        "org.apache.pulsar.functions.api.examples.ExclamationFunction";
   
-  private static ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
+  private static ThreadPoolExecutor executor;
 
   private ProducerBuilderImpl<byte[]> mockProducerBuilder;
   private PulsarClientImpl mockPulsarClient;
@@ -68,6 +69,8 @@ public class JavaInstanceRunnableMockTests {
 	  when(mockProducerBuilder.enableBatching(true)).thenReturn(mockProducerBuilder);
 	  when(mockProducerBuilder.batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)).thenReturn(mockProducerBuilder);
 	  when(mockPulsarClient.newProducer()).thenReturn(mockProducerBuilder);
+	  
+	  executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
   }
   
   @Test
@@ -102,6 +105,11 @@ public class JavaInstanceRunnableMockTests {
     Object throwable = Whitebox.getInternalState(spiedRunnable, "deathException");
     assertNotNull(throwable);
     assertTrue(throwable instanceof SinkException);
+  }
+  
+  @AfterMethod
+  private final void tearDown() {
+	  executor.shutdown();
   }
   
   private JavaInstanceRunnable createRunnable(InstanceConfig config) {
