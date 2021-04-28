@@ -309,6 +309,11 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
         return lastBundleGains;
     }
 
+    public void cleanDeltas() {
+        lastBundleGains.clear();
+        lastBundleLosses.clear();
+    }
+
     public void setLastBundleGains(Set<String> lastBundleGains) {
         this.lastBundleGains = lastBundleGains;
     }
