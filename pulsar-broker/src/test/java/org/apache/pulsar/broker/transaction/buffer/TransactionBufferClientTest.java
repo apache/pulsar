@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
@@ -260,6 +261,24 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         tbClient.abortTxnOnSubscription(topic + "_abort_sub", "test", 1L, 1L, -1L).get();
         tbClient.commitTxnOnSubscription(topic + "_commit_sub", "test", 1L, 1L, -1L).get();
         tbClient.abortTxnOnTopic(topic + "_abort_topic", 1L, 1L, -1L).get();
+        tbClient.commitTxnOnTopic(topic + "_commit_topic", 1L, 1L, -1L).get();
+    }
+
+    @Test
+    public void testTransactionBufferHandlerSemaphore() throws Exception {
+
+        Field field = TransactionBufferClientImpl.class.getDeclaredField("tbHandler");
+        field.setAccessible(true);
+        TransactionBufferHandlerImpl transactionBufferHandler = (TransactionBufferHandlerImpl) field.get(tbClient);
+
+        field = TransactionBufferHandlerImpl.class.getDeclaredField("semaphore");
+        field.setAccessible(true);
+        field.set(transactionBufferHandler, new Semaphore(2));
+
+        String topic = "persistent://" + namespace + "/testTransactionBufferLookUp";
+        tbClient.abortTxnOnSubscription(topic + "_abort_sub", "test", 1L, 1L, -1L).get();
+        tbClient.abortTxnOnTopic(topic + "_abort_topic", 1L, 1L, -1L).get();
+        tbClient.commitTxnOnSubscription(topic + "_commit_sub", "test", 1L, 1L, -1L).get();
         tbClient.commitTxnOnTopic(topic + "_commit_topic", 1L, 1L, -1L).get();
     }
 }

@@ -168,7 +168,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             cache.invalidate(op.topic);
             op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
-        op.recycle();
+        onResponse(op);
     }
 
     @Override
@@ -195,7 +195,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             cache.invalidate(op.topic);
             op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
-        op.recycle();
+        onResponse(op);
     }
 
     private boolean canSendRequest(CompletableFuture<?> callback) {
