@@ -2330,10 +2330,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             ls.getLedgerId());
                     break;
                 } else if (expired || isTruncate) {
-                    log.debug("[{}] Ledger {} has expired, ts {}", name, ls.getLedgerId(), ls.getTimestamp());
+                    log.debug("[{}] Ledger {} has expired or be truncated, expired is {}, isTruncate is {}, ts {}", name, ls.getLedgerId(), expired,  isTruncate, ls.getTimestamp());
                     ledgersToDelete.add(ls);
                 } else if (overRetentionQuota || isTruncate) {
-                    log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
+                    log.debug("[{}] Ledger {} is over quota or be truncated, overRetentionQuota is {}, isTruncate is {}", name, ls.getLedgerId(), overRetentionQuota, isTruncate);
                     ledgersToDelete.add(ls);
                 } else {
                     log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
