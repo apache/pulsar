@@ -232,11 +232,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             produceSocket.sendMessage(20);
             // Send 10 permits, should receive 10 message
             consumeSocket.sendPermits(10);
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 10));
             consumeSocket.isEndOfTopic();
             // Wait till get response
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getBuffer().size(), 11));
             // Assert not reach end of topic yet
             assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
@@ -244,11 +244,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             // Send 20 more permits, should receive all message
             consumeSocket.sendPermits(20);
             // 31 includes previous of end of topic request.
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 31));
             consumeSocket.isEndOfTopic();
             // Wait till get response
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 32));
             // Assert not reached end of topic.
             assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":false}");
@@ -256,7 +256,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             admin.topics().terminateTopicAsync(topic).get();
             consumeSocket.isEndOfTopic();
             // Wait till get response
-            Awaitility.await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), 33));
             // Assert reached end of topic.
             assertEquals(consumeSocket.getBuffer().get(consumeSocket.getBuffer().size() - 1), "{\"endOfTopic\":true}");

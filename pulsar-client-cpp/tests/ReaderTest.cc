@@ -563,3 +563,17 @@ TEST(ReaderTest, testMultiSameSubscriptionNameReaderShouldFail) {
     reader2.close();
     client.close();
 }
+
+TEST(ReaderTest, testIsConnected) {
+    const std::string topic = "testReaderIsConnected-" + std::to_string(time(nullptr));
+    Client client(serviceUrl);
+
+    Reader reader;
+    ASSERT_FALSE(reader.isConnected());
+
+    ASSERT_EQ(ResultOk, client.createReader(topic, MessageId::earliest(), {}, reader));
+    ASSERT_TRUE(reader.isConnected());
+
+    ASSERT_EQ(ResultOk, reader.close());
+    ASSERT_FALSE(reader.isConnected());
+}

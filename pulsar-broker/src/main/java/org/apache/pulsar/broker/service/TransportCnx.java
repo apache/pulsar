@@ -78,4 +78,6 @@ public interface TransportCnx {
 
     HAProxyMessage getHAProxyMessage();
 
+    String clientSourceAddress();
+
 }

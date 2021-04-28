@@ -89,7 +89,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
         try {
             zkc.getData(path, this, (rc, path1, ctx, data, stat) -> {
-                executor.execute(() -> {
+                execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         future.complete(Optional.of(new GetResult(data, getStat(path1, stat))));
@@ -115,7 +115,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     } else {
                         future.completeExceptionally(getException(code, path));
                     }
-                });
+                }, future);
             }, null);
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
@@ -130,7 +130,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
         try {
             zkc.getChildren(path, this, (rc, path1, ctx, children) -> {
-                executor.execute(() -> {
+                execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         Collections.sort(children);
@@ -158,7 +158,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     } else {
                         future.completeExceptionally(getException(code, path));
                     }
-                });
+                }, future);
             }, null);
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
@@ -173,7 +173,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
         try {
             zkc.exists(path, this, (rc, path1, ctx, stat) -> {
-                executor.execute(() -> {
+                execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         future.complete(true);
@@ -182,7 +182,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     } else {
                         future.completeExceptionally(getException(code, path));
                     }
-                });
+                }, future);
             }, future);
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
@@ -206,23 +206,24 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
         try {
             if (hasVersion && expectedVersion == -1) {
+                CreateMode createMode = getCreateMode(options);
                 ZkUtils.asyncCreateFullPathOptimistic(zkc, path, value, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        getCreateMode(options), (rc, path1, ctx, name) -> {
-                            executor.execute(() -> {
+                        createMode, (rc, path1, ctx, name) -> {
+                            execute(() -> {
                                 Code code = Code.get(rc);
                                 if (code == Code.OK) {
-                                    future.complete(new Stat(name, 0, 0, 0));
+                                    future.complete(new Stat(name, 0, 0, 0, createMode.isEphemeral(), true));
                                 } else if (code == Code.NODEEXISTS) {
                                     // We're emulating a request to create node, so the version is invalid
                                     future.completeExceptionally(getException(Code.BADVERSION, path));
                                 } else {
                                     future.completeExceptionally(getException(code, path));
                                 }
-                            });
+                            }, future);
                         }, null);
             } else {
                 zkc.setData(path, value, expectedVersion, (rc, path1, ctx, stat) -> {
-                    executor.execute(() -> {
+                    execute(() -> {
                         Code code = Code.get(rc);
                         if (code == Code.OK) {
                             future.complete(getStat(path1, stat));
@@ -242,7 +243,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                         } else {
                             future.completeExceptionally(getException(code, path));
                         }
-                    });
+                    }, future);
                 }, null);
             }
         } catch (Throwable t) {
@@ -260,14 +261,14 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
         try {
             zkc.delete(path, expectedVersion, (rc, path1, ctx) -> {
-                executor.execute(() -> {
+                execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         future.complete(null);
                     } else {
                         future.completeExceptionally(getException(code, path));
                     }
-                });
+                }, future);
             }, null);
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
@@ -285,8 +286,10 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         super.close();
     }
 
-    private static Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
-        return new Stat(path, zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime());
+    private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
+        return new Stat(path, zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime(),
+                zkStat.getEphemeralOwner() != -1,
+                zkStat.getEphemeralOwner() == zkc.getSessionId());
     }
 
     private static MetadataStoreException getException(Code code, String path) {
@@ -352,5 +355,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         } else {
             return CreateMode.PERSISTENT;
         }
+    }
+
+    public long getZkSessionId() {
+        return zkc.getSessionId();
     }
 }

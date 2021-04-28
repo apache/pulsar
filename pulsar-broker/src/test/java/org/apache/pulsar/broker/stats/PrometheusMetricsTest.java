@@ -250,8 +250,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 pulsar.getBrokerService().getTopicIfExists(topic1).get().get().getSubscription(subName);
         PersistentSubscription sub2 = (PersistentSubscription)
                 pulsar.getBrokerService().getTopicIfExists(topic2).get().get().getSubscription(subName);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> sub.getExpiredMessageRate() != 0.0);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> sub2.getExpiredMessageRate() != 0.0);
+        Awaitility.await().until(() -> sub.getExpiredMessageRate() != 0.0);
+        Awaitility.await().until(() -> sub2.getExpiredMessageRate() != 0.0);
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);

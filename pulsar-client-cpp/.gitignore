@@ -76,3 +76,10 @@ pulsar-dist
 install_manifest.txt
 merged-library
 python/venv
+
+# Visual Studio files
+out/
+CMakeSettings.json
+
+# vcpkg dependencies directory
+vcpkg_installed/

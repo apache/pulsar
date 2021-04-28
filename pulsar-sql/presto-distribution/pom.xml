@@ -131,14 +131,6 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-presto-connector</artifactId>
-      <version>${project.version}</version>
-      <type>tar.gz</type>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.objenesis</groupId>
       <artifactId>objenesis</artifactId>
       <version>${objenesis.version}</version>
@@ -270,6 +262,14 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <skip>${skipBuildDistribution}</skip>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
         <version>3.3.0</version>
         <configuration>
@@ -338,4 +338,25 @@
       </extension>
     </extensions>
   </build>
+
+  <profiles>
+    <profile>
+      <id>skipBuildDistributionDisabled</id>
+      <activation>
+        <property>
+          <name>skipBuildDistribution</name>
+          <value>false</value>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-presto-connector</artifactId>
+          <version>${project.version}</version>
+          <type>tar.gz</type>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

@@ -163,6 +163,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         PositionImplRecyclable position = PositionImplRecyclable.create();
         position.ledgerId = key;
         position.entryId = value;
+        position.ackSet = null;
         return position;
     };
     private final LongPairRangeSet<PositionImpl> individualDeletedMessages;

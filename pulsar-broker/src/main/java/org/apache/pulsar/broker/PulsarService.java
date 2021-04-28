@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -112,7 +113,6 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -337,6 +337,7 @@ public class PulsarService implements AutoCloseable {
             if (closeFuture != null) {
                 return closeFuture;
             }
+            LOG.info("Closing PulsarService");
             state = State.Closing;
 
             // close the service in reverse order v.s. in which they are started
@@ -370,6 +371,13 @@ public class PulsarService implements AutoCloseable {
                                                     * getConfiguration()
                                                     .getBrokerShutdownTimeoutMs())));
 
+            // shutdown loadmanager before shutting down the broker
+            executorServicesShutdown.shutdown(loadManagerExecutor);
+            LoadManager loadManager = this.loadManager.get();
+            if (loadManager != null) {
+                loadManager.stop();
+            }
+
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
             if (this.brokerService != null) {
                 asyncCloseFutures.add(this.brokerService.closeAsync());
@@ -390,8 +398,6 @@ public class PulsarService implements AutoCloseable {
                 this.leaderElectionService.close();
                 this.leaderElectionService = null;
             }
-
-            executorServicesShutdown.shutdown(loadManagerExecutor);
 
             if (globalZkCache != null) {
                 globalZkCache.close();
@@ -433,10 +439,7 @@ public class PulsarService implements AutoCloseable {
             executorServicesShutdown.shutdown(orderedExecutor);
             executorServicesShutdown.shutdown(cacheExecutor);
 
-            LoadManager loadManager = this.loadManager.get();
-            if (loadManager != null) {
-                loadManager.stop();
-            }
+
 
             if (schemaRegistryService != null) {
                 schemaRegistryService.close();
@@ -471,6 +474,15 @@ public class PulsarService implements AutoCloseable {
 
             closeFuture = addTimeoutHandling(FutureUtil.waitForAllAndSupportCancel(asyncCloseFutures));
             closeFuture.handle((v, t) -> {
+                if (t == null) {
+                    LOG.info("Closed");
+                } else if (t instanceof CancellationException) {
+                    LOG.info("Closed (shutdown cancelled)");
+                } else if (t instanceof TimeoutException) {
+                    LOG.info("Closed (shutdown timeout)");
+                } else {
+                    LOG.warn("Closed with errors", t);
+                }
                 state = State.Closed;
                 isClosedCondition.signalAll();
                 return null;
@@ -734,8 +746,7 @@ public class PulsarService implements AutoCloseable {
                 this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
-                transactionBufferClient = TransactionBufferClientImpl.create(
-                        getNamespaceService(), ((PulsarClientImpl) getClient()).getCnxPool(), transactionTimer);
+                transactionBufferClient = TransactionBufferClientImpl.create(getClient(), transactionTimer);
 
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
@@ -1503,6 +1514,10 @@ public class PulsarService implements AutoCloseable {
         return coordinationService;
     }
 
+    public CompletableFuture<Set<String>> getAvailableBookiesAsync() {
+        return this.localZkCacheService.availableBookiesCache().getAsync();
+    }
+
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
@@ -1550,4 +1565,5 @@ public class PulsarService implements AutoCloseable {
                         ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
     }
+
 }

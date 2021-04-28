@@ -18,53 +18,68 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
-import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class TransactionBufferHandlerImpl implements TransactionBufferHandler, TimerTask {
 
     private final ConcurrentSkipListMap<Long, OpRequestSend> pendingRequests;
-    private final ConnectionPool connectionPool;
-    private final NamespaceService namespaceService;
     private final AtomicLong requestIdGenerator = new AtomicLong();
     private final long operationTimeoutInMills;
     private Timeout requestTimeout;
     private final HashedWheelTimer timer;
     private final Semaphore semaphore;
     private final boolean blockIfReachMaxPendingOps;
+    private final PulsarClient pulsarClient;
 
-    public TransactionBufferHandlerImpl(ConnectionPool connectionPool, NamespaceService namespaceService,
+    private final LoadingCache<String, CompletableFuture<ClientCnx>> cache = CacheBuilder.newBuilder()
+            .maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build(new CacheLoader<String, CompletableFuture<ClientCnx>>() {
+                @Override
+                public CompletableFuture<ClientCnx> load(String topic) {
+                    CompletableFuture<ClientCnx> siFuture = getClientCnx(topic);
+                    siFuture.whenComplete((si, cause) -> {
+                        if (null != cause) {
+                            cache.invalidate(topic);
+                        }
+                    });
+                    return siFuture;
+                }
+            });
+
+    public TransactionBufferHandlerImpl(PulsarClient pulsarClient,
                                         HashedWheelTimer timer) {
-        this.connectionPool = connectionPool;
+        this.pulsarClient = pulsarClient;
         this.pendingRequests = new ConcurrentSkipListMap<>();
-        this.namespaceService = namespaceService;
         this.operationTimeoutInMills = 3000L;
         this.semaphore = new Semaphore(10000);
         this.blockIfReachMaxPendingOps = true;
@@ -73,7 +88,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
+    public synchronized CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
                                                   TxnAction action, long lowWaterMark) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
@@ -82,30 +97,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, action, lowWaterMark);
-        OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
-        pendingRequests.put(requestId, op);
-        cmd.retain();
-        cnx(topic).whenComplete((clientCnx, throwable) -> {
-            if (throwable == null) {
-                try {
-                    clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
-                } catch (Exception e) {
-                    cb.completeExceptionally(e);
-                    pendingRequests.remove(requestId);
-                    op.recycle();
-                }
-            } else {
-                cb.completeExceptionally(throwable);
-                pendingRequests.remove(requestId);
-                op.recycle();
-            }
-        });
-        return cb;
+        return endTxn(requestId, topic, cmd, cb);
     }
 
     @Override
-    public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription, long txnIdMostBits,
-                                                         long txnIdLeastBits, TxnAction action, long lowWaterMark) {
+    public synchronized CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription,
+                                                                      long txnIdMostBits, long txnIdLeastBits,
+                                                                      TxnAction action, long lowWaterMark) {
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
@@ -113,29 +111,43 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, subscription, action, lowWaterMark);
+        return endTxn(requestId, topic, cmd, cb);
+    }
+
+    private CompletableFuture<TxnID> endTxn(long requestId, String topic, ByteBuf cmd, CompletableFuture<TxnID> cb) {
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
         pendingRequests.put(requestId, op);
         cmd.retain();
-        cnx(topic).whenComplete((clientCnx, throwable) -> {
-            if (throwable == null) {
-                try {
-                    clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
-                } catch (Exception e) {
-                    cb.completeExceptionally(e);
+        try {
+            cache.get(topic).whenComplete((clientCnx, throwable) -> {
+                if (throwable == null) {
+                    try {
+                        clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
+                        clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
+                    } catch (Exception e) {
+                        cache.invalidate(topic);
+                        cb.completeExceptionally(e);
+                        pendingRequests.remove(requestId);
+                        op.recycle();
+                    }
+                } else {
+                    cache.invalidate(topic);
+                    cb.completeExceptionally(throwable);
                     pendingRequests.remove(requestId);
                     op.recycle();
                 }
-            } else {
-                cb.completeExceptionally(throwable);
-                pendingRequests.remove(requestId);
-                op.recycle();
-            }
-        });
+            });
+        } catch (ExecutionException e) {
+            cache.invalidate(topic);
+            cb.completeExceptionally(new PulsarClientException.LookupException(e.getCause().getMessage()));
+            pendingRequests.remove(requestId);
+            op.recycle();
+        }
         return cb;
     }
 
     @Override
-    public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
+    public synchronized void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
             if (log.isDebugEnabled()) {
@@ -149,18 +161,18 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
             }
-            log.info("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
             op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
         } else {
             log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(),
                     response.getError());
+            cache.invalidate(op.topic);
             op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
         op.recycle();
     }
 
     @Override
-    public void handleEndTxnOnSubscriptionResponse(long requestId,
+    public synchronized void handleEndTxnOnSubscriptionResponse(long requestId,
                                                    CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = pendingRequests.remove(requestId);
         if (op == null) {
@@ -180,40 +192,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         } else {
             log.error("[{}] Got end txn on subscription response for request {} error {}",
                     op.topic, response.getRequestId(), response.getError());
+            cache.invalidate(op.topic);
             op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
         op.recycle();
-    }
-
-    private CompletableFuture<ClientCnx> cnx(String topic) {
-        return getServiceUrl(topic).thenCompose(serviceUrl -> {
-            try {
-                if (serviceUrl == null) {
-                    return CompletableFuture.completedFuture(null);
-                }
-                URI uri = new URI(serviceUrl);
-                return connectionPool.getConnection(InetSocketAddress.createUnresolved(uri.getHost(),
-                        uri.getPort())).thenCompose(clientCnx -> {
-                    clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
-                    return CompletableFuture.completedFuture(clientCnx);
-                });
-            } catch (Exception e) {
-                return FutureUtil.failedFuture(e);
-            }
-        });
-    }
-
-    private CompletableFuture<String> getServiceUrl(String topic) {
-        TopicName topicName = TopicName.get(topic);
-        return namespaceService.getBundleAsync(topicName)
-                .thenCompose(namespaceService::getOwnerAsync)
-                .thenCompose(ned -> {
-                    String serviceUrl = null;
-                    if (ned.isPresent()) {
-                        serviceUrl = ned.get().getNativeUrl();
-                    }
-                   return CompletableFuture.completedFuture(serviceUrl);
-                });
     }
 
     private boolean canSendRequest(CompletableFuture<?> callback) {
@@ -234,13 +216,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
         return true;
     }
 
-    @Override
-    public void run(Timeout timeout) throws Exception {
+    public synchronized void run(Timeout timeout) throws Exception {
         if (timeout.isCancelled()) {
             return;
         }
         long timeToWaitMs;
-        OpRequestSend peeked = null;
+        OpRequestSend peeked;
         Map.Entry<Long, OpRequestSend> firstEntry = pendingRequests.firstEntry();
         peeked = firstEntry == null ? null : firstEntry.getValue();
         while (peeked != null && peeked.createdAt + operationTimeoutInMills - System.currentTimeMillis() <= 0) {
@@ -251,17 +232,13 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 break;
             }
             firstEntry = pendingRequests.firstEntry();
+            pendingRequests.remove(pendingRequests.firstKey());
             peeked = firstEntry == null ? null : firstEntry.getValue();
         }
         if (peeked == null) {
             timeToWaitMs = operationTimeoutInMills;
         } else {
-            long diff = (peeked.createdAt + operationTimeoutInMills) - System.currentTimeMillis();
-            if (diff <= 0) {
-                timeToWaitMs = operationTimeoutInMills;
-            } else {
-                timeToWaitMs = diff;
-            }
+            timeToWaitMs = (peeked.createdAt + operationTimeoutInMills) - System.currentTimeMillis();
         }
         requestTimeout = timer.newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
     }
@@ -286,7 +263,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             op.topic = topic;
             op.byteBuf = byteBuf;
             op.cb = cb;
-            op.createdAt = System.nanoTime();
+            op.createdAt = System.currentTimeMillis();
             return op;
         }
 
@@ -306,6 +283,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 return new OpRequestSend(handle);
             }
         };
+    }
+
+    private CompletableFuture<ClientCnx> getClientCnx(String topic) {
+        return ((PulsarClientImpl) pulsarClient).getConnection(topic);
     }
 
     @Override
