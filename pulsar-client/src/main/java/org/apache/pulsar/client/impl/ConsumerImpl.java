@@ -1060,7 +1060,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             internalPinnedExecutor.execute(() -> {
                 if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null &&
                         redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
-                    possibleSendToDeadLetterTopicMessages.put((MessageIdImpl)message.getMessageId(),
+                    possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
                             Collections.singletonList(message));
                 }
                 if (peekPendingReceive() != null) {
