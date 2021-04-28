@@ -85,8 +85,13 @@
         <Bug pattern="IS2_INCONSISTENT_SYNC"/>
     </Match>
 
+    <!-- Needed for compatibility with TopicMessageIdImpl -->
     <Match>
         <Class name="org.apache.pulsar.client.impl.MessageIdImpl"/>
+        <Bug pattern="EQ_CHECK_FOR_OPERAND_NOT_COMPATIBLE_WITH_THIS"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.BatchMessageIdImpl"/>
         <Bug pattern="EQ_CHECK_FOR_OPERAND_NOT_COMPATIBLE_WITH_THIS"/>
     </Match>
 

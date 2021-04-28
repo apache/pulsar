@@ -31,7 +31,12 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public boolean isBacklogExceeded() {
+    public boolean isSizeBacklogExceeded() {
+        return false;
+    }
+
+    @Override
+    public boolean isTimeBacklogExceeded() {
         return false;
     }
 
