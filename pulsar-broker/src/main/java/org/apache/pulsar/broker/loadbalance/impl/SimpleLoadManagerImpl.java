@@ -170,7 +170,6 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     public static final String LOADBALANCER_STRATEGY_RAND = "weightedRandomSelection";
     public static final String LOADBALANCER_STRATEGY_LEAST_MSG = "leastMsgPerSecond";
 
-    private String brokerLockPath;
     private final ScheduledExecutorService scheduler;
 
     private static final long MBytes = 1024 * 1024;
@@ -254,10 +253,11 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     @Override
     public void start() throws PulsarServerException {
+        // Register the brokers in metadata store
+        String lookupServiceAddress = getBrokerAddress();
+        String brokerLockPath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+
         try {
-            // Register the brokers in metadata store
-            String lookupServiceAddress = getBrokerAddress();
-            brokerLockPath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
             LoadReport loadReport = null;
             try {
                 loadReport = generateLoadReport();
@@ -1212,8 +1212,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
         if (needUpdate) {
             LoadReport lr = generateLoadReportForcefully();
-            pulsar.getZkClient().setData(brokerLockPath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
-                    -1);
+            this.brokerLock.updateValue(lr).join();
             this.lastLoadReport = lr;
             this.lastResourceUsageTimestamp = lr.getTimestamp();
             // split-bundle if requires
@@ -1428,6 +1427,12 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     @Override
     public void stop() throws PulsarServerException {
-        scheduler.shutdownNow();
+        try {
+            loadReports.close();
+            scheduler.shutdownNow();
+            scheduler.awaitTermination(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new PulsarServerException(e);
+        }
     }
 }
