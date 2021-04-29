@@ -129,7 +129,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
                 if (throwable == null) {
                     if (clientCnx.ctx().channel().isActive()) {
                         clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
-                        synchronized (TransactionBufferHandlerImpl.class) {
+                        synchronized (TransactionBufferHandlerImpl.this) {
                             pendingRequests.put(requestId, op);
                             cmd.retain();
                         }
