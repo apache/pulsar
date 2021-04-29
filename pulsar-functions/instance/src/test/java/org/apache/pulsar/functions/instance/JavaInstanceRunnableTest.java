@@ -28,6 +28,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SinkSpecOrBuilder;
+import org.apache.pulsar.functions.proto.Function.SourceSpecOrBuilder;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -129,6 +130,16 @@ public class JavaInstanceRunnableTest {
         Mockito.when(sinkSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
         Map<String, Object> parsedConfig =
                 new ObjectMapper().readValue(sinkSpec.getConfigs(), new TypeReference<Map<String, Object>>() {});
+        Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);
+        Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
+    }
+
+    @Test
+    public void testSourceConfigParsingPreservesOriginalType() throws Exception {
+        SourceSpecOrBuilder sourceSpec = Mockito.mock(SourceSpecOrBuilder.class);
+        Mockito.when(sourceSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
+        Map<String, Object> parsedConfig =
+                new ObjectMapper().readValue(sourceSpec.getConfigs(), new TypeReference<Map<String, Object>>() {});
         Assert.assertEquals(parsedConfig.get("ttl").getClass(), Long.class);
         Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
     }

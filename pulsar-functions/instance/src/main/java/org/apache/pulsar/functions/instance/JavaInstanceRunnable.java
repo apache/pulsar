@@ -21,8 +21,6 @@ package org.apache.pulsar.functions.instance;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -735,9 +733,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sourceSpec.getConfigs().isEmpty()) {
                 this.source.open(new HashMap<>(), contextImpl);
             } else {
-                this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
-                        new TypeToken<Map<String, Object>>() {
-                        }.getType()), contextImpl);
+                this.source.open(objectMapper.readValue(sourceSpec.getConfigs(),
+                        new TypeReference<Map<String, Object>>() {}), contextImpl);
             }
         } catch (Exception e) {
             log.error("Source open produced uncaught exception: ", e);
