@@ -20,6 +20,9 @@
 package org.apache.pulsar.functions.instance;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Preconditions;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -668,17 +671,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     break;
             }
 
-            switch (sourceSpec.getSubscriptionType()) {
-                case FAILOVER:
-                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);
-                    break;
-                case KEY_SHARED:
-                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Key_Shared);
-                    break;
-                default:
-                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Shared);
-                    break;
-            }
+            Preconditions.checkNotNull(contextImpl.getSubscriptionType());
+            pulsarSourceConfig.setSubscriptionType(contextImpl.getSubscriptionType());
 
             pulsarSourceConfig.setTypeClassName(sourceSpec.getTypeClassName());
 
