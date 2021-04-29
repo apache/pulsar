@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
@@ -34,6 +35,7 @@ import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
+@Slf4j
 public class NoopLoadManager implements LoadManager {
 
     private PulsarService pulsar;
@@ -61,7 +63,9 @@ public class NoopLoadManager implements LoadManager {
         String brokerReportPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
 
         try {
+            log.info("Acquiring broker resource lock on {}", brokerReportPath);
             lockManager.acquireLock(brokerReportPath, localData).join();
+            log.info("Acquired broker resource lock on {}", brokerReportPath);
         } catch (CompletionException ce) {
             throw new PulsarServerException(MetadataStoreException.unwrap(ce));
         }
