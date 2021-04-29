@@ -212,7 +212,8 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
             resultContext = null;
             kinesisSink = null;
             startTime = 0;
-            backoff.reset();
+            if (backoff != null)
+                backoff.reset();
             partitionedKey = null;
             data = null;
             recyclerHandle.recycle(this);
