@@ -897,9 +897,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
         if (availableBrokers.isEmpty()) {
             // Create a map with all available brokers with no load information
-            List<String> brokersToShuffle = loadReports.listLocks(LOADBALANCE_BROKERS_ROOT).join();
-            Collections.shuffle(brokersToShuffle);
-            Set<String> activeBrokers = new HashSet<>(brokersToShuffle);
+            List<String> activeBrokers = loadReports.listLocks(LOADBALANCE_BROKERS_ROOT).join();
+            Collections.shuffle(activeBrokers);
 
             availableBrokers = Maps.newTreeMap();
             for (String broker : activeBrokers) {
@@ -925,9 +924,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         }
         Multimap<Long, ResourceUnit> finalCandidates = getFinalCandidates(serviceUnit, availableBrokers);
         // Remove candidates that point to inactive brokers
-        Set<String> activeBrokers = Collections.emptySet();
         try {
-            activeBrokers = new HashSet<>(loadReports.listLocks(LOADBALANCE_BROKERS_ROOT).join());
+            Set<String> activeBrokers = getAvailableBrokers();
             // Need to use an explicit Iterator object to prevent concurrent modification exceptions
             Iterator<Map.Entry<Long, ResourceUnit>> candidateIterator = finalCandidates.entries().iterator();
             while (candidateIterator.hasNext()) {
@@ -972,8 +970,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         try {
             synchronized (currentLoadReports) {
                 currentLoadReports.clear();
-                List<String> activeBrokers = loadReports.listLocks(LOADBALANCE_BROKERS_ROOT).join();
-                for (String broker : activeBrokers) {
+                for (String broker : getAvailableBrokers()) {
                     try {
                         String key = String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, broker);
                         LoadReport lr = loadReports.readLock(key).join().get();

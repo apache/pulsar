@@ -343,7 +343,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
     @Override
     public Set<String> getAvailableBrokers() {
         try {
-            return new TreeSet<>(brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT).get());
+            return new TreeSet<>(brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT).join());
         } catch (Exception e) {
             log.warn("Error when trying to get active brokers", e);
             return loadData.getBrokerData().keySet();
