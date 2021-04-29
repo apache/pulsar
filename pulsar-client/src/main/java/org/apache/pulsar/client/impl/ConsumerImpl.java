@@ -130,8 +130,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final int receiverQueueRefillThreshold;
 
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
-
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
     private final NegativeAcksTracker negativeAcksTracker;
