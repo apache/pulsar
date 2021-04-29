@@ -27,8 +27,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.Getter;
@@ -333,7 +331,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void processResult(@SuppressWarnings("rawtypes") Record srcRecord,
-                               JavaExecutionResult result) throws Exception {
+                               JavaExecutionResult result) throws SinkException {
+    	
+    	if (result.getUserException() != null) {
+    		stats.incrUserExceptions(result.getUserException());
+            srcRecord.fail();
+            return;
+    	}
     	
     	if (result.isAsync()) {
           result.getFuture().whenComplete((result1, throwable) -> {
@@ -369,6 +373,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
           }); 
          } else {
         	sendOutputMessage(srcRecord, result.getResult());
+            stats.incrTotalProcessedSuccessfully();
         }
 >>>>>>> Made changes to fix the issue for sync functions
     }

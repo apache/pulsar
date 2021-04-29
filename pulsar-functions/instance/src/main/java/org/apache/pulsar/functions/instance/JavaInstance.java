@@ -112,31 +112,24 @@ public class JavaInstance implements AutoCloseable {
             } catch (InterruptedException ie) {
                 log.warn("Exception while put Async requests", ie);
                 executionResult.setUserException(ie);
+                return executionResult;
             }
             
             executionResult.setAsync(true);
-        	executionResult.setFuture((CompletableFuture) output);
-
-            ((CompletableFuture) output).whenCompleteAsync((obj, throwable) -> {
+        	executionResult.setFuture(((CompletableFuture) output)
+        	  .whenCompleteAsync((obj, throwable) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
                 }
-
-                if (throwable != null) {
-                    executionResult.setUserException(new Exception((Throwable)throwable));
-                    pendingAsyncRequests.remove(output);
-                    return;
-                }
-                executionResult.setResult(obj);
                 pendingAsyncRequests.remove(output);
-            }, executor);
+            }, executor));
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("Got result: object: {}", output);
             }
+            executionResult.setResult(output);
         }
         
-        executionResult.setResult(output);
         return executionResult;
     }
 

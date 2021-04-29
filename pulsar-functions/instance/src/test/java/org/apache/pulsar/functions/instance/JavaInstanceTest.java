@@ -224,10 +224,11 @@ public class JavaInstanceTest {
 
         instance.getPendingAsyncRequests().remainingCapacity();
         assertNotNull(result1.getFuture().get());
-        assertNotNull(result2.getFuture().get());
-        assertNotNull(result3.getFuture().get());
-
         assertEquals(new String(testString + "-lambda"), result1.getFuture().get());
+        assertNotNull(result2.getFuture().get());
+        assertEquals(new String(testString + "-lambda"), result2.getFuture().get());
+        assertNotNull(result3.getFuture().get());
+        assertEquals(new String(testString + "-lambda"), result3.getFuture().get());
         long endTime = System.currentTimeMillis();
 
         log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
