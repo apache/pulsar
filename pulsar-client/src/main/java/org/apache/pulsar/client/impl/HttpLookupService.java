@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
@@ -48,6 +49,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,10 +81,13 @@ public class HttpLookupService implements LookupService {
      * @param topicName topic-name
      * @return broker-socket-address that serves given topic
      */
+    @Override
     @SuppressWarnings("deprecation")
     public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
         String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
-        return httpClient.get(basePath + topicName.getLookupName(listenerName), LookupData.class)
+        String path = basePath + topicName.getLookupName();
+        path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
+        return httpClient.get(path, LookupData.class)
                 .thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
         	URI uri = null;

@@ -331,21 +331,11 @@ public class TopicName implements ServiceUnitId {
      * @return
      */
     public String getLookupName() {
-        return getLookupName(null);
-    }
-
-    public String getLookupName(String listenerName) {
-        String lookupName;
         if (isV2()) {
-            lookupName =  String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
+            return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
         } else {
-            lookupName = String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion,
-                    getEncodedLocalName());
+            return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
         }
-        if (StringUtils.isNotBlank(listenerName)) {
-            lookupName = lookupName + "?listenerName=" + Codec.encode(listenerName);
-        }
-        return lookupName;
     }
 
     public boolean isGlobal() {
