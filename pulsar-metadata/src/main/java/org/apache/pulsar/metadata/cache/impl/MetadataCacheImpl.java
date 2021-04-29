@@ -191,10 +191,6 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<Void> create(String path, T value) {
-        return put(path, value, Optional.of(-1L));
-    }
-
-    private CompletableFuture<Void> put(String path, T value, Optional<Long> version) {
         byte[] content;
         try {
             content = serde.serialize(value);
@@ -203,7 +199,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-        store.put(path, content, version)
+        store.put(path, content, Optional.of(-1L))
                 .thenAccept(stat -> {
                     // Make sure we have the value cached before the operation is completed
                     objCache.put(path, FutureUtils.value(Optional.of(new SimpleImmutableEntry<T, Stat>(value, stat))));
