@@ -201,7 +201,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
             sendCallback.startTime = startTime;
             sendCallback.partitionedKey = partitionedKey;
             sendCallback.data = data;
-            if (sendCallback.backoff == null) {
+            if (kinesisSink.kinesisSinkConfig.isRetainOrdering() && sendCallback.backoff == null) {
                 sendCallback.backoff = new Backoff(kinesisSink.kinesisSinkConfig.getRetryInitialDelayInMillis(), TimeUnit.MILLISECONDS,
                         kinesisSink.kinesisSinkConfig.getRetryMaxDelayInMillis(), TimeUnit.MILLISECONDS, 0, TimeUnit.SECONDS);
             }
@@ -246,10 +246,14 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
             if (kinesisSink.sinkContext != null) {
                 kinesisSink.sinkContext.recordMetric(METRICS_TOTAL_FAILURE, 1);
             }
-            long nextDelay = backoff.next();
-            LOG.info("[{}] Retry to publish message for replicator of {}-{} after {} ms.", kinesisSink.streamName,
-                    resultContext.getPartitionId(), resultContext.getRecordSequence(), nextDelay);
-            kinesisSink.scheduledExecutor.schedule(() -> kinesisSink.sendUserRecord(this), nextDelay, TimeUnit.MICROSECONDS);
+            if (backoff != null) {
+                long nextDelay = backoff.next();
+                LOG.info("[{}] Retry to publish message for replicator of {}-{} after {} ms.", kinesisSink.streamName,
+                        resultContext.getPartitionId(), resultContext.getRecordSequence(), nextDelay);
+                kinesisSink.scheduledExecutor.schedule(() -> kinesisSink.sendUserRecord(this), nextDelay, TimeUnit.MICROSECONDS);
+            } else {
+                recycle();
+            }
         }
     }
 
