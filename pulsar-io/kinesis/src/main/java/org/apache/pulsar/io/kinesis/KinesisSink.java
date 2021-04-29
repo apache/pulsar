@@ -119,7 +119,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
 
     @Override
     public void write(Record<byte[]> record) throws Exception {
-        // kpl-thread captures publish-failure. fail the publish on main pulsar-io-thread to maintain the ordering 
+        // kpl-thread captures publish-failure. fail the publish on main pulsar-io-thread to maintain the ordering
         if (kinesisSinkConfig.isRetainOrdering() && previousPublishFailed == TRUE) {
             LOG.warn("Skip acking message to retain ordering with previous failed message {}-{}", this.streamName,
                     record.getRecordSequence());
@@ -130,8 +130,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
                 ? partitionedKey.substring(0, maxPartitionedKeyLength - 1)
                 : partitionedKey; // partitionedKey Length must be at least one, and at most 256
         ByteBuffer data = createKinesisMessage(kinesisSinkConfig.getMessageFormat(), record);
-        Backoff backoff = new Backoff(1, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.SECONDS);
-        sendUserRecord(ProducerSendCallback.create(this, record, System.nanoTime(), backoff, partitionedKey, data));
+        sendUserRecord(ProducerSendCallback.create(this, record, System.nanoTime(), partitionedKey, data));
         if (sinkContext != null) {
             sinkContext.recordMetric(METRICS_TOTAL_INCOMING, 1);
             sinkContext.recordMetric(METRICS_TOTAL_INCOMING_BYTES, data.array().length);
@@ -195,14 +194,17 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
             this.recyclerHandle = recyclerHandle;
         }
 
-        static ProducerSendCallback create(KinesisSink kinesisSink, Record<byte[]> resultContext, long startTime, Backoff backoff, String partitionedKey, ByteBuffer data) {
+        static ProducerSendCallback create(KinesisSink kinesisSink, Record<byte[]> resultContext, long startTime, String partitionedKey, ByteBuffer data) {
             ProducerSendCallback sendCallback = RECYCLER.get();
             sendCallback.resultContext = resultContext;
             sendCallback.kinesisSink = kinesisSink;
             sendCallback.startTime = startTime;
-            sendCallback.backoff = backoff;
             sendCallback.partitionedKey = partitionedKey;
             sendCallback.data = data;
+            if (sendCallback.backoff == null) {
+                sendCallback.backoff = new Backoff(kinesisSink.kinesisSinkConfig.getRetryInitialDelayInMillis(), TimeUnit.MILLISECONDS,
+                        kinesisSink.kinesisSinkConfig.getRetryMaxDelayInMillis(), TimeUnit.MILLISECONDS, 0, TimeUnit.SECONDS);
+            }
             return sendCallback;
         }
 
@@ -210,7 +212,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
             resultContext = null;
             kinesisSink = null;
             startTime = 0;
-            backoff = null;
+            backoff.reset();
             partitionedKey = null;
             data = null;
             recyclerHandle.recycle(this);
