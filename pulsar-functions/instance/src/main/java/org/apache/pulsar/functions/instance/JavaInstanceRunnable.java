@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.functions.instance;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -129,6 +131,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // a read write lock for stats operations
     private ReadWriteLock statsLock = new ReentrantReadWriteLock();
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 PulsarClient pulsarClient,
@@ -799,9 +803,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sinkSpec.getConfigs().isEmpty()) {
                 this.sink.open(new HashMap<>(), contextImpl);
             } else {
-                this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
-                        new TypeToken<Map<String, Object>>() {
-                        }.getType()), contextImpl);
+                this.sink.open(objectMapper.readValue(sinkSpec.getConfigs(),
+                        new TypeReference<Map<String, Object>>() {}), contextImpl);
             }
         } catch (Exception e) {
             log.error("Sink open produced uncaught exception: ", e);
