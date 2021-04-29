@@ -283,10 +283,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 removeLogTopicHandler();
 
                 try {
-                	Object output = processResult(currentRecord, result);
-                	if (output != null) { // The function completed successfully
-                      sendOutputMessage(currentRecord, output);
-                	}
+                	processResult(currentRecord, result);
                 } catch (SinkException se) {
                 	log.warn("Failed to publish the result of message {}", currentRecord, se);
                     currentRecord.fail();
@@ -335,32 +332,45 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private Object processResult(@SuppressWarnings("rawtypes") Record srcRecord,
-                               CompletableFuture<JavaExecutionResult> result) throws Exception {
+    private void processResult(@SuppressWarnings("rawtypes") Record srcRecord,
+                               JavaExecutionResult result) throws Exception {
     	
-    	final AtomicReference<Object> actualResult = new AtomicReference<Object>(null);
-    	
-        result.whenComplete((result1, throwable) -> {
-            if (throwable != null || result1.getUserException() != null) {
-                Throwable t = throwable != null ? throwable : result1.getUserException();
-                log.warn("Encountered exception when processing message {}",
+    	if (result.isAsync()) {
+          result.getFuture().whenComplete((result1, throwable) -> {
+              if (throwable != null) {
+                  Throwable t = throwable;
+                  log.warn("Encountered exception when processing message {}",
                         srcRecord, t);
-                stats.incrUserExceptions(t);
-                srcRecord.fail();
-            } else {
-                if (result1.getResult() != null) {
-                	// Grab the actual result
-                	actualResult.set(result1.getResult());
-                } else {
+                  stats.incrUserExceptions(t);
+                  srcRecord.fail();
+              } else {
+                  if (result1 != null) {
+                  	try {
+						sendOutputMessage(srcRecord, result1);
+					} catch (SinkException e) {
+						// Ignore for now
+					}
+                  } else {
                     if (instanceConfig.getFunctionDetails().getAutoAck()) {
                         // the function doesn't produce any result or the user doesn't want the result.
                         srcRecord.ack();
                     }
+<<<<<<< HEAD
                 }
             }
         });
         result.join();  // Wait for the above clause to be executed.
         return actualResult.get();
+=======
+                  }
+                  // increment total successfully processed
+                  stats.incrTotalProcessedSuccessfully();
+              }
+          }); 
+         } else {
+        	sendOutputMessage(srcRecord, result.getResult());
+        }
+>>>>>>> Made changes to fix the issue for sync functions
     }
     
     @SuppressWarnings("serial")

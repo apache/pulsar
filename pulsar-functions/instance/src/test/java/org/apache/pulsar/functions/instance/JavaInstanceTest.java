@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -52,7 +53,7 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
         assertNotNull(result.getResult());
-        assertEquals(testString + "-lambda", result.getResult());
+        assertEquals(new String(testString + "-lambda"), result.getResult());
         instance.close();
     }
     
@@ -111,13 +112,10 @@ public class JavaInstanceTest {
                 function,
                 instanceConfig);
         String testString = "ABC123";
-        CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
-        JavaExecutionResult result = instance.handleMessage(
-            mock(Record.class), testString,
-            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
-        assertNull(result);
-        assertNotNull(resultHolder.get());
-        assertEquals(testString + "-lambda", resultHolder.get().getResult());
+        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
+        assertTrue(result.isAsync());
+        assertNotNull(result.getFuture().get());
+        assertEquals(new String(testString + "-lambda"), result.getFuture().get());
         instance.close();
     }
     
@@ -216,19 +214,20 @@ public class JavaInstanceTest {
 
         long startTime = System.currentTimeMillis();
         assertEquals(pendingQueueSize, instance.getPendingAsyncRequests().remainingCapacity());
-        assertNull(instance.handleMessage(mock(Record.class), testString));
+        JavaExecutionResult result1 = instance.handleMessage(mock(Record.class), testString);
         assertEquals(pendingQueueSize - 1, instance.getPendingAsyncRequests().remainingCapacity());
-        assertNull(instance.handleMessage(mock(Record.class), testString));
+        JavaExecutionResult result2 = instance.handleMessage(mock(Record.class), testString);
         assertEquals(pendingQueueSize - 2, instance.getPendingAsyncRequests().remainingCapacity());
-        assertNull(instance.handleMessage(mock(Record.class), testString));
+        JavaExecutionResult result3 = instance.handleMessage(mock(Record.class), testString);
         // no space left
         assertEquals(0, instance.getPendingAsyncRequests().remainingCapacity());
 
-        for (int i = 0; i < 3; i++) {
-            AsyncFuncRequest request = instance.getPendingAsyncRequests().poll();
-            assertNotNull(testString + "-lambda", (String) request.getProcessResult().get());
-        }
+        instance.getPendingAsyncRequests().remainingCapacity();
+        assertNotNull(result1.getFuture().get());
+        assertNotNull(result2.getFuture().get());
+        assertNotNull(result3.getFuture().get());
 
+        assertEquals(new String(testString + "-lambda"), result1.getFuture().get());
         long endTime = System.currentTimeMillis();
 
         log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);

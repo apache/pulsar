@@ -75,22 +75,15 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    @VisibleForTesting
-    public JavaExecutionResult handleMessage(Record<?> record, Object input) {
-        return handleMessage(record, input, (rec, result) -> {}, cause -> {});
-    }
-
-    public JavaExecutionResult handleMessage(Record<?> record, Object input,
-                                             BiConsumer<Record, JavaExecutionResult> asyncResultConsumer,
-                                             Consumer<Throwable> asyncFailureHandler) {
-        if (context != null) {
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+	public JavaExecutionResult handleMessage(Record<?> record, Object input) {
+    	if (context != null) {
             context.setCurrentMessageContext(record);
-        }
-
-        JavaExecutionResult executionResult = new JavaExecutionResult();
-
+        }	
+    	
+    	JavaExecutionResult executionResult = new JavaExecutionResult();
         final Object output;
-
+        
         try {
             if (function != null) {
                 output = function.process(input, context);
@@ -101,12 +94,10 @@ public class JavaInstance implements AutoCloseable {
             executionResult.setUserException(ex);
             return executionResult;
         }
-
+        
         if (output instanceof CompletableFuture) {
-            // Function is in format: Function<I, CompletableFuture<O>>
-            AsyncFuncRequest request = new AsyncFuncRequest(
-                record, (CompletableFuture) output
-            );
+        	
+        	// Function is in format: Function<I, CompletableFuture<O>>
             try {
                 pendingAsyncRequests.put(request);
                 ((CompletableFuture) output).whenCompleteAsync((res, cause) -> {
@@ -121,41 +112,32 @@ public class JavaInstance implements AutoCloseable {
             } catch (InterruptedException ie) {
                 log.warn("Exception while put Async requests", ie);
                 executionResult.setUserException(ie);
-                return executionResult;
             }
+            
+            executionResult.setAsync(true);
+        	executionResult.setFuture((CompletableFuture) output);
+
+            ((CompletableFuture) output).whenCompleteAsync((obj, throwable) -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Got result async: object: {}, throwable: {}", obj, throwable);
+                }
+
+                if (throwable != null) {
+                    executionResult.setUserException(new Exception((Throwable)throwable));
+                    pendingAsyncRequests.remove(output);
+                    return;
+                }
+                executionResult.setResult(obj);
+                pendingAsyncRequests.remove(output);
+            }, executor);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("Got result: object: {}", output);
             }
-            executionResult.setResult(output);
-            return executionResult;
         }
-    }
-
-    private void processAsyncResults(BiConsumer<Record, JavaExecutionResult> resultConsumer)
-        throws InterruptedException {
-        AsyncFuncRequest asyncResult = pendingAsyncRequests.peek();
-        while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
-            pendingAsyncRequests.remove(asyncResult);
-            JavaExecutionResult execResult = new JavaExecutionResult();
-
-            try {
-                Object result = asyncResult.getProcessResult().get();
-                execResult.setResult(result);
-            } catch (ExecutionException e) {
-                if (e.getCause() instanceof Exception) {
-                    execResult.setUserException((Exception) e.getCause());
-                } else {
-                    execResult.setUserException(new Exception(e.getCause()));
-                }
-            }
-
-            resultConsumer.accept(asyncResult.getRecord(), execResult);
-
-            // peek the next result
-            asyncResult = pendingAsyncRequests.peek();
-        }
-
+        
+        executionResult.setResult(output);
+        return executionResult;
     }
 
     @Override

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.util.concurrent.CompletableFuture;
+
 import lombok.Data;
 
 /**
@@ -30,8 +32,13 @@ public class JavaExecutionResult {
     private Exception userException;
     private Exception systemException;
     private Object result;
+    
+    private boolean async = false;
+    private CompletableFuture<Object> future;
 
     public void reset() {
+    	setAsync(false);
+    	setFuture(null);
         setUserException(null);
         setSystemException(null);
         setResult(null);
