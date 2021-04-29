@@ -46,6 +46,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -300,7 +301,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     private void setDynamicConfigurationToStore(String path, Map<String, String> settings) throws IOException {
         try {
-            dynamicConfigurationCache.updateOrCreate(path, settings).join();
+            dynamicConfigurationCache.readModifyUpdateOrCreate(path, __ -> settings).join();
         } catch (CompletionException e) {
             log.warn("Got exception when writing to metadata store [{}]:", path, MetadataStoreException.unwrap(e));
         }

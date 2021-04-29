@@ -136,7 +136,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.getIfCached(key1), Optional.of(value1));
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
 
-        objCache.updateOrCreate(key1, value2).join();
+        objCache.readModifyUpdateOrCreate(key1, __ -> value2).join();
         assertEquals(objCache.getIfCached(key1), Optional.of(value2));
         assertEquals(objCache.get(key1).join(), Optional.of(value2));
 
@@ -144,22 +144,6 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         assertEquals(objCache.getIfCached(key1), Optional.empty());
         assertEquals(objCache.get(key1).join(), Optional.empty());
-    }
-
-    @Test(dataProvider = "impl")
-    public void updateOrCreate(String provider, String url) throws Exception {
-        @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
-        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
-
-        String key1 = newKey();
-
-
-        MyClass value1 = new MyClass("a", 1);
-        objCache.updateOrCreate(key1, value1).join();
-
-        assertEquals(objCache.getIfCached(key1), Optional.of(value1));
-        assertEquals(objCache.get(key1).join(), Optional.of(value1));
     }
 
     @Test(dataProvider = "impl")

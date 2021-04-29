@@ -119,19 +119,6 @@ public interface MetadataCache<T> {
     CompletableFuture<Void> create(String path, T value);
 
     /**
-     * Create or update an object in the metadata store.
-     * <p>
-     * This operation will make sure to keep the cache consistent.
-     *
-     * @param path
-     *            the path of the object in the metadata store
-     * @param value
-     *            the object to insert in metadata store
-     * @return a future to track the completion of the operation
-     */
-    CompletableFuture<Void> updateOrCreate(String path, T value);
-
-    /**
      * Delete an object from the metadata store.
      * <p>
      * This operation will make sure to keep the cache consistent.

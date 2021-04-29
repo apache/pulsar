@@ -872,7 +872,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
 
             brokerDataLock = brokersData.acquireLock(brokerZnodePath, localData).join();
 
-            timeAverageBrokerDataCache.updateOrCreate(timeAverageZPath, new TimeAverageBrokerData()).join();
+            timeAverageBrokerDataCache.readModifyUpdateOrCreate(timeAverageZPath,
+                    __ -> new TimeAverageBrokerData()).join();
             updateAll();
             lastBundleDataUpdate = System.currentTimeMillis();
         } catch (Exception e) {
@@ -988,14 +989,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
             final String bundle = entry.getKey();
             final BundleData data = entry.getValue();
-            futures.add(bundlesCache.updateOrCreate(getBundleDataPath(bundle), data));
+            futures.add(bundlesCache.readModifyUpdateOrCreate(getBundleDataPath(bundle), __ -> data));
         }
 
         // Write the time average broker data to metadata store.
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
             final String broker = entry.getKey();
             final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
-            futures.add(timeAverageBrokerDataCache.updateOrCreate(TIME_AVERAGE_BROKER_ZPATH + "/" + broker, data));
+            futures.add(timeAverageBrokerDataCache.readModifyUpdateOrCreate(
+                    TIME_AVERAGE_BROKER_ZPATH + "/" + broker, __ -> data));
         }
 
         try {

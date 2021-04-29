@@ -190,11 +190,6 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     @Override
-    public CompletableFuture<Void> updateOrCreate(String path, T value) {
-        return put(path, value, Optional.empty());
-    }
-
-    @Override
     public CompletableFuture<Void> create(String path, T value) {
         return put(path, value, Optional.of(-1L));
     }
