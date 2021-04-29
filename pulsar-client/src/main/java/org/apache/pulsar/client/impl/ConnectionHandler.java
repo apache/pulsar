@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -35,7 +37,9 @@ public class ConnectionHandler {
 
     protected final HandlerState state;
     protected final Backoff backoff;
-    protected long epoch = 0L;
+    private static final AtomicLongFieldUpdater<ConnectionHandler> EPOCH_UPDATER = AtomicLongFieldUpdater
+            .newUpdater(ConnectionHandler.class, "epoch");
+    private volatile long epoch = 0L;
     protected volatile long lastConnectionClosedTimestamp = 0L;
 
     interface Connection {
@@ -104,9 +108,13 @@ public class ConnectionHandler {
         state.setState(State.Connecting);
         state.client.timer().newTimeout(timeout -> {
             log.info("[{}] [{}] Reconnecting after connection was closed", state.topic, state.getHandlerName());
-            ++epoch;
+            incrementEpoch();
             grabCnx();
         }, delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    protected long incrementEpoch() {
+        return EPOCH_UPDATER.incrementAndGet(this);
     }
 
     @VisibleForTesting
@@ -124,7 +132,7 @@ public class ConnectionHandler {
                     delayMs / 1000.0);
             state.client.timer().newTimeout(timeout -> {
                 log.info("[{}] [{}] Reconnecting after timeout", state.topic, state.getHandlerName());
-                ++epoch;
+                incrementEpoch();
                 grabCnx();
             }, delayMs, TimeUnit.MILLISECONDS);
         }
