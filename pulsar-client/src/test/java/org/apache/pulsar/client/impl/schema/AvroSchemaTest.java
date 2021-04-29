@@ -431,10 +431,11 @@ public class AvroSchemaTest {
 
     @Test
     public void testAvroUUID() {
-        org.apache.pulsar.client.api.Schema schema = org.apache.pulsar.client.api.Schema.AVRO(MyPojo.class);
-        MyPojo pojo = new MyPojo();
-        pojo.uid = UUID.randomUUID();
-        schema.encode(pojo);
+        org.apache.pulsar.client.api.Schema<MyPojo> schema = org.apache.pulsar.client.api.Schema.AVRO(MyPojo.class);
+        MyPojo pojo1 = new MyPojo();
+        pojo1.uid = UUID.randomUUID();
+        MyPojo pojo2 = schema.decode(schema.encode(pojo1));
+        assertEquals(pojo1.uid, pojo2.uid);
     }
 
 }
