@@ -129,7 +129,7 @@ $ bin/pulsar standalone
 
 Check https://pulsar.apache.org for documentation and examples.
 
-## Building custom docker images
+## Build custom docker images
 
 Docker images must be built with Java 8 for `branch-2.7` or previous branches because of
 [issue 8445](https://github.com/apache/pulsar/issues/8445).
@@ -146,7 +146,7 @@ mvn clean install -DskipTests
 mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
 ```
 
-After building the images can be tagged and pushed to some custom repository. 
+After the images are built, they can be tagged and pushed to your custom repository. 
 Here's an example of a bash script that tags the docker images with the current version and git revision and 
 pushes them to `localhost:32000/apachepulsar`.
 
