@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.io.kafka.connect;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.SneakyThrows;
@@ -209,8 +208,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
             if (ex == null) {
                 result.complete(null);
             } else {
-                log.error("error flushing offsets for {}",
-                        Joiner.on(",").withKeyValueSeparator("=").join(offsets), ex);
+                log.error("error flushing offsets for {}", offsets, ex);
                 result.completeExceptionally(ex);
             }
         });

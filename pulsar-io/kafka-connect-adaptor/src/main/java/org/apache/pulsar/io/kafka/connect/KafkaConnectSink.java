@@ -267,7 +267,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         final Object value;
         final Schema keySchema;
         final Schema valueSchema;
-
+sourceRecord.getMessage().get().getData().length
         // sourceRecord is never instanceof KVRecord
         // https://github.com/apache/pulsar/pull/10113
         if (unwrapKeyValueIfAvailable && sourceRecord.getSchema() != null
@@ -289,12 +289,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         long offset = sourceRecord.getRecordSequence()
                 .orElse(-1L);
         if (offset < 0) {
-            offset = taskContext.currentOffset(topic, partition)
-                    .incrementAndGet();
-        } else {
-            final long curr = offset;
-            taskContext.currentOffset(topic, partition)
-                    .updateAndGet(curMax -> Math.max(curr, curMax));
+            log.error("Message without sequenceId. Key: {} Value: {}", key, value);
+            throw new IllegalStateException("Message without sequenceId");
         }
 
         Long timestamp = null;
