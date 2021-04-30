@@ -25,6 +25,7 @@ import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -48,6 +49,11 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
     @Override
     public List<Field> getFields() {
         return fields;
+    }
+
+    @Override
+    protected Optional<Object> buildNativeSchema(SchemaInfo schemaInfo) {
+        return of(schemaInfo, true).getNativeSchema();
     }
 
     /**

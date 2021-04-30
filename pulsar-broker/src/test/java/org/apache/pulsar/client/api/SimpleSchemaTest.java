@@ -26,6 +26,7 @@ import lombok.NoArgsConstructor;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -868,6 +869,46 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Assert.assertTrue(httpLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
         Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
         Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
+    }
+
+    @Test
+    public void testGetNativeSchemaWithAutoConsumeWithMultiVersion() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testGetSchemaWithMultiVersion";
+
+        @Cleanup
+        Consumer<?> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .subscriptionName("test")
+                .topic(topic)
+                .subscribe();
+
+        @Cleanup
+        Producer<V1Data> v1DataProducer = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .create();
+
+        @Cleanup
+        Producer<V2Data> v2DataProducer = pulsarClient.newProducer(Schema.AVRO(V2Data.class))
+                .topic(topic)
+                .create();
+
+        Assert.assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
+
+        v1DataProducer.send(new V1Data());
+        v2DataProducer.send(new V2Data());
+
+        Message<?> messageV1 = consumer.receive();
+        Schema<?> schemaV1 = messageV1.getSchema().get();
+        Message<?> messageV2 = consumer.receive();
+        Schema<?> schemaV2 = messageV2.getSchema().get();
+        log.info("schemaV1 {} {}", schemaV1.getSchemaInfo(), schemaV1.getNativeSchema());
+        log.info("schemaV2 {} {}", schemaV2.getSchemaInfo(), schemaV2.getNativeSchema());
+        assertTrue(schemaV1.getSchemaInfo().getSchemaDefinition().contains("V1Data"));
+        assertTrue(schemaV2.getSchemaInfo().getSchemaDefinition().contains("V2Data"));
+        org.apache.avro.Schema avroSchemaV1 = (org.apache.avro.Schema) schemaV1.getNativeSchema().get();
+        org.apache.avro.Schema avroSchemaV2 = (org.apache.avro.Schema) schemaV2.getNativeSchema().get();
+        assertNotEquals(avroSchemaV1.toString(false), avroSchemaV2.toString(false));
+        assertTrue(avroSchemaV1.toString(false).contains("V1Data"));
+        assertTrue(avroSchemaV2.toString(false).contains("V2Data"));
     }
 
     @Test(dataProvider = "topicDomain")

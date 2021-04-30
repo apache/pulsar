@@ -94,33 +94,57 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         }
         try {
             SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
-            AbstractStructSchema copy = new AbstractStructSchema(schemaInfo) {
-
-                @Override
-                public Object decode(byte[] bytes) {
-                    return decode(bytes, schemaVersion);
-                }
-
-                @Override
-                public Object decode(ByteBuf byteBuf) {
-                    return decode(byteBuf, schemaVersion);
-                }
-
-                @Override
-                public Optional<Object> getNativeSchema() {
-                    return AbstractStructSchema.this.getNativeSchema();
-                }
-            };
-            copy.writer = writer;
-            copy.reader = reader;
-            copy.schemaInfoProvider = schemaInfoProvider;
-            return copy;
+            return getAbstractStructSchemaAtVersion(schemaVersion, schemaInfo);
         } catch (ExecutionException err) {
             throw new RuntimeException(err.getCause());
         } catch (InterruptedException err) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(err);
         }
+    }
+
+    private static class WrappedVersionedSchema extends AbstractStructSchema {
+        private final byte[] schemaVersion;
+        private final AbstractStructSchema parent;
+
+        // this is a lazy loaded cache
+        private Optional<Object> nativeSchema;
+
+        public WrappedVersionedSchema(SchemaInfo schemaInfo, final byte[] schemaVersion,
+                                      AbstractStructSchema parent) {
+            super(schemaInfo);
+            this.schemaVersion = schemaVersion;
+            this.writer = parent.writer;
+            this.reader = parent.reader;
+            this.schemaInfoProvider = parent.schemaInfoProvider;
+            this.parent = parent;
+        }
+
+        @Override
+        public Object decode(byte[] bytes) {
+            return decode(bytes, schemaVersion);
+        }
+
+        @Override
+        public Object decode(ByteBuf byteBuf) {
+            return decode(byteBuf, schemaVersion);
+        }
+
+        @Override
+        public Optional<Object> getNativeSchema() {
+            if (nativeSchema == null) {
+                nativeSchema = parent.buildNativeSchema(schemaInfo);
+            }
+            return nativeSchema;
+        }
+    }
+
+    private AbstractStructSchema getAbstractStructSchemaAtVersion(byte[] schemaVersion, SchemaInfo schemaInfo) {
+        return new WrappedVersionedSchema(schemaInfo, schemaVersion, this);
+    }
+
+    protected Optional<Object> buildNativeSchema(SchemaInfo schemaInfo) {
+        return Optional.empty();
     }
 
     protected void setWriter(SchemaWriter<T> writer) {
