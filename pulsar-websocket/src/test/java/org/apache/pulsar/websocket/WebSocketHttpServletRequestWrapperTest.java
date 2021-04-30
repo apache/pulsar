@@ -24,6 +24,7 @@ import org.eclipse.jetty.websocket.servlet.UpgradeHttpServletRequest;
 import org.junit.Assert;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
+import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 
 /**
  * WebSocketHttpServletRequestWrapper test.
@@ -63,23 +64,27 @@ public class WebSocketHttpServletRequestWrapperTest {
 
     @Test
     public void mockRequestTest() throws Exception {
-        WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(
-                this.getClass().getClassLoader().getResource("websocket.conf").getFile(),
-                WebSocketProxyConfiguration.class);
-        String publicKeyPath = this.getClass().getClassLoader().getResource("my-public.key").getFile();
-        config.getProperties().setProperty("tokenPublicKey", publicKeyPath);
-        WebSocketService service = new WebSocketService(config);
-        service.start();
+        try (ZookeeperServerTest zkServer = new ZookeeperServerTest(12345)) {
+            WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(
+                    this.getClass().getClassLoader().getResource("websocket.conf").getFile(),
+                    WebSocketProxyConfiguration.class);
+            zkServer.start();
+            config.setConfigurationStoreServers(zkServer.getHostPort());
+            String publicKeyPath = this.getClass().getClassLoader().getResource("my-public.key").getFile();
+            config.getProperties().setProperty("tokenPublicKey", publicKeyPath);
+            WebSocketService service = new WebSocketService(config);
+            service.start();
 
-        UpgradeHttpServletRequest httpServletRequest = Mockito.mock(UpgradeHttpServletRequest.class);
-        Mockito.when(httpServletRequest.getRemoteAddr()).thenReturn("localhost");
-        Mockito.when(httpServletRequest.getRemotePort()).thenReturn(8080);
-        Mockito.when(httpServletRequest.getParameter(WebSocketHttpServletRequestWrapper.TOKEN))
-                .thenReturn(TOKEN);
-        WebSocketHttpServletRequestWrapper webSocketHttpServletRequestWrapper =
-                new WebSocketHttpServletRequestWrapper(httpServletRequest);
+            UpgradeHttpServletRequest httpServletRequest = Mockito.mock(UpgradeHttpServletRequest.class);
+            Mockito.when(httpServletRequest.getRemoteAddr()).thenReturn("localhost");
+            Mockito.when(httpServletRequest.getRemotePort()).thenReturn(8080);
+            Mockito.when(httpServletRequest.getParameter(WebSocketHttpServletRequestWrapper.TOKEN))
+                    .thenReturn(TOKEN);
+            WebSocketHttpServletRequestWrapper webSocketHttpServletRequestWrapper =
+                    new WebSocketHttpServletRequestWrapper(httpServletRequest);
 
-        Assert.assertEquals("test-user", service.getAuthenticationService().authenticateHttpRequest(webSocketHttpServletRequestWrapper));
+            Assert.assertEquals("test-user", service.getAuthenticationService().authenticateHttpRequest(webSocketHttpServletRequestWrapper));
+        }
     }
 
 }
