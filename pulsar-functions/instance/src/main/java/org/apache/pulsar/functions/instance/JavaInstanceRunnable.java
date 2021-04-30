@@ -45,6 +45,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
@@ -129,8 +130,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // a read write lock for stats operations
     private ReadWriteLock statsLock = new ReentrantReadWriteLock();
-
-    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 PulsarClient pulsarClient,
@@ -733,7 +732,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sourceSpec.getConfigs().isEmpty()) {
                 this.source.open(new HashMap<>(), contextImpl);
             } else {
-                this.source.open(objectMapper.readValue(sourceSpec.getConfigs(),
+                this.source.open(ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(),
                         new TypeReference<Map<String, Object>>() {}), contextImpl);
             }
         } catch (Exception e) {
@@ -800,7 +799,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sinkSpec.getConfigs().isEmpty()) {
                 this.sink.open(new HashMap<>(), contextImpl);
             } else {
-                this.sink.open(objectMapper.readValue(sinkSpec.getConfigs(),
+                this.sink.open(ObjectMapperFactory.getThreadLocal().readValue(sinkSpec.getConfigs(),
                         new TypeReference<Map<String, Object>>() {}), contextImpl);
             }
         } catch (Exception e) {
