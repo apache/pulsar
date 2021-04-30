@@ -98,7 +98,16 @@
       <artifactId>jul-to-slf4j</artifactId>
     </dependency>
 
-		<!-- To write basic websockets against -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-zookeeper-utils</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+
+
+    <!-- To write basic websockets against -->
     <dependency>
       <groupId>org.eclipse.jetty.websocket</groupId>
       <artifactId>websocket-api</artifactId>
