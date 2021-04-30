@@ -136,6 +136,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.getIfCached(key1), Optional.of(value1));
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
 
+        objCache.readModifyUpdateOrCreate(key1, __ -> value2).join();
+        assertEquals(objCache.getIfCached(key1), Optional.of(value2));
+        assertEquals(objCache.get(key1).join(), Optional.of(value2));
+
         objCache.delete(key1).join();
 
         assertEquals(objCache.getIfCached(key1), Optional.empty());

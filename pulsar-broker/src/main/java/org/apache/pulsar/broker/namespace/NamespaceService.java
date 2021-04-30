@@ -96,6 +96,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
@@ -130,6 +131,7 @@ public class NamespaceService implements AutoCloseable {
     private final PulsarService pulsar;
 
     private final OwnershipCache ownershipCache;
+    private final MetadataCache<LocalBrokerData> localBrokerDataCache;
 
     private final NamespaceBundleFactory bundleFactory;
 
@@ -178,6 +180,7 @@ public class NamespaceService implements AutoCloseable {
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
         this.namespaceClients = new ConcurrentOpenHashMap<>();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
+        this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
     }
 
     public void initialize() {
@@ -593,8 +596,8 @@ public class NamespaceService implements AutoCloseable {
             URI uri = new URI(candidateBroker);
             String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(),
                     uri.getPort());
-            pulsar.getLocalZkCache().getDataAsync(path,
-                    pulsar.getLoadManager().get().getLoadReportDeserializer()).thenAccept(reportData -> {
+
+            localBrokerDataCache.get(path).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
                     LocalBrokerData lookupData = (LocalBrokerData) reportData.get();
                     if (StringUtils.isNotBlank(advertisedListenerName)) {
