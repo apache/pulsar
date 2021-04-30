@@ -270,16 +270,12 @@ public abstract class AbstractTopic implements Topic {
 
     @Override
     public void disableCnxAutoRead() {
-        if (producers != null) {
-            producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
-        }
+        producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
     }
 
     @Override
     public void enableCnxAutoRead() {
-        if (producers != null) {
-            producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
-        }
+        producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
     }
 
     protected boolean hasLocalProducers() {
