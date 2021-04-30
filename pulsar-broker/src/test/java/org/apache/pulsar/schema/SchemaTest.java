@@ -260,7 +260,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .getSchemaLedgerList(TopicName.get(topic).getSchemaName());
         assertEquals(ledgers.size(), 2);
         admin.topics().delete(topic, true, true);
-        assertEquals(this.pulsar.getSchemaRegistryService()PulsarService.java
+        assertEquals(this.pulsar.getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic).getSchemaName()).get().size(), 0);
 
         for (Long ledger : ledgers) {
