@@ -191,6 +191,11 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public Optional<Schema<?>> getActualSchema() {
+        return msg.getActualSchema();
+    }
+
+    @Override
     public void release() {
         msg.release();
     }

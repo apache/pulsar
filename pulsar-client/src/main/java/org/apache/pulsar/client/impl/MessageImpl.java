@@ -395,7 +395,7 @@ public class MessageImpl<T> implements Message<T> {
             return Optional.empty();
         }
         byte[] schemaVersion = getSchemaVersion();
-        return schema.atSchemaVersion(schemaVersion);
+        return Optional.of(schema.atSchemaVersion(schemaVersion));
     }
 
     @Override

@@ -20,13 +20,17 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-
+;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 /**
  * minimal abstract StructSchema
@@ -85,26 +89,38 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
 
     public Schema<?> atSchemaVersion(byte[] schemaVersion) {
         if (schemaInfoProvider == null) {
-            throw new IllegalStateException("SchemaInfoProvider is not initialized");
+            // this schema is not downloaded from the registry
+            return this;
         }
-        SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
-        AbstractStructSchema copy =  new AbstractStructSchema(schemaInfo) {
+        try {
+            SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
+            AbstractStructSchema copy = new AbstractStructSchema(schemaInfo) {
 
-            @Override
-            public T decode(byte[] bytes) {
-                return decode(bytes, schemaVersion);
-            }
+                @Override
+                public Object decode(byte[] bytes) {
+                    return decode(bytes, schemaVersion);
+                }
 
-            @Override
-            public T decode(ByteBuf byteBuf) {
-                return decode(byteBuf, schemaVersion);
-            }
+                @Override
+                public Object decode(ByteBuf byteBuf) {
+                    return decode(byteBuf, schemaVersion);
+                }
 
-        };
-        copy.writer = writer;
-        copy.reader = reader;
-        copy.schemaInfoProvider = schemaInfoProvider;
-        return copy;
+                @Override
+                public Optional<Object> getNativeSchema() {
+                    return AbstractStructSchema.this.getNativeSchema();
+                }
+            };
+            copy.writer = writer;
+            copy.reader = reader;
+            copy.schemaInfoProvider = schemaInfoProvider;
+            return copy;
+        } catch (ExecutionException err) {
+            throw new RuntimeException(err.getCause());
+        } catch (InterruptedException err) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(err);
+        }
     }
 
     protected void setWriter(SchemaWriter<T> writer) {

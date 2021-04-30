@@ -218,7 +218,7 @@ public interface Message<T> {
      * @see Schema#AUTO_CONSUME()
      */
     default Optional<Schema<?>> getActualSchema() {
-        return Optional.<>empty();
+        return Optional.empty();
     }
 
     /**
