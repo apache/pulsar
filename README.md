@@ -129,6 +129,39 @@ $ bin/pulsar standalone
 
 Check https://pulsar.apache.org for documentation and examples.
 
+## Build custom docker images
+
+Docker images must be built with Java 8 for `branch-2.7` or previous branches because of
+[issue 8445](https://github.com/apache/pulsar/issues/8445).
+This issue has been resolved in the `master` branch (and will be part of `branch-2.8`). 
+It is recommended to use Java 8 until Java 11 support has been finished 
+([issue 9578](https://github.com/apache/pulsar/issues/9578)).
+
+This builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`.
+
+```bash
+# make sure to build with Java 8 since building with newer versions isn't yet supported
+java -version
+mvn clean install -DskipTests
+mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
+```
+
+After the images are built, they can be tagged and pushed to your custom repository. 
+Here's an example of a bash script that tags the docker images with the current version and git revision and 
+pushes them to `localhost:32000/apachepulsar`.
+
+```bash
+image_repo_and_project=localhost:32000/apachepulsar
+pulsar_version=$(mvn initialize help:evaluate -Dexpression=project.version -pl . -q -DforceStdout)
+gitrev=$(git rev-parse HEAD | colrm 10)
+tag="${pulsar_version}-${gitrev}"
+echo "Using tag $tag"
+docker tag apachepulsar/pulsar-all:latest ${image_repo_and_project}/pulsar-all:$tag
+docker push ${image_repo_and_project}/pulsar-all:$tag
+docker tag apachepulsar/pulsar:latest ${image_repo_and_project}/pulsar:$tag
+docker push ${image_repo_and_project}/pulsar:$tag
+```
+
 ## Setting up your IDE
 
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with
