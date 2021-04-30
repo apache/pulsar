@@ -238,7 +238,7 @@ public class LocalRunner implements AutoCloseable {
             try {
                 LocalRunner.this.close();
             } catch (Exception exception) {
-                log.warn("Encountered exception when closing local runner", exception);
+                log.warn("Encountered exception when closing localrunner", exception);
             }
         });
     }
@@ -630,7 +630,6 @@ public class LocalRunner implements AutoCloseable {
                 // starting metrics server
                 log.info("Starting metrics server on port {}", metricsPortStart);
                 new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
-                throw new Exception("test");
             }
         }
     }
