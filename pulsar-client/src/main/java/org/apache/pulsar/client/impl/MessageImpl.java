@@ -384,12 +384,12 @@ public class MessageImpl<T> implements Message<T> {
         return payload.readableBytes();
     }
 
-    public Schema<T> getSchema() {
+    public Schema<T> getSchemaInternal() {
         return this.schema;
     }
 
     @Override
-    public Optional<Schema<?>> getActualSchema() {
+    public Optional<Schema<?>> getSchema() {
         ensureSchemaIsLoaded();
         if (schema == null) {
             return Optional.empty();

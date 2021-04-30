@@ -182,17 +182,17 @@ public class TopicMessageImpl<T> implements Message<T> {
         return msg;
     }
 
-    public Schema<T> getSchema() {
+    public Schema<T> getSchemaInternal() {
         if (this.msg instanceof MessageImpl) {
             MessageImpl message = (MessageImpl) this.msg;
-            return message.getSchema();
+            return message.getSchemaInternal();
         }
         return null;
     }
 
     @Override
-    public Optional<Schema<?>> getActualSchema() {
-        return msg.getActualSchema();
+    public Optional<Schema<?>> getSchema() {
+        return msg.getSchema();
     }
 
     @Override

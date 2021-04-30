@@ -217,7 +217,7 @@ public interface Message<T> {
      * @return The schema used to decode the payload of message.
      * @see Schema#AUTO_CONSUME()
      */
-    default Optional<Schema<?>> getActualSchema() {
+    default Optional<Schema<?>> getSchema() {
         return Optional.empty();
     }
 

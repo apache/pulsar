@@ -169,7 +169,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Schemas.PersonTwo personConsume = message.getValue();
         assertEquals(personConsume.getName(), "Tom");
         assertEquals(personConsume.getId(), 1);
-        Schema<?> schema = message.getActualSchema().get();
+        Schema<?> schema = message.getSchema().get();
         log.info("the-schema {}", schema);
         assertEquals(personTwoSchema.getSchemaInfo(), schema.getSchemaInfo());
         org.apache.avro.Schema nativeSchema = (org.apache.avro.Schema) schema.getNativeSchema().get();
@@ -179,7 +179,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         // verify that with AUTO_CONSUME we can access the original schema
         // and the Native AVRO schema
         Message<?> message2 = consumer2.receive();
-        Schema<?> schema2 = message2.getActualSchema().get();
+        Schema<?> schema2 = message2.getSchema().get();
         log.info("the-schema {}", schema2);
         assertEquals(personTwoSchema.getSchemaInfo(), schema2.getSchemaInfo());
         org.apache.avro.Schema nativeSchema2 = (org.apache.avro.Schema) schema.getNativeSchema().get();
@@ -237,8 +237,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(message.getValue().getField("address").getClass(),
                 message1.getValue().getAddress().getClass());
 
-        Schema<?> schema = message.getActualSchema().get();
-        Schema<?> schema1 = message1.getActualSchema().get();
+        Schema<?> schema = message.getSchema().get();
+        Schema<?> schema1 = message1.getSchema().get();
         log.info("schema {}", schema);
         log.info("schema1 {}", schema1);
         assertEquals(schema.getSchemaInfo(), schema1.getSchemaInfo());
@@ -287,8 +287,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         Message<String> message = consumer.receive();
         Message<GenericRecord> message2 = consumer2.receive();
-        assertEquals(SchemaType.STRING, message.getActualSchema().get().getSchemaInfo().getType());
-        assertEquals(SchemaType.STRING, message2.getActualSchema().get().getSchemaInfo().getType());
+        assertEquals(SchemaType.STRING, message.getSchema().get().getSchemaInfo().getType());
+        assertEquals(SchemaType.STRING, message2.getSchema().get().getSchemaInfo().getType());
 
         assertEquals("foo", message.getValue());
         assertEquals(message2.getValue().getClass().getName(), "org.apache.pulsar.client.impl.schema.GenericObjectWrapper");
@@ -357,8 +357,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         Message<byte[]> message = consumer.receive();
         Message<GenericRecord> message2 = consumer2.receive();
-        assertFalse(message.getActualSchema().isPresent());
-        assertFalse(message2.getActualSchema().isPresent());
+        assertFalse(message.getSchema().isPresent());
+        assertFalse(message2.getSchema().isPresent());
 
         assertEquals("foo".getBytes(StandardCharsets.UTF_8), message.getValue());
         assertEquals(message2.getValue().getClass().getName(), "org.apache.pulsar.client.impl.schema.GenericObjectWrapper");
@@ -482,8 +482,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<GenericRecord> message2 = consumer2.receive();
         assertEquals(message.getValue(), message2.getValue().getNativeObject());
 
-        Schema<?> schema = message.getActualSchema().get();
-        Schema<?> schemaFromGenericRecord = message.getActualSchema().get();
+        Schema<?> schema = message.getSchema().get();
+        Schema<?> schemaFromGenericRecord = message.getSchema().get();
         KeyValueSchema keyValueSchema = (KeyValueSchema) schema;
         KeyValueSchema keyValueSchemaFromGenericRecord = (KeyValueSchema) schemaFromGenericRecord;
         assertEquals(keyValueSchema.getSchemaInfo(), keyValueSchemaFromGenericRecord.getSchemaInfo());
