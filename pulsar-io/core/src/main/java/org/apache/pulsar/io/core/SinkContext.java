@@ -19,6 +19,8 @@
 package org.apache.pulsar.io.core;
 
 import java.util.Collection;
+
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -42,4 +44,11 @@ public interface SinkContext extends ConnectorContext {
      */
     String getSinkName();
 
+    /**
+     * Get subscription type
+     * @return subscription type
+     */
+    default SubscriptionType getSubscriptionType() {
+        throw new UnsupportedOperationException("Context does not provide SubscriptionType");
+    }
 }

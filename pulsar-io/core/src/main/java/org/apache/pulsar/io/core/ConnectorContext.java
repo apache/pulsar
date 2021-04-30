@@ -21,7 +21,6 @@ package org.apache.pulsar.io.core;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.StateStore;
@@ -69,14 +68,6 @@ public interface ConnectorContext {
      * @return the namespace this source belongs to
      */
     String getNamespace();
-
-    /**
-     * Get subscription type
-     * @return subscription type
-     */
-    default SubscriptionType getSubscriptionType() {
-        return null;
-    }
 
     /**
      * The logger object that can be used to log in a sink
