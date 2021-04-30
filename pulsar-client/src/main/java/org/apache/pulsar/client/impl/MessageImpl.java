@@ -389,6 +389,16 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public Optional<Schema<?>> getActualSchema() {
+        ensureSchemaIsLoaded();
+        if (schema == null) {
+            return Optional.empty();
+        }
+        byte[] schemaVersion = getSchemaVersion();
+        return schema.atSchemaVersion(schemaVersion);
+    }
+
+    @Override
     public byte[] getSchemaVersion() {
         if (msgMetadata.hasSchemaVersion()) {
             return msgMetadata.getSchemaVersion();
@@ -397,10 +407,13 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    private SchemaInfo getSchemaInfo() {
+    private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
             ((AutoConsumeSchema) schema).fetchSchemaIfNeeded();
         }
+    }
+    private SchemaInfo getSchemaInfo() {
+        ensureSchemaIsLoaded();
         return schema.getSchemaInfo();
     }
 

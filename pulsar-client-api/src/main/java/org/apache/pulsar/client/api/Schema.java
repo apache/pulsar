@@ -92,6 +92,15 @@ public interface Schema<T> extends Cloneable{
         return false;
     }
 
+    /**
+     * Return an instance of this schema at the given version.
+     * @param schemaVersion
+     * @return the schema at that specific version
+     */
+    default Schema<?> atSchemaVersion(byte[] schemaVersion) {
+        return this;
+    }
+
     default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
     }
 

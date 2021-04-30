@@ -80,6 +80,31 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         if (reader != null) {
             this.reader.setSchemaInfoProvider(schemaInfoProvider);
         }
+        this.schemaInfoProvider = schemaInfoProvider;
+    }
+
+    public Schema<?> atSchemaVersion(byte[] schemaVersion) {
+        if (schemaInfoProvider == null) {
+            throw new IllegalStateException("SchemaInfoProvider is not initialized");
+        }
+        SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
+        AbstractStructSchema copy =  new AbstractStructSchema(schemaInfo) {
+
+            @Override
+            public T decode(byte[] bytes) {
+                return decode(bytes, schemaVersion);
+            }
+
+            @Override
+            public T decode(ByteBuf byteBuf) {
+                return decode(byteBuf, schemaVersion);
+            }
+
+        };
+        copy.writer = writer;
+        copy.reader = reader;
+        copy.schemaInfoProvider = schemaInfoProvider;
+        return copy;
     }
 
     protected void setWriter(SchemaWriter<T> writer) {
