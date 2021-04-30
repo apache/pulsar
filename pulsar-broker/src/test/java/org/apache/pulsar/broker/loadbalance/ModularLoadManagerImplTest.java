@@ -80,7 +80,9 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -453,15 +455,15 @@ public class ModularLoadManagerImplTest {
      */
     @Test
     public void testBrokerStopCacheUpdate() throws Exception {
-        String secondaryBroker = pulsar2.getAdvertisedAddress() + ":" + pulsar2.getListenPortHTTP().get();
-        pulsar2.getLocalMetadataStore().delete(LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + secondaryBroker, Optional.empty()).join();
-        Thread.sleep(100);
         ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
-        Field loadMgrField = ModularLoadManagerWrapper.class.getDeclaredField("loadManager");
-        loadMgrField.setAccessible(true);
-        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) loadMgrField.get(loadManagerWrapper);
-        Set<String> avaialbeBrokers = loadManager.getAvailableBrokers();
-        assertEquals(avaialbeBrokers.size(), 1);
+        ModularLoadManagerImpl lm = Whitebox.getInternalState(loadManagerWrapper, "loadManager");
+        assertEquals(lm.getAvailableBrokers().size(), 2);
+
+        pulsar2.close();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(lm.getAvailableBrokers().size(), 1);
+        });
     }
 
     /**
