@@ -54,7 +54,7 @@ Configuration:
       name: Console
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36}#%L - %msg%n"
 
     # Rolling file appender configuration
     RollingFile:
@@ -63,7 +63,7 @@ Configuration:
       filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
       immediateFlush: false
       PatternLayout:
-        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36}#%L - %msg%n"
       Policies:
         TimeBasedTriggeringPolicy:
           interval: 1
@@ -101,7 +101,7 @@ Configuration:
                       fileName : "${sys:pulsar.log.dir}/functions/${ctx:function}/${ctx:functionname}-${ctx:instance}.log"
                       filePattern : "${sys:pulsar.log.dir}/functions/${sys:pulsar.log.file}-${ctx:instance}-%d{MM-dd-yyyy}-%i.log.gz"
                       PatternLayout:
-                        Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%n"
+                        Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1}#%L - %msg%n"
                       Policies:
                         TimeBasedTriggeringPolicy:
                           interval: 1
