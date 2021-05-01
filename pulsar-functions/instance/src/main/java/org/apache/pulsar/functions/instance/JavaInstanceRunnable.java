@@ -797,8 +797,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         try {
             if (sinkSpec.getConfigs().isEmpty()) {
+                if (log.isDebugEnabled()){
+                    log.debug("Opening Sink with empty hashmap with contextImpl: {} ", contextImpl.toString());
+                }
                 this.sink.open(new HashMap<>(), contextImpl);
             } else {
+                if (log.isDebugEnabled()){
+                    log.debug("Opening Sink with SinkSpec {} and contextImpl: {} ", sinkSpec.toString(),
+                            contextImpl.toString());
+                }
                 this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
                         new TypeToken<Map<String, Object>>() {
                         }.getType()), contextImpl);
