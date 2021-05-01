@@ -66,7 +66,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -267,7 +266,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private Channel listenChannelTls;
 
     private boolean preciseTopicPublishRateLimitingEnable;
-    private final AtomicInteger pausedConnections = new AtomicInteger();
+    private final LongAdder pausedConnections = new LongAdder();
     private BrokerInterceptor interceptor;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
@@ -2648,14 +2647,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void pausedConnections(int numberOfConnections) {
-        pausedConnections.addAndGet(numberOfConnections);
+        pausedConnections.add(numberOfConnections);
     }
 
     public void resumedConnections(int numberOfConnections) {
-        pausedConnections.addAndGet(-numberOfConnections);
+        pausedConnections.add(-numberOfConnections);
     }
 
-    public int getPausedConnections() {
-        return pausedConnections.get();
+    public long getPausedConnections() {
+        return pausedConnections.longValue();
     }
 }
