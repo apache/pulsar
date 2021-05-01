@@ -302,6 +302,41 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         assertEquals(count, msgNumInPartition0 + msgNumInPartition1 + msgNumInPartition2 + msgNumInPartition3);
     }
 
+    @Test
+    public void testMultiTopicSeekByFunctionWithException() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/test" + UUID.randomUUID();
+        int partitionNum = 4;
+        int msgNum = 20;
+        admin.topics().createPartitionedTopic(topicName, partitionNum);
+        publishMessages(topicName, msgNum, false);
+        Reader<byte[]> reader = pulsarClient
+                .newReader().startMessageIdInclusive().startMessageId(MessageId.latest)
+                .topic(topicName).subscriptionName("my-sub").create();
+        long now = System.currentTimeMillis();
+        reader.seek((topic) -> now);
+        assertNull(reader.readNext(1, TimeUnit.SECONDS));
+        try {
+            reader.seek((topic) -> {
+                TopicName name = TopicName.get(topic);
+                switch (name.getPartitionIndex()) {
+                    case 0:
+                        throw new RuntimeException("test");
+                    case 1:
+                        return MessageId.latest;
+                    case 2:
+                        return MessageId.earliest;
+                    case 3:
+                        return now - 999999;
+                    default:
+                        return null;
+                }
+            });
+        } catch (Exception e) {
+            assertEquals(e.getMessage(), "test");
+            assertTrue(e instanceof RuntimeException);
+        }
+    }
+
     @Test(timeOut = 20000)
     public void testMultiTopic() throws Exception {
         final String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();

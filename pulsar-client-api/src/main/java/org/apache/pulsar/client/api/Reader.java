@@ -160,11 +160,13 @@ public interface Reader<T> extends Closeable {
     /**
      * Reset the subscription associated with this consumer to a specific message id or message publish time.
      * <p>
-     * The Function input is topic+partition.
+     * The Function input is topic+partition, and can only return timestamp or MessageId.
      * <p>
      * The return value is the seek position/timestamp of the current partition.
+     * Exception will be thrown if other types of objects are returned.
      * <p>
      * If returns null, the current partition will not do any processing.
+     * Exception in a partition may affect other partitions.
      * @param function
      * @throws PulsarClientException
      */
@@ -174,11 +176,13 @@ public interface Reader<T> extends Closeable {
      * Reset the subscription associated with this consumer to a specific message id
      * or message publish time asynchronously.
      * <p>
-     * The Function input is topic+partition.
+     * The Function input is topic+partition, and can only return timestamp or MessageId.
      * <p>
      * The return value is the seek position/timestamp of the current partition.
+     * Exception will be thrown if other types of objects are returned.
      * <p>
      * If returns null, the current partition will not do any processing.
+     * Exception in a partition may affect other partitions.
      * @param function
      * @return
      */

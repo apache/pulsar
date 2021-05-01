@@ -714,7 +714,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     public boolean hasMessageAvailable() throws PulsarClientException {
         try {
-            return hasMessageAvailableAsync().get();
+            return hasMessageAvailableAsync().get() || numMessagesInQueue() > 0;
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
@@ -735,7 +735,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (exception != null) {
                 completableFuture.completeExceptionally(exception);
             } else {
-                completableFuture.complete(hasMessageAvailable.get() || numMessagesInQueue() > 0);
+                completableFuture.complete(hasMessageAvailable.get());
             }
         });
         return completableFuture;
