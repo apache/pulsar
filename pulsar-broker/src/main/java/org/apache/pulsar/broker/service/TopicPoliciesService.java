@@ -85,7 +85,7 @@ public interface TopicPoliciesService {
     void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
 
     /**
-     * clean cache and listeners in TopicPolicies and so on
+     * clean cache and listeners in TopicPolicies and so on.
      * @param topicName
      */
     void clean(TopicName topicName);
