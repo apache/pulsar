@@ -207,8 +207,11 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                 cb.addComplete(lastEntry, data.asReadOnly(), ctx);
                 ml.notifyCursors();
                 ml.notifyWaitingEntryCallBacks();
+                ReferenceCountUtil.release(data);
+                this.recycle();
+            } else {
+                ReferenceCountUtil.release(data);
             }
-            releaseAndRecycle();
         }
     }
 
@@ -231,8 +234,11 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             cb.addComplete(PositionImpl.get(lh.getId(), entryId), data.asReadOnly(), ctx);
             ml.notifyCursors();
             ml.notifyWaitingEntryCallBacks();
+            ReferenceCountUtil.release(data);
+            this.recycle();
+        } else {
+            ReferenceCountUtil.release(data);
         }
-        releaseAndRecycle();
     }
 
     private void updateLatency() {
@@ -341,10 +347,5 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                 ", startTime=" + startTime +
                 ", dataLength=" + dataLength +
                 '}';
-    }
-
-    private void releaseAndRecycle() {
-        ReferenceCountUtil.release(data);
-        recycle();
     }
 }
