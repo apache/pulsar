@@ -84,6 +84,12 @@ public interface TopicPoliciesService {
 
     void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
 
+    /**
+     * clean cache and listeners in TopicPolicies and so on
+     * @param topicName
+     */
+    void clean(TopicName topicName);
+
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
         @Override
@@ -130,6 +136,11 @@ public interface TopicPoliciesService {
 
         @Override
         public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+            //No-op
+        }
+
+        @Override
+        public void clean(TopicName topicName) {
             //No-op
         }
     }
