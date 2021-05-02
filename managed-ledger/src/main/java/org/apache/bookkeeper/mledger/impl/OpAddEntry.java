@@ -197,21 +197,18 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         ml.lastConfirmedEntry = lastEntry;
 
         if (closeWhenDone) {
-            ReferenceCountUtil.release(data);
             log.info("[{}] Closing ledger {} for being full", ml.getName(), ledger.getId());
+            // `data` will be released in `closeComplete`
             ledger.asyncClose(this, ctx);
         } else {
             updateLatency();
             AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
             if (cb != null) {
                 cb.addComplete(lastEntry, data.asReadOnly(), ctx);
-                ReferenceCountUtil.release(data);
                 ml.notifyCursors();
                 ml.notifyWaitingEntryCallBacks();
-                this.recycle();
-            } else {
-                ReferenceCountUtil.release(data);
             }
+            releaseAndRecycle();
         }
     }
 
@@ -231,11 +228,11 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            cb.addComplete(PositionImpl.get(lh.getId(), entryId), null, ctx);
+            cb.addComplete(PositionImpl.get(lh.getId(), entryId), data.asReadOnly(), ctx);
             ml.notifyCursors();
             ml.notifyWaitingEntryCallBacks();
-            this.recycle();
         }
+        releaseAndRecycle();
     }
 
     private void updateLatency() {
@@ -346,4 +343,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                 '}';
     }
 
+    private void releaseAndRecycle() {
+        ReferenceCountUtil.release(data);
+        recycle();
+    }
 }
