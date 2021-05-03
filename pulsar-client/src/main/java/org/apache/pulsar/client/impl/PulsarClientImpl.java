@@ -715,9 +715,9 @@ public class PulsarClientImpl implements PulsarClient {
                 // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
                 // eventLoopGroup.
                 shutdownEventLoopGroup(eventLoopGroup);
-            } catch (Throwable t) {
-                log.warn("Failed to shutdown eventLoopGroup", t);
-                throwable = t;
+            } catch (PulsarClientException e) {
+                log.warn("Failed to shutdown eventLoopGroup", e);
+                throwable = e;
             }
             try {
                 closeCnxPool(cnxPool);
@@ -735,8 +735,8 @@ public class PulsarClientImpl implements PulsarClient {
             }
             try {
                 shutdownExecutors();
-            } catch (Throwable t) {
-                throwable = t;
+            } catch (PulsarClientException e) {
+                throwable = e;
             }
             if (conf != null && conf.getAuthentication() != null) {
                 try {
