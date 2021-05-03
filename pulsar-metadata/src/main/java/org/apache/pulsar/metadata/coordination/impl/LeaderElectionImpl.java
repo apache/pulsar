@@ -34,9 +34,9 @@ import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
