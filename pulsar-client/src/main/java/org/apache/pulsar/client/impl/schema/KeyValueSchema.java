@@ -258,4 +258,11 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     public String toString() {
         return "KeyValueSchema(" + keyValueEncodingType + "," + keySchema + "," + valueSchema + ")";
     }
+
+    @Override
+    public Schema<?> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
+        // KetValue schema supports versioning because
+        // the inner Schema for key and value may support schema versioning
+        return this;
+    }
 }
