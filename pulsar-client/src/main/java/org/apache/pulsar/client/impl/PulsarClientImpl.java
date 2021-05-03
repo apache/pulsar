@@ -719,13 +719,11 @@ public class PulsarClientImpl implements PulsarClient {
                 log.warn("Failed to shutdown eventLoopGroup", t);
                 throwable = t;
             }
-            if (createdCnxPool) {
-                try {
-                    closeCnxPool(cnxPool);
-                } catch (Throwable t) {
-                    log.warn("Failed to shutdown cnxPool", t);
-                    throwable = t;
-                }
+            try {
+                closeCnxPool(cnxPool);
+            } catch (Throwable t) {
+                log.warn("Failed to shutdown cnxPool", t);
+                throwable = t;
             }
             if (timer != null && needStopTimer) {
                 try {
