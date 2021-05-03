@@ -96,6 +96,7 @@ public class LocalRunner implements AutoCloseable {
     private ClassLoader userCodeClassLoader;
     private boolean userCodeClassLoaderCreated;
     private RuntimeFactory runtimeFactory;
+    private HTTPServer metricsServer;
 
     public enum RuntimeEnv {
         THREAD,
@@ -269,6 +270,11 @@ public class LocalRunner implements AutoCloseable {
             } catch (IllegalStateException e) {
                 // ignore possible "Shutdown in progress"
             }
+
+            if (metricsServer != null) {
+                metricsServer.stop();
+            }
+
             for (RuntimeSpawner spawner : spawners) {
                 spawner.close();
             }
@@ -629,7 +635,7 @@ public class LocalRunner implements AutoCloseable {
             if (metricsPortStart != null) {
                 // starting metrics server
                 log.info("Starting metrics server on port {}", metricsPortStart);
-                new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
+                metricsServer = new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
             }
         }
     }
