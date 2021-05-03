@@ -86,4 +86,8 @@ public interface SchemaReader<T> {
      */
     default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
     }
+
+    default Object getNativeSchema() {
+        return null;
+    }
 }

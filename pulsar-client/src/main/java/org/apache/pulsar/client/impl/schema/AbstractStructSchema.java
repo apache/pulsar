@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.reader.AbstractMultiVersionReader;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +88,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         this.schemaInfoProvider = schemaInfoProvider;
     }
 
-    public Schema<?> atSchemaVersion(byte[] schemaVersion) {
+    public Schema<T> atSchemaVersion(byte[] schemaVersion) {
         if (schemaInfoProvider == null) {
             // this schema is not downloaded from the registry
             return this;
@@ -103,15 +104,11 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         }
     }
 
-    private static class WrappedVersionedSchema extends AbstractStructSchema {
+    private static class WrappedVersionedSchema<T> extends AbstractStructSchema<T> {
         private final byte[] schemaVersion;
-        private final AbstractStructSchema parent;
-
-        // this is a lazy loaded cache
-        private Optional<Object> nativeSchema;
-
+        private final AbstractStructSchema<T> parent;
         public WrappedVersionedSchema(SchemaInfo schemaInfo, final byte[] schemaVersion,
-                                      AbstractStructSchema parent) {
+                                      AbstractStructSchema<T> parent) {
             super(schemaInfo);
             this.schemaVersion = schemaVersion;
             this.writer = parent.writer;
@@ -121,30 +118,33 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         }
 
         @Override
-        public Object decode(byte[] bytes) {
+        public T decode(byte[] bytes) {
             return decode(bytes, schemaVersion);
         }
 
         @Override
-        public Object decode(ByteBuf byteBuf) {
+        public T decode(ByteBuf byteBuf) {
             return decode(byteBuf, schemaVersion);
         }
 
         @Override
         public Optional<Object> getNativeSchema() {
-            if (nativeSchema == null) {
-                nativeSchema = parent.buildNativeSchema(schemaInfo);
+            if (reader instanceof AbstractMultiVersionReader) {
+                AbstractMultiVersionReader abstractMultiVersionReader = (AbstractMultiVersionReader) reader;
+                try {
+                    SchemaReader schemaReader = abstractMultiVersionReader.getSchemaReader(schemaVersion);
+                    return Optional.ofNullable(schemaReader.getNativeSchema());
+                } catch (ExecutionException err) {
+                    throw new RuntimeException(err.getCause());
+                }
+            } else {
+                return Optional.empty();
             }
-            return nativeSchema;
         }
     }
 
-    private AbstractStructSchema getAbstractStructSchemaAtVersion(byte[] schemaVersion, SchemaInfo schemaInfo) {
-        return new WrappedVersionedSchema(schemaInfo, schemaVersion, this);
-    }
-
-    protected Optional<Object> buildNativeSchema(SchemaInfo schemaInfo) {
-        return Optional.empty();
+    private AbstractStructSchema<T> getAbstractStructSchemaAtVersion(byte[] schemaVersion, SchemaInfo schemaInfo) {
+        return new WrappedVersionedSchema<>(schemaInfo, schemaVersion, this);
     }
 
     protected void setWriter(SchemaWriter<T> writer) {

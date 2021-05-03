@@ -79,5 +79,10 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
         }
     }
 
+    @Override
+    public Object getNativeSchema() {
+        return descriptor;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(GenericProtobufNativeReader.class);
 }

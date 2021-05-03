@@ -51,11 +51,6 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
         return fields;
     }
 
-    @Override
-    protected Optional<Object> buildNativeSchema(SchemaInfo schemaInfo) {
-        return of(schemaInfo, true).getNativeSchema();
-    }
-
     /**
      * Create a generic schema out of a <tt>SchemaInfo</tt>.
      *  warning : we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )

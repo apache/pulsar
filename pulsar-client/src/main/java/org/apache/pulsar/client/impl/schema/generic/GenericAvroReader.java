@@ -117,5 +117,10 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
         return offset;
     }
 
+    @Override
+    public Object getNativeSchema() {
+        return schema;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(GenericAvroReader.class);
 }

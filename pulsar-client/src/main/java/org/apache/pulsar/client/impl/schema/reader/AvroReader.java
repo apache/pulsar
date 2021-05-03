@@ -38,12 +38,15 @@ public class AvroReader<T> implements SchemaReader<T> {
     private ReflectDatumReader<T> reader;
     private static final ThreadLocal<BinaryDecoder> decoders =
             new ThreadLocal<>();
+    private final Schema schema;
 
     public AvroReader(Schema schema) {
         this.reader = new ReflectDatumReader<>(schema);
+        this.schema = schema;
     }
 
     public AvroReader(Schema schema, ClassLoader classLoader, boolean jsr310ConversionEnabled) {
+        this.schema = schema;
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
             AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
@@ -55,6 +58,7 @@ public class AvroReader<T> implements SchemaReader<T> {
 
     public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader,
         boolean jsr310ConversionEnabled) {
+        this.schema = readerSchema;
         if (classLoader != null) {
             ReflectData reflectData = new ReflectData(classLoader);
             AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
@@ -96,6 +100,11 @@ public class AvroReader<T> implements SchemaReader<T> {
                 log.error("AvroReader close inputStream close error", e);
             }
         }
+    }
+
+    @Override
+    public Object getNativeSchema() {
+        return schema;
     }
 
     private static final Logger log = LoggerFactory.getLogger(AvroReader.class);
