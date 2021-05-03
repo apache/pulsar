@@ -22,14 +22,17 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 ;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.AbstractMultiVersionReader;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
@@ -88,19 +91,23 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         this.schemaInfoProvider = schemaInfoProvider;
     }
 
-    public Schema<T> atSchemaVersion(byte[] schemaVersion) {
+    public Schema<T> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
+        Objects.requireNonNull(schemaVersion);
         if (schemaInfoProvider == null) {
             // this schema is not downloaded from the registry
             return this;
         }
         try {
             SchemaInfo schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion).get();
+            if (schemaInfo == null) {
+                throw new SchemaSerializationException("Unknown version "+ BytesSchemaVersion.of(schemaVersion));
+            }
             return getAbstractStructSchemaAtVersion(schemaVersion, schemaInfo);
         } catch (ExecutionException err) {
-            throw new RuntimeException(err.getCause());
+            throw new SchemaSerializationException(err.getCause());
         } catch (InterruptedException err) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException(err);
+            throw new SchemaSerializationException(err);
         }
     }
 

@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -94,11 +95,18 @@ public interface Schema<T> extends Cloneable{
 
     /**
      * Return an instance of this schema at the given version.
-     * @param schemaVersion
+     * @param schemaVersion the version
      * @return the schema at that specific version
+     * @throws SchemaSerializationException in case of unknown schema version
+     * @throws NullPointerException in case of null schemaVersion
      */
-    default Schema<?> atSchemaVersion(byte[] schemaVersion) {
-        return this;
+    default Schema<?> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
+        Objects.requireNonNull(schemaVersion);
+        if (!supportSchemaVersioning()) {
+            return this;
+        } else {
+            throw new SchemaSerializationException("Not implemented for " + this.getClass());
+        }
     }
 
     default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
