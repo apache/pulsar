@@ -460,9 +460,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         if (schema == SchemaType.BYTES) {
             assertEquals(schema, message.getSchema().get().getSchemaInfo().getType());
             assertEquals(schema, message2.getSchema().get().getSchemaInfo().getType());
+        } else if (schema == SchemaType.NONE) {
+            // schema NONE is always reported as BYTES
+            assertEquals(SchemaType.BYTES, message.getSchema().get().getSchemaInfo().getType());
+            assertEquals(SchemaType.BYTES, message2.getSchema().get().getSchemaInfo().getType());
         } else {
-            assertFalse(message.getSchema().isPresent());
-            assertEquals(schema, message2.getSchema().get().getSchemaInfo().getType());
+            fail();
         }
 
         assertEquals("foo".getBytes(StandardCharsets.UTF_8), message.getValue());
