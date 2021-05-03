@@ -122,7 +122,6 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
             }
         }
         reflectData.addLogicalTypeConversion(new Conversions.UUIDConversion());
-        reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
     }
 
     public static class TimestampConversion extends Conversion<DateTime> {
