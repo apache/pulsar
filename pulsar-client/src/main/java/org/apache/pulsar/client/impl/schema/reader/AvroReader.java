@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Optional;
 
 public class AvroReader<T> implements SchemaReader<T> {
 
@@ -103,8 +104,8 @@ public class AvroReader<T> implements SchemaReader<T> {
     }
 
     @Override
-    public Object getNativeSchema() {
-        return schema;
+    public Optional<Object> getNativeSchema() {
+        return Optional.of(schema);
     }
 
     private static final Logger log = LoggerFactory.getLogger(AvroReader.class);

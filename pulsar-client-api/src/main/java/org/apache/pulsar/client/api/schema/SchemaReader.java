@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api.schema;
 
 import java.io.InputStream;
+import java.util.Optional;
+
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -87,7 +89,11 @@ public interface SchemaReader<T> {
     default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
     }
 
-    default Object getNativeSchema() {
-        return null;
+    /**
+     * Returns the underling Schema if possible
+     * @return the schema, or an empty Optional if it is not possible to access it
+     */
+    default Optional<Object> getNativeSchema() {
+        return Optional.empty();
     }
 }

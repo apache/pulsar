@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> {
@@ -80,8 +81,8 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
     }
 
     @Override
-    public Object getNativeSchema() {
-        return descriptor;
+    public Optional<Object> getNativeSchema() {
+        return Optional.of(descriptor);
     }
 
     private static final Logger log = LoggerFactory.getLogger(GenericProtobufNativeReader.class);
