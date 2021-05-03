@@ -412,7 +412,7 @@ public abstract class NamespacesBase extends AdminResource {
             if (!topics.isEmpty()) {
                 for (String topic : topics) {
                     try {
-                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true));
+                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
                     } catch (Exception e) {
                         log.error("[{}] Failed to force delete topic {}", clientAppId(), topic, e);
                         asyncResponse.resume(new RestException(e));

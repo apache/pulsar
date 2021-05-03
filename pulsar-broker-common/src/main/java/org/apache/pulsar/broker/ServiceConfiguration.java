@@ -414,6 +414,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "requests in memory. Default: 1000"
     )
     private int maxPendingPublishRequestsPerConnection = 1000;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
