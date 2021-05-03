@@ -197,6 +197,7 @@ public class PulsarClientImpl implements PulsarClient {
         } catch (Throwable t) {
             shutdown();
             shutdownEventLoopGroup(eventLoopGroup);
+            closeCnxPool(cnxPool);
             throw t;
         }
     }
@@ -720,7 +721,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
             if (createdCnxPool) {
                 try {
-                    cnxPool.close();
+                    closeCnxPool(cnxPool);
                 } catch (Throwable t) {
                     log.warn("Failed to shutdown cnxPool", t);
                     throwable = t;
@@ -764,8 +765,18 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
+    private void closeCnxPool(ConnectionPool cnxPool) throws PulsarClientException {
+        if (createdCnxPool && cnxPool != null) {
+            try {
+                cnxPool.close();
+            } catch (Throwable t) {
+                throw PulsarClientException.unwrap(t);
+            }
+        }
+    }
+
     private void shutdownEventLoopGroup(EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        if (createdEventLoopGroup && !eventLoopGroup.isShutdown()) {
+        if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
             try {
                 eventLoopGroup.shutdownGracefully().get();
             } catch (Throwable t) {
