@@ -139,10 +139,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         return CompletableFuture.completedFuture(LeaderElectionState.Following);
     }
 
-    private synchronized void changeState(LeaderElectionState lse) {
+    private synchronized void changeState(LeaderElectionState les) {
         internalState = InternalState.LeaderIsPresent;
-        if (this.leaderElectionState != lse) {
-            this.leaderElectionState = lse;
+        if (this.leaderElectionState != les) {
+            this.leaderElectionState = les;
             try {
                 stateChangesListener.accept(leaderElectionState);
             } catch (Throwable t) {
@@ -274,8 +274,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 log.info("Revalidating leadership for {}", path);
             }
 
-            elect().thenAccept(lse -> {
-                log.info("Resynced leadership for {} - State: ", path, lse);
+            elect().thenAccept(les -> {
+                log.info("Resynced leadership for {} - State: {}", path, les);
             });
         }
     }
