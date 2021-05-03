@@ -140,7 +140,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
                 AbstractMultiVersionReader abstractMultiVersionReader = (AbstractMultiVersionReader) reader;
                 try {
                     SchemaReader schemaReader = abstractMultiVersionReader.getSchemaReader(schemaVersion);
-                    return Optional.ofNullable(schemaReader.getNativeSchema());
+                    return schemaReader.getNativeSchema();
                 } catch (ExecutionException err) {
                     throw new RuntimeException(err.getCause());
                 }
