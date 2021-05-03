@@ -721,9 +721,9 @@ public class PulsarClientImpl implements PulsarClient {
             }
             try {
                 closeCnxPool(cnxPool);
-            } catch (Throwable t) {
-                log.warn("Failed to shutdown cnxPool", t);
-                throwable = t;
+            } catch (PulsarClientException e) {
+                log.warn("Failed to shutdown cnxPool", e);
+                throwable = e;
             }
             if (timer != null && needStopTimer) {
                 try {
