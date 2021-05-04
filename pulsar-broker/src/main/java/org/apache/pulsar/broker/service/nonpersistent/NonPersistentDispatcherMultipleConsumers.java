@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -192,7 +193,8 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
             consumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
+                    sendMessageInfo.getTotalBytes(),
+                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker(), DEFAULT_READ_EPOCH);
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
         } else {

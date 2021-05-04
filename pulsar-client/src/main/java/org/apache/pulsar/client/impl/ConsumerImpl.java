@@ -189,6 +189,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
 
+    private final AtomicLong epoch = new AtomicLong(0);
+
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -747,6 +749,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         cnx.sendRequestWithId(request, requestId).thenRun(() -> {
             synchronized (ConsumerImpl.this) {
                 if (changeToReadyState()) {
+                    this.epoch.set(0);
                     consumerIsReconnectedToBroker(cnx, currentSize);
                 } else {
                     // Consumer was closed while reconnecting, close the connection to make sure the broker
@@ -1573,7 +1576,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages() {
+    public CompletableFuture<Void> redeliverUnacknowledgedMessages() {
+        if (conf.getSubscriptionType() == SubscriptionType.Failover
+                || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
+            this.epoch.getAndIncrement();
+        }
         ClientCnx cnx = cnx();
         if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getValue()) {
             int currentSize = 0;
@@ -1582,7 +1589,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 clearIncomingMessages();
                 unAckedMessageTracker.clear();
             }
-            cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
+            long requestId = client.newRequestId();
+            CompletableFuture<Void> completableFuture = cnx.newRedeliverUnacknowledgedMessages(
+                    Commands.newRedeliverUnacknowledgedMessages(consumerId,
+                            requestId, epoch.get()), requestId);
             if (currentSize > 0) {
                 increaseAvailablePermits(cnx, currentSize);
             }
@@ -1590,13 +1600,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
                         consumerName, currentSize);
             }
-            return;
+            return completableFuture;
         }
         if (cnx == null || (getState() == State.Connecting)) {
-            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
+            String errorMessage = this
+                    + "Client Connection needs to be established for redelivery of unacknowledged messages";
+            log.warn(errorMessage);
+            return FutureUtil.failedFuture(new PulsarClientException.ConnectException(errorMessage));
         } else {
-            log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
+            String errorMessage = this + "Reconnecting the client to redeliver the messages.";
+            log.warn(errorMessage);
             cnx.ctx().close();
+            return FutureUtil.failedFuture(new PulsarClientException.ConnectException(errorMessage));
         }
     }
 
@@ -2389,5 +2404,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
+
+    public long getEpoch() {
+        return epoch.get();
+    }
 
 }

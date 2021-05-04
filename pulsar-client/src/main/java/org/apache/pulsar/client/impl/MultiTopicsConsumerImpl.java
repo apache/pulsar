@@ -601,7 +601,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages() {
+    public CompletableFuture<Void> redeliverUnacknowledgedMessages() {
         lock.writeLock().lock();
         try {
             consumers.values().stream().forEach(consumer -> {
@@ -614,6 +614,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             lock.writeLock().unlock();
         }
         resumeReceivingFromPausedConsumersIfNeeded();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

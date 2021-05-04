@@ -174,7 +174,8 @@ public class ClientCnx extends PulsarHandler {
         GetSchema,
         GetOrCreateSchema,
         AckResponse,
-        Lookup;
+        Lookup,
+        RedeliverUnacknowledgedMessages;
 
         String getDescription() {
             if (this == Command) {
@@ -435,8 +436,15 @@ public class ClientCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("{} Received a message from the server: {}", ctx.channel(), cmdMessage);
         }
+
         ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
+
         if (consumer != null) {
+            if (cmdMessage.hasEpoch() && cmdMessage.getEpoch() < consumer.getEpoch()) {
+                log.warn("consumerId : [{}] receive message command epoch more than the consumer epoch!",
+                        cmdMessage.getConsumerId());
+                return;
+            }
             List<Long> ackSets = Collections.emptyList();
             if (cmdMessage.getAckSetsCount() > 0) {
                 ackSets = new ArrayList<>(cmdMessage.getAckSetsCount());
@@ -762,6 +770,10 @@ public class ClientCnx extends PulsarHandler {
 
     public CompletableFuture<Void> newAckForReceipt(ByteBuf request, long requestId) {
         return sendRequestAndHandleTimeout(request, requestId, RequestType.AckResponse,true);
+    }
+
+    public CompletableFuture<Void> newRedeliverUnacknowledgedMessages(ByteBuf request, long requestId) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.RedeliverUnacknowledgedMessages,true);
     }
 
     public void newAckForReceiptWithFuture(ByteBuf request, long requestId,

@@ -210,7 +210,7 @@ public class Consumer {
     public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
-                                     RedeliveryTracker redeliveryTracker) {
+                                     RedeliveryTracker redeliveryTracker, long epoch) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
 
         if (entries.isEmpty() || totalMessages == 0) {
@@ -267,7 +267,7 @@ public class Consumer {
 
 
         return cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
-                entries, batchSizes, batchIndexesAcks, redeliveryTracker);
+                entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch);
     }
 
     private void incrementUnackedMessages(int ackedMessages) {
@@ -732,13 +732,16 @@ public class Consumer {
         return priorityLevel;
     }
 
-    public void redeliverUnacknowledgedMessages() {
+    public CompletableFuture<Void> redeliverUnacknowledgedMessages(long epoch) {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
+
         clearUnAckedMsgs();
         blockedConsumerOnUnackedMsgs = false;
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] consumer {} received redelivery", topicName, subscription, consumerId);
         }
+
+        CompletableFuture<Void> completableFuture;
 
         if (pendingAcks != null) {
             List<PositionImpl> pendingPositions = new ArrayList<>((int) pendingAcks.size());
@@ -754,11 +757,14 @@ public class Consumer {
 
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
+            completableFuture = new CompletableFuture<>();
+            completableFuture.complete(null);
         } else {
-            subscription.redeliverUnacknowledgedMessages(this);
+            completableFuture = subscription.redeliverUnacknowledgedMessages(this, epoch);
         }
 
         flowConsumerBlockedPermits(this);
+        return completableFuture;
     }
 
     public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds) {

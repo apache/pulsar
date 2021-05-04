@@ -78,7 +78,7 @@ public interface AsyncCallbacks {
     }
 
     interface ReadEntriesCallback {
-        void readEntriesComplete(List<Entry> entries, Object ctx);
+        void readEntriesComplete(List<Entry> entries, Object ctx, long epoch);
 
         void readEntriesFailed(ManagedLedgerException exception, Object ctx);
     }

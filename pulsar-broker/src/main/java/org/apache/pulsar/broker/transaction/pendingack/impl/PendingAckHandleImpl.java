@@ -38,6 +38,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -284,7 +285,9 @@ public class PendingAckHandleImpl implements PendingAckHandle {
             if (this.cumulativeAckOfTransaction.getKey().equals(txnId)) {
                 this.cumulativeAckOfTransaction = null;
             }
-            this.persistentSubscription.redeliverUnacknowledgedMessages(consumer);
+            this.persistentSubscription.redeliverUnacknowledgedMessages(consumer,
+                    ((PersistentDispatcherSingleActiveConsumer) this.persistentSubscription
+                            .getDispatcher()).getEpoch());
         } else if (this.individualAckOfTransaction != null){
             HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
                     individualAckOfTransaction.remove(txnId);

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -218,7 +219,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                        getRedeliveryTracker()).addListener(future -> {
+                        getRedeliveryTracker(), DEFAULT_READ_EPOCH).addListener(future -> {
                     if (future.isDone() && keyNumbers.decrementAndGet() == 0) {
                         readMoreEntries();
                     }

@@ -80,7 +80,7 @@ public interface Dispatcher {
 
     SubType getType();
 
-    void redeliverUnacknowledgedMessages(Consumer consumer);
+    CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long epoch);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 

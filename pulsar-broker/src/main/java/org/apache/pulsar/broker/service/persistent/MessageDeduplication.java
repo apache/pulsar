@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
@@ -54,7 +55,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Class that contains all the logic to control and perform the deduplication on the broker side.
  */
-public class MessageDeduplication {
+public class
+MessageDeduplication {
 
     private final PulsarService pulsar;
     private final PersistentTopic topic;
@@ -161,7 +163,7 @@ public class MessageDeduplication {
     private void replayCursor(CompletableFuture<Void> future) {
         managedCursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
 
                 for (Entry entry : entries) {
                     ByteBuf messageMetadataAndPayload = entry.getDataBuffer();
@@ -188,7 +190,7 @@ public class MessageDeduplication {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 future.completeExceptionally(exception);
             }
-        }, null, PositionImpl.latest);
+        }, null, PositionImpl.latest, DEFAULT_READ_EPOCH);
     }
 
     public Status getStatus() {

@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
@@ -214,7 +215,7 @@ public class EntryCacheManager {
                         mlFactoryMBean.recordCacheMiss(entries.size(), totalSize);
                         ml.mbean.addReadEntriesSample(entries.size(), totalSize);
 
-                        callback.readEntriesComplete(entries, ctx);
+                        callback.readEntriesComplete(entries, ctx, DEFAULT_READ_EPOCH);
                     }).exceptionally(exception -> {
                     	callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
                     	return null;

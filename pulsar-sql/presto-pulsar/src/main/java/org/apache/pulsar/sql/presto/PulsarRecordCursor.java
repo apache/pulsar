@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
 import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -370,7 +371,7 @@ public class PulsarRecordCursor implements RecordCursor {
                             // if the available size is invalid and the entry queue size is 0, read one entry
                             outstandingReadsRequests.decrementAndGet();
                             cursor.asyncReadEntries(batchSize, entryQueueCacheSizeAllocator.getAvailableCacheSize(),
-                                    this, System.nanoTime(), PositionImpl.latest);
+                                    this, System.nanoTime(), PositionImpl.latest, DEFAULT_READ_EPOCH);
                         }
 
                         // stats for successful read request
@@ -384,7 +385,7 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         @Override
-        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+        public void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
 
             entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
                 private int i = 0;

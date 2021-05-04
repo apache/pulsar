@@ -215,6 +215,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
 
+    public static final long DEFAULT_READ_EPOCH = 0L;
+
     enum State {
         None, // Uninitialized
         LedgerOpened, // A ledger is ready to write into
@@ -1963,12 +1965,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         @Override
-        public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
+        public void readEntriesComplete(List<Entry> returnedEntries, Object ctx, long epoch) {
             long reOpCount = reOpCount(ctx);
             ReadEntriesCallback callback = this.readEntriesCallback;
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
-                callback.readEntriesComplete(returnedEntries, cbCtx);
+                callback.readEntriesComplete(returnedEntries, cbCtx, epoch);
                 return;
             } else {
                 if (log.isDebugEnabled()) {

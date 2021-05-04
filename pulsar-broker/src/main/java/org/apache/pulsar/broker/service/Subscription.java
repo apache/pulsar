@@ -87,7 +87,7 @@ public interface Subscription {
 
     boolean expireMessages(Position position);
 
-    void redeliverUnacknowledgedMessages(Consumer consumer);
+    CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long epoch);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 

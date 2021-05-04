@@ -103,9 +103,11 @@ public interface ManagedCursor {
      *            opaque context
      * @param maxPosition
      *            max position can read
+     * @param epoch
+     *            epoch of this read
      */
     void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                          PositionImpl maxPosition);
+                          PositionImpl maxPosition, long epoch);
 
 
     /**
@@ -116,9 +118,10 @@ public interface ManagedCursor {
      * @param callback              callback object
      * @param ctx                   opaque context
      * @param maxPosition           max position can read
+     * @param epoch                 epoch of this read
      */
     void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                          Object ctx, PositionImpl maxPosition);
+                          Object ctx, PositionImpl maxPosition, long epoch);
 
     /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
@@ -192,9 +195,11 @@ public interface ManagedCursor {
      *            opaque context
      * @param maxPosition
      *            max position can read
+     * @param epoch
+     *            epoch of this read
      */
     void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                PositionImpl maxPosition);
+                                PositionImpl maxPosition, long epoch);
 
     /**
      * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
@@ -213,9 +218,11 @@ public interface ManagedCursor {
      *            opaque context
      * @param maxPosition
      *            max position can read
+     * @param epoch
+     *            epoch of this read
      */
     void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
-                                PositionImpl maxPosition);
+                                PositionImpl maxPosition, long epoch);
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.

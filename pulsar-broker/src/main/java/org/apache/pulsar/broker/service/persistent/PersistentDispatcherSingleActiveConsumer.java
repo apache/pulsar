@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import java.util.Iterator;
 import java.util.List;
@@ -36,6 +37,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
@@ -71,6 +73,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     private final RedeliveryTracker redeliveryTracker;
+    private volatile long epoch;
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
                                                     PersistentTopic topic, Subscription subscription) {
@@ -141,13 +144,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public void readEntriesComplete(final List<Entry> entries, Object obj) {
+    public void readEntriesComplete(final List<Entry> entries, Object obj, long epoch) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalReadEntriesComplete(entries, obj);
+            internalReadEntriesComplete(entries, obj, epoch);
         }));
     }
 
-    public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
+    public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj, long epoch) {
         Consumer readConsumer = (Consumer) obj;
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
@@ -198,17 +201,17 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor, false);
-            dispatchEntriesToConsumer(currentConsumer, entries, batchSizes, batchIndexesAcks, sendMessageInfo);
+            dispatchEntriesToConsumer(currentConsumer, entries, batchSizes, batchIndexesAcks, sendMessageInfo, epoch);
         }
     }
 
     protected void dispatchEntriesToConsumer(Consumer currentConsumer, List<Entry> entries,
                                              EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-                                             SendMessageInfo sendMessageInfo) {
+                                             SendMessageInfo sendMessageInfo, long epoch) {
         currentConsumer
             .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                    redeliveryTracker)
+                    redeliveryTracker, epoch)
             .addListener(future -> {
                 if (future.isSuccess()) {
                     // acquire message-dispatch permits for already delivered messages
@@ -274,13 +277,24 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Consumer consumer) {
+    public CompletableFuture<Void> redeliverUnacknowledgedMessages(Consumer consumer, long epoch) {
+        final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalRedeliverUnacknowledgedMessages(consumer);
+            internalRedeliverUnacknowledgedMessages(consumer, completableFuture, epoch);
         }));
+        return completableFuture;
     }
 
-    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer) {
+    private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer,
+                                                                      CompletableFuture<Void> completableFuture,
+                                                                      long epoch) {
+        if (epoch >= this.epoch) {
+            this.epoch = epoch;
+        } else {
+            completableFuture.completeExceptionally(new BrokerServiceException("consumerId: " + consumer.consumerId()
+                    +  "redeliver fail! " + "now epoch : " + this.epoch + "epoch : " + epoch));
+            return;
+        }
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     name, consumer);
@@ -306,13 +320,14 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     consumer);
         }
 
+        completableFuture.complete(null);
     }
 
     @Override
     public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
         // We cannot redeliver single messages to single consumers to preserve ordering.
         positions.forEach(redeliveryTracker::addIfAbsent);
-        redeliverUnacknowledgedMessages(consumer);
+        redeliverUnacknowledgedMessages(consumer, DEFAULT_READ_EPOCH);
     }
 
     @Override
@@ -339,8 +354,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
-                cursor.asyncReadEntriesOrWait(messagesToRead,
-                        serviceConfig.getDispatcherMaxReadSizeBytes(), this, consumer, topic.getMaxReadPosition());
+                cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(),
+                        this, consumer, topic.getMaxReadPosition(), epoch);
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -559,6 +574,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             return true;
         }
         return false;
+    }
+
+    public long getEpoch() {
+        return epoch;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);

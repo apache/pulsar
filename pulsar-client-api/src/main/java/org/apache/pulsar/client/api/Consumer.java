@@ -572,7 +572,7 @@ public interface Consumer<T> extends Closeable {
      * the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
      * breaks, the messages are redelivered after reconnect.
      */
-    void redeliverUnacknowledgedMessages();
+    CompletableFuture<Void> redeliverUnacknowledgedMessages();
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.

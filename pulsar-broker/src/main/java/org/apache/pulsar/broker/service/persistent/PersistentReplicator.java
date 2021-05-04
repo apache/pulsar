@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -300,7 +301,7 @@ public class PersistentReplicator extends AbstractReplicator
                             messagesToRead);
                 }
                 cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
-                        null, PositionImpl.latest);
+                        null, PositionImpl.latest, DEFAULT_READ_EPOCH);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Not scheduling read due to pending read. Messages To Read {}", topicName,
@@ -320,7 +321,7 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+    public void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{} -> {}] Read entries complete of {} messages", topicName, localCluster, remoteCluster,
                     entries.size());

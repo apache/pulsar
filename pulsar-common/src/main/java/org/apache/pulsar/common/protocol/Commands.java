@@ -436,10 +436,11 @@ public class Commands {
     }
 
     public static BaseCommand newMessageCommand(long consumerId, long ledgerId, long entryId, int partition,
-            int redeliveryCount, long[] ackSet) {
+            int redeliveryCount, long[] ackSet, long epoch) {
         BaseCommand cmd = localCmd(Type.MESSAGE);
         CommandMessage msg = cmd.setMessage()
-                .setConsumerId(consumerId);
+                .setConsumerId(consumerId)
+                .setEpoch(epoch);
         msg.setMessageId()
                 .setLedgerId(ledgerId)
                 .setEntryId(entryId)
@@ -458,7 +459,7 @@ public class Commands {
     public static ByteBufPair newMessage(long consumerId, long ledgerId, long entryId, int partition,
             int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet) {
         return serializeCommandMessageWithSize(
-                newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount, ackSet),
+                newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount, ackSet, 0L),
                 metadataAndPayload);
     }
 
@@ -953,10 +954,12 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId) {
+    public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId, long requestId, long epoch) {
         BaseCommand cmd = localCmd(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES);
         cmd.setRedeliverUnacknowledgedMessages()
-                .setConsumerId(consumerId);
+                .setConsumerId(consumerId)
+                .setRequestId(requestId)
+                .setEpoch(epoch);
         return serializeWithSize(cmd);
     }
 

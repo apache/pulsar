@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
@@ -532,13 +533,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    cursor.asyncReadEntries(100, this, System.nanoTime(), PositionImpl.latest);
+                    cursor.asyncReadEntries(100, this,
+                            System.nanoTime(), PositionImpl.latest, DEFAULT_READ_EPOCH);
                 }
             }
         }
 
         @Override
-        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+        public void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
             entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
                 private int i = 0;
                 @Override
