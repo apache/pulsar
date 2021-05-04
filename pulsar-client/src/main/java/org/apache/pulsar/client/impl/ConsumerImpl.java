@@ -839,6 +839,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         log.info("[{}][{}] Subscribing to topic on cnx {}, consumerId {}", topic, subscription, cnx.ctx().channel(),consumerId);
 
         long requestId = client.newRequestId();
+        if (duringSeek.get()) {
+            acknowledgmentsGroupingTracker.flushAndClean();
+        }
 
         int currentSize;
         synchronized (this) {
