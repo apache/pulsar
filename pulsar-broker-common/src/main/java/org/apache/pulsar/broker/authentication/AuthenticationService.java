@@ -104,13 +104,11 @@ public class AuthenticationService implements Closeable {
         String authMethodName = request.getHeader("X-Pulsar-Auth-Method-Name");
 
         if (authMethodName != null) {
-            AuthenticationProvider providerToUse = providers
-                    .values()
-                    .parallelStream()
-                    .filter(provider -> provider.getAuthMethodName().equals(authMethodName))
-                    .findAny()
-                    .orElseThrow(() -> new AuthenticationException(String.format("Unsupported header X-Pulsar-Auth-Method-Name [%s].", authMethodName)));
-
+            AuthenticationProvider providerToUse = providers.get(authMethodName);
+            if (providerToUse == null) {
+                throw new AuthenticationException(
+                        String.format("Unsupported authentication method: [%s].", authMethodName));
+            }
             try {
                 return providerToUse.authenticate(authData);
             } catch (AuthenticationException e) {
