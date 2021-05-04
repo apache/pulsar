@@ -1066,7 +1066,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
                     notifyPendingBatchReceivedCallBack();
                 }
-                tryTriggerListener();
             });
         } else {
             // handle batch message enqueuing; uncompressed payload has all messages in batch
@@ -1074,6 +1073,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             uncompressedPayload.release();
         }
+        internalPinnedExecutor.execute(()
+                -> tryTriggerListener());
 
     }
 
@@ -1287,7 +1288,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         notifyPendingBatchReceivedCallBack();
                     }
                     singleMessagePayload.release();
-                    tryTriggerListener();
                 });
             }
             if (ackBitSet != null) {
