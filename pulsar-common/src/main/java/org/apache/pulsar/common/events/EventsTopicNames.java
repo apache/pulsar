@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.common.events;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * System topic names for each {@link EventType}.
  */
 public class EventsTopicNames {
 
     /**
-     * All event topics are system topics.
-     * A topic is a system topic if and only if its local name has this prefix.
+     * All event topics are system topics, and currently, they all have this prefix.
      */
-    public static final String SYSTEM_TOPIC_LOCAL_NAME_PREFIX = "__";
+    private static final String SYSTEM_TOPIC_LOCAL_NAME_PREFIX = "__";
 
     /**
      * Local topic name for the namespace events.
@@ -39,4 +42,10 @@ public class EventsTopicNames {
      */
     public static final String TRANSACTION_BUFFER_SNAPSHOT =
             SYSTEM_TOPIC_LOCAL_NAME_PREFIX + "transaction_buffer_snapshot";
+
+    /**
+     * The set of all events topic names.
+     */
+    public static final Set<String> EVENTS_TOPIC_NAMES =
+            new HashSet<>(Arrays.asList(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT));
 }

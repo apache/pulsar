@@ -306,7 +306,7 @@ public class PersistentTopic extends AbstractTopic
         checkReplicatedSubscriptionControllerState();
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !SystemTopicClient.isSystemTopic(TopicName.get(topic))
+                && !SystemTopicClient.isSystemTopic(topicName)
                 && !topicName.getEncodedLocalName().startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
                 && !topicName.getEncodedLocalName().startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)) {
             this.transactionBuffer = brokerService.getPulsar()
@@ -652,7 +652,6 @@ public class PersistentTopic extends AbstractTopic
         }
 
         try {
-            // TODO can all system topics have any type of subscription?
             if (!TopicName.get(topic).getLocalName().equals(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)
                     && !checkSubscriptionTypesEnable(subType)) {
                 future.completeExceptionally(
