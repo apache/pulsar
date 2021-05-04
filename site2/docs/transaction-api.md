@@ -9,7 +9,7 @@ All messages in a transaction is available only to consumers after the transacti
 Currently, Pulsar transaction is a developer preview feature. It is disabled by default. You can enable the feature and use transactions in your application in development environment.
 
 ## Prerequisites
-1. To enable transactions in Pulsar, you need to configure the parameter in the `broker.conf` file.
+1. To enable transactions in Pulsar, you need to configure the parameter in the `broker.conf` file (or `standalone.conf` for standalone mode).
 
 ```
 transactionCoordinatorEnabled=true
