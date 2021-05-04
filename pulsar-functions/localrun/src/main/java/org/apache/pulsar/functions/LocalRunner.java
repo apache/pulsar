@@ -631,12 +631,11 @@ public class LocalRunner implements AutoCloseable {
                     30000);
             spawners.add(runtimeSpawner);
             runtimeSpawner.start();
-
-            if (metricsPortStart != null) {
-                // starting metrics server
-                log.info("Starting metrics server on port {}", metricsPortStart);
-                metricsServer = new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
-            }
+        }
+        if (metricsPortStart != null) {
+            // starting metrics server
+            log.info("Starting metrics server on port {}", metricsPortStart);
+            metricsServer = new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
         }
     }
 
