@@ -88,7 +88,9 @@ public interface TopicPoliciesService {
      * clean cache and listeners in TopicPolicies and so on.
      * @param topicName
      */
-    void clean(TopicName topicName);
+    default void clean(TopicName topicName) {
+        throw new UnsupportedOperationException("Clean is not supported by default");
+    }
 
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
