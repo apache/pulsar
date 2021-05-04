@@ -45,7 +45,7 @@ public interface SinkContext extends ConnectorContext {
     String getSinkName();
 
     /**
-     * Get subscription type
+     * Get subscription type used by the source providing data for the sink
      * @return subscription type
      */
     default SubscriptionType getSubscriptionType() {
