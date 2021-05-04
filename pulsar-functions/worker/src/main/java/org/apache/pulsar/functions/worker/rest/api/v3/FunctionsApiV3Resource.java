@@ -312,7 +312,7 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("path") String path) {
-        functions().uploadFunction(uploadedInputStream, path, clientAppId());
+        functions().uploadFunction(uploadedInputStream, path, clientAppId(), clientAuthData());
     }
 
     @GET
@@ -386,6 +386,6 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
                                                  final @FormDataParam("delete") boolean delete) {
 
         functions().updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream,
-                delete, uri.getRequestUri(), clientAppId());
+                delete, uri.getRequestUri(), clientAppId(), clientAuthData());
     }
 }
