@@ -260,8 +260,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 addLogTopicHandler();
-                JavaExecutionResult result;
-
+                
                 // set last invocation time
                 stats.setLastInvocation(System.currentTimeMillis());
 
@@ -270,9 +269,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
-                result = javaInstance.handleMessage(
-                    currentRecord, currentRecord.getValue(), this::handleResult,
-                    cause -> currentThread.interrupt());
+                JavaExecutionResult result = javaInstance.handleMessage(currentRecord, currentRecord.getValue());
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
                 // register end time
@@ -352,30 +349,28 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                   	try {
 						sendOutputMessage(srcRecord, result1);
 					} catch (SinkException e) {
-						// Ignore for now
+						log.warn("Encountered exception when publishing result {}",
+		                        srcRecord, e);
 					}
                   } else {
                     if (instanceConfig.getFunctionDetails().getAutoAck()) {
                         // the function doesn't produce any result or the user doesn't want the result.
                         srcRecord.ack();
                     }
-<<<<<<< HEAD
-                }
-            }
-        });
-        result.join();  // Wait for the above clause to be executed.
-        return actualResult.get();
-=======
                   }
                   // increment total successfully processed
                   stats.incrTotalProcessedSuccessfully();
               }
           }); 
          } else {
-        	sendOutputMessage(srcRecord, result.getResult());
+        	if (result.getResult() != null) {
+        		sendOutputMessage(srcRecord, result.getResult());
+        	} else if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                // the function doesn't produce any result or the user doesn't want the result.
+                srcRecord.ack();
+            }
             stats.incrTotalProcessedSuccessfully();
         }
->>>>>>> Made changes to fix the issue for sync functions
     }
     
     @SuppressWarnings("serial")
