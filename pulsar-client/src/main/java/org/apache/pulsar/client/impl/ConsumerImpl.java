@@ -708,6 +708,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         log.info("[{}][{}] Subscribing to topic on cnx {}, consumerId {}", topic, subscription, cnx.ctx().channel(), consumerId);
 
         long requestId = client.newRequestId();
+        if (duringSeek.get()) {
+            acknowledgmentsGroupingTracker.flushAndClean();
+        }
 
         int currentSize;
         synchronized (this) {
@@ -1927,22 +1930,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
-                //this situation will occur when :
-                // 1.We haven't read yet 2.The connection was reset multiple times
-                // 3.Broker has pushed messages to ReceiverQueue, but messages were cleaned due to connection reset
-                Backoff backoff = new BackoffBuilder()
-                        .setInitialTime(100, TimeUnit.MILLISECONDS)
-                        .setMax(2000, TimeUnit.MILLISECONDS)
-                        .setMandatoryStop(client.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS)
-                        .create();
-                RetryUtil.retryAsynchronously(() -> {
-                    try {
-                        seek(startMessageId);
-                        return true;
-                    } catch (PulsarClientException e) {
-                        throw new RuntimeException(e);
-                    }
-                }, backoff, pinnedExecutor, booleanFuture);
+                booleanFuture.complete(true);
                 return booleanFuture;
             }
 
