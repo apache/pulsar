@@ -101,7 +101,7 @@ public class AuthenticationService implements Closeable {
     public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {
         AuthenticationException authenticationException = null;
         AuthenticationDataSource authData = new AuthenticationDataHttps(request);
-        String authMethodName = request.getHeader("Auth-Method-Name");
+        String authMethodName = request.getHeader("X-Pulsar-Auth-Method-Name");
 
         if (authMethodName != null) {
             AuthenticationProvider providerToUse = providers
@@ -109,7 +109,7 @@ public class AuthenticationService implements Closeable {
                     .parallelStream()
                     .filter(provider -> provider.getAuthMethodName().equals(authMethodName))
                     .findAny()
-                    .orElseThrow(() -> new AuthenticationException(String.format("Unsupported header Auth-Method-Name [%s].", authMethodName)));
+                    .orElseThrow(() -> new AuthenticationException(String.format("Unsupported header X-Pulsar-Auth-Method-Name [%s].", authMethodName)));
 
             try {
                 return providerToUse.authenticate(authData);
