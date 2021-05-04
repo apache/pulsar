@@ -293,7 +293,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         KafkaConnectSink sink = new KafkaConnectSink();
         sink.open(props, null);
 
-        // offset is -1 before any data is written
+        // offset is -1 before any data is written (aka no offset)
         assertEquals(-1L, sink.currentOffset(topicName, partition));
 
         sink.write(record);

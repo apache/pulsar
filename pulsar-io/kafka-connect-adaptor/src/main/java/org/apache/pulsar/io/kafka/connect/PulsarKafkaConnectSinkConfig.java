@@ -37,13 +37,13 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-            defaultValue = "1",
-            help = "Number of messages the sink processes before flush.")
-    private int batchSize = 1;
+            defaultValue = "16384",
+            help = "Size of messages in bytes the sink will attempt to batch messages together before flush.")
+    private int batchSize = 16384;
 
     @FieldDoc(
             defaultValue = "2147483647L",
-            help = "The batch size that Kafka producer will attempt to batch records together.")
+            help = "Time interval in milliseconds the sink will attempt to batch messages together before flush.")
     private long lingerTimeMs = 2147483647L;
 
     @FieldDoc(

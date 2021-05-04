@@ -34,6 +34,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkConnector;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -50,6 +51,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG;
 import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG;
@@ -92,7 +94,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     private SinkConnector connector;
     private SinkTask task;
 
-    private int batchSize;
+    private long maxBatchSize;
+    private final AtomicLong currentBatchSize = new AtomicLong(0L);
+
     private long lingerMs;
     private final ScheduledExecutorService scheduledExecutor =
             Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
@@ -113,11 +117,15 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         }
 
         if (!isRunning) {
-            log.error("Sink is stopped. Cannot send the record {}", sourceRecord);
+            log.warn("Sink is stopped. Cannot send the record {}", sourceRecord);
             sourceRecord.fail();
             return;
         }
 
+        // while sourceRecord.getMessage() is Optional<>
+        // it should always be present in Sink which gets instance of PulsarRecord
+        // let's avoid checks for .isPresent() in teh rest of the code
+        Preconditions.checkArgument(sourceRecord.getMessage().isPresent());
         try {
             SinkRecord record = toSinkRecord(sourceRecord);
             task.put(Lists.newArrayList(record));
@@ -127,6 +135,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             return;
         }
         pendingFlushQueue.add(sourceRecord);
+        currentBatchSize.addAndGet(sourceRecord.getMessage().get().size());
         flushIfNeeded(false);
     }
 
@@ -178,7 +187,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         task.initialize(taskContext);
         task.start(configs.get(0));
 
-        batchSize = kafkaSinkConfig.getBatchSize();
+        maxBatchSize = kafkaSinkConfig.getBatchSize();
         lingerMs = kafkaSinkConfig.getLingerTimeMs();
         scheduledExecutor.scheduleAtFixedRate(() ->
                 this.flushIfNeeded(true), lingerMs, lingerMs, TimeUnit.MILLISECONDS);
@@ -189,7 +198,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     }
 
     private void flushIfNeeded(boolean force) {
-        if (force || pendingFlushQueue.stream().limit(batchSize).count() >= batchSize) {
+        if (force || currentBatchSize.get() >= maxBatchSize) {
             scheduledExecutor.submit(this::flush);
         }
     }
@@ -198,7 +207,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     public void flush() {
         if (log.isDebugEnabled()) {
             log.debug("flush requested, pending: {}, batchSize: {}",
-                    pendingFlushQueue.size(), batchSize);
+                    currentBatchSize.get(), maxBatchSize);
         }
 
         if (pendingFlushQueue.isEmpty()) {
@@ -222,6 +231,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         while (!pendingFlushQueue.isEmpty()) {
             Record<GenericObject> r = pendingFlushQueue.pollFirst();
             cb.accept(r);
+            currentBatchSize.addAndGet(-1 * r.getMessage().get().size());
             if (r == lastNotFlushed) {
                 break;
             }
@@ -267,7 +277,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         final Object value;
         final Schema keySchema;
         final Schema valueSchema;
-sourceRecord.getMessage().get().getData().length
+
         // sourceRecord is never instanceof KVRecord
         // https://github.com/apache/pulsar/pull/10113
         if (unwrapKeyValueIfAvailable && sourceRecord.getSchema() != null
@@ -280,9 +290,14 @@ sourceRecord.getMessage().get().getData().length
             keySchema = getKafkaConnectSchema(kvSchema.getKeySchema(), key);
             valueSchema = getKafkaConnectSchema(kvSchema.getValueSchema(), value);
         } else {
-            key = sourceRecord.getKey().orElse(null);
+            if (sourceRecord.getMessage().get().hasBase64EncodedKey()) {
+                key = sourceRecord.getMessage().get().getKeyBytes();
+                keySchema = Schema.BYTES_SCHEMA;
+            } else {
+                key = sourceRecord.getKey().orElse(null);
+                keySchema = Schema.STRING_SCHEMA;
+            }
             value = sourceRecord.getValue().getNativeObject();
-            keySchema = Schema.STRING_SCHEMA;
             valueSchema = getKafkaConnectSchema(sourceRecord.getSchema(), value);
         }
 
@@ -292,15 +307,17 @@ sourceRecord.getMessage().get().getData().length
             log.error("Message without sequenceId. Key: {} Value: {}", key, value);
             throw new IllegalStateException("Message without sequenceId");
         }
+        taskContext.offset(new TopicPartition(topic, partition), offset);
 
         Long timestamp = null;
         TimestampType timestampType = TimestampType.NO_TIMESTAMP_TYPE;
         if (sourceRecord.getEventTime().isPresent()) {
             timestamp = sourceRecord.getEventTime().get();
             timestampType = TimestampType.CREATE_TIME;
-        } else if (sourceRecord.getMessage().isPresent()) {
+        } else {
+            // publishTime is not a log append time.
+            // keep timestampType = TimestampType.NO_TIMESTAMP_TYPE
             timestamp = sourceRecord.getMessage().get().getPublishTime();
-            timestampType = TimestampType.LOG_APPEND_TIME;
         }
         return new SinkRecord(topic,
                 partition,
@@ -315,7 +332,7 @@ sourceRecord.getMessage().get().getData().length
 
     @VisibleForTesting
     protected long currentOffset(String topic, int partition) {
-        return taskContext.currentOffset(topic, partition).get();
+        return taskContext.currentOffset(topic, partition);
     }
 
 }

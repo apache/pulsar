@@ -30,40 +30,13 @@
   <artifactId>pulsar-io-kafka-connect-adaptor-nar</artifactId>
   <name>Pulsar IO :: Kafka Connect Adaptor NAR</name>
 
-  <profiles>
-    <profile>
-      <id>main</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>packageKafkaConnect</id>
-      <dependencies>
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-        <!--
-        as an example, package connect-file is included when nar is built as
-        mvn clean package -DskipTests -P packageKafkaConnect
-        -->
-        <dependency>
-          <groupId>org.apache.kafka</groupId>
-          <artifactId>connect-file</artifactId>
-          <version>${kafka-client.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-  </profiles>
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
 
 
   <build>
