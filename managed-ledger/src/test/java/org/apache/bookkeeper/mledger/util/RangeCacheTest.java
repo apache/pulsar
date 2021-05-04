@@ -27,13 +27,15 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.annotations.Test;
 
 public class RangeCacheTest {
 
-    class RefString extends AbstractReferenceCounted implements ReferenceCounted {
+    class RefString extends AbstractReferenceCounted implements InvalidateableReferenceCounted {
         final String s;
+        private final AtomicBoolean invalidated = new AtomicBoolean();
 
         RefString(String s) {
             super();
@@ -43,7 +45,7 @@ public class RangeCacheTest {
 
         @Override
         protected void deallocate() {
-            // no-op
+            invalidated.set(false);
         }
 
         @Override
@@ -59,6 +61,15 @@ public class RangeCacheTest {
                 return this.s.equals((String) obj);
             }
 
+            return false;
+        }
+
+        @Override
+        public boolean invalidate() {
+            if (invalidated.compareAndSet(false, true)) {
+                release();
+                return true;
+            }
             return false;
         }
     }

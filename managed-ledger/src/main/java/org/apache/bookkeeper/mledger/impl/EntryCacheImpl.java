@@ -116,7 +116,7 @@ public class EntryCacheImpl implements EntryCache {
             return true;
         } else {
             // entry was not inserted into cache, we need to discard it
-            cacheEntry.release();
+            cacheEntry.invalidate();
             return false;
         }
     }

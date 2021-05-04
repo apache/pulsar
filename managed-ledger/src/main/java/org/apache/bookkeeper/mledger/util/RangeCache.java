@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger.util;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Lists;
-import io.netty.util.ReferenceCounted;
+import io.netty.util.IllegalReferenceCountException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +38,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * @param <Value>
  *            Cache value
  */
-public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCounted> {
+public class RangeCache<Key extends Comparable<Key>, Value extends InvalidateableReferenceCounted> {
     // Map from key to nodes inside the linked list
     private final ConcurrentNavigableMap<Key, Value> entries;
     private AtomicLong size; // Total size of values stored in cache
@@ -90,7 +90,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             try {
                 value.retain();
                 return value;
-            } catch (Throwable t) {
+            } catch (IllegalReferenceCountException e) {
                 // Value was already destroyed between get() and retain()
                 return null;
             }
@@ -113,7 +113,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             try {
                 value.retain();
                 values.add(value);
-            } catch (Throwable t) {
+            } catch (IllegalReferenceCountException e) {
                 // Value was already destroyed between get() and retain()
             }
         }
@@ -140,9 +140,11 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
                 continue;
             }
 
-            removedSize += weighter.getSize(value);
-            value.release();
-            ++removedEntries;
+            long entrySize = weighter.getSize(value);
+            if (value.invalidate()) {
+                removedSize += entrySize;
+                ++removedEntries;
+            }
         }
 
         size.addAndGet(-removedSize);
@@ -168,9 +170,11 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             }
 
             Value value = entry.getValue();
-            ++removedEntries;
-            removedSize += weighter.getSize(value);
-            value.release();
+            long entrySize = weighter.getSize(value);
+            if (value.invalidate()) {
+                ++removedEntries;
+                removedSize += entrySize;
+            }
         }
 
         size.addAndGet(-removedSize);
@@ -197,8 +201,10 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
            }
 
            Value value = entry.getValue();
-           removedSize += weighter.getSize(value);
-           value.release();
+           long entrySize = weighter.getSize(value);
+           if (value.invalidate()) {
+               removedSize += entrySize;
+           }
        }
 
        size.addAndGet(-removedSize);
@@ -230,8 +236,10 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
                 break;
             }
             Value value = entry.getValue();
-            removedSize += weighter.getSize(value);
-            value.release();
+            long entrySize = weighter.getSize(value);
+            if (value.invalidate()) {
+                removedSize += entrySize;
+            }
         }
 
         entries.clear();

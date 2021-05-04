@@ -154,7 +154,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         }
         checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
                 lh.getId());
-        
+
         if (!checkAndCompleteOp(ctx)) {
             // means callback might have been completed by different thread (timeout task thread).. so do nothing
             return;
@@ -189,7 +189,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
             // insert
             ml.entryCache.insert(entry);
-            entry.release();
+            entry.invalidate();
         }
 
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
@@ -248,7 +248,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * Checks if add-operation is completed
-     * 
+     *
      * @return true if task is not already completed else returns false.
      */
     private boolean checkAndCompleteOp(Object ctx) {
@@ -269,7 +269,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * It handles add failure on the given ledger. it can be triggered when add-entry fails or times out.
-     * 
+     *
      * @param ledger
      */
     void handleAddFailure(final LedgerHandle ledger) {

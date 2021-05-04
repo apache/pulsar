@@ -27,11 +27,14 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
+import org.apache.bookkeeper.mledger.util.InvalidateableReferenceCounted;
 
-public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>, ReferenceCounted {
+public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>,
+        InvalidateableReferenceCounted {
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -45,6 +48,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long ledgerId;
     private long entryId;
     ByteBuf data;
+    private final AtomicBoolean invalidated = new AtomicBoolean();
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
@@ -166,7 +170,16 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         timestamp = -1;
         ledgerId = -1;
         entryId = -1;
+        invalidated.set(false);
         recyclerHandle.recycle(this);
     }
 
+    @Override
+    public boolean invalidate() {
+        if (invalidated.compareAndSet(false, true)) {
+            release();
+            return true;
+        }
+        return false;
+    }
 }
