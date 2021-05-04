@@ -989,7 +989,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
             final String bundle = entry.getKey();
             final BundleData data = entry.getValue();
-            futures.add(bundlesCache.readModifyUpdateOrCreate(getBundleDataPath(bundle), __ -> data));
+            futures.add(bundlesCache.readModifyUpdateOrCreate(getBundleDataPath(bundle), __ -> data)
+                    .thenApply(__ -> null));
         }
 
         // Write the time average broker data to metadata store.
@@ -997,7 +998,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
             final String broker = entry.getKey();
             final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
             futures.add(timeAverageBrokerDataCache.readModifyUpdateOrCreate(
-                    TIME_AVERAGE_BROKER_ZPATH + "/" + broker, __ -> data));
+                    TIME_AVERAGE_BROKER_ZPATH + "/" + broker, __ -> data)
+                    .thenApply(__ -> null));
         }
 
         try {
