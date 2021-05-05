@@ -47,9 +47,11 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.DerivedFoo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBarList;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.assertj.core.api.Assertions;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
@@ -370,7 +372,7 @@ public class JSONSchemaTest {
     }
 
     @Test
-    public void testEncodeAndDecodeObject() throws JsonProcessingException {
+    public void testEncodeAndDecodeObject() {
         JSONSchema<PC> jsonSchema = JSONSchema.of(SchemaDefinition.<PC>builder().withPojo(PC.class).build());
         PC pc = new PC("dell", "alienware", 2021, GPU.AMD,
                 new Seller("WA", "street", 98004));
@@ -380,16 +382,15 @@ public class JSONSchemaTest {
     }
 
     @Test
-    public void testGetNativeSchema() throws SchemaValidationException {
+    public void testGetNativeSchema() throws IllegalAccessException {
         JSONSchema<PC> schema2 = JSONSchema.of(PC.class);
-        org.apache.avro.Schema avroSchema2 = (Schema) schema2.getNativeSchema().get();
+        org.apache.avro.Schema avroSchema2 =
+                (Schema) schema2.getNativeSchema().orElseThrow(IllegalAccessException::new);
         assertSame(schema2.schema, avroSchema2);
     }
 
     @Test
     public void testJsonGenericRecordBuilder() {
-        JSONSchema<Seller> sellerJsonSchema = JSONSchema.of(Seller.class);
-
         RecordSchemaBuilder sellerSchemaBuilder = SchemaBuilder.record("seller");
         sellerSchemaBuilder.field("state").type(SchemaType.STRING);
         sellerSchemaBuilder.field("street").type(SchemaType.STRING);
@@ -448,5 +449,8 @@ public class JSONSchemaTest {
         assertEquals("USA", seller3Record.getField("state"));
         assertEquals("oakstreet", seller3Record.getField("street"));
         assertEquals(9999, seller3Record.getField("zipCode"));
+
+        assertTrue(pc3Record instanceof GenericJsonRecord);
+        Assertions.assertThatCode(() -> pc3Record.getField("I_DO_NOT_EXIST")).doesNotThrowAnyException();
     }
 }
