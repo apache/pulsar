@@ -371,5 +371,26 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).remove(listener);
     }
 
+    @Override
+    public void clean(TopicName topicName) {
+        TopicName realTopicName = topicName;
+        if (topicName.isPartitioned()) {
+            //change persistent://tenant/namespace/xxx-partition-0  to persistent://tenant/namespace/xxx
+            realTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        }
+        policiesCache.remove(realTopicName);
+        listeners.remove(realTopicName);
+    }
+
+    @VisibleForTesting
+    protected Map<TopicName, TopicPolicies> getPoliciesCache() {
+        return policiesCache;
+    }
+
+    @VisibleForTesting
+    protected Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> getListeners() {
+        return listeners;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);
 }

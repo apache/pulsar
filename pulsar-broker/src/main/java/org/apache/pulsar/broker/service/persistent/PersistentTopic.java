@@ -1061,8 +1061,7 @@ public class PersistentTopic extends AbstractTopic
 
                                     subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                                    brokerService.pulsar().getTopicPoliciesService()
-                                            .unregisterListener(TopicName.get(topic), getPersistentTopic());
+                                    brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
                                     log.info("[{}] Topic deleted", topic);
                                     deleteFuture.complete(null);
                                 }
@@ -1153,8 +1152,7 @@ public class PersistentTopic extends AbstractTopic
 
                     subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                    brokerService.pulsar().getTopicPoliciesService()
-                            .unregisterListener(TopicName.get(topic), getPersistentTopic());
+                    brokerService.pulsar().getTopicPoliciesService().clean(TopicName.get(topic));
                     log.info("[{}] Topic closed", topic);
                     closeFuture.complete(null);
                 }
