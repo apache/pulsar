@@ -347,7 +347,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
               } else {
                   if (result1 != null) {
                   	try {
-						sendOutputMessage(srcRecord, result1);
+                      sendOutputMessage(srcRecord, result1);
 					} catch (SinkException e) {
 						log.warn("Encountered exception when publishing result {}",
 		                        srcRecord, e);
