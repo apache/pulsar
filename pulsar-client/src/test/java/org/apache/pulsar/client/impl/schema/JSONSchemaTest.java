@@ -372,7 +372,7 @@ public class JSONSchemaTest {
     }
 
     @Test
-    public void testEncodeAndDecodeObject() {
+    public void testEncodeAndDecodeObject() throws JsonProcessingException {
         JSONSchema<PC> jsonSchema = JSONSchema.of(SchemaDefinition.<PC>builder().withPojo(PC.class).build());
         PC pc = new PC("dell", "alienware", 2021, GPU.AMD,
                 new Seller("WA", "street", 98004));
@@ -382,15 +382,16 @@ public class JSONSchemaTest {
     }
 
     @Test
-    public void testGetNativeSchema() throws IllegalAccessException {
+    public void testGetNativeSchema() throws SchemaValidationException {
         JSONSchema<PC> schema2 = JSONSchema.of(PC.class);
-        org.apache.avro.Schema avroSchema2 =
-                (Schema) schema2.getNativeSchema().orElseThrow(IllegalAccessException::new);
+        org.apache.avro.Schema avroSchema2 = (Schema) schema2.getNativeSchema().get();
         assertSame(schema2.schema, avroSchema2);
     }
 
     @Test
     public void testJsonGenericRecordBuilder() {
+        JSONSchema<Seller> sellerJsonSchema = JSONSchema.of(Seller.class);
+
         RecordSchemaBuilder sellerSchemaBuilder = SchemaBuilder.record("seller");
         sellerSchemaBuilder.field("state").type(SchemaType.STRING);
         sellerSchemaBuilder.field("street").type(SchemaType.STRING);
