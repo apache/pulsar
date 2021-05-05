@@ -93,22 +93,6 @@ public interface Schema<T> extends Cloneable{
         return false;
     }
 
-    /**
-     * Return an instance of this schema at the given version.
-     * @param schemaVersion the version
-     * @return the schema at that specific version
-     * @throws SchemaSerializationException in case of unknown schema version
-     * @throws NullPointerException in case of null schemaVersion
-     */
-    default Schema<?> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
-        Objects.requireNonNull(schemaVersion);
-        if (!supportSchemaVersioning()) {
-            return this;
-        } else {
-            throw new SchemaSerializationException("Not implemented for " + this.getClass());
-        }
-    }
-
     default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
     }
 

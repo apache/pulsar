@@ -43,6 +43,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -394,8 +395,17 @@ public class MessageImpl<T> implements Message<T> {
         if (schema == null) {
             return Optional.empty();
         }
-        byte[] schemaVersion = getSchemaVersion();
-        return Optional.of(schema.atSchemaVersion(schemaVersion));
+        if (schema instanceof AutoConsumeSchema) {
+            byte[] schemaVersion = getSchemaVersion();
+            return Optional.of(((AutoConsumeSchema) schema)
+                    .atSchemaVersion(schemaVersion));
+        } else if (schema instanceof AbstractSchema) {
+            byte[] schemaVersion = getSchemaVersion();
+            return Optional.of(((AbstractSchema) schema)
+                    .atSchemaVersion(schemaVersion));
+        } else {
+            return Optional.of(schema);
+        }
     }
 
     @Override

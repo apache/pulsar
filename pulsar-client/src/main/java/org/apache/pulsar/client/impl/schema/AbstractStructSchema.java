@@ -91,6 +91,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         this.schemaInfoProvider = schemaInfoProvider;
     }
 
+    @Override
     public Schema<T> atSchemaVersion(byte[] schemaVersion) throws SchemaSerializationException {
         Objects.requireNonNull(schemaVersion);
         if (schemaInfoProvider == null) {
