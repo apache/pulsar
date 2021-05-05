@@ -389,7 +389,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     @Override
-    public Optional<Schema<?>> getSchema() {
+    public Optional<Schema<?>> getReaderSchema() {
         ensureSchemaIsLoaded();
         if (schema == null) {
             return Optional.empty();

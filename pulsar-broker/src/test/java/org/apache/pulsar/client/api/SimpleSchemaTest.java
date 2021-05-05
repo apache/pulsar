@@ -536,7 +536,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 org.apache.avro.Schema avroSchema = (org.apache.avro.Schema) impl.getSchemaInternal().getNativeSchema().get();
                 assertNotNull(avroSchema);
 
-                org.apache.avro.Schema avroSchema2 = (org.apache.avro.Schema) data.getSchema().get().getNativeSchema().get();
+                org.apache.avro.Schema avroSchema2 = (org.apache.avro.Schema) data.getReaderSchema().get().getNativeSchema().get();
                 assertNotNull(avroSchema2);
             }
 
@@ -622,7 +622,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 assertEquals(data.getValue().getKey().getField("i"), i * 100);
                 assertEquals(data.getValue().getValue().getField("i"), i * 1000);
                 c1.acknowledge(data);
-                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getSchema().get();
+                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
                 assertNotNull(keyValueSchema.getKeySchema());
                 assertNotNull(keyValueSchema.getValueSchema());
             }
@@ -634,7 +634,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 assertEquals(data.getValue().getKey().i, i * 100);
                 assertEquals(data.getValue().getValue().i, i * 1000);
                 c2.acknowledge(data);
-                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getSchema().get();
+                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
                 assertNotNull(keyValueSchema.getKeySchema());
                 assertNotNull(keyValueSchema.getValueSchema());
             }
@@ -646,7 +646,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 assertEquals(data.getValue().getKey().getField("i"), i * 100);
                 assertEquals(data.getValue().getValue().i, i * 1000);
                 c3.acknowledge(data);
-                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getSchema().get();
+                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
                 assertNotNull(keyValueSchema.getKeySchema());
                 assertNotNull(keyValueSchema.getValueSchema());
             }
@@ -837,7 +837,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                     assertEquals(data.getValue().getField("j"), i * 20);
                 }
 
-                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getSchema().get();
+                KeyValueSchema keyValueSchema = (KeyValueSchema) data.getReaderSchema().get();
                 assertNotNull(keyValueSchema.getKeySchema());
                 assertNotNull(keyValueSchema.getValueSchema());
             }
@@ -897,9 +897,9 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         v2DataProducer.send(new V2Data());
 
         Message<?> messageV1 = consumer.receive();
-        Schema<?> schemaV1 = messageV1.getSchema().get();
+        Schema<?> schemaV1 = messageV1.getReaderSchema().get();
         Message<?> messageV2 = consumer.receive();
-        Schema<?> schemaV2 = messageV2.getSchema().get();
+        Schema<?> schemaV2 = messageV2.getReaderSchema().get();
         log.info("schemaV1 {} {}", schemaV1.getSchemaInfo(), schemaV1.getNativeSchema());
         log.info("schemaV2 {} {}", schemaV2.getSchemaInfo(), schemaV2.getNativeSchema());
         assertTrue(schemaV1.getSchemaInfo().getSchemaDefinition().contains("V1Data"));

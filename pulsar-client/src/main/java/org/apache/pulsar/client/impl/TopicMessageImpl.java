@@ -191,8 +191,8 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
-    public Optional<Schema<?>> getSchema() {
-        return msg.getSchema();
+    public Optional<Schema<?>> getReaderSchema() {
+        return msg.getReaderSchema();
     }
 
     @Override
