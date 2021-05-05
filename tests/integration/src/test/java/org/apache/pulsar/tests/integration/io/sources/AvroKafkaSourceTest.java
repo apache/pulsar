@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.io;
+package org.apache.pulsar.tests.integration.io.sources;
 
 import com.google.gson.Gson;
 import lombok.Cleanup;
