@@ -66,7 +66,7 @@
 - [Java] Fix batch size not set when deserializing from byte array [#9855](https://github.com/apache/pulsar/pull/9855)
 - [Java] Fix ensure single-topic consumer can be closed [#9849](https://github.com/apache/pulsar/pull/9849)
 - [Java] Issue 9585: delete disconnected consumers to allow auto-discovery [#9660](https://github.com/apache/pulsar/pull/9660)
-- [Python] Support python avro schema set default value. [#10265](https://github.com/apache/pulsar/pull/10265)
+- [Python] Support Python Avro schema set default value. [#10265](https://github.com/apache/pulsar/pull/10265)
 - [Python] Fix nested Map or Array in schema doesn't work [#9548](https://github.com/apache/pulsar/pull/9548)
 - [C++,Python] [PIP-60] Add TLS SNI support for cpp and python clients [#8957](https://github.com/apache/pulsar/pull/8957)
 - [C++] Fix C++ client cannot be built on Windows [#10363](https://github.com/apache/pulsar/pull/10363)
