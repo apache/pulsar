@@ -138,7 +138,7 @@ public class OwnershipCache {
                             }
                             ownershipReadOnlyCache.invalidate(namespaceBundleZNode);
                             future.complete(new OwnedBundle(
-                                    ServiceUnitZkUtils.suBundleFromPath(namespaceBundleZNode, bundleFactory)));
+                                    ServiceUnitUtils.suBundleFromPath(namespaceBundleZNode, bundleFactory)));
                         } else {
                             // Failed to acquire lock
                             future.completeExceptionally(KeeperException.create(rc));
@@ -184,7 +184,7 @@ public class OwnershipCache {
                 Stat stat = ownerDataWithStat.getValue();
                 if (stat.getEphemeralOwner() == localZkCache.getZooKeeper().getSessionId()) {
                     LOG.info("Successfully reestablish ownership of {}", path);
-                    OwnedBundle ownedBundle = new OwnedBundle(ServiceUnitZkUtils.suBundleFromPath(path, bundleFactory));
+                    OwnedBundle ownedBundle = new OwnedBundle(ServiceUnitUtils.suBundleFromPath(path, bundleFactory));
                     if (selfOwnerInfo.getNativeUrl().equals(ownerDataWithStat.getKey().getNativeUrl())) {
                         ownedBundlesCache.put(path, CompletableFuture.completedFuture(ownedBundle));
                     }
@@ -206,7 +206,7 @@ public class OwnershipCache {
         if (ownedBundle != null) {
             return CompletableFuture.completedFuture(true);
         }
-        String bundlePath = ServiceUnitZkUtils.path(bundle);
+        String bundlePath = ServiceUnitUtils.path(bundle);
         return resolveOwnership(bundlePath).thenApply(optionalOwnedDataWithStat -> {
             if (!optionalOwnedDataWithStat.isPresent()) {
                 return false;
@@ -226,7 +226,7 @@ public class OwnershipCache {
      *             throws exception if no ownership info is found
      */
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suName) {
-        String path = ServiceUnitZkUtils.path(suName);
+        String path = ServiceUnitUtils.path(suName);
 
         CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(path);
         if (ownedBundleFuture != null) {
@@ -250,7 +250,7 @@ public class OwnershipCache {
      * @throws Exception
      */
     public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle bundle) throws Exception {
-        String path = ServiceUnitZkUtils.path(bundle);
+        String path = ServiceUnitUtils.path(bundle);
 
         CompletableFuture<NamespaceEphemeralData> future = new CompletableFuture<>();
 
@@ -311,7 +311,7 @@ public class OwnershipCache {
      */
     public CompletableFuture<Void> removeOwnership(NamespaceBundle bundle) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        String key = ServiceUnitZkUtils.path(bundle);
+        String key = ServiceUnitUtils.path(bundle);
         localZkCache.getZooKeeper().delete(key, -1, (rc, path, ctx) -> {
             // Invalidate cache even in error since this operation may succeed in server side.
             ownedBundlesCache.synchronous().invalidate(key);
@@ -375,7 +375,7 @@ public class OwnershipCache {
      * @return
      */
     public OwnedBundle getOwnedBundle(NamespaceBundle bundle) {
-        CompletableFuture<OwnedBundle> future = ownedBundlesCache.getIfPresent(ServiceUnitZkUtils.path(bundle));
+        CompletableFuture<OwnedBundle> future = ownedBundlesCache.getIfPresent(ServiceUnitUtils.path(bundle));
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
             return future.join();
         } else {
@@ -390,7 +390,7 @@ public class OwnershipCache {
      * @throws Exception
      */
     public CompletableFuture<Void> disableOwnership(NamespaceBundle bundle) {
-        String path = ServiceUnitZkUtils.path(bundle);
+        String path = ServiceUnitUtils.path(bundle);
         CompletableFuture<Void> future = new CompletableFuture<>();
 
         updateBundleState(bundle, false)
@@ -428,7 +428,7 @@ public class OwnershipCache {
      * @throws Exception
      */
     public CompletableFuture<Void> updateBundleState(NamespaceBundle bundle, boolean isActive) {
-        String path = ServiceUnitZkUtils.path(bundle);
+        String path = ServiceUnitUtils.path(bundle);
         // Disable owned instance in local cache
         CompletableFuture<OwnedBundle> f = ownedBundlesCache.getIfPresent(path);
         if (f != null && f.isDone() && !f.isCompletedExceptionally()) {
@@ -440,10 +440,6 @@ public class OwnershipCache {
 
     public void invalidateLocalOwnerCache() {
         this.ownedBundlesCache.synchronous().invalidateAll();
-    }
-
-    public NamespaceEphemeralData getSelfOwnerInfo() {
-        return selfOwnerInfo;
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {

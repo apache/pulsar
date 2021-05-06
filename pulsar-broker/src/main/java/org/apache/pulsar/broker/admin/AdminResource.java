@@ -46,8 +46,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
-import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -126,13 +124,6 @@ public abstract class AdminResource extends PulsarWebResource {
     @Override
     protected void validateAdminAccessForTenant(String property) {
         super.validateAdminAccessForTenant(property);
-    }
-
-    // This is a stub method for Mockito
-    @Override
-    protected void validateNamespaceOwnershipWithBundles(String property, String cluster, String namespace,
-            boolean authoritative, boolean readOnly, BundlesData bundleData) {
-        super.validateNamespaceOwnershipWithBundles(property, cluster, namespace, authoritative, readOnly, bundleData);
     }
 
     // This is a stub method for Mockito
@@ -336,9 +327,8 @@ public abstract class AdminResource extends PulsarWebResource {
             Policies policies = namespaceResources().get(policyPath)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(namespaceName);
-            BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
+            BundlesData bundleData = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(namespaceName).getBundlesData();
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
 
             return policies;
@@ -364,7 +354,7 @@ public abstract class AdminResource extends PulsarWebResource {
                         .thenCompose(bundles -> {
                     BundlesData bundleData = null;
                     try {
-                        bundleData = NamespaceBundleFactory.getBundlesData(bundles);
+                        bundleData = bundles.getBundlesData();
                     } catch (Exception e) {
                         log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
                         return FutureUtil.failedFuture(new RestException(e));
@@ -579,9 +569,8 @@ public abstract class AdminResource extends PulsarWebResource {
             Policies policies = namespaceResources().get(AdminResource.path(POLICIES, property, cluster, namespace))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(NamespaceName.get(property, cluster, namespace));
-            BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
+            BundlesData bundleData  = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(NamespaceName.get(property, cluster, namespace)).getBundlesData();
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
             return policies;
         } catch (RestException re) {

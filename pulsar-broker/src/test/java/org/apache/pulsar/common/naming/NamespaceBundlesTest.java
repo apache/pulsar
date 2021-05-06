@@ -31,6 +31,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
 
@@ -63,47 +64,10 @@ public class NamespaceBundlesTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testConstructor() throws Exception {
-        try {
-            new NamespaceBundles(null, (SortedSet<Long>) null, null);
-            fail("Should fail w/ null pointer exception");
-        } catch (NullPointerException npe) {
-            // OK, expected
-        }
 
-        try {
-            new NamespaceBundles(NamespaceName.get("pulsar/use/ns2"), (SortedSet<Long>) null, null);
-            fail("Should fail w/ null pointer exception");
-        } catch (NullPointerException npe) {
-            // OK, expected
-        }
+        long[] partitions = new long[]{0L, 0x10000000L, 0x40000000L, 0xffffffffL};
 
-        try {
-            new NamespaceBundles(NamespaceName.get("pulsar.use.ns2"), (SortedSet<Long>) null, null);
-            fail("Should fail w/ illegal argument exception");
-        } catch (IllegalArgumentException iae) {
-            // OK, expected
-        }
-
-        try {
-            new NamespaceBundles(NamespaceName.get("pulsar/use/ns2"), (SortedSet<Long>) null, factory);
-            fail("Should fail w/ null pointer exception");
-        } catch (NullPointerException npe) {
-            // OK, expected
-        }
-
-        SortedSet<Long> partitions = Sets.newTreeSet();
-        try {
-            new NamespaceBundles(NamespaceName.get("pulsar/use/ns2"), partitions, factory);
-            fail("Should fail w/ illegal argument exception");
-        } catch (IllegalArgumentException iae) {
-            // OK, expected
-        }
-
-        partitions.add(0L);
-        partitions.add(0x10000000L);
-        partitions.add(0x40000000L);
-        partitions.add(0xffffffffL);
-        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/use/ns2"), partitions, factory);
+        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/use/ns2"), factory, Optional.empty(), partitions);
         Field partitionField = NamespaceBundles.class.getDeclaredField("partitions");
         Field nsField = NamespaceBundles.class.getDeclaredField("nsname");
         Field bundlesField = NamespaceBundles.class.getDeclaredField("bundles");
@@ -112,7 +76,7 @@ public class NamespaceBundlesTest {
         bundlesField.setAccessible(true);
         long[] partFld = (long[]) partitionField.get(bundles);
         // the same instance
-        assertEquals(partitions.size(), partFld.length);
+        assertEquals(partitions.length, partFld.length);
         NamespaceName nsFld = (NamespaceName) nsField.get(bundles);
         assertEquals(nsFld.toString(), "pulsar/use/ns2");
         ArrayList<NamespaceBundle> bundleList = (ArrayList<NamespaceBundle>) bundlesField.get(bundles);
@@ -145,7 +109,8 @@ public class NamespaceBundlesTest {
         partitions.add(0xb0000000L);
         partitions.add(0xc0000000L);
         partitions.add(0xffffffffL);
-        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/global/ns1"), partitions, factory);
+        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/global/ns1"),
+                factory, Optional.empty(), partitions);
         TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundle bundle = bundles.findBundle(topicName);
         assertTrue(bundle.includes(topicName));
@@ -168,7 +133,7 @@ public class NamespaceBundlesTest {
         SortedSet<Long> newPar = tailSet.tailSet(iter.next());
 
         try {
-            bundles = new NamespaceBundles(topicName.getNamespaceObject(), newPar, factory);
+            bundles = new NamespaceBundles(topicName.getNamespaceObject(), factory, Optional.empty(), newPar);
             bundles.findBundle(topicName);
             fail("Should have failed due to out-of-range");
         } catch (IndexOutOfBoundsException iae) {
