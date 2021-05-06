@@ -135,8 +135,6 @@ public class TopicLookupBase extends PulsarWebResource {
             validateTopicOperation(topic, TopicOperation.LOOKUP);
         } catch (Exception e) {
             // unknown error marked as internal server error
-            log.warn("Unexpected error while authorizing TopicOperation.LOOKUP. topic={}, role={}. Error: {}",
-                    topic, clientAppId(), e.getMessage(), e);
             throw new RestException(e);
         }
     }
