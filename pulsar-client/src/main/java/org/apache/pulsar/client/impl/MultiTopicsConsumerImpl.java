@@ -102,6 +102,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final ConsumerStatsRecorder stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
+    private static ConsumerConfigurationData orgConf = null;
 
     private volatile BatchMessageIdImpl startMessageId = null;
     private final long startMessageRollbackDurationInSec;
@@ -170,7 +171,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         if (conf.getTopicNames().isEmpty()) {
             setState(State.Ready);
             subscribeFuture().complete(MultiTopicsConsumerImpl.this);
-            conf.getTopicNames().add(singleTopic);
             return;
         }
 
@@ -591,6 +591,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         internalConsumerConfig.setSubscriptionName(subscription);
         internalConsumerConfig.setConsumerName(consumerName);
         internalConsumerConfig.setMessageListener(null);
+        // output the org topic name
+        if (null != orgConf && internalConsumerConfig.getTopicNames().isEmpty()) {
+            internalConsumerConfig.getTopicNames().addAll(orgConf.getTopicNames());
+        }
         return internalConsumerConfig;
     }
 
@@ -834,7 +838,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                                                            int numPartitions,
                                                                            Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         checkArgument(conf.getTopicNames().size() == 1, "Should have only 1 topic for partitioned consumer");
-
+        // record the original configuration
+        orgConf = conf.clone();
         // get topic name, then remove it from conf, so constructor will create a consumer with no topic.
         ConsumerConfigurationData cloneConf = conf.clone();
         String topicName = cloneConf.getSingleTopic();
