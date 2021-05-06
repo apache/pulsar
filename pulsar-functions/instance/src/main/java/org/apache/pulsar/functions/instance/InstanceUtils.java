@@ -156,15 +156,15 @@ public class InstanceUtils {
         return properties;
     }
 
-
     public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
             throws PulsarClientException {
-        return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty());
+        return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty(), 1);
     }
 
     public static PulsarClient createPulsarClient(String pulsarServiceUrl,
                                                   AuthenticationConfig authConfig,
-                                                  Optional<Long> memoryLimit) throws PulsarClientException {
+                                                  Optional<Long> memoryLimit,
+                                                  int listenerThreads) throws PulsarClientException {
         ClientBuilder clientBuilder = null;
         if (isNotBlank(pulsarServiceUrl)) {
             clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
@@ -183,6 +183,7 @@ public class InstanceUtils {
                 clientBuilder.memoryLimit(memoryLimit.get(), SizeUnit.BYTES);
             }
             clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
+            clientBuilder.listenerThreads(listenerThreads);
             return clientBuilder.build();
         }
         log.warn("pulsarServiceUrl cannot be null");

@@ -61,6 +61,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     private String logDirectory;
     private String extraDependenciesDir;
     private String narExtractionDirectory;
+    private int numListenerThreads;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -83,13 +84,14 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                                  String logDirectory,
                                  String extraDependenciesDir,
                                  String narExtractionDirectory,
+                                 int numListenerThreads,
                                  SecretsProviderConfigurator secretsProviderConfigurator,
                                  boolean authenticationEnabled,
                                  Optional<FunctionAuthProvider> functionAuthProvider,
                                  Optional<RuntimeCustomizer> runtimeCustomizer) {
 
         initialize(pulsarServiceUrl, pulsarWebServiceUrl, stateStorageServiceUrl, authConfig, javaInstanceJarFile,
-                pythonInstanceFile, logDirectory, extraDependenciesDir, narExtractionDirectory,
+                pythonInstanceFile, logDirectory, extraDependenciesDir, narExtractionDirectory,numListenerThreads,
                 secretsProviderConfigurator, authenticationEnabled, functionAuthProvider, runtimeCustomizer);
     }
 
@@ -111,6 +113,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                 factoryConfig.getLogDirectory(),
                 factoryConfig.getExtraFunctionDependenciesDir(),
                 workerConfig.getNarExtractionDirectory(),
+                workerConfig.getNumListenerThreads(),
                 secretsProviderConfigurator,
                 workerConfig.isAuthenticationEnabled(),
                 authProvider,
@@ -126,6 +129,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                             String logDirectory,
                             String extraDependenciesDir,
                             String narExtractionDirectory,
+                            int numListenerThreads,
                             SecretsProviderConfigurator secretsProviderConfigurator,
                             boolean authenticationEnabled,
                             Optional<FunctionAuthProvider> functionAuthProvider,
@@ -141,6 +145,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         this.narExtractionDirectory = narExtractionDirectory;
         this.logDirectory = logDirectory;
         this.authenticationEnabled = authenticationEnabled;
+        this.numListenerThreads = numListenerThreads;
 
         // if things are not specified, try to figure out by env properties
         if (this.javaInstanceJarFile == null) {
@@ -229,7 +234,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             authConfig,
             secretsProviderConfigurator,
             expectedHealthCheckInterval,
-            pulsarWebServiceUrl);
+            pulsarWebServiceUrl, numListenerThreads);
     }
 
     @Override

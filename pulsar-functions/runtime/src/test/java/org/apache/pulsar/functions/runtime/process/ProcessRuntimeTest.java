@@ -298,7 +298,7 @@ public class ProcessRuntimeTest {
         String extraDepsEnv;
         int portArg;
         int metricsPortArg;
-        int totalArgCount = 41;
+        int totalArgCount = 43;
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             totalArgCount += 2;
         }
@@ -341,7 +341,7 @@ public class ProcessRuntimeTest {
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
                 + " --secrets_provider_config '{\"Config\":\"Value\"}'"
-                + " --cluster_name standalone --nar_extraction_directory " + narExtractionDirectory;
+                + " --cluster_name standalone --num_listener_threads 1 --nar_extraction_directory " + narExtractionDirectory;
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
@@ -369,7 +369,7 @@ public class ProcessRuntimeTest {
         ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
         List<String> args = container.getProcessArgs();
 
-        int totalArgs = 36;
+        int totalArgs = 38;
         int portArg = 23;
         int metricsPortArg = 25;
         String pythonPath = "";
@@ -390,7 +390,8 @@ public class ProcessRuntimeTest {
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider secretsprovider.ClearTextSecretsProvider"
                 + " --secrets_provider_config '{\"Config\":\"Value\"}'"
-                + " --cluster_name standalone";
+                + " --cluster_name standalone"
+                + " --num_listener_threads 1";
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

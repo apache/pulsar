@@ -103,6 +103,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String narExtractionDirectory;
     private String functionInstanceClassPath;
     private String downloadDirectory;
+    private int numListenerThreads;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -256,6 +257,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.metricsPort = factoryConfig.getMetricsPort();
         this.narExtractionDirectory = factoryConfig.getNarExtractionDirectory();
         this.functionInstanceClassPath = factoryConfig.getFunctionInstanceClassPath();
+        this.numListenerThreads = workerConfig.getNumListenerThreads();
     }
 
     @Override
@@ -324,7 +326,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             narExtractionDirectory,
             manifestCustomizer,
             functionInstanceClassPath,
-            downloadDirectory);
+            downloadDirectory, numListenerThreads);
+
     }
 
     @Override

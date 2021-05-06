@@ -130,6 +130,9 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client exposed to function context, default is disabled.", required = false)
     public Boolean exposePulsarAdminClientEnabled = false;
 
+    @Parameter(names = "--num_listener_threads", description = "Number of threads to use for message listeners, default is 1.", required = false)
+    public int numListenerThreads = 1;
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -203,7 +206,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                 secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
-                exposePulsarAdminClientEnabled, webServiceUrl);
+                exposePulsarAdminClientEnabled, webServiceUrl, numListenerThreads);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
