@@ -1174,6 +1174,15 @@ flexible messaging model and an intuitive client API.</description>
             <version>${project.version}</version>
           </dependency>
         </dependencies>
+        <configuration>
+          <skip>true</skip>
+          <encoding>UTF-8</encoding>
+          <consoleOutput>true</consoleOutput>
+          <failsOnError>false</failsOnError>
+          <failOnViolation>true</failOnViolation>
+          <violationSeverity>warning</violationSeverity>
+          <linkXRef>false</linkXRef>
+        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>

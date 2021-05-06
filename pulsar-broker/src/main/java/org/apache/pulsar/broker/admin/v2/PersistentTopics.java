@@ -2636,6 +2636,74 @@ public class PersistentTopics extends PersistentTopicsBase {
         });
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionDispatchRatePerSubscription")
+    @ApiOperation(value = "Get subscription message dispatch rate configuration for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getSubscriptionDispatchRatePerSubscription(@Suspended final AsyncResponse asyncResponse,
+                                            @PathParam("tenant") String tenant,
+                                            @PathParam("namespace") String namespace,
+                                            @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
+        internalGetSubscriptionDispatchRatePerSubscription().whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed get subscription dispatchRate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed get subscription dispatchRate", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(res);
+            }
+        });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/{subName}/subscriptionDispatchRatePerSubscription")
+    @ApiOperation(value = "Set subscription message dispatch rate configuration for specified topic. and specified subscription")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setSubscriptionDispatchRatePerSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("subName") @Encoded String subscriptionName,
+            @ApiParam(value = "Subscription message dispatch rate for the specified subscription of a topic")
+                    DispatchRate dispatchRate) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation();
+        internalSetSubscriptionDispatchRatePerSubscription(subscriptionName,dispatchRate).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed to set topic: {} subscription: {} dispatch rate", topicName.getLocalName(), subscriptionName, ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed to set topic: {} subscription: {} dispatch rate", topicName.getLocalName(), subscriptionName);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                try {
+                    log.info("[{}] Successfully set topic subscription dispatch rate:"
+                                    + " tenant={}, namespace={}, topic={}, subscription={}, dispatchRate={}",
+                            clientAppId(),
+                            tenant,
+                            namespace,
+                            topicName.getLocalName(),
+                            subscriptionName,
+                            jsonMapper().writeValueAsString(dispatchRate));
+                } catch (JsonProcessingException ignore) {}
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/subscriptionDispatchRate")
     @ApiOperation(value = "Remove subscription message dispatch rate configuration for specified topic.")

@@ -29,12 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -117,19 +112,9 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -2874,11 +2859,22 @@ public class PersistentTopic extends AbstractTopic
             }
         });
 
-        subscriptions.forEach((subName, sub) -> {
-            sub.getConsumers().forEach(Consumer::checkPermissions);
-            Dispatcher dispatcher = sub.getDispatcher();
-            dispatcher.updateRateLimiter(policies.getSubscriptionDispatchRate());
-        });
+        HashMap<String, DispatchRate> dispatchRateHashMap = policies.getSubscriptionDispatchRatePerSubscription();
+        if (dispatchRateHashMap != null){
+            subscriptions.forEach((subName, sub) -> {
+                if (dispatchRateHashMap.containsKey(subName)) {
+                    sub.getConsumers().forEach(Consumer::checkPermissions);
+                    Dispatcher dispatcher = sub.getDispatcher();
+                    dispatcher.updateRateLimiter(dispatchRateHashMap.getOrDefault(subName,policies.getSubscriptionDispatchRate()));
+                }
+            });
+        } else {
+            subscriptions.forEach((subName, sub) -> {
+                sub.getConsumers().forEach(Consumer::checkPermissions);
+                Dispatcher dispatcher = sub.getDispatcher();
+                dispatcher.updateRateLimiter(policies.getSubscriptionDispatchRate());
+            });
+        }
 
         if (policies.getPublishRate() != null) {
             updatePublishDispatcher(policies.getPublishRate());

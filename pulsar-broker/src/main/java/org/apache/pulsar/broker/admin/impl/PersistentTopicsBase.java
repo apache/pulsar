@@ -3755,6 +3755,13 @@ public class PersistentTopicsBase extends AdminResource {
         return CompletableFuture.completedFuture(dispatchRate);
     }
 
+    protected CompletableFuture<HashMap<String,DispatchRate>> internalGetSubscriptionDispatchRatePerSubscription() {
+        HashMap<String, DispatchRate> subscriptionDispatchRatePerSubscription = getTopicPolicies(topicName)
+                .map(TopicPolicies::getSubscriptionDispatchRatePerSubscription)
+                .orElse(null);
+        return CompletableFuture.completedFuture(subscriptionDispatchRatePerSubscription);
+    }
+
     protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
@@ -3762,6 +3769,18 @@ public class PersistentTopicsBase extends AdminResource {
         TopicPolicies topicPolicies = getTopicPolicies(topicName)
             .orElseGet(TopicPolicies::new);
         topicPolicies.setSubscriptionDispatchRate(dispatchRate);
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+    }
+
+    protected CompletableFuture<Void> internalSetSubscriptionDispatchRatePerSubscription(String subscriptionName, DispatchRate dispatchRate) {
+        if (dispatchRate == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicPolicies topicPolicies = getTopicPolicies(topicName)
+                .orElseGet(TopicPolicies::new);
+        HashMap<String, DispatchRate> dispatchRatePerSubscription = Maps.newHashMap();
+        dispatchRatePerSubscription.put(subscriptionName, dispatchRate);
+        topicPolicies.setSubscriptionDispatchRatePerSubscription(dispatchRatePerSubscription);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
@@ -3893,6 +3912,18 @@ public class PersistentTopicsBase extends AdminResource {
         TopicPolicies topicPolicies = getTopicPolicies(topicName)
                 .orElseGet(TopicPolicies::new);
         topicPolicies.setSubscribeRate(subscribeRate);
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+    }
+
+    protected CompletableFuture<Void> internalSetSubscribeRate(String subscriptionName, SubscribeRate subscribeRate) {
+        if (subscribeRate == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicPolicies topicPolicies = getTopicPolicies(topicName)
+                .orElseGet(TopicPolicies::new);
+        HashMap<String, SubscribeRate> subscribeRateHashMap = Maps.newHashMap();
+        subscribeRateHashMap.put(subscriptionName, subscribeRate);
+        topicPolicies.setSubscribeRatePerConsumer(subscribeRateHashMap);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 

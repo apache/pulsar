@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import com.google.common.collect.Maps;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -62,6 +63,17 @@ public class TopicPolicies {
     private Long compactionThreshold = null;
     private PublishRate publishRate = null;
     private SubscribeRate subscribeRate = null;
+    private HashMap<String, SubscribeRate> subscribeRatePerConsumer = Maps.newHashMap();
+    private HashMap<String, DispatchRate> subscriptionDispatchRatePerSubscription = Maps.newHashMap();
+
+    public HashMap<String, DispatchRate> getSubscriptionDispatchRatePerSubscription() {
+        return subscriptionDispatchRatePerSubscription;
+    }
+
+    public void setSubscriptionDispatchRatePerSubscription(HashMap<String, DispatchRate> subscriptionDispatchRatePerSubscription) {
+        this.subscriptionDispatchRatePerSubscription = subscriptionDispatchRatePerSubscription;
+    }
+
     private Integer deduplicationSnapshotIntervalSeconds = null;
     private Integer maxMessageSize = null;
     private Integer maxSubscriptionsPerTopic = null;
