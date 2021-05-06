@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.broker.web;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import java.io.IOException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -28,7 +26,9 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.ws.rs.core.MediaType;
-import java.io.IOException;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 
 public class ProcessHandlerFilter implements Filter {
 
