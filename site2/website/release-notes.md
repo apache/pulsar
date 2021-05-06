@@ -21,7 +21,7 @@
 - Messaging Fix delay message block [#10078](https://github.com/apache/pulsar/pull/10078)
 - Make PersistentDispatcherMultipleConsumers.readMoreEntries synchronized [#10435](https://github.com/apache/pulsar/pull/10435)
 - Fix issue in reusing EntryBatchIndexesAcks instances [#10400](https://github.com/apache/pulsar/pull/10400)
-- Fix schema not added when subscribe an empty topic without schema [#9853](https://github.com/apache/pulsar/pull/9853)
+- Fix schema not added when subscribing an empty topic without schema [#9853](https://github.com/apache/pulsar/pull/9853)
 - Support advertisedListeners for standalone [#10297](https://github.com/apache/pulsar/pull/10297)
 - Fix schema ledger deletion when deleting topic with delete schema. [#10383](https://github.com/apache/pulsar/pull/10383)
 - Fix primitive schema upload for ALWAYS_COMPATIBLE strategy. [#10386](https://github.com/apache/pulsar/pull/10386)
