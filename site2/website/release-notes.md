@@ -16,7 +16,7 @@
 - Fix NPEs and thread safety issue in PersistentReplicator [#9763](https://github.com/apache/pulsar/pull/9763)
 - Non Persistent Topics: Auto-create partitions even when the auto-creation is disabled [#9786](https://github.com/apache/pulsar/pull/9786)
 - Issue 9602: Add schema type validation [#9797](https://github.com/apache/pulsar/pull/9797)
-- Fix message not dispatch for key_shared sub type in non-persistent su… [#9826](https://github.com/apache/pulsar/pull/9826)
+- Fix message not dispatch for key_shared sub type in non-persistent subscription [#9826](https://github.com/apache/pulsar/pull/9826)
 - zkBookieRackAffinityMapping bug to support for bookkeeper dnsResolver [#9894](https://github.com/apache/pulsar/pull/9894)
 - Messaging Fix delay message block [#10078](https://github.com/apache/pulsar/pull/10078)
 - Make PersistentDispatcherMultipleConsumers.readMoreEntries synchronized [#10435](https://github.com/apache/pulsar/pull/10435)
