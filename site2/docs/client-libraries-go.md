@@ -117,8 +117,8 @@ The following configurable parameters are available for Pulsar clients:
 | TLSTrustCertsFilePath | Set the path to the trusted TLS certificate file | |
 | TLSAllowInsecureConnection | Configure whether the Pulsar client accept untrusted TLS certificate from broker | false |
 | TLSValidateHostname | Configure whether the Pulsar client verify the validity of the host name from broker | false |
-| ListenerName | Configure the net model for vpc user to connect the pulsar broker |  |
-| MaxConnectionsPerBroker | Max number of connections to a single broker that will kept in the pool | 1 |
+| ListenerName | Configure the net model for VPC users to connect to the Pulsar broker |  |
+| MaxConnectionsPerBroker | Max number of connections to a single broker that is kept in the pool | 1 |
 | CustomMetricsLabels | Add custom labels to all the metrics reported by this client instance |  |
 | Logger | Configure the logger used by the client | logrus.StandardLogger |
 
@@ -310,7 +310,7 @@ canc()
 | Topic | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader. | |
 | Name | Name specify a name for the producer. If not assigned, the system will generate a globally unique name which can be access with Producer.ProducerName(). | | 
 | Properties | Properties attach a set of application defined properties to the producer This properties will be visible in the topic stats | |
-| SendTimeout | SendTimeout set the timeout for a message that not be acknowledged by server since sent | 30s |
+| SendTimeout | SendTimeout set the timeout for a message that is not acknowledged by the server | 30s |
 | DisableBlockIfQueueFull | DisableBlockIfQueueFull control whether Send and SendAsync block if producer's message queue is full | false |
 | MaxPendingMessages| MaxPendingMessages set the max size of the queue holding the messages pending to receive an acknowledgment from the broker. | |
 | HashingScheme | HashingScheme change the `HashingScheme` used to chose the partition on where to publish a particular message. | JavaStringHash |
@@ -322,9 +322,9 @@ canc()
 | BatchingMaxMessages | BatchingMaxMessages set the maximum number of messages permitted in a batch. | 1000 | 
 | BatchingMaxSize | BatchingMaxSize sets the maximum number of bytes permitted in a batch. | 128KB | 
 | Schema |  Schema set a custom schema type by passing an implementation of `Schema` | bytes[] | 
-| Interceptors | A chain of interceptors, These interceptors will be called at some points defined in ProducerInterceptor interface. | None | 
+| Interceptors | A chain of interceptors. These interceptors are called at some points defined in the `ProducerInterceptor` interface. | None | 
 | MaxReconnectToBroker | MaxReconnectToBroker set the maximum retry number of reconnectToBroker | ultimate | 
-| BatcherBuilderType | BatcherBuilderType sets the batch builder type, this will be used to create batch container when batching is enabled. Options: DefaultBatchBuilder and KeyBasedBatchBuilder | DefaultBatchBuilder | 
+| BatcherBuilderType | BatcherBuilderType sets the batch builder type. This is used to create a batch container when batching is enabled. Options: DefaultBatchBuilder and KeyBasedBatchBuilder | DefaultBatchBuilder | 
 
 ## Consumers
 
@@ -367,7 +367,7 @@ Method | Description | Return type
 `Subscription()` | Returns the consumer's subscription name | `string`
 `Unsubcribe()` | Unsubscribes the consumer from the assigned topic. Throws an error if the unsubscribe operation is somehow unsuccessful. | `error`
 `Receive(context.Context)` | Receives a single message from the topic. This method blocks until a message is available. | `(Message, error)`
-`Chan()` | Chan returns a channel to consume messages from. | `<-chan ConsumerMessage`
+`Chan()` | Chan returns a channel from which to consume messages. | `<-chan ConsumerMessage`
 `Ack(Message)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) | 
 `AckID(MessageID)` | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) by message ID | 
 `ReconsumeLater(msg Message, delay time.Duration)` | ReconsumeLater mark a message for redelivery after custom delay | 
@@ -586,7 +586,7 @@ defer consumer.Close()
 | ReplicateSubscriptionState | Mark the subscription as replicated to keep it in sync across clusters | false |
 | KeySharedPolicy | Configuration for Key Shared consumer policy. |  |
 | RetryEnable | Auto retry send messages to default filled DLQPolicy topics | false |
-| Interceptors | A chain of interceptors, These interceptors will be called at some points defined in ConsumerInterceptor interface. |  |
+| Interceptors | A chain of interceptors. These interceptors are called at some points defined in the `ConsumerInterceptor` interface. |  |
 | MaxReconnectToBroker | MaxReconnectToBroker set the maximum retry number of reconnectToBroker. | ultimate |
 | Schema | Schema set a custom schema type by passing an implementation of `Schema` | bytes[] |
 
@@ -615,7 +615,7 @@ Method | Description | Return type
 `Next(context.Context)` | Receives the next message on the topic (analogous to the `Receive` method for [consumers](#consumer-operations)). This method blocks until a message is available. | `(Message, error)`
 `HasNext()` | Check if there is any message available to read from the current position| (bool, error)
 `Close()` | Closes the reader, disabling its ability to receive messages from the broker | `error`
-`Seek(MessageID)` | Reset the subscription associated with this reader to a specific message id | `error`
+`Seek(MessageID)` | Reset the subscription associated with this reader to a specific message ID | `error`
 `SeekByTime(time time.Time)` | Reset the subscription associated with this reader to a specific message publish time | `error`
 
 ### Reader example
