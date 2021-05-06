@@ -1863,8 +1863,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--region", "-r"},
-                description = "The long term storage region, " +
-                        "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
+                description = "The long term storage region, "
+                         + "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
                 required = false)
         private String region;
 
@@ -1876,8 +1876,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--endpoint", "-e"},
-                description = "Alternative endpoint to connect to, " +
-                        "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
+                description = "Alternative endpoint to connect to, "
+                        + "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
                 required = false)
         private String endpoint;
 
@@ -1892,6 +1892,18 @@ public class CmdNamespaces extends CmdBase {
                 description = "AWS Credential Secret to use when using driver S3 or aws-s3",
                 required = false)
         private String awsSecret;
+
+        @Parameter(
+                names = {"--s3-role", "-ro"},
+                description = "S3 Role used for STSAssumeRoleSessionCredentialsProvider",
+                required = false)
+        private String s3Role;
+
+        @Parameter(
+                names = {"--s3-role-session-name", "-rsn"},
+                description = "S3 role session name used for STSAssumeRoleSessionCredentialsProvider",
+                required = false)
+        private String s3RoleSessionName;
 
         @Parameter(
                 names = {"--maxBlockSize", "-mbs"},
@@ -2016,7 +2028,9 @@ public class CmdNamespaces extends CmdBase {
                 }
             }
 
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+                    s3Role, s3RoleSessionName,
+                    awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
                     offloadAfterElapsedInMillis, offloadedReadPriority);
 
