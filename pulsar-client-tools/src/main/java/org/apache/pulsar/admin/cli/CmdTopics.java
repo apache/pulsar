@@ -159,6 +159,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
         jcommander.addCommand("remove-subscription-dispatch-rate", new RemoveSubscriptionDispatchRate());
 
+        jcommander.addCommand("set-subscription-dispatch-rate-for-subscription", new SetSubscriptionDispatchRatePerSubscription());
+
         jcommander.addCommand("get-replicator-dispatch-rate", new GetReplicatorDispatchRate());
         jcommander.addCommand("set-replicator-dispatch-rate", new SetReplicatorDispatchRate());
         jcommander.addCommand("remove-replicator-dispatch-rate", new RemoveReplicatorDispatchRate());
@@ -1875,6 +1877,42 @@ public class CmdTopics extends CmdBase {
             getTopics().removeSubscriptionDispatchRate(persistentTopic);
         }
     }
+
+
+    @Parameters(commandDescription = "Set subscription message-dispatch-rate for a subscription of a topic")
+    private class SetSubscriptionDispatchRatePerSubscription extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Name of subscription to set dispatch rate", required = true)
+        private List<String> subName;
+
+        @Parameter(names = { "--msg-dispatch-rate",
+                "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
+        private int msgDispatchRate = -1;
+
+        @Parameter(names = { "--byte-dispatch-rate",
+                "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)", required = false)
+        private long byteDispatchRate = -1;
+
+        @Parameter(names = { "--dispatch-rate-period",
+                "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)", required = false)
+        private int dispatchRatePeriodSec = 1;
+
+        @Parameter(names = { "--relative-to-publish-rate",
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
+        private boolean relativeToPublishRate = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            String subscriptionName = validateSubscriptionName(subName);
+            getTopics().setSubscriptionDispatchRate(persistentTopic,
+                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate), subscriptionName);
+        }
+    }
+
 
     @Parameters(commandDescription = "Get replicator message-dispatch-rate for a topic")
     private class GetReplicatorDispatchRate extends CliCommand {

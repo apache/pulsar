@@ -2564,6 +2564,29 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void setSubscriptionDispatchRate(String topic, DispatchRate dispatchRate, String subName) throws PulsarAdminException {
+        try {
+            setSubscriptionDispatchRateAsync(topic, dispatchRate, subName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, DispatchRate dispatchRate, String subName) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionDispatchRatePerSubscription");
+        path = path.path(subName);
+        return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
+    }
+
+
+    @Override
     public void removeSubscriptionDispatchRate(String topic) throws PulsarAdminException {
         try {
             removeSubscriptionDispatchRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

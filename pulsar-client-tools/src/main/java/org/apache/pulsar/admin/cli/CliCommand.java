@@ -53,6 +53,11 @@ abstract class CliCommand {
         return TopicName.get(topic).toString();
     }
 
+    static String validateSubscriptionName(List<String> params) {
+        String subscription = getOneArgument(params);
+        return subscription;
+    }
+
     static String validatePersistentTopic(List<String> params) {
         String topic = checkArgument(params);
         TopicName topicName = TopicName.get(topic);
