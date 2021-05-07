@@ -30,6 +30,9 @@ import java.nio.charset.Charset;
 import java.security.PrivateKey;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -58,7 +61,6 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private String tenantDomain;
     private String tenantService;
     private String providerDomain;
-    private final Object providerDomainLock = new Object();
     private PrivateKey privateKey;
     private String keyId = "0";
     private String roleHeader = null;
@@ -72,6 +74,8 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private static final int maxValidity = 24 * 60 * 60; // token has upto 24 hours validity
     private static final int cacheDurationInHour = 1; // we will cache role token for an hour then ask athenz lib again
 
+    private final ReadWriteLock cachedRoleTokenLock = new ReentrantReadWriteLock();
+
     public AuthenticationAthenz() {
     }
 
@@ -81,23 +85,32 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     }
 
     @Override
-    synchronized public AuthenticationDataProvider getAuthData() throws PulsarClientException {
-        if (cachedRoleTokenIsValid()) {
-            return new AuthenticationDataAthenz(roleToken, isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
+    public AuthenticationDataProvider getAuthData() throws PulsarClientException {
+        Lock readLock = cachedRoleTokenLock.readLock();
+        readLock.lock();
+        try {
+            if (cachedRoleTokenIsValid()) {
+                return new AuthenticationDataAthenz(roleToken,
+                        isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
+            }
+        } finally {
+            readLock.unlock();
         }
+
+        Lock writeLock = cachedRoleTokenLock.writeLock();
+        writeLock.lock();
         try {
             // the following would set up the API call that requests tokens from the server
             // that can only be used if they are 10 minutes from expiration and last twenty
             // four hours
-            RoleToken token;
-            synchronized (providerDomainLock) {
-                token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
-            }
+            RoleToken token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
             roleToken = token.getToken();
             cachedRoleTokenTimestamp = System.nanoTime();
             return new AuthenticationDataAthenz(roleToken, isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader());
         } catch (Throwable t) {
             throw new GettingAuthenticationDataException(t);
+        } finally {
+            writeLock.unlock();
         }
     }
 
@@ -130,7 +143,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         setAuthParams(authParams);
     }
 
-    private synchronized void setAuthParams(Map<String, String> authParams) {
+    private void setAuthParams(Map<String, String> authParams) {
         this.tenantDomain = authParams.get("tenantDomain");
         this.tenantService = authParams.get("tenantService");
         this.providerDomain = authParams.get("providerDomain");

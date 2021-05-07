@@ -19,8 +19,7 @@
 
 package org.apache.pulsar.functions.instance;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -45,6 +44,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
@@ -731,9 +731,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sourceSpec.getConfigs().isEmpty()) {
                 this.source.open(new HashMap<>(), contextImpl);
             } else {
-                this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
-                        new TypeToken<Map<String, Object>>() {
-                        }.getType()), contextImpl);
+                this.source.open(ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(),
+                        new TypeReference<Map<String, Object>>() {}), contextImpl);
             }
         } catch (Exception e) {
             log.error("Source open produced uncaught exception: ", e);
@@ -797,11 +796,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         try {
             if (sinkSpec.getConfigs().isEmpty()) {
+                if (log.isDebugEnabled()){
+                    log.debug("Opening Sink with empty hashmap with contextImpl: {} ", contextImpl.toString());
+                }
                 this.sink.open(new HashMap<>(), contextImpl);
             } else {
-                this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
-                        new TypeToken<Map<String, Object>>() {
-                        }.getType()), contextImpl);
+                if (log.isDebugEnabled()){
+                    log.debug("Opening Sink with SinkSpec {} and contextImpl: {} ", sinkSpec.toString(),
+                            contextImpl.toString());
+                }
+                this.sink.open(ObjectMapperFactory.getThreadLocal().readValue(sinkSpec.getConfigs(),
+                        new TypeReference<Map<String, Object>>() {}), contextImpl);
             }
         } catch (Exception e) {
             log.error("Sink open produced uncaught exception: ", e);

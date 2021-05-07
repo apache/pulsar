@@ -52,7 +52,8 @@ public class TopicLookupBase extends PulsarWebResource {
     private static final String LOOKUP_PATH_V1 = "/lookup/v2/destination/";
     private static final String LOOKUP_PATH_V2 = "/lookup/v2/topic/";
 
-    protected void internalLookupTopicAsync(TopicName topicName, boolean authoritative, AsyncResponse asyncResponse) {
+    protected void internalLookupTopicAsync(TopicName topicName, boolean authoritative,
+                                            AsyncResponse asyncResponse, String listenerName) {
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
             log.warn("No broker was found available for topic {}", topicName);
             asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
@@ -77,7 +78,8 @@ public class TopicLookupBase extends PulsarWebResource {
 
         CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
                 .getBrokerServiceUrlAsync(topicName,
-                        LookupOptions.builder().authoritative(authoritative).loadTopicsInBundle(false).build());
+                        LookupOptions.builder().advertisedListenerName(listenerName)
+                                .authoritative(authoritative).loadTopicsInBundle(false).build());
 
         lookupFuture.thenAccept(optionalResult -> {
             if (optionalResult == null || !optionalResult.isPresent()) {
@@ -97,8 +99,10 @@ public class TopicLookupBase extends PulsarWebResource {
                             : result.getLookupData().getHttpUrl();
                     checkNotNull(redirectUrl, "Redirected cluster's service url is not configured");
                     String lookupPath = topicName.isV2() ? LOOKUP_PATH_V2 : LOOKUP_PATH_V1;
-                    redirect = new URI(String.format("%s%s%s?authoritative=%s", redirectUrl, lookupPath,
-                            topicName.getLookupName(), newAuthoritative));
+                    String path = String.format("%s%s%s?authoritative=%s",
+                            redirectUrl, lookupPath, topicName.getLookupName(), newAuthoritative);
+                    path = listenerName == null ? path : path + "&listenerName=" + listenerName;
+                    redirect = new URI(path);
                 } catch (URISyntaxException | NullPointerException e) {
                     log.error("Error in preparing redirect url for {}: {}", topicName, e.getMessage(), e);
                     completeLookupResponseExceptionally(asyncResponse, e);

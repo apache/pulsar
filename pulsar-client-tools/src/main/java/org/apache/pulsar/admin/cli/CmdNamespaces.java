@@ -27,14 +27,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import io.swagger.util.Json;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -1863,8 +1866,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--region", "-r"},
-                description = "The long term storage region, " +
-                        "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
+                description = "The long term storage region, "
+                         + "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
                 required = false)
         private String region;
 
@@ -1876,8 +1879,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(
                 names = {"--endpoint", "-e"},
-                description = "Alternative endpoint to connect to, " +
-                        "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
+                description = "Alternative endpoint to connect to, "
+                        + "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
                 required = false)
         private String endpoint;
 
@@ -1892,6 +1895,18 @@ public class CmdNamespaces extends CmdBase {
                 description = "AWS Credential Secret to use when using driver S3 or aws-s3",
                 required = false)
         private String awsSecret;
+
+        @Parameter(
+                names = {"--s3-role", "-ro"},
+                description = "S3 Role used for STSAssumeRoleSessionCredentialsProvider",
+                required = false)
+        private String s3Role;
+
+        @Parameter(
+                names = {"--s3-role-session-name", "-rsn"},
+                description = "S3 role session name used for STSAssumeRoleSessionCredentialsProvider",
+                required = false)
+        private String s3RoleSessionName;
 
         @Parameter(
                 names = {"--maxBlockSize", "-mbs"},
@@ -2016,7 +2031,9 @@ public class CmdNamespaces extends CmdBase {
                 }
             }
 
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret,
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+                    s3Role, s3RoleSessionName,
+                    awsId, awsSecret,
                     maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
                     offloadAfterElapsedInMillis, offloadedReadPriority);
 
@@ -2086,6 +2103,115 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             getAdmin().namespaces().removeMaxTopicsPerNamespace(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Set property for a namespace")
+    private class SetPropertyForNamespace extends CliCommand {
+
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--key", "-k"}, description = "Key of the property", required = true)
+        private String key;
+
+        @Parameter(names = {"--value", "-v"}, description = "Value of the property", required = true)
+        private String value;
+
+        @Override
+        void run() throws Exception {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().setProperty(namespace, key, value);
+        }
+    }
+
+    @Parameters(commandDescription = "Set properties of a namespace")
+    private class SetPropertiesForNamespace extends CliCommand {
+
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--properties", "-p"}, description = "key value pair properties(a=a,b=b,c=c)",
+                required = true)
+        private java.util.List<String> properties;
+
+        @Override
+        void run() throws Exception {
+            String namespace = validateNamespace(params);
+            Map<String, String> map = new HashMap<>();
+            if (properties.size() == 0) {
+                throw new IllegalArgumentException("Required at least one property for the namespace.");
+            }
+            for (String property : properties) {
+                if (!property.contains("=")) {
+                    throw new IllegalArgumentException("Invalid key value pair format.");
+                } else {
+                    String[] keyValue = property.split("=");
+                    if (keyValue.length != 2) {
+                        throw new IllegalArgumentException("Invalid key value pair format.");
+                    }
+                    map.put(keyValue[0], keyValue[1]);
+                }
+            }
+            getAdmin().namespaces().setProperties(namespace, map);
+        }
+    }
+
+    @Parameters(commandDescription = "Get property for a namespace")
+    private class GetPropertyForNamespace extends CliCommand {
+
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--key", "-k"}, description = "Key of the property", required = true)
+        private String key;
+
+        @Override
+        void run() throws Exception {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getProperty(namespace, key));
+        }
+    }
+
+    @Parameters(commandDescription = "Get properties of a namespace")
+    private class GetPropertiesForNamespace extends CliCommand {
+
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String namespace = validateNamespace(params);
+            Json.prettyPrint(getAdmin().namespaces().getProperties(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove property for a namespace")
+    private class RemovePropertyForNamespace extends CliCommand {
+
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--key", "-k"}, description = "Key of the property", required = true)
+        private String key;
+
+        @Override
+        void run() throws Exception {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().removeProperty(namespace, key));
+        }
+    }
+
+    @Parameters(commandDescription = "Clear all properties for a namespace")
+    private class ClearPropertiesForNamespace extends CliCommand {
+
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().clearProperties(namespace);
         }
     }
 
@@ -2289,9 +2415,15 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-max-topics-per-namespace", new GetMaxTopicsPerNamespace());
         jcommander.addCommand("remove-max-topics-per-namespace", new RemoveMaxTopicsPerNamespace());
 
+        jcommander.addCommand("set-property", new SetPropertyForNamespace());
+        jcommander.addCommand("get-property", new GetPropertyForNamespace());
+        jcommander.addCommand("remove-property", new RemovePropertyForNamespace());
+        jcommander.addCommand("set-properties", new SetPropertiesForNamespace());
+        jcommander.addCommand("get-properties", new GetPropertiesForNamespace());
+        jcommander.addCommand("clear-properties", new ClearPropertiesForNamespace());
+
         jcommander.addCommand("get-resource-group", new GetResourceGroup());
         jcommander.addCommand("set-resource-group", new SetResourceGroup());
         jcommander.addCommand("remove-resource-group", new RemoveResourceGroup());
-
     }
 }

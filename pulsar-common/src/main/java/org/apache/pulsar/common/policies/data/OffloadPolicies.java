@@ -168,6 +168,12 @@ public class OffloadPolicies implements Serializable {
     // s3 config, set by service configuration
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private String s3ManagedLedgerOffloadCredentialId = null;
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private String s3ManagedLedgerOffloadCredentialSecret = null;
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private String s3ManagedLedgerOffloadRole = null;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
@@ -218,6 +224,7 @@ public class OffloadPolicies implements Serializable {
     private Integer managedLedgerOffloadReadBufferSizeInBytes;
 
     public static OffloadPolicies create(String driver, String region, String bucket, String endpoint,
+                                         String role, String roleSessionName,
                                          String credentialId, String credentialSecret,
                                          Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
                                          Long offloadThresholdInBytes, Long offloadDeletionLagInMillis,
@@ -234,12 +241,18 @@ public class OffloadPolicies implements Serializable {
         offloadPolicies.setManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
         offloadPolicies.setManagedLedgerOffloadedReadPriority(readPriority);
 
-        if (driver.equalsIgnoreCase(DRIVER_NAMES.get(0)) || driver.equalsIgnoreCase(DRIVER_NAMES.get(1))) {
+            if (driver.equalsIgnoreCase(DRIVER_NAMES.get(0)) || driver.equalsIgnoreCase(DRIVER_NAMES.get(1))) {
+            if (role != null) {
+                offloadPolicies.setS3ManagedLedgerOffloadRole(role);
+            }
+            if (roleSessionName != null) {
+                offloadPolicies.setS3ManagedLedgerOffloadRoleSessionName(roleSessionName);
+            }
             if (credentialId != null) {
-                offloadPolicies.setS3ManagedLedgerOffloadRole(credentialId);
+                offloadPolicies.setS3ManagedLedgerOffloadCredentialId(credentialId);
             }
             if (credentialSecret != null) {
-                offloadPolicies.setS3ManagedLedgerOffloadRoleSessionName(credentialSecret);
+                offloadPolicies.setS3ManagedLedgerOffloadCredentialSecret(credentialSecret);
             }
             offloadPolicies.setS3ManagedLedgerOffloadRegion(region);
             offloadPolicies.setS3ManagedLedgerOffloadBucket(bucket);
@@ -467,6 +480,10 @@ public class OffloadPolicies implements Serializable {
                     this.getS3ManagedLedgerOffloadServiceEndpoint());
             setProperty(properties, "s3ManagedLedgerOffloadMaxBlockSizeInBytes",
                     this.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
+            setProperty(properties, "s3ManagedLedgerOffloadCredentialId",
+                    this.getS3ManagedLedgerOffloadCredentialId());
+            setProperty(properties, "s3ManagedLedgerOffloadCredentialSecret",
+                    this.getS3ManagedLedgerOffloadCredentialSecret());
             setProperty(properties, "s3ManagedLedgerOffloadRole",
                     this.getS3ManagedLedgerOffloadRole());
             setProperty(properties, "s3ManagedLedgerOffloadRoleSessionName",

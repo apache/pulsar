@@ -218,6 +218,73 @@ public class CLITest extends PulsarTestSuite {
     }
 
     @Test
+    public void testPropertiesCLI() throws Exception {
+        final BrokerContainer container = pulsarCluster.getAnyBroker();
+        final String namespace = "public/default";
+
+        ContainerExecResult result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "set-property",
+                "-k",
+                "a",
+                "-v",
+                "a",
+                namespace);
+        assertTrue(result.getStdout().isEmpty());
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "get-property",
+                "-k",
+                "a",
+                namespace);
+        assertTrue(result.getStdout().contains("a"));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "remove-property",
+                "-k",
+                "a",
+                namespace);
+        assertTrue(result.getStdout().contains("a"));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "remove-property",
+                "-k",
+                "a",
+                namespace);
+        assertTrue(result.getStdout().contains("null"));
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "set-properties",
+                "-p",
+                "a=a,b=b,c=c",
+                namespace);
+        assertTrue(result.getStdout().isEmpty());
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "get-properties",
+                namespace);
+        assertFalse(result.getStdout().isEmpty());
+
+        result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "namespaces",
+                "clear-properties",
+                namespace);
+        assertTrue(result.getStdout().isEmpty());
+    }
+
+    @Test
     public void testSchemaCLI() throws Exception {
         BrokerContainer container = pulsarCluster.getAnyBroker();
         String topicName = "persistent://public/default/test-schema-cli";

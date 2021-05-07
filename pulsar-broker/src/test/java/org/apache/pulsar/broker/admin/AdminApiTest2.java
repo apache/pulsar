@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -71,6 +72,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -1444,6 +1446,24 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testForceDeleteNamespace() throws Exception {
+        conf.setForceDeleteNamespaceAllowed(true);
+        final String namespaceName = "prop-xyz2/ns1";
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz2", tenantInfo);
+        admin.namespaces().createNamespace(namespaceName, 1);
+        final String topic = "persistent://" + namespaceName + "/test" + UUID.randomUUID();
+        pulsarClient.newProducer(Schema.DOUBLE).topic(topic).create().close();
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.schemas().getSchemaInfo(topic)));
+        admin.namespaces().deleteNamespace(namespaceName, true);
+        try {
+            admin.schemas().getSchemaInfo(topic);
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 404);
+        }
+    }
+
+    @Test
     public void testUpdateClusterWithProxyUrl() throws Exception {
         ClusterData cluster = new ClusterData(pulsar.getWebServiceAddress());
         String clusterName = "test2";
@@ -1958,6 +1978,29 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 assertNull(admin.namespaces().getCompactionThreshold(namespace)));
         mockTopic.checkCompaction();
         verify(mockTopic, times(2)).triggerCompaction();
+    }
+
+    @Test
+    public void testProperties() throws Exception {
+        final String namespace = "prop-xyz/ns1";
+        admin.namespaces().setProperty(namespace, "a", "a");
+        assertEquals("a", admin.namespaces().getProperty(namespace, "a"));
+        assertNull(admin.namespaces().getProperty(namespace, "b"));
+        admin.namespaces().setProperty(namespace, "b", "b");
+        assertEquals("b", admin.namespaces().getProperty(namespace, "b"));
+        admin.namespaces().setProperty(namespace, "a", "a1");
+        assertEquals("a1", admin.namespaces().getProperty(namespace, "a"));
+        assertEquals("b", admin.namespaces().removeProperty(namespace, "b"));
+        assertNull(admin.namespaces().getProperty(namespace, "b"));
+        admin.namespaces().clearProperties(namespace);
+        assertEquals(admin.namespaces().getProperties(namespace).size(), 0);
+        Map<String, String> properties = new HashMap<>();
+        properties.put("aaa", "aaa");
+        properties.put("bbb", "bbb");
+        admin.namespaces().setProperties(namespace, properties);
+        assertEquals(admin.namespaces().getProperties(namespace), properties);
+        admin.namespaces().clearProperties(namespace);
+        assertEquals(admin.namespaces().getProperties(namespace).size(), 0);
     }
 
     @Test

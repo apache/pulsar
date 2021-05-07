@@ -90,6 +90,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     @Override
     public synchronized CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
                                                   TxnAction action, long lowWaterMark) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] endTxnOnTopic txnId: [{}], txnAction: [{}]",
+                    topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
+        }
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
@@ -104,6 +108,10 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
     public synchronized CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription,
                                                                       long txnIdMostBits, long txnIdLeastBits,
                                                                       TxnAction action, long lowWaterMark) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] endTxnOnSubscription txnId: [{}], txnAction: [{}]",
+                    topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
+        }
         CompletableFuture<TxnID> cb = new CompletableFuture<>();
         if (!canSendRequest(cb)) {
             return cb;
@@ -116,24 +124,26 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
 
     private CompletableFuture<TxnID> endTxn(long requestId, String topic, ByteBuf cmd, CompletableFuture<TxnID> cb) {
         OpRequestSend op = OpRequestSend.create(requestId, topic, cmd, cb);
-        pendingRequests.put(requestId, op);
-        cmd.retain();
         try {
             cache.get(topic).whenComplete((clientCnx, throwable) -> {
                 if (throwable == null) {
-                    try {
+                    if (clientCnx.ctx().channel().isActive()) {
                         clientCnx.registerTransactionBufferHandler(TransactionBufferHandlerImpl.this);
+                        synchronized (TransactionBufferHandlerImpl.this) {
+                            pendingRequests.put(requestId, op);
+                            cmd.retain();
+                        }
                         clientCnx.ctx().writeAndFlush(cmd, clientCnx.ctx().voidPromise());
-                    } catch (Exception e) {
+                    } else {
                         cache.invalidate(topic);
-                        cb.completeExceptionally(e);
-                        pendingRequests.remove(requestId);
+                        cb.completeExceptionally(
+                                new PulsarClientException.LookupException(topic + " endTxn channel is not active"));
                         op.recycle();
                     }
                 } else {
+                    log.error("endTxn error topic: [{}]", topic, throwable);
                     cache.invalidate(topic);
                     cb.completeExceptionally(throwable);
-                    pendingRequests.remove(requestId);
                     op.recycle();
                 }
             });
@@ -168,7 +178,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             cache.invalidate(op.topic);
             op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
-        op.recycle();
+        onResponse(op);
     }
 
     @Override
@@ -195,7 +205,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             cache.invalidate(op.topic);
             op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(), response.getMessage()));
         }
-        op.recycle();
+        onResponse(op);
     }
 
     private boolean canSendRequest(CompletableFuture<?> callback) {

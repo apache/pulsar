@@ -60,6 +60,9 @@ public class GenericJsonRecord extends VersionedGenericRecord {
     @Override
     public Object getField(String fieldName) {
         JsonNode fn = jn.get(fieldName);
+        if (fn == null) {
+            return null;
+        }
         if (fn.isContainerNode()) {
             AtomicInteger idx = new AtomicInteger(0);
             List<Field> fields = Lists.newArrayList(fn.fieldNames())

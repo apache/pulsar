@@ -20,7 +20,7 @@ You can use Java’s `keytool` utility to accomplish this task. We will generate
 initially for broker, so that we can export and sign it later with CA.
 
 ```shell
-keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkey
+keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkeypair -keyalg RSA
 ```
 
 You need to specify two parameters in the above command:

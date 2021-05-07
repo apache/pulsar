@@ -31,6 +31,7 @@ import javax.net.ssl.SSLSession;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.RequiredTypeException;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import org.apache.commons.lang3.StringUtils;
@@ -233,7 +234,15 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     private String getPrincipal(Jwt<?, Claims> jwt) {
-        return jwt.getBody().get(roleClaim, String.class);
+        try {
+            return jwt.getBody().get(roleClaim, String.class);
+        } catch (RequiredTypeException requiredTypeException) {
+            List list = jwt.getBody().get(roleClaim, List.class);
+            if (list != null && !list.isEmpty() && list.get(0) instanceof String) {
+                return (String) list.get(0);
+            }
+            return null;
+        }
     }
 
     /**

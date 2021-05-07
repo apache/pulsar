@@ -98,7 +98,7 @@ $ mvn install -DskipTests
 
 ## Minimal build (This skips most of external connectors and tiered storage handlers)
 ```
-mvn install -Pcore-modules
+mvn install -Pcore-modules,-main
 ```
 
 Run Unit Tests:
@@ -129,6 +129,39 @@ $ bin/pulsar standalone
 
 Check https://pulsar.apache.org for documentation and examples.
 
+## Build custom docker images
+
+Docker images must be built with Java 8 for `branch-2.7` or previous branches because of
+[issue 8445](https://github.com/apache/pulsar/issues/8445).
+This issue has been resolved in the `master` branch (and will be part of `branch-2.8`). 
+It is recommended to use Java 8 until Java 11 support has been finished 
+([issue 9578](https://github.com/apache/pulsar/issues/9578)).
+
+This builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`.
+
+```bash
+# make sure to build with Java 8 since building with newer versions isn't yet supported
+java -version
+mvn clean install -DskipTests
+mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
+```
+
+After the images are built, they can be tagged and pushed to your custom repository. 
+Here's an example of a bash script that tags the docker images with the current version and git revision and 
+pushes them to `localhost:32000/apachepulsar`.
+
+```bash
+image_repo_and_project=localhost:32000/apachepulsar
+pulsar_version=$(mvn initialize help:evaluate -Dexpression=project.version -pl . -q -DforceStdout)
+gitrev=$(git rev-parse HEAD | colrm 10)
+tag="${pulsar_version}-${gitrev}"
+echo "Using tag $tag"
+docker tag apachepulsar/pulsar-all:latest ${image_repo_and_project}/pulsar-all:$tag
+docker push ${image_repo_and_project}/pulsar-all:$tag
+docker tag apachepulsar/pulsar:latest ${image_repo_and_project}/pulsar:$tag
+docker push ${image_repo_and_project}/pulsar:$tag
+```
+
 ## Setting up your IDE
 
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with
@@ -136,21 +169,45 @@ required plugins.
 
 ### Intellij
 
+#### Configure Project JDK to Java 8 (1.8) JDK
+
+1. Open **Project Settings**. 
+
+    Click **File** -> **Project Structure** -> **Project Settings** -> **Project**.
+   
+2. Select the JDK version.
+    
+    From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 8 (1.8) JDK version.
+
+3. In the download dialog, select version **1.8**. You can pick a version from many vendors. Unless you have a specific preference, choose **AdoptOpenJDK (Hotspot)**.
+ 
+
+#### Configure Java version for Maven in IntelliJ
+
+1. Open Maven Importing Settings dialog by going to 
+   **Settings** -> **Build, Execution, Deployment** -> **Build Tools** -> **Maven** -> **Importing**.
+
+2. Choose **Use Project JDK** for **JDK for Importer** setting. This uses the Java 8 (1.8) JDK for running Maven 
+   when importing the project to IntelliJ. Some of the configuration in the Maven build is conditional based on 
+   the JDK version. Incorrect configuration gets chosen when the "JDK for Importer" isn't the same as the "Project JDK".
+
+3. Validate that the JRE setting in **Maven** -> **Runner** dialog is set to **Use Project JDK**.
+
 #### Configure annotation processing in IntelliJ
 
 1. Open Annotation Processors Settings dialog box by going to
-   `Settings -> Build, Execution, Deployment -> Compiler -> Annotation Processors`.
+   **Settings** -> **Build, Execution, Deployment** -> **Compiler** -> **Annotation Processors**.
 
 2. Select the following buttons:
-   1. "Enable annotation processing"
-   2. "Obtain processors from project classpath"
-   3. "Store generated sources relative to: Module content root"
+   1. **Enable annotation processing**
+   2. **Obtain processors from project classpath**
+   3. Store generated sources relative to: **Module content root**
 
 3. Set the generated source directories to be equal to the Maven directories:
    1. Set "Production sources directory:" to "target/generated-sources/annotations".
    2. Set "Test sources directory:" to "target/generated-test-sources/test-annotations".
 
-4. Click "OK".
+4. Click **OK**.
 
 5. Install the lombok plugin in intellij.
 
