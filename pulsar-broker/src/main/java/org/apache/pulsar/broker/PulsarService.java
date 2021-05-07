@@ -272,7 +272,7 @@ public class PulsarService implements AutoCloseable {
         PulsarConfigurationLoader.isComplete(config);
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-        this.advertisedAddress = config.getAppliedAdvertisedAddress();
+        this.advertisedAddress = ServiceConfigurationUtils.getAppliedAdvertisedAddress(config);
         state = State.Init;
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
@@ -1317,7 +1317,8 @@ public class PulsarService implements AutoCloseable {
 
     private String brokerUrl(ServiceConfiguration config) {
         if (config.getBrokerServicePort().isPresent()) {
-            return brokerUrl(config.getAppliedAdvertisedAddress(), getBrokerListenPort().get());
+            return brokerUrl(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getBrokerListenPort().get());
         } else {
             return null;
         }
@@ -1329,7 +1330,8 @@ public class PulsarService implements AutoCloseable {
 
     public String brokerUrlTls(ServiceConfiguration config) {
         if (config.getBrokerServicePortTls().isPresent()) {
-            return brokerUrlTls(config.getAppliedAdvertisedAddress(), getBrokerListenPortTls().get());
+            return brokerUrlTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getBrokerListenPortTls().get());
         } else {
             return null;
         }
@@ -1341,7 +1343,8 @@ public class PulsarService implements AutoCloseable {
 
     public String webAddress(ServiceConfiguration config) {
         if (config.getWebServicePort().isPresent()) {
-            return webAddress(config.getAppliedAdvertisedAddress(), getListenPortHTTP().get());
+            return webAddress(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getListenPortHTTP().get());
         } else {
             return null;
         }
@@ -1353,7 +1356,8 @@ public class PulsarService implements AutoCloseable {
 
     public String webAddressTls(ServiceConfiguration config) {
         if (config.getWebServicePortTls().isPresent()) {
-            return webAddressTls(config.getAppliedAdvertisedAddress(), getListenPortHTTPS().get());
+            return webAddressTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                    getListenPortHTTPS().get());
         } else {
             return null;
         }
@@ -1494,7 +1498,7 @@ public class PulsarService implements AutoCloseable {
 
         // worker talks to local broker
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
-            brokerConfig.getAppliedAdvertisedAddress());
+                ServiceConfigurationUtils.getAppliedAdvertisedAddress(brokerConfig));
         workerConfig.setWorkerHostname(hostname);
         // inherit broker authorization setting
         workerConfig.setAuthenticationEnabled(brokerConfig.isAuthenticationEnabled());

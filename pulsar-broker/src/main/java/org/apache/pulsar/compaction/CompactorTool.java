@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -100,13 +101,15 @@ public class CompactorTool {
             log.info("Found `brokerServicePortTls` in configuration file. \n"
                     + "Will connect pulsar use TLS.");
             clientBuilder
-                    .serviceUrl(PulsarService.brokerUrlTls(brokerConfig.getAppliedAdvertisedAddress(),
+                    .serviceUrl(PulsarService.brokerUrlTls(ServiceConfigurationUtils
+                                    .getAppliedAdvertisedAddress(brokerConfig),
                             brokerConfig.getBrokerServicePortTls().get()))
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
                     .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         } else {
-            clientBuilder.serviceUrl(PulsarService.brokerUrl(brokerConfig.getAppliedAdvertisedAddress(),
+            clientBuilder.serviceUrl(PulsarService.brokerUrl(ServiceConfigurationUtils
+                            .getAppliedAdvertisedAddress(brokerConfig),
                     brokerConfig.getBrokerServicePort().get()));
         }
 

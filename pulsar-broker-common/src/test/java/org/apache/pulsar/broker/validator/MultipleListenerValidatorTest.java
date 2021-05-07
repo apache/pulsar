@@ -46,15 +46,16 @@ public class MultipleListenerValidatorTest {
         config.setBrokerServicePortTls(Optional.of(6651));
         config.setAdvertisedListeners("internal:pulsar://192.0.0.1:6660, internal:pulsar+ssl://192.0.0.1:6651");
         config.setInternalListenerName("internal");
-        assertEquals(config.getAppliedAdvertisedAddress(), "192.0.0.1");
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config), "192.0.0.1");
 
         config = new ServiceConfiguration();
         config.setBrokerServicePortTls(Optional.of(6651));
         config.setAdvertisedAddress("192.0.0.2");
-        assertEquals(config.getAppliedAdvertisedAddress(), "192.0.0.2");
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config), "192.0.0.2");
 
         config.setAdvertisedAddress(null);
-        assertEquals(config.getAppliedAdvertisedAddress(), ServiceConfigurationUtils.getDefaultOrConfiguredAddress(null));
+        assertEquals(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+                ServiceConfigurationUtils.getDefaultOrConfiguredAddress(null));
     }
 
 
