@@ -331,7 +331,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                JavaExecutionResult result) throws SinkException {
     	
     	if (result.getUserException() != null) {
-    		stats.incrUserExceptions(result.getUserException());
+            stats.incrUserExceptions(result.getUserException());
             srcRecord.fail();
             return;
     	}
@@ -340,26 +340,24 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
           result.getFuture().whenComplete((result1, throwable) -> {
               if (throwable != null) {
                   Throwable t = throwable;
-                  log.warn("Encountered exception when processing message {}",
-                        srcRecord, t);
+                  log.warn("Encountered exception when processing message {}", srcRecord, t);
                   stats.incrUserExceptions(t);
                   srcRecord.fail();
               } else {
-                  if (result1 != null) {
-                  	try {
-                      sendOutputMessage(srcRecord, result1);
-					} catch (SinkException e) {
-						log.warn("Encountered exception when publishing result {}",
-		                        srcRecord, e);
-					}
-                  } else {
-                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                        // the function doesn't produce any result or the user doesn't want the result.
-                        srcRecord.ack();
-                    }
+                if (result1 != null) {
+                  try {
+                    sendOutputMessage(srcRecord, result1);
+                  } catch (SinkException e) {
+                    log.warn("Encountered exception when publishing result {}", srcRecord, e);
                   }
-                  // increment total successfully processed
-                  stats.incrTotalProcessedSuccessfully();
+                } else {
+                  if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                    // the function doesn't produce any result or the user doesn't want the result.
+                    srcRecord.ack();
+                  }
+                }
+                // increment total successfully processed
+                stats.incrTotalProcessedSuccessfully();
               }
           }); 
          } else {
